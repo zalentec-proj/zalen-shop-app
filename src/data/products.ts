@@ -1,3 +1,8 @@
+import {
+  droneAccessoriesImage,
+  mavic3ProImage,
+  mini4ProImage,
+} from '../assets/images';
 import { Product } from '../types';
 
 export const products: Product[] = [
@@ -8,11 +13,11 @@ export const products: Product[] = [
     price: 12999.00,
     rating: 4.9,
     reviewsCount: 128,
-    image: '/src/assets/images/mavic_3_pro_1779242859141.png',
+    image: mavic3ProImage,
     images: [
-      '/src/assets/images/mavic_3_pro_1779242859141.png',
-      '/src/assets/images/mini_4_pro_1779242880924.png',
-      '/src/assets/images/drone_accessories_1779242901515.png'
+      mavic3ProImage,
+      mini4ProImage,
+      droneAccessoriesImage,
     ],
     category: 'Drones',
     description: 'Drone profissional com câmera Hasselblad, autonomia avançada e sistema inteligente de detecção para voos mais seguros e precisos. Câmera tripla Hasselblad. Performance incomparável. Criado para capturar imagens profissionais com estabilidade, alcance e precisão.',
@@ -32,7 +37,7 @@ export const products: Product[] = [
     price: 6999.00,
     rating: 4.8,
     reviewsCount: 94,
-    image: '/src/assets/images/mini_4_pro_1779242880924.png',
+    image: mini4ProImage,
     category: 'Drones',
     description: 'Nosso mini drone mais avançado até hoje. Integra poderosos recursos de imagem, detecção de obstáculos omnidirecional, ActiveTrack 360° e transmissão de vídeo FHD a 20 km.',
     specs: [
@@ -51,7 +56,7 @@ export const products: Product[] = [
     price: 10999.00,
     rating: 4.9,
     reviewsCount: 42,
-    image: '/src/assets/images/mavic_3_pro_1779242859141.png', // Secondary usage of high quality drone
+    image: mavic3ProImage,
     category: 'Kits e Combos',
     description: 'Com um sistema de câmeras duplas primárias, o DJI Air 3 traz detalhes incríveis de longo alcance e perspectivas amplas. Inclui 3 baterias adicionais, hélices extras, hub de carregamento e bolsa de transporte.',
     specs: [
@@ -69,7 +74,7 @@ export const products: Product[] = [
     price: 899.00,
     rating: 4.7,
     reviewsCount: 165,
-    image: '/src/assets/images/drone_accessories_1779242901515.png',
+    image: droneAccessoriesImage,
     category: 'Baterias',
     description: 'Bateria de Voo Inteligente DJI original para Mini 3 Pro e Mini 4 Pro. Fornece energia estável, monitoramento de status em tempo real e tempo de voo estendido.',
     specs: [
@@ -87,7 +92,7 @@ export const products: Product[] = [
     price: 199.00,
     rating: 4.6,
     reviewsCount: 88,
-    image: '/src/assets/images/drone_accessories_1779242901515.png',
+    image: droneAccessoriesImage,
     category: 'Peças',
     description: 'Hélices de reposição originais para DJI Air 3. Projetadas para produzir menos ruído, maior eficiência aerodinâmica e excelente força de tração rotacional.',
     specs: [
@@ -104,7 +109,7 @@ export const products: Product[] = [
     price: 349.00,
     rating: 4.8,
     reviewsCount: 31,
-    image: '/src/assets/images/drone_accessories_1779242901515.png',
+    image: droneAccessoriesImage,
     category: 'Acessórios',
     description: 'Maleta rígida hermética à prova d\'água, poeira e impactos externos. Espuma interna recortada a laser de alta densidade, compatível com múltiplos modelos de drones compactos.',
     specs: [

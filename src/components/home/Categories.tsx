@@ -1,5 +1,12 @@
 import React from 'react';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
+import {
+  catBatteryPackImage,
+  catMotorPistonImage,
+  catSmartControllerImage,
+  catWaterproofCaseImage,
+  mavic3ProImage,
+} from '../../assets/images';
 
 interface CategoriesProps {
   onCategorySelect: (category: string | null) => void;
@@ -11,35 +18,35 @@ export default function Categories({ onCategorySelect, activeCategory }: Categor
     {
       name: 'Drones',
       value: 'Drones',
-      image: '/src/assets/images/mavic_3_pro_1779242859141.png',
+      image: mavic3ProImage,
       lineColor: 'bg-blue-primary shadow-[0_0_8px_rgba(30,61,255,0.5)]',
       glowColor: 'from-blue-primary/10 to-transparent',
     },
     {
       name: 'Peças e Componentes',
       value: 'Peças',
-      image: '/src/assets/images/cat_motor_piston_1779248613015.png',
+      image: catMotorPistonImage,
       lineColor: 'bg-[#00D4FF] shadow-[0_0_8px_rgba(0,212,255,0.5)]',
       glowColor: 'from-[#00D4FF]/10 to-transparent',
     },
     {
       name: 'Baterias',
       value: 'Baterias',
-      image: '/src/assets/images/cat_battery_pack_1779248627109.png',
+      image: catBatteryPackImage,
       lineColor: 'bg-[#00E676] shadow-[0_0_8px_rgba(0,230,118,0.5)]',
       glowColor: 'from-[#00E676]/10 to-transparent',
     },
     {
       name: 'Acessórios',
       value: 'Acessórios',
-      image: '/src/assets/images/cat_smart_controller_1779248641029.png',
+      image: catSmartControllerImage,
       lineColor: 'bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.5)]',
       glowColor: 'from-indigo-400/10 to-transparent',
     },
     {
       name: 'Kits e Combos',
       value: 'Kits e Combos',
-      image: '/src/assets/images/cat_waterproof_case_1779248659640.png',
+      image: catWaterproofCaseImage,
       lineColor: 'bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.5)]',
       glowColor: 'from-sky-400/10 to-transparent',
     },
