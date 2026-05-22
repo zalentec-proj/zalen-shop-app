@@ -1,16 +1,16 @@
-/**
- * Painel administrativo.
- * Placeholder — será implementado na Sprint 3.
- * Requer autenticação via Supabase Auth.
- */
+import type { Metadata } from 'next';
+import { listCategories, listProducts } from '@/modules/catalog/product.service';
+import AdminDashboard from './AdminDashboard';
 
-export default function AdminPage() {
-  return (
-    <main className="min-h-screen bg-brand-bg flex items-center justify-center">
-      <div className="text-center text-brand-muted">
-        <p className="text-sm">Painel Admin</p>
-        <p className="text-xs mt-2 opacity-50">Em breve — requer autenticação</p>
-      </div>
-    </main>
-  );
+export const metadata: Metadata = {
+  title: 'Admin — Brasil Drones & Parts',
+};
+
+export default async function AdminPage() {
+  const [products, categories] = await Promise.all([
+    listProducts(),
+    listCategories(),
+  ]);
+
+  return <AdminDashboard products={products} categories={categories} />;
 }

@@ -4,11 +4,16 @@
  * O storefront nunca chama Bling diretamente — sempre passa por aqui.
  */
 
-import { Product, ProductSummary } from './product.types';
+import { Category, Product, ProductSummary } from './product.types';
 import {
+  getMockCategoryBySlug,
   getMockProductBySlug,
   getMockProductSummaries,
   mockProducts,
+  mockCategories,
+  getMockProductsByCategory,
+  getMockRelatedProducts,
+  toProductSummary,
 } from './product.mock';
 
 /**
@@ -18,6 +23,13 @@ import {
 export async function listProducts(): Promise<ProductSummary[]> {
   // TODO: substituir por query Supabase quando disponível
   return getMockProductSummaries();
+}
+
+/**
+ * Lista categorias do catálogo.
+ */
+export async function listCategories(): Promise<Category[]> {
+  return mockCategories;
 }
 
 /**
@@ -38,7 +50,21 @@ export async function getProductById(id: string): Promise<Product | null> {
 }
 
 /**
- * Lista produtos por categoria.
+ * Busca categoria por slug.
+ */
+export async function getCategoryBySlug(slug: string): Promise<Category | null> {
+  return getMockCategoryBySlug(slug) ?? null;
+}
+
+/**
+ * Lista produtos completos por categoria.
+ */
+export async function listCategoryProducts(categorySlug: string): Promise<Product[]> {
+  return getMockProductsByCategory(categorySlug);
+}
+
+/**
+ * Lista produtos resumidos por categoria.
  */
 export async function listProductsByCategory(
   categorySlug: string
@@ -47,8 +73,16 @@ export async function listProductsByCategory(
   const all = getMockProductSummaries();
   if (!categorySlug) return all;
   return all.filter((p) =>
-    p.categories.some(
-      (c) => c.toLowerCase() === categorySlug.toLowerCase()
-    )
+    p.categories.some((category) => category.slug === categorySlug)
   );
+}
+
+/**
+ * Lista produtos relacionados com base na categoria principal.
+ */
+export async function listRelatedProducts(
+  productSlug: string,
+  limit = 3
+): Promise<ProductSummary[]> {
+  return getMockRelatedProducts(productSlug, limit).map(toProductSummary);
 }

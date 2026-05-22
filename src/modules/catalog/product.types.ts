@@ -58,8 +58,20 @@ export interface Product {
   variants: ProductVariant[];
   images: ProductImage[];
   categories: Category[];
+  /** Campos de apresentação — virão do ERP/Supabase futuramente */
+  specs?: { label: string; value: string }[];
+  rating?: number;
+  reviewsCount?: number;
+  isBestSeller?: boolean;
+  isNew?: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProductCategorySummary {
+  id: string;
+  name: string;
+  slug: string;
 }
 
 /** Produto simplificado para listagens */
@@ -73,5 +85,9 @@ export interface ProductSummary {
   promotionalPrice?: number;
   stock: number;
   imageUrl?: string;
-  categories: string[];
+  categories: ProductCategorySummary[];
+  rating?: number;
+  reviewsCount?: number;
+  isBestSeller?: boolean;
+  isNew?: boolean;
 }

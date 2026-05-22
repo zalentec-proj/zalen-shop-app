@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Mail, ArrowRight, ShieldCheck, Truck, RotateCcw, Award } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, ShieldCheck } from 'lucide-react';
 import Logo from '../ui/Logo';
 
 export default function Footer() {
@@ -34,11 +35,11 @@ export default function Footer() {
             Categorias
           </h4>
           <ul className="flex flex-col gap-2.5 text-[14px] text-brand-muted">
-            <li><a href="#catalogo" className="hover:text-blue-primary transition-colors">Drones</a></li>
-            <li><a href="#catalogo" className="hover:text-blue-primary transition-colors">Peças e Componentes</a></li>
-            <li><a href="#catalogo" className="hover:text-blue-primary transition-colors">Baterias</a></li>
-            <li><a href="#catalogo" className="hover:text-blue-primary transition-colors">Acessórios</a></li>
-            <li><a href="#catalogo" className="hover:text-blue-primary transition-colors">Kits e Combos</a></li>
+            <li><Link href="/categoria/drones" className="hover:text-blue-primary transition-colors">Drones</Link></li>
+            <li><Link href="/categoria/pecas" className="hover:text-blue-primary transition-colors">Peças e Componentes</Link></li>
+            <li><Link href="/categoria/baterias" className="hover:text-blue-primary transition-colors">Baterias</Link></li>
+            <li><Link href="/categoria/acessorios" className="hover:text-blue-primary transition-colors">Acessórios</Link></li>
+            <li><Link href="/categoria/kits-e-combos" className="hover:text-blue-primary transition-colors">Kits e Combos</Link></li>
           </ul>
         </div>
 
@@ -48,11 +49,11 @@ export default function Footer() {
             Institucional
           </h4>
           <ul className="flex flex-col gap-2.5 text-[14px] text-brand-muted">
-            <li><a href="#tecnologia" className="hover:text-blue-primary transition-colors">Nossa Tecnologia</a></li>
-            <li><a href="#beneficios" className="hover:text-blue-primary transition-colors">Garantia Oficial</a></li>
-            <li><a href="#tecnologia" className="hover:text-blue-primary transition-colors">Suporte Técnico Avançado</a></li>
-            <li><a href="#contato" className="hover:text-blue-primary transition-colors">Termos de Serviço</a></li>
-            <li><a href="#contato" className="hover:text-blue-primary transition-colors">Política de Privacidade</a></li>
+            <li><a href="/#tecnologia" className="hover:text-blue-primary transition-colors">Nossa Tecnologia</a></li>
+            <li><a href="/#beneficios" className="hover:text-blue-primary transition-colors">Garantia Oficial</a></li>
+            <li><a href="/#tecnologia" className="hover:text-blue-primary transition-colors">Suporte Técnico Avançado</a></li>
+            <li><a href="/#contato" className="hover:text-blue-primary transition-colors">Termos de Serviço</a></li>
+            <li><a href="/#contato" className="hover:text-blue-primary transition-colors">Política de Privacidade</a></li>
           </ul>
         </div>
 
