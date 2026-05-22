@@ -56,3 +56,27 @@ Nunca:
 ## Regra central
 
 A Zalen é a vitrine e experiência de venda. O Bling é o ERP operacional.
+
+## Regra obrigatória para integrações externas
+
+Antes de implementar qualquer integração externa (Bling, Mercado Pago, Melhor Envio, Asaas, Pagar.me ou qualquer outro provedor), o agente deve:
+
+1. Consultar `docs/integrations/official-sources.md` para obter os links da documentação oficial.
+2. Ler a documentação oficial do provedor.
+3. Preencher o arquivo de pesquisa técnica correspondente em `docs/integrations/`.
+4. Verificar segurança com `docs/zalen-shop/SECURITY.md`.
+
+**Não é permitido:**
+- Inventar endpoints, URLs, headers ou parâmetros.
+- Assumir payloads sem confirmar na documentação oficial.
+- Assumir escopos OAuth sem confirmar na documentação oficial.
+- Assumir fluxo de autenticação sem confirmar na documentação oficial.
+- Implementar webhook sem validação de assinatura documentada.
+- Implementar integração real sem idempotência.
+
+**Se a documentação oficial não estiver clara:**
+- Parar a implementação.
+- Registrar a dúvida em "Dúvidas pendentes" no arquivo de pesquisa técnica.
+- Não prosseguir até que a dúvida seja resolvida com fonte oficial.
+
+Stack atual: **Next.js** (migrado de Vite). Usar App Router, Route Handlers para APIs e Server Components para dados sensíveis.

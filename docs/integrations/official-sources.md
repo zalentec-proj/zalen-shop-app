@@ -1,0 +1,80 @@
+# Fontes Oficiais das Integrações
+
+> Consulte sempre estas fontes antes de implementar qualquer integração.
+> Não use tutoriais de terceiros, Stack Overflow ou exemplos de IA como fonte de verdade para endpoints, payloads ou fluxos OAuth.
+
+---
+
+## Bling
+
+| Recurso | URL |
+|---|---|
+| API v3 — Visão geral | https://developer.bling.com.br/bling-api |
+| Migração para JWT | https://developer.bling.com.br/migracao-jwt |
+| Aplicativos e OAuth | https://developer.bling.com.br/aplicativos |
+| Webhooks | https://developer.bling.com.br/webhooks |
+
+**Notas:**
+- O Bling usa OAuth 2.0 com `authorization_code`.
+- A renovação de token usa `refresh_token`.
+- O header `enable-jwt: 1` é necessário para receber JWT nas respostas.
+- Consultar a documentação de webhooks para validação de assinatura antes de implementar.
+
+---
+
+## Mercado Pago
+
+| Recurso | URL |
+|---|---|
+| Portal do desenvolvedor | https://www.mercadopago.com.br/developers/pt |
+| Documentação geral | https://www.mercadopago.com.br/developers/pt/docs |
+| Checkout Pro — Visão geral | https://www.mercadopago.com.br/developers/pt/docs/checkout-pro/overview |
+| Checkout Transparente (API) | https://www.mercadopago.com.br/developers/pt/docs/checkout-api/landing |
+| Notificações de pagamento | https://www.mercadopago.com.br/developers/pt/docs/checkout-pro/payment-notifications |
+
+**Notas:**
+- Verificar se o projeto usará Checkout Pro ou Checkout Transparente.
+- Notificações (webhooks) devem ser validadas antes de atualizar status de pedido.
+- Ambiente sandbox disponível para testes.
+
+---
+
+## Melhor Envio
+
+| Recurso | URL |
+|---|---|
+| Documentação geral | https://docs.melhorenvio.com.br |
+| Autenticação | https://docs.melhorenvio.com.br/docs/autenticacao-1 |
+
+**Notas:**
+- Verificar se usa OAuth 2.0 ou API Key.
+- Consultar endpoints de cotação, geração de etiqueta e rastreamento.
+- Verificar disponibilidade de webhooks para rastreamento.
+
+---
+
+## Asaas (futuro)
+
+| Recurso | URL |
+|---|---|
+| Documentação geral | https://docs.asaas.com |
+
+---
+
+## Pagar.me (futuro)
+
+| Recurso | URL |
+|---|---|
+| Documentação geral | https://docs.pagar.me |
+
+---
+
+## Regra de uso
+
+Antes de implementar qualquer integração:
+
+1. Abrir a documentação oficial do provedor.
+2. Ler o fluxo de autenticação completo.
+3. Identificar os endpoints necessários.
+4. Preencher o arquivo de pesquisa técnica correspondente.
+5. Só então começar a implementação.
