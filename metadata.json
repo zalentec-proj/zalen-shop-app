@@ -1,0 +1,6 @@
+{
+  "name": "Brasil Drones & Parts",
+  "description": "E-commerce premium de drones e peças de alta performance com design dark mode e glassmorphism.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
