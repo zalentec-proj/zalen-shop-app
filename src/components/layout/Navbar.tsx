@@ -59,10 +59,10 @@ export default function Navbar({
   return (
     <header className="fixed top-0 left-0 right-0 z-50 px-4 md:px-8 py-4 bg-transparent">
       {/* Floating glass bar / Sleek nav bar */}
-      <nav id="navbar-main" className="max-w-7xl mx-auto h-[76px] px-6 md:px-8 rounded-full flex items-center justify-between glass-panel transition-all duration-300 hover:border-white/20 shadow-[0_12px_32px_rgba(0,0,0,0.55)]">
+      <nav id="navbar-main" className="max-w-7xl mx-auto h-[82px] px-6 md:px-8 rounded-full flex items-center justify-between navbar-glass transition-all duration-300 hover:border-white/20 shadow-[0_12px_32px_rgba(0,0,0,0.55)]">
         {/* Brand Logo */}
-        <button onClick={onNavigateToHome} className="focus:outline-none cursor-pointer">
-          <Logo size="sm" />
+        <button onClick={onNavigateToHome} className="focus:outline-none cursor-pointer shrink-0">
+          <Logo size="sm" className="h-[46px] md:h-[52px]" />
         </button>
 
         {/* Desktop Nav Links */}
