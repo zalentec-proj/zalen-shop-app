@@ -1,10 +1,16 @@
 import React from 'react';
-import logoBrasil from '../../assets/logo brasil.svg';
+import logoBrasilAsset from '../../assets/logo brasil.svg';
 
 interface LogoProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg';
 }
+
+type StaticAsset = string | { src: string };
+
+const logoBrasil = typeof (logoBrasilAsset as StaticAsset) === 'string'
+  ? logoBrasilAsset
+  : (logoBrasilAsset as { src: string }).src;
 
 export default function Logo({ className = '', size = 'md' }: LogoProps) {
   const sizeClass =
