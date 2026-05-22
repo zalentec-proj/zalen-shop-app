@@ -1,11 +1,13 @@
 import React from 'react';
 import { ArrowRight, Wifi, Battery, Shield, Camera } from 'lucide-react';
-import bgImage from '../../assets/images/mavic_featured_bg_v2_1779247771069.png';
+import bgImageAsset from '../../assets/images/mavic_featured_bg_v2_1779247771069.png';
 
 interface HeroProps {
   onExploreClick: () => void;
   onPeasClick: () => void;
 }
+
+const bgImage = bgImageAsset.src;
 
 export default function Hero({ onExploreClick, onPeasClick }: HeroProps) {
   const rightSpecs = [
@@ -40,7 +42,6 @@ export default function Hero({ onExploreClick, onPeasClick }: HeroProps) {
       className="relative w-full min-h-[100vh] flex items-center justify-center overflow-hidden bg-[#03060d] pt-24 pb-12 lg:py-0"
       id="home"
     >
-      {/* Background Image - Luminous and completely unblocked */}
       <div className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none z-0">
         <div 
           className="w-full h-full bg-cover bg-[42%_50%] lg:bg-center"
@@ -49,37 +50,27 @@ export default function Hero({ onExploreClick, onPeasClick }: HeroProps) {
           aria-label="DJI Mavic 3 Pro"
         ></div>
         
-        {/* Soft atmospheric gradient highlights to preserve absolute readability of text on the left */}
         <div className="absolute inset-0 bg-gradient-to-r from-[#03060e] via-[#03060e]/50 to-transparent max-md:from-[#03060e]/95 max-md:via-[#03060e]/80 max-md:to-[#03060e]/40"></div>
         <div className="absolute inset-0 bg-gradient-to-t from-[#03060d] via-transparent to-[#03060d]/30"></div>
       </div>
 
-      {/* Hero Content Area */}
       <div className="relative z-10 w-full max-w-7xl mx-auto px-6 md:px-12 mt-6 lg:mt-0">
-        
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-          
-          {/* Left Column Content */}
           <div className="lg:col-span-12 xl:col-span-7 flex flex-col text-left items-start gap-4">
-            
-            {/* Tag Badge */}
             <div className="inline-flex items-center bg-[#072415]/60 backdrop-blur-md border border-[#00E676]/30 rounded-full px-3.5 py-1 text-[10px] md:text-xs font-bold tracking-[0.16em] text-[#00E676] uppercase font-mono mb-1">
               TECNOLOGIA QUE ELEVA
             </div>
 
-            {/* Title with Gradient Accent */}
             <h1 className="text-3xl sm:text-5xl lg:text-[44px] xl:text-[54px] lg:leading-[1.12] font-black tracking-tight text-white font-display select-none">
               Drones de alta <br />
               performance <br />
               para <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-primary to-[#00D4FF] font-bold">ir além.</span>
             </h1>
 
-            {/* Description Paragraph */}
             <p className="text-xs sm:text-sm text-brand-muted max-w-md leading-relaxed font-normal opacity-90">
               Equipamentos originais, peças selecionadas e suporte técnico para quem exige segurança, precisão e liberdade em cada voo.
             </p>
 
-            {/* CTA double button deck exactly like Image 2 */}
             <div className="flex flex-wrap items-center gap-4 mt-4 w-full sm:w-auto">
               <button
                 onClick={onExploreClick}
@@ -97,10 +88,8 @@ export default function Hero({ onExploreClick, onPeasClick }: HeroProps) {
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
               </button>
             </div>
-
           </div>
 
-          {/* Right Column Specifications Overlay Card Stack */}
           <div className="lg:col-span-12 xl:col-span-5 flex justify-start xl:justify-end w-full mt-6 xl:mt-0">
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 xl:flex xl:flex-col gap-3 w-full max-w-4xl xl:max-w-[280px]">
               {rightSpecs.map((spec, idx) => (
@@ -123,9 +112,7 @@ export default function Hero({ onExploreClick, onPeasClick }: HeroProps) {
               ))}
             </div>
           </div>
-
         </div>
-
       </div>
     </section>
   );
