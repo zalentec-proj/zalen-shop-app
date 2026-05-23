@@ -9,3 +9,5 @@ tsconfig.tsbuildinfo
 *.log
 .env*
 !.env.example
+supabase/.branches/
+supabase/.temp/

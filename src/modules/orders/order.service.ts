@@ -1,52 +1,114 @@
 /**
  * Serviço de pedidos.
- * Por enquanto apenas simulação local.
- * Futuramente: persistir no Supabase e sincronizar com Bling.
+ * Regras de negócio ficam aqui: o frontend nunca define preço ou total.
  */
 
-import { CreateOrderInput, Order } from './order.types';
+import { z } from 'zod';
+import { getProductById } from '../catalog/product.service';
+import type { CreateOrderInput, Order, OrderItem, OrderListItem } from './order.types';
+import {
+  listMockOrdersFromRepository,
+  listOrdersFromRepository,
+  saveOrderToRepository,
+} from './order.repository';
+
+const createOrderInputSchema = z.object({
+  storeId: z.string().trim().min(1),
+  customerId: z.string().trim().min(1).optional(),
+  items: z
+    .array(
+      z.object({
+        productId: z.string().trim().min(1),
+        variantId: z.string().trim().min(1),
+        sku: z.string().trim().min(1).optional(),
+        name: z.string().trim().min(1).optional(),
+        quantity: z.number().int().positive(),
+        unitPrice: z.number().nonnegative().optional(),
+      })
+    )
+    .min(1),
+});
 
 function generateOrderNumber(): string {
   return `BD-${Math.floor(100000 + Math.random() * 900000)}`;
 }
 
-/**
- * Cria um pedido simulado localmente.
- * NÃO persiste no banco, NÃO envia para Bling.
- * Apenas para demonstração do fluxo de checkout.
- */
-export async function createMockOrder(input: CreateOrderInput): Promise<Order> {
+export async function listOrders(): Promise<OrderListItem[]> {
+  return listOrdersFromRepository();
+}
+
+export async function listMockOrders(): Promise<OrderListItem[]> {
+  return listMockOrdersFromRepository();
+}
+
+export async function createOrder(input: CreateOrderInput): Promise<Order> {
+  const parsed = createOrderInputSchema.parse(input);
   const now = new Date().toISOString();
   const orderId = crypto.randomUUID();
 
-  const items = input.items.map((item, idx) => ({
-    id: `item-${idx}-${orderId}`,
-    storeId: input.storeId,
-    orderId,
-    productId: item.productId,
-    variantId: item.variantId,
-    sku: item.sku,
-    name: item.name,
-    quantity: item.quantity,
-    unitPrice: item.unitPrice,
-    total: item.unitPrice * item.quantity,
-  }));
+  const resolvedItems = await Promise.all(
+    parsed.items.map(async (item) => {
+      const product = await getProductById(item.productId);
 
-  const subtotal = items.reduce((acc, i) => acc + i.total, 0);
+      if (!product) {
+        throw new Error('Product not found for order item.');
+      }
 
-  return {
+      const variant = product.variants.find(
+        (candidate) => candidate.id === item.variantId
+      );
+
+      if (!variant) {
+        throw new Error('Product variant not found for order item.');
+      }
+
+      const unitPrice = variant.promotionalPrice ?? variant.price;
+
+      return {
+        id: crypto.randomUUID(),
+        storeId: product.storeId,
+        orderId,
+        productId: product.id,
+        variantId: variant.id,
+        sku: variant.sku,
+        name: product.name,
+        quantity: item.quantity,
+        unitPrice,
+        total: unitPrice * item.quantity,
+      } satisfies OrderItem;
+    })
+  );
+
+  const storeId = resolvedItems[0]?.storeId ?? parsed.storeId;
+
+  if (resolvedItems.some((item) => item.storeId !== storeId)) {
+    throw new Error('Order contains products from different stores.');
+  }
+
+  const items = resolvedItems.map((item) => ({ ...item, storeId }));
+  const subtotal = items.reduce((acc, item) => acc + item.total, 0);
+  const shippingTotal = 0;
+  const discountTotal = 0;
+
+  const order: Order = {
     id: orderId,
-    storeId: input.storeId,
+    storeId,
     orderNumber: generateOrderNumber(),
-    customerId: input.customerId,
+    customerId: parsed.customerId,
     status: 'pending',
     paymentStatus: 'pending',
     fulfillmentStatus: 'unfulfilled',
     subtotal,
-    shippingTotal: 0,
-    discountTotal: 0,
-    total: subtotal,
+    shippingTotal,
+    discountTotal,
+    total: subtotal + shippingTotal - discountTotal,
     items,
     createdAt: now,
   };
+
+  return saveOrderToRepository(order);
+}
+
+export async function createMockOrder(input: CreateOrderInput): Promise<Order> {
+  return createOrder(input);
 }

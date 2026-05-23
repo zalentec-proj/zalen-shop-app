@@ -6,30 +6,29 @@
 
 import { Category, Product, ProductSummary } from './product.types';
 import {
-  getMockCategoryBySlug,
-  getMockProductBySlug,
-  getMockProductSummaries,
-  mockProducts,
-  mockCategories,
-  getMockProductsByCategory,
-  getMockRelatedProducts,
-  toProductSummary,
-} from './product.mock';
+  getCategoryBySlugFromRepository,
+  getProductByIdFromRepository,
+  getProductBySlugFromRepository,
+  listCategoriesFromRepository,
+  listCategoryProductsFromRepository,
+  listProductsByCategoryFromRepository,
+  listProductsFromRepository,
+  listRelatedProductsFromRepository,
+} from './product.repository';
 
 /**
  * Lista todos os produtos resumidos.
  * Futuramente: buscar do Supabase com filtros, paginação e cache.
  */
 export async function listProducts(): Promise<ProductSummary[]> {
-  // TODO: substituir por query Supabase quando disponível
-  return getMockProductSummaries();
+  return listProductsFromRepository();
 }
 
 /**
  * Lista categorias do catálogo.
  */
 export async function listCategories(): Promise<Category[]> {
-  return mockCategories;
+  return listCategoriesFromRepository();
 }
 
 /**
@@ -37,30 +36,28 @@ export async function listCategories(): Promise<Category[]> {
  * Futuramente: buscar do Supabase com variantes e imagens.
  */
 export async function getProductBySlug(slug: string): Promise<Product | null> {
-  // TODO: substituir por query Supabase quando disponível
-  return getMockProductBySlug(slug) ?? null;
+  return getProductBySlugFromRepository(slug);
 }
 
 /**
  * Busca produto completo por ID.
  */
 export async function getProductById(id: string): Promise<Product | null> {
-  // TODO: substituir por query Supabase quando disponível
-  return mockProducts.find((p) => p.id === id) ?? null;
+  return getProductByIdFromRepository(id);
 }
 
 /**
  * Busca categoria por slug.
  */
 export async function getCategoryBySlug(slug: string): Promise<Category | null> {
-  return getMockCategoryBySlug(slug) ?? null;
+  return getCategoryBySlugFromRepository(slug);
 }
 
 /**
  * Lista produtos completos por categoria.
  */
 export async function listCategoryProducts(categorySlug: string): Promise<Product[]> {
-  return getMockProductsByCategory(categorySlug);
+  return listCategoryProductsFromRepository(categorySlug);
 }
 
 /**
@@ -69,12 +66,11 @@ export async function listCategoryProducts(categorySlug: string): Promise<Produc
 export async function listProductsByCategory(
   categorySlug: string
 ): Promise<ProductSummary[]> {
-  // TODO: substituir por query Supabase com join product_categories
-  const all = getMockProductSummaries();
-  if (!categorySlug) return all;
-  return all.filter((p) =>
-    p.categories.some((category) => category.slug === categorySlug)
-  );
+  if (!categorySlug) {
+    return listProductsFromRepository();
+  }
+
+  return listProductsByCategoryFromRepository(categorySlug);
 }
 
 /**
@@ -84,5 +80,5 @@ export async function listRelatedProducts(
   productSlug: string,
   limit = 3
 ): Promise<ProductSummary[]> {
-  return getMockRelatedProducts(productSlug, limit).map(toProductSummary);
+  return listRelatedProductsFromRepository(productSlug, limit);
 }

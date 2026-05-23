@@ -1,0 +1,93 @@
+import 'server-only';
+
+import { z } from 'zod';
+
+const optionalSecretString = z
+  .string()
+  .trim()
+  .min(1)
+  .optional();
+
+const serverEnvSchema = z.object({
+  NEXT_PUBLIC_SUPABASE_URL: z.string().trim().url().optional(),
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: optionalSecretString,
+  SUPABASE_SECRET_KEY: optionalSecretString,
+  APP_URL: z.string().trim().url().optional(),
+  BLING_CLIENT_ID: optionalSecretString,
+  BLING_CLIENT_SECRET: optionalSecretString,
+  BLING_REDIRECT_URI: z.string().trim().url().optional(),
+  MERCADO_PAGO_ACCESS_TOKEN: optionalSecretString,
+  MELHOR_ENVIO_TOKEN: optionalSecretString,
+  GEMINI_API_KEY: optionalSecretString,
+});
+
+type ServerEnv = z.infer<typeof serverEnvSchema>;
+
+const placeholderFragments = [
+  '${',
+  'seu-projeto',
+  'sua-chave',
+  'supabase_project_url',
+  'supabase_publishable_key',
+  'sua-service-role-key',
+];
+
+function normalizeEnvValue(value: string | undefined): string | undefined {
+  const normalized = value?.trim();
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (placeholderFragments.some((placeholder) => normalized.includes(placeholder))) {
+    return undefined;
+  }
+
+  return normalized;
+}
+
+function parseServerEnv(): ServerEnv {
+  const result = serverEnvSchema.safeParse({
+    NEXT_PUBLIC_SUPABASE_URL: normalizeEnvValue(
+      process.env.NEXT_PUBLIC_SUPABASE_URL
+    ),
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: normalizeEnvValue(
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+    ),
+    SUPABASE_SECRET_KEY: normalizeEnvValue(process.env.SUPABASE_SECRET_KEY),
+    APP_URL: normalizeEnvValue(process.env.APP_URL),
+    BLING_CLIENT_ID: normalizeEnvValue(process.env.BLING_CLIENT_ID),
+    BLING_CLIENT_SECRET: normalizeEnvValue(process.env.BLING_CLIENT_SECRET),
+    BLING_REDIRECT_URI: normalizeEnvValue(process.env.BLING_REDIRECT_URI),
+    MERCADO_PAGO_ACCESS_TOKEN: normalizeEnvValue(
+      process.env.MERCADO_PAGO_ACCESS_TOKEN
+    ),
+    MELHOR_ENVIO_TOKEN: normalizeEnvValue(process.env.MELHOR_ENVIO_TOKEN),
+    GEMINI_API_KEY: normalizeEnvValue(process.env.GEMINI_API_KEY),
+  });
+
+  if (!result.success) {
+    return {};
+  }
+
+  return result.data;
+}
+
+const serverEnv = parseServerEnv();
+
+export function getServerEnv(): ServerEnv {
+  return serverEnv;
+}
+
+export function isSupabaseServerConfigured(): boolean {
+  return Boolean(
+    serverEnv.NEXT_PUBLIC_SUPABASE_URL &&
+      serverEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  );
+}
+
+export function isSupabaseAdminConfigured(): boolean {
+  return Boolean(
+    serverEnv.NEXT_PUBLIC_SUPABASE_URL && serverEnv.SUPABASE_SECRET_KEY
+  );
+}

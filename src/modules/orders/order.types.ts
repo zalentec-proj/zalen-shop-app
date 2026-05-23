@@ -50,15 +50,24 @@ export interface Order {
   createdAt: string;
 }
 
+export interface OrderListItem extends Order {
+  customerName?: string;
+  customerEmail?: string;
+  salesChannel?: string;
+}
+
 export interface CreateOrderInput {
   storeId: string;
   customerId?: string;
   items: Array<{
     productId: string;
     variantId: string;
+    /** Apenas referência informativa vinda do client. O servidor recalcula. */
     sku?: string;
-    name: string;
+    /** Apenas referência informativa vinda do client. O servidor recalcula. */
+    name?: string;
     quantity: number;
-    unitPrice: number;
+    /** Nunca confiar neste valor para total. O servidor recalcula pelo catálogo. */
+    unitPrice?: number;
   }>;
 }

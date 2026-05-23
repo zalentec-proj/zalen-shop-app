@@ -4,15 +4,29 @@
  * NUNCA importar em Client Components.
  */
 
+import 'server-only';
+
 import { createServerClient } from '@supabase/ssr';
+import { createClient as createSupabaseJsClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import {
+  getServerEnv,
+  isSupabaseAdminConfigured,
+  isSupabaseServerConfigured,
+} from '@/lib/env/server';
 
 export async function createClient() {
+  const env = getServerEnv();
+
+  if (!isSupabaseServerConfigured()) {
+    throw new Error('Supabase server environment is not configured.');
+  }
+
   const cookieStore = await cookies();
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    env.NEXT_PUBLIC_SUPABASE_URL!,
+    env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
       cookies: {
         getAll() {
@@ -31,3 +45,40 @@ export async function createClient() {
     }
   );
 }
+
+export async function createOptionalClient() {
+  if (!isSupabaseServerConfigured()) {
+    return null;
+  }
+
+  return createClient();
+}
+
+export function createAdminClient() {
+  const env = getServerEnv();
+
+  if (!isSupabaseAdminConfigured()) {
+    throw new Error('Supabase admin environment is not configured.');
+  }
+
+  return createSupabaseJsClient(
+    env.NEXT_PUBLIC_SUPABASE_URL!,
+    env.SUPABASE_SECRET_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
+}
+
+export function createOptionalAdminClient() {
+  if (!isSupabaseAdminConfigured()) {
+    return null;
+  }
+
+  return createAdminClient();
+}
+
+export { isSupabaseAdminConfigured, isSupabaseServerConfigured };
