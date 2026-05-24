@@ -9,6 +9,7 @@ import {
   createOptionalAdminClient,
   isSupabaseAdminConfigured,
 } from '@/lib/supabase/server';
+import { logDevOnce } from '@/lib/logging/dev';
 import type {
   Category,
   Product,
@@ -179,12 +180,18 @@ function mapProduct(
 
 async function fetchSupabaseProducts(): Promise<Product[] | null> {
   if (!isSupabaseAdminConfigured()) {
+    logDevOnce('catalog.repository', 'using mock data', {
+      reason: 'supabase-env-missing',
+    });
     return null;
   }
 
   const supabase = createOptionalAdminClient();
 
   if (!supabase) {
+    logDevOnce('catalog.repository', 'using mock data', {
+      reason: 'supabase-client-unavailable',
+    });
     return null;
   }
 
@@ -196,6 +203,9 @@ async function fetchSupabaseProducts(): Promise<Product[] | null> {
     .order('created_at', { ascending: true });
 
   if (productsError || !productRows) {
+    logDevOnce('catalog.repository', 'using mock data', {
+      reason: 'products-query-failed',
+    });
     return null;
   }
 
@@ -242,6 +252,9 @@ async function fetchSupabaseProducts(): Promise<Product[] | null> {
     !categoryRows ||
     !productCategoryRows
   ) {
+    logDevOnce('catalog.repository', 'using mock data', {
+      reason: 'catalog-relations-query-failed',
+    });
     return null;
   }
 
@@ -270,7 +283,7 @@ async function fetchSupabaseProducts(): Promise<Product[] | null> {
     categoryIdsByProductId.set(row.product_id, categoryIds);
   });
 
-  return (productRows as ProductRow[]).map((productRow) => {
+  const products = (productRows as ProductRow[]).map((productRow) => {
     const categories = (categoryIdsByProductId.get(productRow.id) ?? [])
       .map((categoryId) => categoriesById.get(categoryId))
       .filter((category): category is Category => Boolean(category));
@@ -282,16 +295,28 @@ async function fetchSupabaseProducts(): Promise<Product[] | null> {
       categories
     );
   });
+
+  logDevOnce('catalog.repository', 'using supabase data', {
+    products: products.length,
+  });
+
+  return products;
 }
 
 async function fetchSupabaseCategories(): Promise<Category[] | null> {
   if (!isSupabaseAdminConfigured()) {
+    logDevOnce('catalog.repository', 'using mock categories', {
+      reason: 'supabase-env-missing',
+    });
     return null;
   }
 
   const supabase = createOptionalAdminClient();
 
   if (!supabase) {
+    logDevOnce('catalog.repository', 'using mock categories', {
+      reason: 'supabase-client-unavailable',
+    });
     return null;
   }
 
@@ -302,10 +327,19 @@ async function fetchSupabaseCategories(): Promise<Category[] | null> {
     .order('position', { ascending: true });
 
   if (error || !data) {
+    logDevOnce('catalog.repository', 'using mock categories', {
+      reason: 'categories-query-failed',
+    });
     return null;
   }
 
-  return (data as CategoryRow[]).map(mapCategory);
+  const categories = (data as CategoryRow[]).map(mapCategory);
+
+  logDevOnce('catalog.repository', 'using supabase categories', {
+    categories: categories.length,
+  });
+
+  return categories;
 }
 
 export async function listProductsFromRepository() {

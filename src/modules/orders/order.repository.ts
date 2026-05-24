@@ -4,6 +4,7 @@ import {
   createOptionalAdminClient,
   isSupabaseAdminConfigured,
 } from '@/lib/supabase/server';
+import { logDevOnce } from '@/lib/logging/dev';
 import { getMockProductBySlug } from '../catalog/product.mock';
 import type {
   FulfillmentStatus,
@@ -296,12 +297,18 @@ export async function listMockOrdersFromRepository(): Promise<OrderListItem[]> {
 
 export async function listOrdersFromRepository(): Promise<OrderListItem[]> {
   if (!isSupabaseAdminConfigured()) {
+    logDevOnce('order.repository', 'using mock data', {
+      reason: 'supabase-env-missing',
+    });
     return listMockOrdersFromRepository();
   }
 
   const supabase = createOptionalAdminClient();
 
   if (!supabase) {
+    logDevOnce('order.repository', 'using mock data', {
+      reason: 'supabase-client-unavailable',
+    });
     return listMockOrdersFromRepository();
   }
 
@@ -312,12 +319,18 @@ export async function listOrdersFromRepository(): Promise<OrderListItem[]> {
     .order('created_at', { ascending: false });
 
   if (ordersError || !orderRows) {
+    logDevOnce('order.repository', 'using mock data', {
+      reason: 'orders-query-failed',
+    });
     return listMockOrdersFromRepository();
   }
 
   const orderIds = orderRows.map((order) => order.id);
 
   if (orderIds.length === 0) {
+    logDevOnce('order.repository', 'using supabase data', {
+      orders: 0,
+    });
     return [];
   }
 
@@ -327,6 +340,9 @@ export async function listOrdersFromRepository(): Promise<OrderListItem[]> {
     .in('order_id', orderIds);
 
   if (itemsError || !itemRows) {
+    logDevOnce('order.repository', 'using mock data', {
+      reason: 'order-items-query-failed',
+    });
     return listMockOrdersFromRepository();
   }
 
@@ -338,25 +354,40 @@ export async function listOrdersFromRepository(): Promise<OrderListItem[]> {
     itemsByOrderId.set(row.order_id, items);
   });
 
-  return (orderRows as OrderRow[]).map((order) =>
+  const orders = (orderRows as OrderRow[]).map((order) =>
     mapOrder(order, itemsByOrderId.get(order.id) ?? [])
   );
+
+  logDevOnce('order.repository', 'using supabase data', {
+    orders: orders.length,
+  });
+
+  return orders;
 }
 
 export async function saveOrderToRepository(order: Order): Promise<Order> {
   if (!isSupabaseAdminConfigured()) {
+    logDevOnce('order.repository', 'using local order simulation', {
+      reason: 'supabase-env-missing',
+    });
     return order;
   }
 
   const supabase = createOptionalAdminClient();
 
   if (!supabase) {
+    logDevOnce('order.repository', 'using local order simulation', {
+      reason: 'supabase-client-unavailable',
+    });
     return order;
   }
 
   const storeId = toNullableUuid(order.storeId);
 
   if (!storeId) {
+    logDevOnce('order.repository', 'using local order simulation', {
+      reason: 'non-uuid-store-id',
+    });
     return order;
   }
 
@@ -403,6 +434,8 @@ export async function saveOrderToRepository(order: Order): Promise<Order> {
   if (itemError) {
     throw new Error('Failed to persist order items in Supabase.');
   }
+
+  logDevOnce('order.repository', 'saved order in supabase');
 
   return order;
 }
