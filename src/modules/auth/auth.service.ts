@@ -98,7 +98,21 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 export async function getPlatformRole(
   userId: string
 ): Promise<PlatformRole | null> {
-  const supabase = createOptionalAdminClient();
+  const adminSupabase = createOptionalAdminClient();
+
+  if (adminSupabase) {
+    const { data, error } = await adminSupabase
+      .from('platform_users')
+      .select('role')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!error && data) {
+      return toPlatformRole(data.role);
+    }
+  }
+
+  const supabase = await createOptionalClient();
 
   if (!supabase) {
     return null;
@@ -121,7 +135,33 @@ export async function getStoreMembership(
   userId: string,
   storeId: string
 ): Promise<StoreMembership | null> {
-  const supabase = createOptionalAdminClient();
+  const adminSupabase = createOptionalAdminClient();
+
+  if (adminSupabase) {
+    const { data, error } = await adminSupabase
+      .from('store_memberships')
+      .select('id, user_id, store_id, role, created_at, updated_at')
+      .eq('store_id', storeId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!error && data) {
+      return mapStoreMembership(data);
+    }
+
+    const { data: legacyData, error: legacyError } = await adminSupabase
+      .from('memberships')
+      .select('id, user_id, store_id, role, created_at')
+      .eq('store_id', storeId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!legacyError && legacyData) {
+      return mapStoreMembership(legacyData);
+    }
+  }
+
+  const supabase = await createOptionalClient();
 
   if (!supabase) {
     return null;
@@ -138,18 +178,7 @@ export async function getStoreMembership(
     return mapStoreMembership(data);
   }
 
-  const { data: legacyData, error: legacyError } = await supabase
-    .from('memberships')
-    .select('id, user_id, store_id, role, created_at')
-    .eq('store_id', storeId)
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  if (legacyError || !legacyData) {
-    return null;
-  }
-
-  return mapStoreMembership(legacyData);
+  return null;
 }
 
 export async function canAccessStore(

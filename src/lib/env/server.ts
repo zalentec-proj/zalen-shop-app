@@ -11,6 +11,7 @@ const optionalSecretString = z
 const serverEnvSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().trim().url().optional(),
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: optionalSecretString,
+  SUPABASE_SERVICE_ROLE_KEY: optionalSecretString,
   SUPABASE_SECRET_KEY: optionalSecretString,
   APP_URL: z.string().trim().url().optional(),
   BLING_CLIENT_ID: optionalSecretString,
@@ -55,6 +56,9 @@ function parseServerEnv(): ServerEnv {
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
     ),
     SUPABASE_SECRET_KEY: normalizeEnvValue(process.env.SUPABASE_SECRET_KEY),
+    SUPABASE_SERVICE_ROLE_KEY: normalizeEnvValue(
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    ),
     APP_URL: normalizeEnvValue(process.env.APP_URL),
     BLING_CLIENT_ID: normalizeEnvValue(process.env.BLING_CLIENT_ID),
     BLING_CLIENT_SECRET: normalizeEnvValue(process.env.BLING_CLIENT_SECRET),
@@ -88,6 +92,7 @@ export function isSupabaseServerConfigured(): boolean {
 
 export function isSupabaseAdminConfigured(): boolean {
   return Boolean(
-    serverEnv.NEXT_PUBLIC_SUPABASE_URL && serverEnv.SUPABASE_SECRET_KEY
+    serverEnv.NEXT_PUBLIC_SUPABASE_URL &&
+      (serverEnv.SUPABASE_SERVICE_ROLE_KEY || serverEnv.SUPABASE_SECRET_KEY)
   );
 }

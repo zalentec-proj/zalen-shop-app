@@ -13,6 +13,8 @@ import type {
   OrderStatus,
   PaymentStatus,
 } from '@/modules/orders/order.types';
+import type { PlatformRole, StoreRole } from '@/modules/auth/auth.types';
+import { logoutAction } from '@/app/login/actions';
 import Logo from '@/components/ui/Logo';
 import {
   Activity,
@@ -27,6 +29,7 @@ import {
   LifeBuoy,
   Package2,
   RefreshCw,
+  LogOut,
   Search,
   Settings2,
   ShieldCheck,
@@ -43,11 +46,16 @@ type AdminView = 'dashboard' | 'products' | 'orders' | 'integrations' | 'setting
 type SettingsSection = 'profile' | 'operations' | 'notifications';
 type ProductFilter = 'all' | ProductStatus;
 type OrderFilter = 'all' | OrderStatus;
+type AdminAccessRole = PlatformRole | StoreRole;
 
 interface AdminDashboardProps {
   products: ProductSummary[];
   categories: Category[];
   orders: OrderListItem[];
+  adminUser: {
+    email?: string;
+    role: AdminAccessRole;
+  };
 }
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', {
@@ -154,6 +162,15 @@ const paymentStatusLabel: Record<PaymentStatus, string> = {
   refunded: 'Estornado',
 };
 
+const accessRoleLabel: Record<AdminAccessRole, string> = {
+  platform_owner: 'Zalen owner',
+  platform_admin: 'Zalen admin',
+  store_owner: 'Dono da loja',
+  store_admin: 'Admin da loja',
+  store_operator: 'Operador',
+  store_viewer: 'Leitor',
+};
+
 function formatCurrency(value: number) {
   return currencyFormatter.format(value);
 }
@@ -178,6 +195,13 @@ function initialsFromName(name?: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? '')
     .join('');
+}
+
+function initialsFromEmail(email?: string) {
+  if (!email) return 'AD';
+
+  const [localPart] = email.split('@');
+  return initialsFromName(localPart.replace(/[._-]+/g, ' '));
 }
 
 function matchesSearch(tokens: Array<string | undefined>, query: string) {
@@ -391,6 +415,7 @@ export default function AdminDashboard({
   products,
   categories,
   orders,
+  adminUser,
 }: AdminDashboardProps) {
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
   const [settingsSection, setSettingsSection] =
@@ -521,6 +546,9 @@ export default function AdminDashboard({
   ];
 
   const view = viewMeta[activeView];
+  const adminInitials = initialsFromEmail(adminUser.email);
+  const adminEmail = adminUser.email ?? 'admin autenticado';
+  const adminRoleLabel = accessRoleLabel[adminUser.role];
 
   const renderDashboard = () => (
     <div className="space-y-4">
@@ -1483,13 +1511,27 @@ export default function AdminDashboard({
               <div className="flex flex-wrap items-center gap-2">
                 <div className="inline-flex items-center gap-2 rounded-xl border border-white/6 bg-[#081225] px-3 py-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[linear-gradient(135deg,#1E3DFF,#38BDF8)] text-xs font-semibold text-white">
-                    AD
+                    {adminInitials}
                   </div>
                   <div className="text-left">
-                    <div className="text-xs font-semibold text-white">Admin</div>
-                    <div className="text-[11px] text-slate-400">Operação Brasil Drones</div>
+                    <div className="max-w-[190px] truncate text-xs font-semibold text-white">
+                      {adminEmail}
+                    </div>
+                    <div className="text-[11px] text-slate-400">
+                      {adminRoleLabel}
+                    </div>
                   </div>
                 </div>
+
+                <form action={logoutAction}>
+                  <button
+                    type="submit"
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/8 bg-[#081225] px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-rose-400/35 hover:text-white"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                    Sair
+                  </button>
+                </form>
 
                 <button
                   type="button"
