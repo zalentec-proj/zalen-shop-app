@@ -1,7 +1,7 @@
-# Supabase Local Setup
+# Supabase Setup
 
 Este projeto já possui `supabase/config.toml`, migration inicial e `supabase/seed.sql`.
-O Docker precisa estar ativo para rodar a stack local.
+O Docker precisa estar ativo apenas para rodar a stack local.
 
 ## Referências Oficiais
 
@@ -95,7 +95,58 @@ npm run dev
 ```
 
 Sem variáveis Supabase, o projeto continua usando fallback mockado para catálogo e pedidos.
-Com as variáveis preenchidas, os repositories usam Supabase local.
+Com as variáveis preenchidas, os repositories usam Supabase local ou cloud, conforme a URL.
+
+## Supabase Cloud
+
+O projeto cloud atual está linkado via Supabase CLI:
+
+```bash
+npx supabase projects list
+npx supabase migration list --linked
+```
+
+Para aplicar migrations pendentes no projeto cloud linkado:
+
+```bash
+npx supabase db push --linked --dry-run
+npx supabase db push --linked --yes
+```
+
+Para aplicar o seed idempotente no cloud:
+
+```bash
+npx supabase db query --linked --file supabase/seed.sql
+```
+
+Para validar contagens principais:
+
+```bash
+npx supabase db query --linked "select 'products' as table_name, count(*) from products union all select 'categories', count(*) from categories;"
+```
+
+### `.env.local` para Cloud
+
+Use a URL do projeto cloud e as keys da tela de API do Supabase. No setup atual,
+as keys compatíveis validadas foram `anon` para o client e `service_role` para o server:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<anon-key>
+SUPABASE_SECRET_KEY=<service-role-key>
+APP_URL=http://localhost:3000
+```
+
+Se houver variáveis Supabase já exportadas no terminal, elas podem sobrescrever o
+`.env.local`. Para validar usando apenas o arquivo local:
+
+```bash
+env -u SUPABASE_SECRET_KEY npm run dev
+env -u SUPABASE_SECRET_KEY npm run build
+```
+
+Não commitar `.env.local`, access tokens, `service_role`, `secret key` ou saídas de terminal
+que contenham credenciais.
 
 ## Cuidados de Segurança
 

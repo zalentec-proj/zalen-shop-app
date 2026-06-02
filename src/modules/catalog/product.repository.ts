@@ -89,6 +89,13 @@ type ProductCategoryRow = {
   category_id: string;
 };
 
+type RepositoryError = {
+  code?: string;
+  details?: string;
+  hint?: string;
+  message?: string;
+};
+
 const catalogImageMap: Record<string, string> = {
   'asset:mavic_3_pro': mavic3ProImage,
   'asset:mini_4_pro': mini4ProImage,
@@ -178,6 +185,19 @@ function mapProduct(
   };
 }
 
+function getQueryErrorDetails(error: RepositoryError | null) {
+  return {
+    code: error?.code ?? 'unknown',
+    details: toCompactLogText(error?.details),
+    hint: toCompactLogText(error?.hint),
+    message: error?.message ?? 'query-error',
+  };
+}
+
+function toCompactLogText(value: string | undefined) {
+  return value?.replace(/\s+/g, ' ').slice(0, 220);
+}
+
 async function fetchSupabaseProducts(): Promise<Product[] | null> {
   if (!isSupabaseAdminConfigured()) {
     logDevOnce('catalog.repository', 'using mock data', {
@@ -205,6 +225,7 @@ async function fetchSupabaseProducts(): Promise<Product[] | null> {
   if (productsError || !productRows) {
     logDevOnce('catalog.repository', 'using mock data', {
       reason: 'products-query-failed',
+      ...getQueryErrorDetails(productsError),
     });
     return null;
   }
@@ -254,6 +275,18 @@ async function fetchSupabaseProducts(): Promise<Product[] | null> {
   ) {
     logDevOnce('catalog.repository', 'using mock data', {
       reason: 'catalog-relations-query-failed',
+      code:
+        variantsError?.code ??
+        imagesError?.code ??
+        categoriesError?.code ??
+        productCategoriesError?.code ??
+        'unknown',
+      message:
+        variantsError?.message ??
+        imagesError?.message ??
+        categoriesError?.message ??
+        productCategoriesError?.message ??
+        'query-error',
     });
     return null;
   }
@@ -329,6 +362,7 @@ async function fetchSupabaseCategories(): Promise<Category[] | null> {
   if (error || !data) {
     logDevOnce('catalog.repository', 'using mock categories', {
       reason: 'categories-query-failed',
+      ...getQueryErrorDetails(error),
     });
     return null;
   }

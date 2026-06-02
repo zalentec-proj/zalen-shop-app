@@ -4,15 +4,14 @@
 -- Todas as tabelas nascem com store_id para suporte futuro multi-tenant
 -- ============================================================
 
--- Extensões necessárias
-create extension if not exists "uuid-ossp";
+-- UUIDs usam gen_random_uuid(), disponível no Postgres/Supabase atual.
 
 -- ============================================================
 -- CORE
 -- ============================================================
 
 create table stores (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   name text not null,
   slug text unique not null,
   status text not null default 'active',
@@ -20,7 +19,7 @@ create table stores (
 );
 
 create table memberships (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null,
   store_id uuid references stores(id) on delete cascade,
   role text not null default 'member',
@@ -33,7 +32,7 @@ create table memberships (
 -- ============================================================
 
 create table products (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   store_id uuid references stores(id) on delete cascade,
   external_provider text,
   external_id text,
@@ -51,7 +50,7 @@ create table products (
 );
 
 create table product_variants (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   store_id uuid references stores(id) on delete cascade,
   product_id uuid references products(id) on delete cascade,
   external_id text,
@@ -68,7 +67,7 @@ create table product_variants (
 );
 
 create table product_images (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   store_id uuid references stores(id) on delete cascade,
   product_id uuid references products(id) on delete cascade,
   variant_id uuid references product_variants(id) on delete set null,
@@ -78,7 +77,7 @@ create table product_images (
 );
 
 create table categories (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   store_id uuid references stores(id) on delete cascade,
   parent_id uuid references categories(id) on delete set null,
   external_id text,
@@ -99,7 +98,7 @@ create table product_categories (
 -- ============================================================
 
 create table orders (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   store_id uuid references stores(id) on delete cascade,
   order_number text not null,
   customer_id uuid,
@@ -117,7 +116,7 @@ create table orders (
 );
 
 create table order_items (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   store_id uuid references stores(id) on delete cascade,
   order_id uuid references orders(id) on delete cascade,
   product_id uuid,
@@ -134,7 +133,7 @@ create table order_items (
 -- ============================================================
 
 create table integration_connections (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   store_id uuid references stores(id) on delete cascade,
   provider text not null,
   status text not null default 'disconnected',
@@ -145,7 +144,7 @@ create table integration_connections (
 );
 
 create table integration_tokens (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   connection_id uuid references integration_connections(id) on delete cascade,
   -- Tokens são sempre criptografados — nunca texto puro
   access_token_encrypted text,
@@ -157,7 +156,7 @@ create table integration_tokens (
 );
 
 create table webhook_events (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   store_id uuid references stores(id) on delete cascade,
   provider text not null,
   event_type text,
@@ -171,7 +170,7 @@ create table webhook_events (
 );
 
 create table sync_jobs (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   store_id uuid references stores(id) on delete cascade,
   provider text not null,
   job_type text not null,

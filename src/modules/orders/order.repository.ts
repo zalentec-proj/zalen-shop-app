@@ -48,12 +48,32 @@ type OrderItemRow = {
   total: number | string | null;
 };
 
+type RepositoryError = {
+  code?: string;
+  details?: string;
+  hint?: string;
+  message?: string;
+};
+
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function toNumber(value: number | string | null | undefined): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function getQueryErrorDetails(error: RepositoryError | null) {
+  return {
+    code: error?.code ?? 'unknown',
+    details: toCompactLogText(error?.details),
+    hint: toCompactLogText(error?.hint),
+    message: error?.message ?? 'query-error',
+  };
+}
+
+function toCompactLogText(value: string | undefined) {
+  return value?.replace(/\s+/g, ' ').slice(0, 220);
 }
 
 function toNullableUuid(value: string | undefined): string | null {
@@ -321,6 +341,7 @@ export async function listOrdersFromRepository(): Promise<OrderListItem[]> {
   if (ordersError || !orderRows) {
     logDevOnce('order.repository', 'using mock data', {
       reason: 'orders-query-failed',
+      ...getQueryErrorDetails(ordersError),
     });
     return listMockOrdersFromRepository();
   }
@@ -342,6 +363,7 @@ export async function listOrdersFromRepository(): Promise<OrderListItem[]> {
   if (itemsError || !itemRows) {
     logDevOnce('order.repository', 'using mock data', {
       reason: 'order-items-query-failed',
+      ...getQueryErrorDetails(itemsError),
     });
     return listMockOrdersFromRepository();
   }
