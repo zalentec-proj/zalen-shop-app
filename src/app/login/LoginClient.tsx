@@ -199,7 +199,7 @@ export default function LoginClient() {
 
             <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-sm">
               <a
-                href="#"
+                href="/login/forgot"
                 className="font-medium text-blue-400 transition hover:text-blue-300"
               >
                 Esqueci minha senha

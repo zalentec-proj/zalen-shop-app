@@ -82,6 +82,7 @@ Preencha apenas no seu ambiente local:
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<anon-ou-publishable-key-do-cli>
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key-do-cli>
 SUPABASE_SECRET_KEY=<service-role-key-do-cli>
 APP_URL=http://localhost:3000
 ```
@@ -133,16 +134,37 @@ as keys compatíveis validadas foram `anon` para o client e `service_role` para 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 SUPABASE_SECRET_KEY=<service-role-key>
 APP_URL=http://localhost:3000
 ```
+
+`SUPABASE_SERVICE_ROLE_KEY` é o nome preferido. `SUPABASE_SECRET_KEY` continua aceito
+por compatibilidade com setups anteriores.
+
+### Redirect URLs de Auth
+
+Para recuperação de senha no admin, cadastre as URLs abaixo em Supabase Dashboard →
+Authentication → URL Configuration → Redirect URLs:
+
+```text
+http://localhost:3000/auth/callback
+https://<dominio-de-producao>/auth/callback
+```
+
+O fluxo usado pelo app é:
+
+1. `/login/forgot` chama `resetPasswordForEmail`.
+2. O e-mail redireciona para `/auth/callback?next=/login/update-password`.
+3. `/auth/callback` troca o `code` por sessão segura.
+4. `/login/update-password` chama `updateUser({ password })`.
 
 Se houver variáveis Supabase já exportadas no terminal, elas podem sobrescrever o
 `.env.local`. Para validar usando apenas o arquivo local:
 
 ```bash
-env -u SUPABASE_SECRET_KEY npm run dev
-env -u SUPABASE_SECRET_KEY npm run build
+env -u SUPABASE_SERVICE_ROLE_KEY -u SUPABASE_SECRET_KEY npm run dev
+env -u SUPABASE_SERVICE_ROLE_KEY -u SUPABASE_SECRET_KEY npm run build
 ```
 
 Não commitar `.env.local`, access tokens, `service_role`, `secret key` ou saídas de terminal
@@ -151,7 +173,7 @@ que contenham credenciais.
 ## Cuidados de Segurança
 
 - RLS permanece ativa nas tabelas.
-- `SUPABASE_SECRET_KEY` é server-side apenas.
+- `SUPABASE_SERVICE_ROLE_KEY` e `SUPABASE_SECRET_KEY` são server-side apenas.
 - Client Components só podem usar variáveis `NEXT_PUBLIC_`.
 - Não logar tokens, URLs com credenciais ou payloads sensíveis.
 - Não usar service role em browser/client components.
