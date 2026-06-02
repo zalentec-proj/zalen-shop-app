@@ -6,13 +6,13 @@ A primeira versão será single-tenant para Brasil Drones, mas tenant-ready. Mes
 
 ## 2. Stack inicial
 
-O repositório atual usa Vite, React, TypeScript e Tailwind. Podemos manter essa base para a primeira loja e evoluir depois para Next.js quando backend, rotas server-side, webhooks e autenticação ficarem mais relevantes.
+O repositório atual usa Next.js, React, TypeScript e Tailwind. A migração para App Router permite manter dados sensíveis em Server Components, Route Handlers e services server-side.
 
 Stack alvo:
 
 - React
 - TypeScript
-- Vite no início
+- Next.js App Router
 - Tailwind CSS
 - Supabase PostgreSQL
 - Supabase Auth
@@ -95,3 +95,39 @@ Cada integração deve ser um conector isolado com:
 - production
 
 Cada ambiente deve ter variáveis, banco e credenciais separadas.
+
+## Lightweight multi-store architecture
+
+A Zalen Shop deve nascer multi-store ready sem adicionar complexidade desnecessária ao MVP.
+
+Decisão estrutural:
+
+- uma única aplicação Next.js;
+- um único banco Supabase;
+- múltiplas lojas separadas por `store_id`;
+- uma mesma base de código atende storefront, admin operacional e futuras áreas internas;
+- Zalen pode ter acesso global como dona da plataforma;
+- clientes acessam apenas lojas às quais estão vinculados por `store_id`;
+- `/admin` continua sendo o painel operacional da loja;
+- `/platform` será uma área futura para operação interna da Zalen, mas não será criada agora.
+
+Fluxo de acesso previsto:
+
+```txt
+Request server-side
+↓
+Supabase Auth user
+↓
+platform_users ou store_memberships
+↓
+Query sempre filtrada por store_id quando for dado de loja
+```
+
+Regras práticas para o MVP:
+
+- não criar microserviços;
+- não criar múltiplos bancos;
+- não criar múltiplos projetos Supabase;
+- não criar permissões granulares por recurso agora;
+- manter autorização em services/helpers server-side;
+- manter `store_id` como fronteira central de isolamento entre lojas.

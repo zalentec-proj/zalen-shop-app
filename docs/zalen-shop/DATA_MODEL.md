@@ -17,14 +17,28 @@ stores (
 ```
 
 ```sql
-memberships (
+platform_users (
   id uuid primary key,
   user_id uuid not null,
-  store_id uuid references stores(id),
   role text not null,
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 )
 ```
+
+```sql
+store_memberships (
+  id uuid primary key,
+  store_id uuid references stores(id),
+  user_id uuid not null,
+  role text not null,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+)
+```
+
+`platform_users` representa acesso global da Zalen (`platform_owner`, `platform_admin`).
+`store_memberships` representa acesso operacional por loja (`store_owner`, `store_admin`, `store_operator`, `store_viewer`).
 
 ## 3. Catálogo
 
@@ -135,6 +149,21 @@ order_items (
 ```
 
 ## 5. Integrações
+
+```sql
+store_integrations (
+  id uuid primary key,
+  store_id uuid references stores(id),
+  provider text not null,
+  environment text not null,
+  status text not null,
+  credentials_encrypted text,
+  settings_json jsonb default '{}'::jsonb,
+  last_sync_at timestamptz,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+)
+```
 
 ```sql
 integration_connections (
