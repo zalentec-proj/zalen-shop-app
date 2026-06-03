@@ -18,6 +18,10 @@ type FormActionState = {
 const loginSchema = z.object({
   email: z.string().trim().email(),
   password: z.string().min(1),
+  next: z.preprocess(
+    (value) => (typeof value === 'string' ? value : undefined),
+    z.string().optional()
+  ),
 });
 
 const resetPasswordSchema = z.object({
@@ -43,6 +47,14 @@ function formError(message: string): FormActionState {
     status: 'error',
     message,
   };
+}
+
+function getSafeNextPath(value: string | null | undefined): string {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) {
+    return '/admin';
+  }
+
+  return value;
 }
 
 function getPasswordResetSentState(): FormActionState {
@@ -78,6 +90,7 @@ export async function loginAction(
   const parsed = loginSchema.safeParse({
     email: formData.get('email'),
     password: formData.get('password'),
+    next: formData.get('next'),
   });
 
   if (!parsed.success) {
@@ -95,7 +108,7 @@ export async function loginAction(
     return invalidCredentialsState;
   }
 
-  redirect('/admin');
+  redirect(getSafeNextPath(parsed.data.next));
 }
 
 export async function logoutAction() {

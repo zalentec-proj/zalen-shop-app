@@ -7,6 +7,21 @@ export const metadata: Metadata = {
   description: 'Acesse o painel operacional da Zalen Shop.',
 };
 
-export default function LoginPage() {
-  return <LoginClient />;
+interface LoginPageProps {
+  searchParams?: Promise<{
+    next?: string;
+  }>;
+}
+
+function getSafeNextPath(value: string | undefined): string {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) {
+    return '/admin';
+  }
+
+  return value;
+}
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const params = await searchParams;
+  return <LoginClient nextPath={getSafeNextPath(params?.next)} />;
 }

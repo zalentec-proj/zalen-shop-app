@@ -75,7 +75,7 @@ function TextInput({
   );
 }
 
-export default function LoginClient() {
+export default function LoginClient({ nextPath = '/admin' }: { nextPath?: string }) {
   const [state, formAction] = useActionState(loginAction, initialLoginState);
 
   return (
@@ -162,6 +162,8 @@ export default function LoginClient() {
             </div>
 
             <form action={formAction} className="mt-9 space-y-6">
+              <input type="hidden" name="next" value={nextPath} />
+
               <TextInput
                 id="email"
                 label="E-mail"
