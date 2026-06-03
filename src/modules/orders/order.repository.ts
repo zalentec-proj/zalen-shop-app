@@ -2,6 +2,7 @@ import 'server-only';
 
 import {
   createOptionalAdminClient,
+  createOptionalClient,
   isSupabaseAdminConfigured,
 } from '@/lib/supabase/server';
 import { logDevOnce } from '@/lib/logging/dev';
@@ -17,6 +18,17 @@ import type {
 
 const MOCK_STORE_ID = 'brasil-drones-store-001';
 const BRASIL_DRONES_STORE_ID = '00000000-0000-0000-0000-000000000001';
+
+export type OrderDataSource = 'supabase' | 'mock';
+
+export interface OrderRepositoryResult<T> {
+  data: T;
+  source: OrderDataSource;
+}
+
+type SupabaseOrderClient =
+  | NonNullable<ReturnType<typeof createOptionalAdminClient>>
+  | NonNullable<Awaited<ReturnType<typeof createOptionalClient>>>;
 
 type OrderRow = {
   id: string;
@@ -316,75 +328,94 @@ export async function listMockOrdersFromRepository(): Promise<OrderListItem[]> {
 }
 
 export async function listOrdersFromRepository(): Promise<OrderListItem[]> {
-  if (!isSupabaseAdminConfigured()) {
+  return (await listOrdersWithSourceFromRepository()).data;
+}
+
+export async function listOrdersWithSourceFromRepository(): Promise<
+  OrderRepositoryResult<OrderListItem[]>
+> {
+  const clients = [
+    createOptionalAdminClient(),
+    await createOptionalClient(),
+  ].filter((client): client is SupabaseOrderClient => Boolean(client));
+
+  if (clients.length === 0) {
     logDevOnce('order.repository', 'using mock data', {
       reason: 'supabase-env-missing',
     });
-    return listMockOrdersFromRepository();
+    return {
+      data: await listMockOrdersFromRepository(),
+      source: 'mock',
+    };
   }
 
-  const supabase = createOptionalAdminClient();
+  let lastError: RepositoryError | null = null;
 
-  if (!supabase) {
-    logDevOnce('order.repository', 'using mock data', {
-      reason: 'supabase-client-unavailable',
+  for (const supabase of clients) {
+    const { data: orderRows, error: ordersError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('store_id', BRASIL_DRONES_STORE_ID)
+      .order('created_at', { ascending: false });
+
+    if (ordersError || !orderRows) {
+      lastError = ordersError;
+      continue;
+    }
+
+    const orderIds = orderRows.map((order) => order.id);
+
+    if (orderIds.length === 0) {
+      logDevOnce('order.repository', 'using supabase data', {
+        orders: 0,
+      });
+      return {
+        data: [],
+        source: 'supabase',
+      };
+    }
+
+    const { data: itemRows, error: itemsError } = await supabase
+      .from('order_items')
+      .select('*')
+      .in('order_id', orderIds);
+
+    if (itemsError || !itemRows) {
+      lastError = itemsError;
+      continue;
+    }
+
+    const itemsByOrderId = new Map<string, OrderItem[]>();
+
+    (itemRows as OrderItemRow[]).forEach((row) => {
+      const items = itemsByOrderId.get(row.order_id) ?? [];
+      items.push(mapOrderItem(row));
+      itemsByOrderId.set(row.order_id, items);
     });
-    return listMockOrdersFromRepository();
-  }
 
-  const { data: orderRows, error: ordersError } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('store_id', BRASIL_DRONES_STORE_ID)
-    .order('created_at', { ascending: false });
+    const orders = (orderRows as OrderRow[]).map((order) =>
+      mapOrder(order, itemsByOrderId.get(order.id) ?? [])
+    );
 
-  if (ordersError || !orderRows) {
-    logDevOnce('order.repository', 'using mock data', {
-      reason: 'orders-query-failed',
-      ...getQueryErrorDetails(ordersError),
-    });
-    return listMockOrdersFromRepository();
-  }
-
-  const orderIds = orderRows.map((order) => order.id);
-
-  if (orderIds.length === 0) {
     logDevOnce('order.repository', 'using supabase data', {
-      orders: 0,
+      orders: orders.length,
     });
-    return [];
+
+    return {
+      data: orders,
+      source: 'supabase',
+    };
   }
 
-  const { data: itemRows, error: itemsError } = await supabase
-    .from('order_items')
-    .select('*')
-    .in('order_id', orderIds);
-
-  if (itemsError || !itemRows) {
-    logDevOnce('order.repository', 'using mock data', {
-      reason: 'order-items-query-failed',
-      ...getQueryErrorDetails(itemsError),
-    });
-    return listMockOrdersFromRepository();
-  }
-
-  const itemsByOrderId = new Map<string, OrderItem[]>();
-
-  (itemRows as OrderItemRow[]).forEach((row) => {
-    const items = itemsByOrderId.get(row.order_id) ?? [];
-    items.push(mapOrderItem(row));
-    itemsByOrderId.set(row.order_id, items);
+  logDevOnce('order.repository', 'using mock data', {
+    reason: 'orders-query-failed',
+    ...getQueryErrorDetails(lastError),
   });
 
-  const orders = (orderRows as OrderRow[]).map((order) =>
-    mapOrder(order, itemsByOrderId.get(order.id) ?? [])
-  );
-
-  logDevOnce('order.repository', 'using supabase data', {
-    orders: orders.length,
-  });
-
-  return orders;
+  return {
+    data: await listMockOrdersFromRepository(),
+    source: 'mock',
+  };
 }
 
 export async function saveOrderToRepository(order: Order): Promise<Order> {

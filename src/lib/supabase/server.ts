@@ -54,6 +54,33 @@ export async function createOptionalClient() {
   return createClient();
 }
 
+export function createPublicServerClient() {
+  const env = getServerEnv();
+
+  if (!isSupabaseServerConfigured()) {
+    throw new Error('Supabase server environment is not configured.');
+  }
+
+  return createSupabaseJsClient(
+    env.NEXT_PUBLIC_SUPABASE_URL!,
+    env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
+}
+
+export function createOptionalPublicServerClient() {
+  if (!isSupabaseServerConfigured()) {
+    return null;
+  }
+
+  return createPublicServerClient();
+}
+
 export function createAdminClient() {
   const env = getServerEnv();
 

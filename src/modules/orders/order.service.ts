@@ -5,10 +5,18 @@
 
 import { z } from 'zod';
 import { getProductById } from '../catalog/product.service';
-import type { CreateOrderInput, Order, OrderItem, OrderListItem } from './order.types';
+import type {
+  CreateOrderInput,
+  Order,
+  OrderItem,
+  OrderListItem,
+} from './order.types';
 import {
+  type OrderDataSource,
+  type OrderRepositoryResult,
   listMockOrdersFromRepository,
   listOrdersFromRepository,
+  listOrdersWithSourceFromRepository,
   saveOrderToRepository,
 } from './order.repository';
 
@@ -37,9 +45,17 @@ export async function listOrders(): Promise<OrderListItem[]> {
   return listOrdersFromRepository();
 }
 
+export async function listOrdersWithSource(): Promise<
+  OrderRepositoryResult<OrderListItem[]>
+> {
+  return listOrdersWithSourceFromRepository();
+}
+
 export async function listMockOrders(): Promise<OrderListItem[]> {
   return listMockOrdersFromRepository();
 }
+
+export type { OrderDataSource };
 
 export async function createOrder(input: CreateOrderInput): Promise<Order> {
   const parsed = createOrderInputSchema.parse(input);

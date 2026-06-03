@@ -47,11 +47,17 @@ type SettingsSection = 'profile' | 'operations' | 'notifications';
 type ProductFilter = 'all' | ProductStatus;
 type OrderFilter = 'all' | OrderStatus;
 type AdminAccessRole = PlatformRole | StoreRole;
+type AdminDataSource = 'supabase' | 'mock';
 
 interface AdminDashboardProps {
   products: ProductSummary[];
   categories: Category[];
   orders: OrderListItem[];
+  dataSources: {
+    products: AdminDataSource;
+    categories: AdminDataSource;
+    orders: AdminDataSource;
+  };
   adminUser: {
     email?: string;
     role: AdminAccessRole;
@@ -93,7 +99,7 @@ const viewMeta: Record<
       'Catálogo, pedidos e prontidão do backoffice.',
   },
   products: {
-    eyebrow: 'Catálogo mockado',
+    eyebrow: 'Catálogo operacional',
     title: 'Produtos e estoque',
     description:
       'Tabela de catálogo, faixa de preço e estoque.',
@@ -213,6 +219,10 @@ function matchesSearch(tokens: Array<string | undefined>, query: string) {
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
+}
+
+function sourceLabel(source: AdminDataSource) {
+  return source === 'supabase' ? 'Supabase' : 'Mock';
 }
 
 function Panel({
@@ -415,6 +425,7 @@ export default function AdminDashboard({
   products,
   categories,
   orders,
+  dataSources,
   adminUser,
 }: AdminDashboardProps) {
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
@@ -549,27 +560,34 @@ export default function AdminDashboard({
   const adminInitials = initialsFromEmail(adminUser.email);
   const adminEmail = adminUser.email ?? 'admin autenticado';
   const adminRoleLabel = accessRoleLabel[adminUser.role];
+  const productsSourceLabel = sourceLabel(dataSources.products);
+  const categoriesSourceLabel = sourceLabel(dataSources.categories);
+  const ordersSourceLabel = sourceLabel(dataSources.orders);
+  const catalogSourceLabel =
+    dataSources.products === 'supabase' || dataSources.categories === 'supabase'
+      ? 'Supabase'
+      : 'Mock';
 
   const renderDashboard = () => (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
         <MetricCard
           icon={Gauge}
-          label="Receita mockada"
+          label="Receita monitorada"
           value={formatCurrency(totalRevenue)}
-          helper={`${orders.length} pedidos na amostra operacional.`}
+          helper={`${orders.length} pedidos via ${ordersSourceLabel}.`}
         />
         <MetricCard
           icon={Package2}
           label="Produtos ativos"
           value={String(activeProducts.length)}
-          helper={`${lowStockProducts.length} item(ns) pedem reposição visual.`}
+          helper={`${lowStockProducts.length} item(ns) pedem reposição.`}
         />
         <MetricCard
           icon={CreditCard}
           label="Ticket médio"
           value={formatCurrency(averageTicket)}
-          helper="Referência visual até o checkout real entrar."
+          helper={`Base de pedidos: ${ordersSourceLabel}.`}
         />
         <MetricCard
           icon={Truck}
@@ -582,10 +600,10 @@ export default function AdminDashboard({
       <div className="grid gap-4 2xl:grid-cols-[1.45fr,0.95fr]">
         <Panel
           title="Receita por movimentação"
-          description="Leitura visual da base mockada com barras duplas para total faturado e valor em produtos."
+          description={`Leitura operacional da base de pedidos via ${ordersSourceLabel}.`}
           action={
             <SmallBadge className="border-[#1E3DFF]/30 bg-[#1E3DFF]/10 text-[#8DB6FF]">
-              Mock mode
+              {ordersSourceLabel}
             </SmallBadge>
           }
         >
@@ -613,7 +631,7 @@ export default function AdminDashboard({
         <div className="space-y-4">
           <Panel
             title="Mix do catálogo"
-            description="Distribuição das categorias mockadas já renderizadas no storefront."
+            description={`Distribuição das categorias lidas via ${categoriesSourceLabel}.`}
           >
             <GaugeCard
               value={String(categories.length)}
@@ -685,7 +703,7 @@ export default function AdminDashboard({
       <div className="grid gap-4 2xl:grid-cols-[1.35fr,0.95fr]">
         <Panel
           title="Pedidos recentes"
-          description="Leitura compacta da base mockada para validar visual da operação."
+          description={`Leitura compacta da base de pedidos via ${ordersSourceLabel}.`}
           action={
             <button
               type="button"
@@ -715,7 +733,7 @@ export default function AdminDashboard({
                 </div>
                 <div>
                   <div className="font-medium text-slate-100">
-                    {order.customerName ?? 'Cliente mockado'}
+                    {order.customerName ?? 'Cliente não identificado'}
                   </div>
                   <div className="mt-1 text-slate-400">{order.salesChannel}</div>
                 </div>
@@ -782,7 +800,7 @@ export default function AdminDashboard({
           icon={Store}
           label="Produtos no painel"
           value={String(products.length)}
-          helper="Base mockada conectada ao módulo de catálogo."
+          helper={`Catálogo carregado via ${productsSourceLabel}.`}
         />
         <MetricCard
           icon={Activity}
@@ -800,7 +818,7 @@ export default function AdminDashboard({
           icon={CreditCard}
           label="Faixa média"
           value={formatCurrency(totalProductsValue / Math.max(products.length, 1))}
-          helper="Média simples baseada nos preços mockados."
+          helper={`Média simples via ${productsSourceLabel}.`}
         />
       </div>
 
@@ -880,7 +898,7 @@ export default function AdminDashboard({
         <div className="space-y-4">
           <Panel
             title="Categorias"
-            description="Volume de produtos por agrupamento mockado."
+            description={`Volume de produtos por agrupamento via ${categoriesSourceLabel}.`}
           >
             <div className="space-y-2">
               {categoryLoad.map((category, index) => (
@@ -926,7 +944,7 @@ export default function AdminDashboard({
                 ))
               ) : (
                 <div className="rounded-lg border border-emerald-400/15 bg-emerald-400/8 px-3 py-2.5 text-xs text-emerald-200">
-                  Nenhum item em faixa crítica no mock atual.
+                  Nenhum item em faixa crítica na base atual.
                 </div>
               )}
             </div>
@@ -943,7 +961,7 @@ export default function AdminDashboard({
           icon={ShoppingCart}
           label="Pedidos no painel"
           value={String(orders.length)}
-          helper="Base mockada para validar a mesa operacional."
+          helper={`Mesa operacional via ${ordersSourceLabel}.`}
         />
         <MetricCard
           icon={CreditCard}
@@ -1010,7 +1028,7 @@ export default function AdminDashboard({
                 </div>
                 <div>
                   <div className="font-medium text-slate-100">
-                    {order.customerName ?? 'Cliente mockado'}
+                    {order.customerName ?? 'Cliente não identificado'}
                   </div>
                   <div className="mt-1 text-slate-400">
                     {order.salesChannel ?? 'Canal local'}
@@ -1087,7 +1105,7 @@ export default function AdminDashboard({
 
           <Panel
             title="Canais de venda"
-            description="Distribuição dos pedidos mockados por origem."
+            description={`Distribuição dos pedidos por origem via ${ordersSourceLabel}.`}
           >
             <div className="space-y-2">
               {Array.from(
@@ -1117,21 +1135,21 @@ export default function AdminDashboard({
       <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
         <MetricCard
           icon={Database}
-          label="Catálogo mock"
+          label="Catálogo"
           value={String(products.length)}
-          helper="Dados locais abastecendo storefront e painel."
+          helper={`Storefront e painel via ${catalogSourceLabel}.`}
         />
         <MetricCard
           icon={RefreshCw}
           label="Pedidos com ERP ref."
           value={String(syncedOrders.length)}
-          helper="Mocks já simulam referência externa do Bling."
+          helper="Sem chamada real ao Bling."
         />
         <MetricCard
           icon={Wifi}
           label="Integrações reais"
           value="0"
-          helper="Supabase e Bling continuam fora do frontend."
+          helper="Bling e pagamentos seguem desligados."
         />
         <MetricCard
           icon={ShieldCheck}
@@ -1152,34 +1170,36 @@ export default function AdminDashboard({
               nem assumir payloads fora da documentação oficial.
             </p>
             <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5 text-xs text-slate-300">
-              {syncedOrders.length} pedidos mockados carregam referência visual de ERP.
+              {syncedOrders.length} pedidos carregam referência visual de ERP.
             </div>
           </div>
         </Panel>
 
-        <Panel title="Supabase" description="Persistência real segue fora do escopo desta etapa.">
+        <Panel title="Supabase" description={`Catálogo: ${catalogSourceLabel}. Pedidos: ${ordersSourceLabel}.`}>
           <div className="space-y-3">
             <SmallBadge className="border-sky-400/20 bg-sky-400/10 text-sky-200">
-              Backlog técnico
+              {catalogSourceLabel === 'Supabase' || ordersSourceLabel === 'Supabase'
+                ? 'Conectado'
+                : 'Fallback ativo'}
             </SmallBadge>
             <p className="text-xs leading-5 text-slate-300">
-              O painel já foi organizado para receber dados sensíveis por Server Components e
-              serviços, sem transformar o frontend em fonte de verdade.
+              O painel lê por services/repositories no servidor. Quando a configuração não está
+              disponível, o fallback mock mantém a operação local funcionando.
             </p>
             <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5 text-xs text-slate-300">
-              Estrutura visual pronta para conexão com estoque, pedidos e permissões.
+              Nenhuma chave sensível é enviada ao client-side.
             </div>
           </div>
         </Panel>
 
-        <Panel title="Storefront" description="Vitrine pública e painel compartilham a mesma base mockada.">
+        <Panel title="Storefront" description={`Vitrine pública e painel usam catálogo via ${catalogSourceLabel}.`}>
           <div className="space-y-3">
             <SmallBadge className="border-emerald-400/20 bg-emerald-400/10 text-emerald-200">
               Ativo
             </SmallBadge>
             <p className="text-xs leading-5 text-slate-300">
-              As rotas públicas já consomem os módulos do catálogo local e o admin reaproveita a
-              mesma camada para leitura operacional.
+              As rotas públicas consomem a mesma camada de catálogo, sem conhecer se a fonte é
+              Supabase ou fallback mock.
             </p>
             <Link
               href="/"
@@ -1200,9 +1220,9 @@ export default function AdminDashboard({
           <div className="space-y-2">
             {[
               'Rotas públicas reais usando modules/catalog.',
-              'Tela de carrinho mockada mantendo linguagem visual.',
+              'Tela de carrinho visual mantendo linguagem operacional.',
               'Dashboard admin dark inspirado em SaaS operacional.',
-              'Supabase ainda não integrado.',
+              `Catálogo via ${catalogSourceLabel}.`,
               'Bling ainda não integrado.',
             ].map((item, index) => (
               <div
@@ -1239,7 +1259,7 @@ export default function AdminDashboard({
                   <div>
                     <div className="text-xs font-semibold text-white">{order.orderNumber}</div>
                     <div className="mt-0.5 text-[11px] text-slate-400">
-                      {order.customerName ?? 'Cliente mockado'} • {order.salesChannel}
+                      {order.customerName ?? 'Cliente não identificado'} • {order.salesChannel}
                     </div>
                   </div>
                   <SmallBadge className={order.externalErpId ? 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200' : 'border-slate-400/20 bg-slate-400/10 text-slate-300'}>
@@ -1306,20 +1326,23 @@ export default function AdminDashboard({
                 <SettingsField label="Nome" value="Administrador da loja" />
                 <SettingsField label="E-mail" value="admin@brasildrones.com.br" />
                 <SettingsField label="Função" value="Gestão operacional e catálogo" />
-                <SettingsField label="Acesso" value="Painel mockado interno" />
+                <SettingsField label="Acesso" value={`${adminRoleLabel} autenticado`} />
               </div>
             </div>
           </Panel>
 
           <Panel
             title="Informações base"
-            description="Metadados visuais do painel enquanto a persistência real não entra."
+            description="Metadados visuais do painel e origem atual dos dados."
           >
             <div className="space-y-1">
               <SettingsField label="Empresa" value="Brasil Drones & Parts" />
               <SettingsField label="Tema" value="Dark SaaS com paleta azul, ciano e verde" />
               <SettingsField label="Status" value="Admin inicial ativo" />
-              <SettingsField label="Origem" value="Dados locais de modules/catalog e modules/orders" />
+              <SettingsField
+                label="Origem"
+                value={`Catálogo ${catalogSourceLabel}; pedidos ${ordersSourceLabel}`}
+              />
             </div>
           </Panel>
         </div>
@@ -1332,9 +1355,9 @@ export default function AdminDashboard({
             description="Parâmetros visuais do fluxo até a integração real."
           >
             <div className="space-y-1">
-              <SettingsField label="Catálogo" value={`${products.length} produtos mockados carregados`} />
+              <SettingsField label="Catálogo" value={`${products.length} produtos via ${productsSourceLabel}`} />
               <SettingsField label="Categorias" value={`${categories.length} categorias prontas para filtro`} />
-              <SettingsField label="Pedidos" value={`${orders.length} pedidos na base visual atual`} />
+              <SettingsField label="Pedidos" value={`${orders.length} pedidos via ${ordersSourceLabel}`} />
               <SettingsField label="ERP" value="Bling ainda não integrado" />
             </div>
           </Panel>
@@ -1347,13 +1370,13 @@ export default function AdminDashboard({
               <div className="rounded-lg border border-white/6 bg-[#081225] p-3">
                 <div className="text-xs font-semibold text-white">Storefront</div>
                 <p className="mt-1 text-[11px] leading-5 text-slate-400">
-                  Rotas de produto, categoria e carrinho já consumindo o catálogo mockado.
+                  Rotas de produto, categoria e carrinho consumindo a camada de catálogo.
                 </p>
               </div>
               <div className="rounded-lg border border-white/6 bg-[#081225] p-3">
                 <div className="text-xs font-semibold text-white">Mesa operacional</div>
                 <p className="mt-1 text-[11px] leading-5 text-slate-400">
-                  Pedidos, badges e estados do painel usam o módulo local de pedidos.
+                  Pedidos, badges e estados do painel usam o service de pedidos.
                 </p>
               </div>
               <div className="rounded-lg border border-white/6 bg-[#081225] p-3">
@@ -1473,9 +1496,9 @@ export default function AdminDashboard({
           <div className="mt-auto space-y-2">
             <div className="rounded-xl border border-white/6 bg-[#081225] px-3 py-3">
               <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Modo</div>
-              <div className="mt-1 text-xs font-semibold text-white">Mock local ativo</div>
+              <div className="mt-1 text-xs font-semibold text-white">Fonte atual</div>
               <p className="mt-1 text-[11px] leading-5 text-slate-400">
-                Dados do admin ainda vêm dos módulos locais do projeto.
+                Catálogo {catalogSourceLabel}; pedidos {ordersSourceLabel}.
               </p>
             </div>
 
@@ -1556,10 +1579,10 @@ export default function AdminDashboard({
 
               <div className="flex flex-wrap gap-2">
                 <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
-                  {products.length} produtos mockados
+                  {products.length} produtos · {productsSourceLabel}
                 </SmallBadge>
                 <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
-                  {orders.length} pedidos no painel
+                  {orders.length} pedidos · {ordersSourceLabel}
                 </SmallBadge>
                 <SmallBadge className="border-emerald-400/20 bg-emerald-400/10 text-emerald-200">
                   Layout admin ativo

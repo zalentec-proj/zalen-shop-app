@@ -2,8 +2,11 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { currentStoreBrand } from '@/lib/branding/current-store-brand';
-import { listCategories, listProducts } from '@/modules/catalog/product.service';
-import { listOrders } from '@/modules/orders/order.service';
+import {
+  listCategoriesWithSource,
+  listProductsWithSource,
+} from '@/modules/catalog/product.service';
+import { listOrdersWithSource } from '@/modules/orders/order.service';
 import {
   getCurrentUser,
   getPlatformRole,
@@ -69,17 +72,22 @@ export default async function AdminPage() {
     return <AccessDenied />;
   }
 
-  const [products, categories, orders] = await Promise.all([
-    listProducts(),
-    listCategories(),
-    listOrders(),
+  const [productsResult, categoriesResult, ordersResult] = await Promise.all([
+    listProductsWithSource(),
+    listCategoriesWithSource(),
+    listOrdersWithSource(),
   ]);
 
   return (
     <AdminDashboard
-      products={products}
-      categories={categories}
-      orders={orders}
+      products={productsResult.data}
+      categories={categoriesResult.data}
+      orders={ordersResult.data}
+      dataSources={{
+        products: productsResult.source,
+        categories: categoriesResult.source,
+        orders: ordersResult.source,
+      }}
       adminUser={{
         email: user.email,
         role: platformRole ?? membership!.role,

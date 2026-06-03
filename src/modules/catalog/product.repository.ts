@@ -7,7 +7,7 @@ import {
 } from '@/assets/images';
 import {
   createOptionalAdminClient,
-  isSupabaseAdminConfigured,
+  createOptionalPublicServerClient,
 } from '@/lib/supabase/server';
 import { logDevOnce } from '@/lib/logging/dev';
 import type {
@@ -15,6 +15,7 @@ import type {
   Product,
   ProductImage,
   ProductStatus,
+  ProductSummary,
   ProductVariant,
 } from './product.types';
 import {
@@ -29,6 +30,17 @@ import {
 } from './product.mock';
 
 const BRASIL_DRONES_STORE_ID = '00000000-0000-0000-0000-000000000001';
+
+export type CatalogDataSource = 'supabase' | 'mock';
+
+export interface CatalogRepositoryResult<T> {
+  data: T;
+  source: CatalogDataSource;
+}
+
+type SupabaseCatalogClient =
+  | NonNullable<ReturnType<typeof createOptionalAdminClient>>
+  | NonNullable<ReturnType<typeof createOptionalPublicServerClient>>;
 
 type ProductRow = {
   id: string;
@@ -199,195 +211,224 @@ function toCompactLogText(value: string | undefined) {
 }
 
 async function fetchSupabaseProducts(): Promise<Product[] | null> {
-  if (!isSupabaseAdminConfigured()) {
+  const clients = [
+    createOptionalAdminClient(),
+    createOptionalPublicServerClient(),
+  ].filter((client): client is SupabaseCatalogClient => Boolean(client));
+
+  if (clients.length === 0) {
     logDevOnce('catalog.repository', 'using mock data', {
       reason: 'supabase-env-missing',
     });
     return null;
   }
 
-  const supabase = createOptionalAdminClient();
+  let lastError: RepositoryError | null = null;
 
-  if (!supabase) {
-    logDevOnce('catalog.repository', 'using mock data', {
-      reason: 'supabase-client-unavailable',
-    });
-    return null;
-  }
-
-  const { data: productRows, error: productsError } = await supabase
-    .from('products')
-    .select('*')
-    .eq('store_id', BRASIL_DRONES_STORE_ID)
-    .eq('status', 'active')
-    .order('created_at', { ascending: true });
-
-  if (productsError || !productRows) {
-    logDevOnce('catalog.repository', 'using mock data', {
-      reason: 'products-query-failed',
-      ...getQueryErrorDetails(productsError),
-    });
-    return null;
-  }
-
-  const productIds = productRows.map((product) => product.id);
-
-  if (productIds.length === 0) {
-    return [];
-  }
-
-  const [
-    { data: variantRows, error: variantsError },
-    { data: imageRows, error: imagesError },
-    { data: categoryRows, error: categoriesError },
-    { data: productCategoryRows, error: productCategoriesError },
-  ] = await Promise.all([
-    supabase
-      .from('product_variants')
-      .select('*')
-      .in('product_id', productIds)
-      .order('created_at', { ascending: true }),
-    supabase
-      .from('product_images')
-      .select('*')
-      .in('product_id', productIds)
-      .order('position', { ascending: true }),
-    supabase
-      .from('categories')
+  for (const supabase of clients) {
+    const { data: productRows, error: productsError } = await supabase
+      .from('products')
       .select('*')
       .eq('store_id', BRASIL_DRONES_STORE_ID)
-      .order('position', { ascending: true }),
-    supabase
-      .from('product_categories')
-      .select('product_id, category_id')
-      .in('product_id', productIds),
-  ]);
+      .eq('status', 'active')
+      .order('created_at', { ascending: true });
 
-  if (
-    variantsError ||
-    imagesError ||
-    categoriesError ||
-    productCategoriesError ||
-    !variantRows ||
-    !imageRows ||
-    !categoryRows ||
-    !productCategoryRows
-  ) {
-    logDevOnce('catalog.repository', 'using mock data', {
-      reason: 'catalog-relations-query-failed',
-      code:
-        variantsError?.code ??
-        imagesError?.code ??
-        categoriesError?.code ??
-        productCategoriesError?.code ??
-        'unknown',
-      message:
-        variantsError?.message ??
-        imagesError?.message ??
-        categoriesError?.message ??
-        productCategoriesError?.message ??
-        'query-error',
+    if (productsError || !productRows) {
+      lastError = productsError;
+      continue;
+    }
+
+    const productIds = productRows.map((product) => product.id);
+
+    if (productIds.length === 0) {
+      return [];
+    }
+
+    const [
+      { data: variantRows, error: variantsError },
+      { data: imageRows, error: imagesError },
+      { data: categoryRows, error: categoriesError },
+      { data: productCategoryRows, error: productCategoriesError },
+    ] = await Promise.all([
+      supabase
+        .from('product_variants')
+        .select('*')
+        .in('product_id', productIds)
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('product_images')
+        .select('*')
+        .in('product_id', productIds)
+        .order('position', { ascending: true }),
+      supabase
+        .from('categories')
+        .select('*')
+        .eq('store_id', BRASIL_DRONES_STORE_ID)
+        .order('position', { ascending: true }),
+      supabase
+        .from('product_categories')
+        .select('product_id, category_id')
+        .in('product_id', productIds),
+    ]);
+
+    if (
+      variantsError ||
+      imagesError ||
+      categoriesError ||
+      productCategoriesError ||
+      !variantRows ||
+      !imageRows ||
+      !categoryRows ||
+      !productCategoryRows
+    ) {
+      lastError =
+        variantsError ??
+        imagesError ??
+        categoriesError ??
+        productCategoriesError ??
+        null;
+      continue;
+    }
+
+    const categoriesById = new Map(
+      (categoryRows as CategoryRow[]).map((row) => [row.id, mapCategory(row)])
+    );
+    const variantsByProductId = new Map<string, ProductVariant[]>();
+    const imagesByProductId = new Map<string, ProductImage[]>();
+    const categoryIdsByProductId = new Map<string, string[]>();
+
+    (variantRows as ProductVariantRow[]).forEach((row) => {
+      const variants = variantsByProductId.get(row.product_id) ?? [];
+      variants.push(mapVariant(row));
+      variantsByProductId.set(row.product_id, variants);
     });
-    return null;
+
+    (imageRows as ProductImageRow[]).forEach((row) => {
+      const images = imagesByProductId.get(row.product_id) ?? [];
+      images.push(mapImage(row));
+      imagesByProductId.set(row.product_id, images);
+    });
+
+    (productCategoryRows as ProductCategoryRow[]).forEach((row) => {
+      const categoryIds = categoryIdsByProductId.get(row.product_id) ?? [];
+      categoryIds.push(row.category_id);
+      categoryIdsByProductId.set(row.product_id, categoryIds);
+    });
+
+    const products = (productRows as ProductRow[]).map((productRow) => {
+      const categories = (categoryIdsByProductId.get(productRow.id) ?? [])
+        .map((categoryId) => categoriesById.get(categoryId))
+        .filter((category): category is Category => Boolean(category));
+
+      return mapProduct(
+        productRow,
+        variantsByProductId.get(productRow.id) ?? [],
+        imagesByProductId.get(productRow.id) ?? [],
+        categories
+      );
+    });
+
+    logDevOnce('catalog.repository', 'using supabase data', {
+      products: products.length,
+    });
+
+    return products;
   }
 
-  const categoriesById = new Map(
-    (categoryRows as CategoryRow[]).map((row) => [row.id, mapCategory(row)])
-  );
-  const variantsByProductId = new Map<string, ProductVariant[]>();
-  const imagesByProductId = new Map<string, ProductImage[]>();
-  const categoryIdsByProductId = new Map<string, string[]>();
-
-  (variantRows as ProductVariantRow[]).forEach((row) => {
-    const variants = variantsByProductId.get(row.product_id) ?? [];
-    variants.push(mapVariant(row));
-    variantsByProductId.set(row.product_id, variants);
+  logDevOnce('catalog.repository', 'using mock data', {
+    reason: 'products-query-failed',
+    ...getQueryErrorDetails(lastError),
   });
 
-  (imageRows as ProductImageRow[]).forEach((row) => {
-    const images = imagesByProductId.get(row.product_id) ?? [];
-    images.push(mapImage(row));
-    imagesByProductId.set(row.product_id, images);
-  });
-
-  (productCategoryRows as ProductCategoryRow[]).forEach((row) => {
-    const categoryIds = categoryIdsByProductId.get(row.product_id) ?? [];
-    categoryIds.push(row.category_id);
-    categoryIdsByProductId.set(row.product_id, categoryIds);
-  });
-
-  const products = (productRows as ProductRow[]).map((productRow) => {
-    const categories = (categoryIdsByProductId.get(productRow.id) ?? [])
-      .map((categoryId) => categoriesById.get(categoryId))
-      .filter((category): category is Category => Boolean(category));
-
-    return mapProduct(
-      productRow,
-      variantsByProductId.get(productRow.id) ?? [],
-      imagesByProductId.get(productRow.id) ?? [],
-      categories
-    );
-  });
-
-  logDevOnce('catalog.repository', 'using supabase data', {
-    products: products.length,
-  });
-
-  return products;
+  return null;
 }
 
 async function fetchSupabaseCategories(): Promise<Category[] | null> {
-  if (!isSupabaseAdminConfigured()) {
+  const clients = [
+    createOptionalAdminClient(),
+    createOptionalPublicServerClient(),
+  ].filter((client): client is SupabaseCatalogClient => Boolean(client));
+
+  if (clients.length === 0) {
     logDevOnce('catalog.repository', 'using mock categories', {
       reason: 'supabase-env-missing',
     });
     return null;
   }
 
-  const supabase = createOptionalAdminClient();
+  let lastError: RepositoryError | null = null;
 
-  if (!supabase) {
-    logDevOnce('catalog.repository', 'using mock categories', {
-      reason: 'supabase-client-unavailable',
+  for (const supabase of clients) {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('store_id', BRASIL_DRONES_STORE_ID)
+      .order('position', { ascending: true });
+
+    if (error || !data) {
+      lastError = error;
+      continue;
+    }
+
+    const categories = (data as CategoryRow[]).map(mapCategory);
+
+    logDevOnce('catalog.repository', 'using supabase categories', {
+      categories: categories.length,
     });
-    return null;
+
+    return categories;
   }
 
-  const { data, error } = await supabase
-    .from('categories')
-    .select('*')
-    .eq('store_id', BRASIL_DRONES_STORE_ID)
-    .order('position', { ascending: true });
-
-  if (error || !data) {
-    logDevOnce('catalog.repository', 'using mock categories', {
-      reason: 'categories-query-failed',
-      ...getQueryErrorDetails(error),
-    });
-    return null;
-  }
-
-  const categories = (data as CategoryRow[]).map(mapCategory);
-
-  logDevOnce('catalog.repository', 'using supabase categories', {
-    categories: categories.length,
+  logDevOnce('catalog.repository', 'using mock categories', {
+    reason: 'categories-query-failed',
+    ...getQueryErrorDetails(lastError),
   });
 
-  return categories;
+  return null;
 }
 
 export async function listProductsFromRepository() {
+  return (await listProductsWithSourceFromRepository()).data;
+}
+
+export async function listProductsWithSourceFromRepository(): Promise<
+  CatalogRepositoryResult<ProductSummary[]>
+> {
   const supabaseProducts = await fetchSupabaseProducts();
 
   if (supabaseProducts) {
-    return supabaseProducts.map(toProductSummary);
+    return {
+      data: supabaseProducts.map(toProductSummary),
+      source: 'supabase',
+    };
   }
 
-  return getMockProductSummaries();
+  return {
+    data: getMockProductSummaries(),
+    source: 'mock',
+  };
 }
 
 export async function listCategoriesFromRepository(): Promise<Category[]> {
-  return (await fetchSupabaseCategories()) ?? mockCategories;
+  return (await listCategoriesWithSourceFromRepository()).data;
+}
+
+export async function listCategoriesWithSourceFromRepository(): Promise<
+  CatalogRepositoryResult<Category[]>
+> {
+  const supabaseCategories = await fetchSupabaseCategories();
+
+  if (supabaseCategories) {
+    return {
+      data: supabaseCategories,
+      source: 'supabase',
+    };
+  }
+
+  return {
+    data: mockCategories,
+    source: 'mock',
+  };
 }
 
 export async function getProductBySlugFromRepository(

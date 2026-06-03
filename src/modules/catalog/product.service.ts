@@ -4,15 +4,19 @@
  * O storefront nunca chama Bling diretamente — sempre passa por aqui.
  */
 
-import { Category, Product, ProductSummary } from './product.types';
+import type { Category, Product, ProductSummary } from './product.types';
 import {
   getCategoryBySlugFromRepository,
   getProductByIdFromRepository,
   getProductBySlugFromRepository,
+  type CatalogDataSource,
+  type CatalogRepositoryResult,
   listCategoriesFromRepository,
+  listCategoriesWithSourceFromRepository,
   listCategoryProductsFromRepository,
   listProductsByCategoryFromRepository,
   listProductsFromRepository,
+  listProductsWithSourceFromRepository,
   listRelatedProductsFromRepository,
 } from './product.repository';
 
@@ -24,12 +28,26 @@ export async function listProducts(): Promise<ProductSummary[]> {
   return listProductsFromRepository();
 }
 
+export async function listProductsWithSource(): Promise<
+  CatalogRepositoryResult<ProductSummary[]>
+> {
+  return listProductsWithSourceFromRepository();
+}
+
 /**
  * Lista categorias do catálogo.
  */
 export async function listCategories(): Promise<Category[]> {
   return listCategoriesFromRepository();
 }
+
+export async function listCategoriesWithSource(): Promise<
+  CatalogRepositoryResult<Category[]>
+> {
+  return listCategoriesWithSourceFromRepository();
+}
+
+export type { CatalogDataSource };
 
 /**
  * Busca produto completo por slug.
