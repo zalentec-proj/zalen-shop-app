@@ -22,6 +22,7 @@ import {
   listProductsFromRepository,
   listProductsWithSourceFromRepository,
   listRelatedProductsFromRepository,
+  listStorefrontProductsFromRepository,
   updateProductStatusInRepository,
   updateProductStockInRepository,
 } from './product.repository';
@@ -32,6 +33,10 @@ import {
  */
 export async function listProducts(): Promise<ProductSummary[]> {
   return listProductsFromRepository();
+}
+
+export async function listStorefrontProducts(): Promise<Product[]> {
+  return listStorefrontProductsFromRepository();
 }
 
 export async function listProductsWithSource(): Promise<

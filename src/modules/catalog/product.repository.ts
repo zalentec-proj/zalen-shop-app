@@ -739,6 +739,16 @@ export async function listProductsFromRepository() {
   return (await listProductsWithSourceFromRepository()).data;
 }
 
+export async function listStorefrontProductsFromRepository(): Promise<Product[]> {
+  const supabaseProducts = await fetchSupabaseProducts();
+
+  if (supabaseProducts) {
+    return supabaseProducts;
+  }
+
+  return mockProducts;
+}
+
 export async function listProductsWithSourceFromRepository(): Promise<
   CatalogRepositoryResult<ProductSummary[]>
 > {

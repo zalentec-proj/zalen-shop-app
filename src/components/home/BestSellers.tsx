@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { products } from '../../data/products';
 import { Product, FilterState } from '../../types';
 import ProductCard from '../ecommerce/ProductCard';
 import FilterPanel from '../ecommerce/FilterPanel';
 import { HelpCircle, Star, Sparkles } from 'lucide-react';
 
 interface BestSellersProps {
+  products: Product[];
   onProductClick: (productId: string) => void;
   onAddToCart: (product: Product) => void;
   activeCategory: string | null;
@@ -14,6 +14,7 @@ interface BestSellersProps {
 }
 
 export default function BestSellers({
+  products,
   onProductClick,
   onAddToCart,
   activeCategory,
@@ -60,7 +61,7 @@ export default function BestSellers({
     });
 
     return list;
-  }, []);
+  }, [products]);
 
   // Filter products locally based on multiple states
   const filteredProducts = useMemo(() => {
@@ -98,7 +99,7 @@ export default function BestSellers({
 
       return true;
     });
-  }, [localFilters, searchQuery]);
+  }, [products, localFilters, searchQuery]);
 
   return (
     <section className="w-full px-4 md:px-8 py-12 bg-transparent" id="catalogo">

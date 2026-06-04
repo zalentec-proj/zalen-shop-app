@@ -16,13 +16,18 @@ import TechSection from './components/home/TechSection';
 import ProductDetailsView from './components/product/ProductDetailsView';
 import CartSidebar from './components/ecommerce/CartSidebar';
 import Footer from './components/layout/Footer';
-import { products } from './data/products';
-import { Product, CartItem } from './types';
+import type { Product, CartItem } from './types';
 import { CheckCircle2, Calendar, MapPin } from 'lucide-react';
 
-export default function App() {
+interface AppProps {
+  products: Product[];
+}
+
+export default function App({ products }: AppProps) {
   const [currentPage, setCurrentPage] = useState<'home' | 'product_detail'>('home');
-  const [selectedProductId, setSelectedProductId] = useState<string>('dji-mavic-3-pro');
+  const [selectedProductId, setSelectedProductId] = useState<string>(
+    products[0]?.id ?? 'dji-mavic-3-pro'
+  );
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [cartOpen, setCartOpen] = useState<boolean>(false);
@@ -45,7 +50,7 @@ export default function App() {
 
   const selectedProduct = useMemo(() => {
     return products.find((p) => p.id === selectedProductId) || products[0];
-  }, [selectedProductId]);
+  }, [products, selectedProductId]);
 
   const cartItemsCount = useMemo(() => {
     return cartItems.reduce((acc, item) => acc + item.quantity, 0);
@@ -153,6 +158,7 @@ export default function App() {
           />
 
           <BestSellers
+            products={products}
             onProductClick={handleProductSelect}
             onAddToCart={(prod) => handleAddToCart(prod, 1)}
             activeCategory={activeCategory}
@@ -164,11 +170,13 @@ export default function App() {
         </main>
       ) : (
         <main className="w-full">
-          <ProductDetailsView
-            product={selectedProduct}
-            onBackToHome={handleBackToHome}
-            onAddToCart={handleAddToCart}
-          />
+          {selectedProduct ? (
+            <ProductDetailsView
+              product={selectedProduct}
+              onBackToHome={handleBackToHome}
+              onAddToCart={handleAddToCart}
+            />
+          ) : null}
         </main>
       )}
 
