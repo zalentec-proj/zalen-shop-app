@@ -1,112 +1,174 @@
-# PRD — Zalen Shop / Brasil Drones
+# PRD — Zalen Shop Platform
 
 ## 1. Contexto
 
-A Brasil Drones & Parts precisa de uma loja online com aparência profissional, experiência visual premium e integração com sua operação no Bling. A primeira versão será criada para um único cliente, mas com fundação preparada para futura evolução multi-tenant.
+A Zalen Shop será uma plataforma de e-commerce customizável para empresas que precisam de lojas online próprias, com identidade visual personalizada, painel administrativo, catálogo, pedidos e integrações com sistemas externos.
+
+A primeira implementação real é a loja Brasil Drones & Parts, conectada ao Bling. Essa loja é o primeiro caso de uso, não o limite do produto. A arquitetura deve permitir novas lojas, como a futura LB London conectada ao Mercos, usando o mesmo core da plataforma.
 
 ## 2. Objetivo do produto
 
-Criar uma loja online personalizada, conectada ao Bling, onde o cliente consiga expor produtos, organizar categorias, receber pedidos e manter o Bling como centro operacional.
+Construir uma plataforma que permita criar, operar e evoluir lojas online personalizadas, mantendo um core comum de:
+
+- stores;
+- storefronts;
+- admin por loja;
+- catálogo;
+- carrinho;
+- pedidos;
+- clientes;
+- autenticação;
+- permissões;
+- conectores;
+- logs;
+- configurações.
 
 ## 3. Posicionamento
 
-A Zalen Shop não nasce como substituta do Bling.
+A Zalen Shop é uma plataforma de e-commerce customizável com conectores por loja.
 
-> Zalen Shop é a vitrine e experiência de venda. Bling é o ERP e operação.
+Ela não substitui necessariamente ERPs como Bling ou Mercos. Ela atua como camada de vitrine, experiência de compra, operação digital e integração.
 
-## 4. Usuários principais
+## 4. Princípio central
+
+A Zalen Shop não é apenas uma loja virtual.
+
+A Zalen Shop é uma base de e-commerce customizável com conectores por cliente.
+
+## 5. Primeiros casos de uso
+
+### Brasil Drones
+
+Primeira loja/caso real da plataforma.
+
+- Tipo: storefront customizado.
+- ERP: Bling.
+- Status: primeiro cliente.
+- Foco: drones, peças, acessórios, catálogo técnico e operação via Bling.
+
+### LB London
+
+Segunda loja/caso futuro.
+
+- Tipo: storefront customizado.
+- ERP: Mercos.
+- Status: planejado.
+- Foco: nova loja conectada a outro ERP.
+
+## 6. Usuários principais
 
 ### Comprador
 
-- Navega pelos produtos.
-- Pesquisa e acessa categorias.
-- Visualiza detalhes do produto.
-- Adiciona ao carrinho ou solicita compra/orçamento.
-- Acompanha status do pedido, quando disponível.
+- acessa a loja pública;
+- visualiza produtos;
+- navega por categorias;
+- adiciona itens ao carrinho;
+- realiza pedido/compra;
+- acompanha status quando disponível.
 
 ### Lojista
 
-- Acessa painel administrativo.
-- Visualiza produtos importados/sincronizados.
-- Visualiza pedidos.
-- Acompanha status da integração.
-- Conecta Bling e, futuramente, Mercado Pago/Melhor Envio.
+- acessa o admin da própria loja;
+- visualiza produtos;
+- acompanha pedidos;
+- configura integrações liberadas;
+- gerencia dados operacionais;
+- acessa apenas a própria store.
 
-### Admin Zalen
+### Zalen Platform Owner/Admin
 
-- Configura loja.
-- Acompanha logs.
-- Ajusta integrações.
-- Dá suporte.
+- gerencia a plataforma;
+- pode acessar todas as lojas;
+- configura lojas;
+- habilita conectores;
+- acompanha integrações;
+- dá suporte;
+- futuramente acessará uma área `/platform`.
 
-## 5. Escopo MVP
+## 7. Escopo MVP
 
-### Loja pública
+### Storefront
 
-- Home personalizada da Brasil Drones.
-- Página de categoria.
-- Página de produto.
-- Carrinho.
-- Página de pedido concluído.
-- Layout responsivo.
+- home da loja ativa;
+- página de produto;
+- página de categoria;
+- carrinho;
+- checkout/pedido;
+- pedido confirmado;
+- layout responsivo;
 - SEO básico.
-- Domínio configurado.
 
-### Painel administrativo básico
+### Admin da loja
 
-- Login.
-- Dashboard simples.
-- Produtos.
-- Categorias.
-- Pedidos.
-- Integrações.
-- Configurações da loja.
+- login com identidade Zalen Shop;
+- dashboard operacional;
+- produtos;
+- pedidos;
+- integrações;
+- configurações;
+- status da loja;
+- logs básicos.
 
-### Integração Bling
+### Core da plataforma
 
-- Conectar conta Bling via OAuth.
-- Utilizar JWT do Bling desde o início.
-- Importar produtos.
-- Importar categorias, quando aplicável.
-- Sincronizar estoque básico.
-- Criar/enviar pedido para o Bling.
-- Receber webhooks principais.
-- Registrar logs e erros.
+- stores;
+- usuários;
+- platform_users;
+- store_memberships;
+- catálogo;
+- pedidos;
+- integration_providers;
+- store_integrations;
+- logs;
+- Supabase Cloud;
+- Supabase Auth.
 
-### Envio
+### Conectores MVP e planejados
 
-- Retirada na loja.
-- Frete fixo.
-- Frete grátis por valor mínimo.
-- Código de rastreio manual.
-- Futuro: Melhor Envio.
+Primeiro conector real:
 
-### Pagamento
+- Bling para Brasil Drones.
 
-- Fase inicial pode usar fluxo operacional via Bling ou pedido.
-- Futuro: Mercado Pago conectado por OAuth.
-- Futuro: checkout próprio com Pix/cartão.
+Conectores planejados:
 
-## 6. Fora do escopo do MVP
+- Mercos para LB London;
+- Mercado Pago;
+- Melhor Envio;
+- Asaas/Pagar.me futuramente;
+- Meta/Instagram futuramente;
+- WhatsApp/IA futuramente.
 
-- SaaS multi-tenant completo.
-- Billing de planos.
-- Painel master.
-- Marketplace de apps.
-- Múltiplos ERPs.
-- Split de pagamento.
-- WhatsApp com IA.
-- Editor visual estilo Webflow.
-- App mobile.
-- Frente de caixa.
-- Financeiro próprio.
-- Nota fiscal própria dentro da Zalen.
-- Logística própria completa.
+## 8. Fora do escopo inicial
 
-## 7. Premissas
+- `/platform` completo;
+- billing/planos;
+- marketplace de apps;
+- editor visual avançado;
+- IA operacional;
+- WhatsApp automático;
+- multi-idioma;
+- split de pagamento;
+- relatórios avançados;
+- app mobile.
 
-- O Bling é o ERP principal.
-- O cliente manterá produtos/estoque preferencialmente no Bling.
-- A Zalen manterá cache/local copy para performance e vitrine.
-- A Zalen não deve depender do Bling em tempo real para renderizar páginas.
-- Tokens externos nunca serão expostos no frontend.
+## 9. Premissas
+
+- A Zalen Shop deve ser multi-store ready desde o início.
+- Cada loja deve ser isolada por `store_id`.
+- Conectores pertencem ao core da plataforma.
+- Cada loja ativa/configura seus conectores via `store_integrations`.
+- Tokens e credenciais são sempre por loja.
+- APIs externas nunca são chamadas diretamente do frontend.
+- O MVP deve permanecer leve.
+- Brasil Drones continua sendo o primeiro case com Bling.
+- LB London/Mercos fica documentado como segundo case futuro.
+
+## 10. Métricas iniciais de sucesso
+
+- Storefront Brasil Drones funcionando.
+- Admin protegido por Auth.
+- Supabase Cloud como fonte de dados.
+- Catálogo e pedidos por `store_id`.
+- Brasil Drones operando com admin Zalen Shop.
+- Bling documentado, pesquisado e integrado apenas após pesquisa oficial.
+- Estrutura preparada para LB London/Mercos sem reescrever o core.
