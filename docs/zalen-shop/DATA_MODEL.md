@@ -1,10 +1,22 @@
-# Modelo de Dados Inicial
+# Modelo de Dados — Zalen Shop
 
 ## 1. Estratégia
 
-Mesmo sendo uma loja única, usar `store_id` nas tabelas principais para deixar o projeto preparado para futura evolução multi-tenant.
+A Zalen Shop usa um único banco Supabase para múltiplas lojas. A separação entre lojas acontece por `store_id`.
 
-## 2. Core
+O modelo deve ser leve no MVP, mas preparado para:
+
+- múltiplas stores;
+- acesso global Zalen;
+- acesso por loja;
+- conectores globais da plataforma;
+- conectores configurados por loja;
+- catálogo;
+- pedidos;
+- webhooks;
+- logs de integração.
+
+## 2. Stores
 
 ```sql
 stores (
@@ -12,19 +24,40 @@ stores (
   name text not null,
   slug text unique not null,
   status text not null,
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 )
 ```
+
+Exemplos:
+
+- Brasil Drones
+- LB London futura
+
+## 3. Acesso
+
+### Platform users
+
+Usuários da Zalen com acesso global.
 
 ```sql
 platform_users (
   id uuid primary key,
-  user_id uuid not null,
+  user_id uuid not null unique,
   role text not null,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 )
 ```
+
+Roles:
+
+- `platform_owner`
+- `platform_admin`
+
+### Store memberships
+
+Usuários vinculados a uma loja específica.
 
 ```sql
 store_memberships (
@@ -33,14 +66,19 @@ store_memberships (
   user_id uuid not null,
   role text not null,
   created_at timestamptz default now(),
-  updated_at timestamptz default now()
+  updated_at timestamptz default now(),
+  unique(store_id, user_id)
 )
 ```
 
-`platform_users` representa acesso global da Zalen (`platform_owner`, `platform_admin`).
-`store_memberships` representa acesso operacional por loja (`store_owner`, `store_admin`, `store_operator`, `store_viewer`).
+Roles:
 
-## 3. Catálogo
+- `store_owner`
+- `store_admin`
+- `store_operator`
+- `store_viewer`
+
+## 4. Catálogo
 
 ```sql
 products (
@@ -76,7 +114,8 @@ product_variants (
   height numeric(12,3),
   depth numeric(12,3),
   attributes_json jsonb default '{}'::jsonb,
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 )
 ```
 
@@ -112,7 +151,7 @@ product_categories (
 )
 ```
 
-## 4. Pedidos
+## 5. Pedidos
 
 ```sql
 orders (
@@ -129,7 +168,8 @@ orders (
   total numeric(12,2),
   external_erp_provider text,
   external_erp_id text,
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 )
 ```
 
@@ -148,47 +188,78 @@ order_items (
 )
 ```
 
-## 5. Integrações
+## 6. Conectores globais
+
+### integration_providers
+
+Representa o catálogo global de conectores existentes na plataforma.
+
+```sql
+integration_providers (
+  id uuid primary key,
+  key text not null unique,
+  name text not null,
+  category text not null,
+  status text not null,
+  description text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+)
+```
+
+Categorias:
+
+- `erp`
+- `payment`
+- `shipping`
+- `sales_channel`
+- `ai`
+- `analytics`
+
+Status:
+
+- `planned`
+- `beta`
+- `available`
+- `deprecated`
+
+Exemplos iniciais:
+
+- `bling` — ERP — available/planned conforme estágio;
+- `mercos` — ERP — planned;
+- `mercado_pago` — payment — planned;
+- `melhor_envio` — shipping — planned.
+
+## 7. Conectores por loja
+
+### store_integrations
+
+Representa uma integração habilitada/configurada em uma loja.
 
 ```sql
 store_integrations (
   id uuid primary key,
   store_id uuid references stores(id),
-  provider text not null,
+  provider_key text not null references integration_providers(key),
   environment text not null,
   status text not null,
   credentials_encrypted text,
   settings_json jsonb default '{}'::jsonb,
   last_sync_at timestamptz,
   created_at timestamptz default now(),
-  updated_at timestamptz default now()
+  updated_at timestamptz default now(),
+  unique(store_id, provider_key, environment)
 )
 ```
 
-```sql
-integration_connections (
-  id uuid primary key,
-  store_id uuid references stores(id),
-  provider text not null,
-  status text not null,
-  scopes text[],
-  connected_at timestamptz,
-  created_at timestamptz default now()
-)
-```
+Exemplos:
 
-```sql
-integration_tokens (
-  id uuid primary key,
-  connection_id uuid references integration_connections(id),
-  access_token_encrypted text,
-  refresh_token_encrypted text,
-  token_type text,
-  expires_at timestamptz,
-  is_jwt boolean default false,
-  created_at timestamptz default now()
-)
-```
+- Brasil Drones → Bling
+- LB London → Mercos
+
+Credenciais sempre pertencem à loja e nunca ao frontend.
+
+## 8. Webhooks e jobs
 
 ```sql
 webhook_events (
@@ -220,3 +291,28 @@ sync_jobs (
   processed_at timestamptz
 )
 ```
+
+## 9. Índices essenciais
+
+```sql
+stores(slug)
+products(store_id)
+products(store_id, slug)
+product_variants(store_id)
+categories(store_id)
+orders(store_id)
+orders(store_id, created_at)
+platform_users(user_id)
+store_memberships(user_id)
+store_memberships(store_id)
+store_memberships(store_id, user_id)
+integration_providers(key)
+store_integrations(store_id)
+store_integrations(store_id, provider_key)
+webhook_events(store_id, provider)
+sync_jobs(store_id, provider, status)
+```
+
+## 10. Regra central
+
+Se a tabela contém dado de uma loja, ela deve carregar `store_id` e respeitar isolamento por loja.
