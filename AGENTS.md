@@ -1,34 +1,92 @@
-# AGENTS.md — Instruções para IA, Codex e IDE
+# AGENTS.md — Regras para IA, Codex e IDE
 
-Este projeto começou como uma apresentação visual da loja Brasil Drones, mas será evoluído para uma loja real single-tenant, preparada para virar uma plataforma Zalen Shop no futuro.
+Este repositório implementa a **Zalen Shop**, uma plataforma de e-commerce customizável. A Brasil Drones é a primeira loja/caso de uso, não o produto inteiro.
 
-## Objetivo técnico
+## Leitura obrigatória antes de alterar código
 
-Construir uma loja online para um cliente único, com base visual já existente, integração com Bling e arquitetura modular preparada para evolução multi-tenant.
+Antes de qualquer implementação relevante, leia:
 
-## Stack alvo
+- `docs/zalen-shop/PROJECT_OVERVIEW.md`
+- `docs/zalen-shop/PRD.md`
+- `docs/zalen-shop/ARCHITECTURE.md`
+- `docs/zalen-shop/DATA_MODEL.md`
+- `docs/zalen-shop/SECURITY.md`
+- `docs/zalen-shop/AUTH_AND_ACCESS.md`
+- `docs/zalen-shop/CONNECTORS_STRATEGY.md`
+- `docs/zalen-shop/ADMIN_EXPERIENCE.md`
+- `docs/zalen-shop/STOREFRONT_AND_TEMPLATES.md`
+- `docs/zalen-shop/ROADMAP.md`
+- `docs/zalen-shop/ACCEPTANCE_CRITERIA.md`
 
+Para integrações externas, leia também:
+
+- `docs/integrations/README.md`
+- `docs/integrations/official-sources.md`
+- o arquivo de pesquisa técnica do provedor em `docs/integrations/`
+
+## Decisões centrais
+
+1. **Zalen Shop é a plataforma.**
+2. **Brasil Drones é a primeira loja/case.**
+3. **LB London é uma loja futura/case planejado.**
+4. O login e o admin pertencem à identidade **Zalen Shop**.
+5. O storefront público pertence à identidade da loja ativa.
+6. `/admin` é o painel operacional da loja.
+7. `/platform` será futuro e não deve ser implementado agora.
+8. O MVP deve permanecer leve.
+
+## Stack atual
+
+- Next.js App Router
 - React
 - TypeScript
-- Vite inicialmente, podendo migrar para Next.js quando o backend crescer
 - Tailwind CSS
-- Supabase PostgreSQL
+- Supabase Cloud
 - Supabase Auth
-- Supabase Storage
+- Supabase PostgreSQL
 - Zod
-- React Hook Form
-- TanStack Query quando houver painel/admin mais robusto
-- Lucide React
-- Motion/Framer Motion com moderação
+- Server Components, Route Handlers e Server Actions quando necessário
+
+## Modelo de produto
+
+A Zalen Shop deve suportar múltiplas lojas com um único app e um único banco:
+
+```txt
+Zalen Shop Platform
+├── Store: Brasil Drones
+│   └── ERP: Bling
+└── Store: LB London (futuro)
+    └── ERP: Mercos
+```
+
+Toda tabela de dados de loja deve carregar `store_id`.
+
+## Conectores
+
+Conectores pertencem ao core da Zalen Shop. Lojas apenas ativam/configuram conectores.
+
+Exemplos:
+
+- Bling — ERP para Brasil Drones.
+- Mercos — ERP futuro para LB London.
+- Mercado Pago — pagamento futuro.
+- Melhor Envio — logística futura.
+
+Use o modelo:
+
+```txt
+integration_providers → catálogo global de conectores
+store_integrations → conector configurado por loja
+```
 
 ## Regras de arquitetura
 
 - Não misturar regra de negócio dentro de componentes visuais.
-- Não chamar Bling, Mercado Pago ou Melhor Envio direto do frontend.
-- Toda integração externa deve passar por um service/connector no backend.
-- Mesmo sendo single-tenant, tabelas principais devem nascer com `store_id`.
-- Todo input externo deve ser validado com schema.
-- O frontend não deve ser fonte de verdade para preço, estoque, permissão, frete ou total de pedido.
+- Não chamar Bling, Mercos, Mercado Pago ou Melhor Envio diretamente do frontend.
+- Toda integração externa deve passar por service/connector server-side.
+- O frontend nunca é fonte de verdade para preço, estoque, permissão, frete ou total de pedido.
+- Queries de dados de loja devem sempre respeitar `store_id`.
+- Storefront, admin e futuras rotas platform devem compartilhar core, services e repositories.
 
 ## Segurança obrigatória
 
@@ -37,46 +95,43 @@ Nunca:
 - Expor tokens no frontend.
 - Salvar tokens em logs.
 - Colocar tokens em localStorage.
+- Usar service role em Client Components.
 - Concatenar SQL com input do usuário.
 - Desabilitar RLS para resolver problema rápido.
 - Aceitar webhook sem validação quando o provedor oferecer assinatura.
 - Processar webhook sem idempotência.
 - Permitir HTML ou JavaScript livre no editor da loja no MVP.
+- Commitar `.env.local`, tokens, service role, senhas ou saídas de terminal com segredos.
 
-## Módulos prioritários
+## Integrações externas
 
-1. Storefront Brasil Drones.
-2. Catálogo.
-3. Carrinho/pedido.
-4. Painel administrativo básico.
-5. Integração Bling.
-6. Segurança e logs.
-7. Temas/template preparado para evolução.
+Antes de implementar qualquer integração externa:
 
-## Regra central
+1. Consulte `docs/integrations/official-sources.md`.
+2. Leia a documentação oficial do provedor.
+3. Preencha o arquivo de pesquisa técnica correspondente.
+4. Valide o plano com `docs/zalen-shop/SECURITY.md`.
+5. Só então implemente tipos, clients, services e route handlers.
 
-A Zalen é a vitrine e experiência de venda. O Bling é o ERP operacional.
+Não é permitido inventar endpoints, headers, payloads, escopos ou fluxos OAuth.
 
-## Regra obrigatória para integrações externas
+## Escopo atual permitido
 
-Antes de implementar qualquer integração externa (Bling, Mercado Pago, Melhor Envio, Asaas, Pagar.me ou qualquer outro provedor), o agente deve:
+Pode avançar em:
 
-1. Consultar `docs/integrations/official-sources.md` para obter os links da documentação oficial.
-2. Ler a documentação oficial do provedor.
-3. Preencher o arquivo de pesquisa técnica correspondente em `docs/integrations/`.
-4. Verificar segurança com `docs/zalen-shop/SECURITY.md`.
+- auth e acesso com Supabase;
+- admin Zalen Shop para a loja ativa;
+- catálogo e pedidos usando Supabase;
+- documentação e preparação de conectores;
+- UI do login/admin com identidade Zalen Shop;
+- storefront da Brasil Drones como case.
 
-**Não é permitido:**
-- Inventar endpoints, URLs, headers ou parâmetros.
-- Assumir payloads sem confirmar na documentação oficial.
-- Assumir escopos OAuth sem confirmar na documentação oficial.
-- Assumir fluxo de autenticação sem confirmar na documentação oficial.
-- Implementar webhook sem validação de assinatura documentada.
-- Implementar integração real sem idempotência.
+Não avance ainda em:
 
-**Se a documentação oficial não estiver clara:**
-- Parar a implementação.
-- Registrar a dúvida em "Dúvidas pendentes" no arquivo de pesquisa técnica.
-- Não prosseguir até que a dúvida seja resolvida com fonte oficial.
-
-Stack atual: **Next.js** (migrado de Vite). Usar App Router, Route Handlers para APIs e Server Components para dados sensíveis.
+- `/platform` completo;
+- billing/planos;
+- marketplace de apps;
+- Bling real sem pesquisa técnica aprovada;
+- Mercos real sem pesquisa técnica aprovada;
+- checkout/pagamento real sem decisão explícita;
+- IA/WhatsApp automático.
