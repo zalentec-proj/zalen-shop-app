@@ -9,8 +9,12 @@ import {
   getCategoryBySlugFromRepository,
   getProductByIdFromRepository,
   getProductBySlugFromRepository,
+  listAdminProductsWithSourceFromRepository,
   type CatalogDataSource,
+  type CatalogMutationResult,
   type CatalogRepositoryResult,
+  type UpdateProductStatusInput,
+  type UpdateProductStockInput,
   listCategoriesFromRepository,
   listCategoriesWithSourceFromRepository,
   listCategoryProductsFromRepository,
@@ -18,6 +22,8 @@ import {
   listProductsFromRepository,
   listProductsWithSourceFromRepository,
   listRelatedProductsFromRepository,
+  updateProductStatusInRepository,
+  updateProductStockInRepository,
 } from './product.repository';
 
 /**
@@ -32,6 +38,12 @@ export async function listProductsWithSource(): Promise<
   CatalogRepositoryResult<ProductSummary[]>
 > {
   return listProductsWithSourceFromRepository();
+}
+
+export async function listAdminProductsWithSource(): Promise<
+  CatalogRepositoryResult<ProductSummary[]>
+> {
+  return listAdminProductsWithSourceFromRepository();
 }
 
 /**
@@ -99,4 +111,16 @@ export async function listRelatedProducts(
   limit = 3
 ): Promise<ProductSummary[]> {
   return listRelatedProductsFromRepository(productSlug, limit);
+}
+
+export async function updateProductStatus(
+  input: UpdateProductStatusInput
+): Promise<CatalogMutationResult> {
+  return updateProductStatusInRepository(input);
+}
+
+export async function updateProductStock(
+  input: UpdateProductStockInput
+): Promise<CatalogMutationResult> {
+  return updateProductStockInRepository(input);
 }

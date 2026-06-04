@@ -7,6 +7,7 @@ import {
 } from '@/assets/images';
 import {
   createOptionalAdminClient,
+  createOptionalClient,
   createOptionalPublicServerClient,
 } from '@/lib/supabase/server';
 import { logDevOnce } from '@/lib/logging/dev';
@@ -38,8 +39,34 @@ export interface CatalogRepositoryResult<T> {
   source: CatalogDataSource;
 }
 
+export type CatalogMutationResult =
+  | {
+      ok: true;
+      persisted: boolean;
+      source: CatalogDataSource;
+    }
+  | {
+      ok: false;
+      persisted: false;
+      source: CatalogDataSource;
+      error: string;
+    };
+
+export interface UpdateProductStatusInput {
+  storeId: string;
+  productId: string;
+  status: ProductStatus;
+}
+
+export interface UpdateProductStockInput {
+  storeId: string;
+  productId: string;
+  stock: number;
+}
+
 type SupabaseCatalogClient =
   | NonNullable<ReturnType<typeof createOptionalAdminClient>>
+  | NonNullable<Awaited<ReturnType<typeof createOptionalClient>>>
   | NonNullable<ReturnType<typeof createOptionalPublicServerClient>>;
 
 type ProductRow = {
@@ -210,11 +237,20 @@ function toCompactLogText(value: string | undefined) {
   return value?.replace(/\s+/g, ' ').slice(0, 220);
 }
 
-async function fetchSupabaseProducts(): Promise<Product[] | null> {
-  const clients = [
-    createOptionalAdminClient(),
-    createOptionalPublicServerClient(),
-  ].filter((client): client is SupabaseCatalogClient => Boolean(client));
+async function fetchSupabaseProducts(
+  options: { adminOnly?: boolean; includeInactive?: boolean } = {}
+): Promise<Product[] | null> {
+  const adminClient = createOptionalAdminClient();
+  const authenticatedClient = options.adminOnly
+    ? await createOptionalClient()
+    : null;
+  const clients = options.adminOnly
+    ? [authenticatedClient, adminClient].filter(
+        (client): client is SupabaseCatalogClient => Boolean(client)
+      )
+    : [createOptionalPublicServerClient(), adminClient].filter(
+        (client): client is SupabaseCatalogClient => Boolean(client)
+      );
 
   if (clients.length === 0) {
     logDevOnce('catalog.repository', 'using mock data', {
@@ -226,12 +262,17 @@ async function fetchSupabaseProducts(): Promise<Product[] | null> {
   let lastError: RepositoryError | null = null;
 
   for (const supabase of clients) {
-    const { data: productRows, error: productsError } = await supabase
+    let productsQuery = supabase
       .from('products')
       .select('*')
-      .eq('store_id', BRASIL_DRONES_STORE_ID)
-      .eq('status', 'active')
-      .order('created_at', { ascending: true });
+      .eq('store_id', BRASIL_DRONES_STORE_ID);
+
+    if (!options.includeInactive) {
+      productsQuery = productsQuery.eq('status', 'active');
+    }
+
+    const { data: productRows, error: productsError } =
+      await productsQuery.order('created_at', { ascending: true });
 
     if (productsError || !productRows) {
       lastError = productsError;
@@ -409,6 +450,27 @@ export async function listProductsWithSourceFromRepository(): Promise<
   };
 }
 
+export async function listAdminProductsWithSourceFromRepository(): Promise<
+  CatalogRepositoryResult<ProductSummary[]>
+> {
+  const supabaseProducts = await fetchSupabaseProducts({
+    adminOnly: true,
+    includeInactive: true,
+  });
+
+  if (supabaseProducts) {
+    return {
+      data: supabaseProducts.map(toProductSummary),
+      source: 'supabase',
+    };
+  }
+
+  return {
+    data: mockProducts.map(toProductSummary),
+    source: 'mock',
+  };
+}
+
 export async function listCategoriesFromRepository(): Promise<Category[]> {
   return (await listCategoriesWithSourceFromRepository()).data;
 }
@@ -518,4 +580,114 @@ export async function listRelatedProductsFromRepository(
   }
 
   return getMockRelatedProducts(productSlug, limit).map(toProductSummary);
+}
+
+export async function updateProductStatusInRepository(
+  input: UpdateProductStatusInput
+): Promise<CatalogMutationResult> {
+  const clients = [
+    await createOptionalClient(),
+    createOptionalAdminClient(),
+  ].filter((client): client is SupabaseCatalogClient => Boolean(client));
+
+  if (clients.length === 0) {
+    return {
+      ok: false,
+      persisted: false,
+      source: 'mock',
+      error: 'supabase-admin-not-configured',
+    };
+  }
+
+  for (const supabase of clients) {
+    const { data, error } = await supabase
+      .from('products')
+      .update({
+        status: input.status,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('store_id', input.storeId)
+      .eq('id', input.productId)
+      .select('id')
+      .maybeSingle();
+
+    if (!error && data) {
+      return {
+        ok: true,
+        persisted: true,
+        source: 'supabase',
+      };
+    }
+  }
+
+  return {
+    ok: false,
+    persisted: false,
+    source: 'supabase',
+    error: 'product-status-update-failed',
+  };
+}
+
+export async function updateProductStockInRepository(
+  input: UpdateProductStockInput
+): Promise<CatalogMutationResult> {
+  const clients = [
+    await createOptionalClient(),
+    createOptionalAdminClient(),
+  ].filter((client): client is SupabaseCatalogClient => Boolean(client));
+
+  if (clients.length === 0) {
+    return {
+      ok: false,
+      persisted: false,
+      source: 'mock',
+      error: 'supabase-admin-not-configured',
+    };
+  }
+
+  for (const supabase of clients) {
+    const { data: variant, error: variantError } = await supabase
+      .from('product_variants')
+      .select('id')
+      .eq('store_id', input.storeId)
+      .eq('product_id', input.productId)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (variantError || !variant) {
+      continue;
+    }
+
+    const { data, error } = await supabase
+      .from('product_variants')
+      .update({ stock: input.stock })
+      .eq('store_id', input.storeId)
+      .eq('id', variant.id)
+      .select('id')
+      .maybeSingle();
+
+    if (error || !data) {
+      continue;
+    }
+
+    await supabase
+      .from('products')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('store_id', input.storeId)
+      .eq('id', input.productId);
+
+    return {
+      ok: true,
+      persisted: true,
+      source: 'supabase',
+    };
+  }
+
+  return {
+    ok: false,
+    persisted: false,
+    source: 'supabase',
+    error: 'product-stock-update-failed',
+  };
 }

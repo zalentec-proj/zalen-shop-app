@@ -3,8 +3,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import {
+  listAdminProductsWithSource,
   listCategoriesWithSource,
-  listProductsWithSource,
 } from '@/modules/catalog/product.service';
 import { listOrdersWithSource } from '@/modules/orders/order.service';
 import {
@@ -73,7 +73,7 @@ export default async function AdminPage() {
   }
 
   const [productsResult, categoriesResult, ordersResult] = await Promise.all([
-    listProductsWithSource(),
+    listAdminProductsWithSource(),
     listCategoriesWithSource(),
     listOrdersWithSource(),
   ]);

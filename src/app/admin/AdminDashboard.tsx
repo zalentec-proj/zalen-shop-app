@@ -14,6 +14,10 @@ import type {
   PaymentStatus,
 } from '@/modules/orders/order.types';
 import type { PlatformRole, StoreRole } from '@/modules/auth/auth.types';
+import {
+  updateProductStatusAction,
+  updateProductStockAction,
+} from '@/app/admin/products/actions';
 import { logoutAction } from '@/app/login/actions';
 import Logo from '@/components/ui/Logo';
 import {
@@ -135,6 +139,8 @@ const productStatusLabel: Record<ProductStatus, string> = {
   inactive: 'Inativo',
   draft: 'Rascunho',
 };
+
+const productStatusOptions: ProductStatus[] = ['active', 'draft', 'inactive'];
 
 const orderStatusClass: Record<OrderStatus, string> = {
   pending: 'border-amber-400/20 bg-amber-400/10 text-amber-200',
@@ -567,6 +573,7 @@ export default function AdminDashboard({
     dataSources.products === 'supabase' || dataSources.categories === 'supabase'
       ? 'Supabase'
       : 'Mock';
+  const canMutateProducts = dataSources.products === 'supabase';
 
   const renderDashboard = () => (
     <div className="space-y-4">
@@ -825,7 +832,7 @@ export default function AdminDashboard({
       <div className="grid gap-4 2xl:grid-cols-[1.45fr,0.8fr]">
         <Panel
           title="Lista de produtos"
-          description="Leitura SaaS do catálogo com filtros rápidos por status."
+          description="Edição operacional de estoque e status do catálogo."
           action={
             <div className="flex flex-wrap gap-1.5">
               {(['all', 'active', 'draft', 'inactive'] as ProductFilter[]).map((filter) => (
@@ -846,8 +853,13 @@ export default function AdminDashboard({
             </div>
           }
         >
+          {!canMutateProducts ? (
+            <div className="mb-3 rounded-lg border border-amber-400/15 bg-amber-400/8 px-3 py-2 text-xs text-amber-100">
+              Fonte mock ativa: edição desabilitada até conectar a chave server-side do Supabase.
+            </div>
+          ) : null}
           <div className="overflow-hidden rounded-lg border border-white/6">
-            <div className="grid grid-cols-[1.7fr,1fr,0.8fr,0.7fr,0.8fr] gap-3 bg-[#081225] px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
+            <div className="grid grid-cols-[1.45fr,0.9fr,0.72fr,0.9fr,1fr] gap-3 bg-[#081225] px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
               <span>Produto</span>
               <span>Categoria</span>
               <span>Preço</span>
@@ -857,7 +869,7 @@ export default function AdminDashboard({
             {filteredProducts.map((product) => (
               <div
                 key={product.id}
-                className="grid grid-cols-[1.7fr,1fr,0.8fr,0.7fr,0.8fr] gap-3 border-t border-white/6 px-3 py-2.5 text-xs"
+                className="grid grid-cols-[1.45fr,0.9fr,0.72fr,0.9fr,1fr] gap-3 border-t border-white/6 px-3 py-2 text-xs"
               >
                 <div className="flex items-center gap-3">
                   {product.imageUrl ? (
@@ -884,12 +896,55 @@ export default function AdminDashboard({
                 <div className="font-semibold text-white">
                   {formatCurrency(product.promotionalPrice ?? product.price)}
                 </div>
-                <div className="text-slate-200">{product.stock}</div>
-                <div className="flex items-start">
-                  <SmallBadge className={productStatusClass[product.status]}>
-                    {productStatusLabel[product.status]}
-                  </SmallBadge>
-                </div>
+                <form
+                  action={updateProductStockAction}
+                  className="flex items-center gap-1.5"
+                >
+                  <input type="hidden" name="productId" value={product.id} />
+                  <input
+                    type="number"
+                    name="stock"
+                    min={0}
+                    defaultValue={product.stock}
+                    disabled={!canMutateProducts}
+                    className="h-8 w-16 rounded-md border border-white/8 bg-[#050B18] px-2 text-xs font-semibold text-white outline-none transition focus:border-[#1E3DFF]/45 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!canMutateProducts}
+                    className="h-8 rounded-md border border-white/8 bg-white/5 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-200 transition hover:border-[#1E3DFF]/35 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Salvar
+                  </button>
+                </form>
+                <form
+                  action={updateProductStatusAction}
+                  className="flex items-center gap-1.5"
+                >
+                  <input type="hidden" name="productId" value={product.id} />
+                  <select
+                    name="status"
+                    defaultValue={product.status}
+                    disabled={!canMutateProducts}
+                    className="h-8 min-w-24 rounded-md border border-white/8 bg-[#050B18] px-2 text-xs font-semibold text-slate-100 outline-none transition focus:border-[#1E3DFF]/45 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {productStatusOptions.map((status) => (
+                      <option key={status} value={status}>
+                        {productStatusLabel[status]}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="submit"
+                    disabled={!canMutateProducts}
+                    className={cn(
+                      'h-8 rounded-md border px-2 text-[10px] font-semibold uppercase tracking-[0.12em] transition disabled:cursor-not-allowed disabled:opacity-50',
+                      productStatusClass[product.status]
+                    )}
+                  >
+                    Aplicar
+                  </button>
+                </form>
               </div>
             ))}
           </div>
