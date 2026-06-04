@@ -77,6 +77,7 @@ export interface ProductCategorySummary {
 /** Produto simplificado para listagens */
 export interface ProductSummary {
   id: string;
+  variantId?: string;
   name: string;
   slug: string;
   brand?: string;

@@ -15,6 +15,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import Footer from '@/components/layout/Footer';
+import { checkoutCartAction } from './actions';
 import {
   addItem,
   createEmptyCart,
@@ -29,23 +30,23 @@ import type { ProductSummary } from '@/modules/catalog/product.types';
 function buildDemoCart(products: ProductSummary[]): Cart {
   let cart = createEmptyCart();
 
-  const mavic = products.find((p) => p.id === 'dji-mavic-3-pro');
-  const bateria = products.find((p) => p.id === 'bateria-dji-mini-3-pro');
+  const mavic = products.find((p) => p.slug === 'dji-mavic-3-pro');
+  const bateria = products.find((p) => p.slug === 'bateria-dji-mini-3-pro');
 
-  if (mavic) {
+  if (mavic && mavic.variantId) {
     cart = addItem(cart, {
       productId: mavic.id,
-      variantId: `${mavic.id}-v1`,
+      variantId: mavic.variantId,
       name: mavic.name,
       imageUrl: mavic.imageUrl,
       unitPrice: mavic.price,
       quantity: 1,
     });
   }
-  if (bateria) {
+  if (bateria && bateria.variantId) {
     cart = addItem(cart, {
       productId: bateria.id,
-      variantId: `${bateria.id}-v1`,
+      variantId: bateria.variantId,
       name: bateria.name,
       imageUrl: bateria.imageUrl,
       unitPrice: bateria.price,
@@ -62,7 +63,9 @@ interface Props {
 export default function CartClient({ products }: Props) {
   const [cart, setCart] = useState<Cart>(() => buildDemoCart(products));
   const [checkoutDone, setCheckoutDone] = useState(false);
-  const [orderNumber] = useState(`BD-${Math.floor(100000 + Math.random() * 900000)}`);
+  const [orderNumber, setOrderNumber] = useState<string | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const itemCount = getItemCount(cart);
   const shipping = cart.subtotal >= 500 ? 0 : 49.9;
@@ -79,7 +82,26 @@ export default function CartClient({ products }: Props) {
     setCart((c) => removeItem(c, productId, variantId));
   }
 
-  function handleCheckout() {
+  async function handleCheckout() {
+    setCheckoutError(null);
+    setIsSubmitting(true);
+
+    const result = await checkoutCartAction(
+      cart.items.map((item) => ({
+        productId: item.productId,
+        variantId: item.variantId,
+        quantity: item.quantity,
+      }))
+    );
+
+    setIsSubmitting(false);
+
+    if (!result.ok) {
+      setCheckoutError(result.error);
+      return;
+    }
+
+    setOrderNumber(result.orderNumber);
     setCheckoutDone(true);
     setCart(createEmptyCart());
   }
@@ -266,10 +288,17 @@ export default function CartClient({ products }: Props) {
 
               <button
                 onClick={handleCheckout}
-                className="w-full h-12 rounded-xl bg-blue-primary text-white text-sm font-bold flex items-center justify-center gap-2 hover:opacity-95 transition-all shadow-[0_8px_24px_rgba(30,61,255,0.3)] hover:scale-[1.02] cursor-pointer"
+                disabled={isSubmitting}
+                className="w-full h-12 rounded-xl bg-blue-primary text-white text-sm font-bold flex items-center justify-center gap-2 hover:opacity-95 transition-all shadow-[0_8px_24px_rgba(30,61,255,0.3)] hover:scale-[1.02] cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
               >
-                Finalizar pedido
+                {isSubmitting ? 'Criando pedido...' : 'Finalizar pedido'}
               </button>
+
+              {checkoutError ? (
+                <p className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-center text-[11px] font-semibold text-red-200">
+                  {checkoutError}
+                </p>
+              ) : null}
 
               <p className="text-[10px] text-brand-muted text-center">
                 ⚠️ Pagamento real não implementado ainda

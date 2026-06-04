@@ -326,15 +326,18 @@ export const mockCategories: Category[] = [
 ];
 
 export function toProductSummary(product: Product): ProductSummary {
+  const primaryVariant = product.variants[0];
+
   return {
     id: product.id,
+    variantId: primaryVariant?.id,
     name: product.name,
     slug: product.slug,
     brand: product.brand,
     status: product.status,
-    price: product.variants[0]?.price ?? 0,
-    promotionalPrice: product.variants[0]?.promotionalPrice,
-    stock: product.variants[0]?.stock ?? 0,
+    price: primaryVariant?.price ?? 0,
+    promotionalPrice: primaryVariant?.promotionalPrice,
+    stock: primaryVariant?.stock ?? 0,
     imageUrl: product.images[0]?.url,
     categories: product.categories.map((category) => ({
       id: category.id,
