@@ -75,9 +75,9 @@ export default async function AdminPage() {
   }
 
   const [productsResult, categoriesResult, ordersResult] = await Promise.all([
-    listAdminProductsWithSource(),
-    listCategoriesWithSource(),
-    listOrdersWithSource(),
+    listAdminProductsWithSource(ACTIVE_STORE_ID),
+    listCategoriesWithSource(ACTIVE_STORE_ID),
+    listOrdersWithSource(ACTIVE_STORE_ID),
   ]);
 
   return (

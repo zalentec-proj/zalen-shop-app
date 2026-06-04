@@ -6,10 +6,6 @@ import {
   isSupabaseAdminConfigured,
 } from '@/lib/supabase/server';
 import { logDevOnce } from '@/lib/logging/dev';
-import {
-  ACTIVE_MOCK_STORE_ID,
-  ACTIVE_STORE_ID,
-} from '@/modules/stores/current-store';
 import { getMockProductBySlug } from '../catalog/product.mock';
 import type {
   FulfillmentStatus,
@@ -134,7 +130,8 @@ function toFulfillmentStatus(
 function buildMockOrderItem(
   orderId: string,
   productSlug: string,
-  quantity: number
+  quantity: number,
+  storeId: string
 ): OrderItem {
   const product = getMockProductBySlug(productSlug);
 
@@ -150,7 +147,7 @@ function buildMockOrderItem(
 
   return {
     id: `${orderId}-${variant.id}`,
-    storeId: ACTIVE_MOCK_STORE_ID,
+    storeId,
     orderId,
     productId: product.id,
     variantId: variant.id,
@@ -167,17 +164,23 @@ function buildMockOrder(
     itemBlueprints: Array<{ productSlug: string; quantity: number }>;
     shippingTotal: number;
     discountTotal: number;
-  }
+  },
+  storeId: string
 ): OrderListItem {
   const items = input.itemBlueprints.map((blueprint) =>
-    buildMockOrderItem(input.id, blueprint.productSlug, blueprint.quantity)
+    buildMockOrderItem(
+      input.id,
+      blueprint.productSlug,
+      blueprint.quantity,
+      storeId
+    )
   );
   const subtotal = items.reduce((acc, item) => acc + item.total, 0);
   const total = subtotal + input.shippingTotal - input.discountTotal;
 
   return {
     id: input.id,
-    storeId: ACTIVE_MOCK_STORE_ID,
+    storeId,
     orderNumber: input.orderNumber,
     customerId: input.customerId,
     customerName: input.customerName,
@@ -197,10 +200,10 @@ function buildMockOrder(
   };
 }
 
-function mapOrderItem(row: OrderItemRow): OrderItem {
+function mapOrderItem(row: OrderItemRow, fallbackStoreId: string): OrderItem {
   return {
     id: row.id,
-    storeId: row.store_id ?? ACTIVE_STORE_ID,
+    storeId: row.store_id ?? fallbackStoreId,
     orderId: row.order_id,
     productId: row.product_id ?? '',
     variantId: row.variant_id ?? '',
@@ -212,10 +215,14 @@ function mapOrderItem(row: OrderItemRow): OrderItem {
   };
 }
 
-function mapOrder(row: OrderRow, items: OrderItem[]): OrderListItem {
+function mapOrder(
+  row: OrderRow,
+  items: OrderItem[],
+  fallbackStoreId: string
+): OrderListItem {
   return {
     id: row.id,
-    storeId: row.store_id ?? ACTIVE_STORE_ID,
+    storeId: row.store_id ?? fallbackStoreId,
     orderNumber: row.order_number,
     customerId: row.customer_id ?? undefined,
     status: toOrderStatus(row.status),
@@ -233,106 +240,127 @@ function mapOrder(row: OrderRow, items: OrderItem[]): OrderListItem {
   };
 }
 
-export async function listMockOrdersFromRepository(): Promise<OrderListItem[]> {
+export async function listMockOrdersFromRepository(
+  storeId: string
+): Promise<OrderListItem[]> {
   return [
-    buildMockOrder({
-      id: 'order-1001',
-      orderNumber: 'BD-482931',
-      customerId: 'customer-1',
-      customerName: 'Carlos Mendes',
-      customerEmail: 'carlos.mendes@exemplo.com',
-      salesChannel: 'Loja online',
-      status: 'processing',
-      paymentStatus: 'paid',
-      fulfillmentStatus: 'partial',
-      shippingTotal: 0,
-      discountTotal: 0,
-      externalErpProvider: 'bling',
-      externalErpId: 'BL-88421',
-      createdAt: '2026-05-22T09:15:00.000Z',
-      itemBlueprints: [
-        { productSlug: 'dji-mavic-3-pro', quantity: 1 },
-        { productSlug: 'case-impermeavel', quantity: 1 },
-      ],
-    }),
-    buildMockOrder({
-      id: 'order-1002',
-      orderNumber: 'BD-482947',
-      customerId: 'customer-2',
-      customerName: 'Fernanda Lima',
-      customerEmail: 'fernanda.lima@exemplo.com',
-      salesChannel: 'WhatsApp',
-      status: 'pending',
-      paymentStatus: 'pending',
-      fulfillmentStatus: 'unfulfilled',
-      shippingTotal: 49.9,
-      discountTotal: 0,
-      createdAt: '2026-05-22T11:42:00.000Z',
-      itemBlueprints: [{ productSlug: 'dji-mini-4-pro', quantity: 1 }],
-    }),
-    buildMockOrder({
-      id: 'order-1003',
-      orderNumber: 'BD-482955',
-      customerId: 'customer-3',
-      customerName: 'Rafael Sousa',
-      customerEmail: 'rafael.sousa@exemplo.com',
-      salesChannel: 'Loja online',
-      status: 'shipped',
-      paymentStatus: 'paid',
-      fulfillmentStatus: 'fulfilled',
-      shippingTotal: 35,
-      discountTotal: 120,
-      externalErpProvider: 'bling',
-      externalErpId: 'BL-88439',
-      createdAt: '2026-05-21T16:08:00.000Z',
-      itemBlueprints: [{ productSlug: 'dji-air-3-fly-more', quantity: 1 }],
-    }),
-    buildMockOrder({
-      id: 'order-1004',
-      orderNumber: 'BD-482972',
-      customerId: 'customer-4',
-      customerName: 'Patricia Rocha',
-      customerEmail: 'patricia.rocha@exemplo.com',
-      salesChannel: 'Marketplace',
-      status: 'confirmed',
-      paymentStatus: 'paid',
-      fulfillmentStatus: 'unfulfilled',
-      shippingTotal: 24.9,
-      discountTotal: 0,
-      createdAt: '2026-05-21T13:20:00.000Z',
-      itemBlueprints: [
-        { productSlug: 'bateria-dji-mini-3-pro', quantity: 2 },
-        { productSlug: 'helices-dji-air-3', quantity: 1 },
-      ],
-    }),
-    buildMockOrder({
-      id: 'order-1005',
-      orderNumber: 'BD-483004',
-      customerId: 'customer-5',
-      customerName: 'Luciano Barros',
-      customerEmail: 'luciano.barros@exemplo.com',
-      salesChannel: 'Loja online',
-      status: 'delivered',
-      paymentStatus: 'paid',
-      fulfillmentStatus: 'fulfilled',
-      shippingTotal: 0,
-      discountTotal: 59,
-      externalErpProvider: 'bling',
-      externalErpId: 'BL-88474',
-      createdAt: '2026-05-20T10:05:00.000Z',
-      itemBlueprints: [
-        { productSlug: 'case-impermeavel', quantity: 1 },
-        { productSlug: 'bateria-dji-mini-3-pro', quantity: 1 },
-      ],
-    }),
+    buildMockOrder(
+      {
+        id: 'order-1001',
+        orderNumber: 'BD-482931',
+        customerId: 'customer-1',
+        customerName: 'Carlos Mendes',
+        customerEmail: 'carlos.mendes@exemplo.com',
+        salesChannel: 'Loja online',
+        status: 'processing',
+        paymentStatus: 'paid',
+        fulfillmentStatus: 'partial',
+        shippingTotal: 0,
+        discountTotal: 0,
+        externalErpProvider: 'bling',
+        externalErpId: 'BL-88421',
+        createdAt: '2026-05-22T09:15:00.000Z',
+        itemBlueprints: [
+          { productSlug: 'dji-mavic-3-pro', quantity: 1 },
+          { productSlug: 'case-impermeavel', quantity: 1 },
+        ],
+      },
+      storeId
+    ),
+    buildMockOrder(
+      {
+        id: 'order-1002',
+        orderNumber: 'BD-482947',
+        customerId: 'customer-2',
+        customerName: 'Fernanda Lima',
+        customerEmail: 'fernanda.lima@exemplo.com',
+        salesChannel: 'WhatsApp',
+        status: 'pending',
+        paymentStatus: 'pending',
+        fulfillmentStatus: 'unfulfilled',
+        shippingTotal: 49.9,
+        discountTotal: 0,
+        createdAt: '2026-05-22T11:42:00.000Z',
+        itemBlueprints: [{ productSlug: 'dji-mini-4-pro', quantity: 1 }],
+      },
+      storeId
+    ),
+    buildMockOrder(
+      {
+        id: 'order-1003',
+        orderNumber: 'BD-482955',
+        customerId: 'customer-3',
+        customerName: 'Rafael Sousa',
+        customerEmail: 'rafael.sousa@exemplo.com',
+        salesChannel: 'Loja online',
+        status: 'shipped',
+        paymentStatus: 'paid',
+        fulfillmentStatus: 'fulfilled',
+        shippingTotal: 35,
+        discountTotal: 120,
+        externalErpProvider: 'bling',
+        externalErpId: 'BL-88439',
+        createdAt: '2026-05-21T16:08:00.000Z',
+        itemBlueprints: [{ productSlug: 'dji-air-3-fly-more', quantity: 1 }],
+      },
+      storeId
+    ),
+    buildMockOrder(
+      {
+        id: 'order-1004',
+        orderNumber: 'BD-482972',
+        customerId: 'customer-4',
+        customerName: 'Patricia Rocha',
+        customerEmail: 'patricia.rocha@exemplo.com',
+        salesChannel: 'Marketplace',
+        status: 'confirmed',
+        paymentStatus: 'paid',
+        fulfillmentStatus: 'unfulfilled',
+        shippingTotal: 24.9,
+        discountTotal: 0,
+        createdAt: '2026-05-21T13:20:00.000Z',
+        itemBlueprints: [
+          { productSlug: 'bateria-dji-mini-3-pro', quantity: 2 },
+          { productSlug: 'helices-dji-air-3', quantity: 1 },
+        ],
+      },
+      storeId
+    ),
+    buildMockOrder(
+      {
+        id: 'order-1005',
+        orderNumber: 'BD-483004',
+        customerId: 'customer-5',
+        customerName: 'Luciano Barros',
+        customerEmail: 'luciano.barros@exemplo.com',
+        salesChannel: 'Loja online',
+        status: 'delivered',
+        paymentStatus: 'paid',
+        fulfillmentStatus: 'fulfilled',
+        shippingTotal: 0,
+        discountTotal: 59,
+        externalErpProvider: 'bling',
+        externalErpId: 'BL-88474',
+        createdAt: '2026-05-20T10:05:00.000Z',
+        itemBlueprints: [
+          { productSlug: 'case-impermeavel', quantity: 1 },
+          { productSlug: 'bateria-dji-mini-3-pro', quantity: 1 },
+        ],
+      },
+      storeId
+    ),
   ];
 }
 
-export async function listOrdersFromRepository(): Promise<OrderListItem[]> {
-  return (await listOrdersWithSourceFromRepository()).data;
+export async function listOrdersFromRepository(
+  storeId: string
+): Promise<OrderListItem[]> {
+  return (await listOrdersWithSourceFromRepository(storeId)).data;
 }
 
-export async function listOrdersWithSourceFromRepository(): Promise<
+export async function listOrdersWithSourceFromRepository(
+  storeId: string
+): Promise<
   OrderRepositoryResult<OrderListItem[]>
 > {
   const clients = [
@@ -345,7 +373,7 @@ export async function listOrdersWithSourceFromRepository(): Promise<
       reason: 'supabase-env-missing',
     });
     return {
-      data: await listMockOrdersFromRepository(),
+      data: await listMockOrdersFromRepository(storeId),
       source: 'mock',
     };
   }
@@ -356,7 +384,7 @@ export async function listOrdersWithSourceFromRepository(): Promise<
     const { data: orderRows, error: ordersError } = await supabase
       .from('orders')
       .select('*')
-      .eq('store_id', ACTIVE_STORE_ID)
+      .eq('store_id', storeId)
       .order('created_at', { ascending: false });
 
     if (ordersError || !orderRows) {
@@ -379,6 +407,7 @@ export async function listOrdersWithSourceFromRepository(): Promise<
     const { data: itemRows, error: itemsError } = await supabase
       .from('order_items')
       .select('*')
+      .eq('store_id', storeId)
       .in('order_id', orderIds);
 
     if (itemsError || !itemRows) {
@@ -390,12 +419,12 @@ export async function listOrdersWithSourceFromRepository(): Promise<
 
     (itemRows as OrderItemRow[]).forEach((row) => {
       const items = itemsByOrderId.get(row.order_id) ?? [];
-      items.push(mapOrderItem(row));
+      items.push(mapOrderItem(row, storeId));
       itemsByOrderId.set(row.order_id, items);
     });
 
     const orders = (orderRows as OrderRow[]).map((order) =>
-      mapOrder(order, itemsByOrderId.get(order.id) ?? [])
+      mapOrder(order, itemsByOrderId.get(order.id) ?? [], storeId)
     );
 
     logDevOnce('order.repository', 'using supabase data', {
@@ -414,7 +443,7 @@ export async function listOrdersWithSourceFromRepository(): Promise<
   });
 
   return {
-    data: await listMockOrdersFromRepository(),
+    data: await listMockOrdersFromRepository(storeId),
     source: 'mock',
   };
 }

@@ -11,7 +11,6 @@ import {
   createOptionalPublicServerClient,
 } from '@/lib/supabase/server';
 import { logDevOnce } from '@/lib/logging/dev';
-import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
 import type {
   Category,
   Product,
@@ -255,6 +254,7 @@ async function getCatalogReadClients(
 
 async function mapSupabaseProductsWithRelations(
   supabase: SupabaseCatalogClient,
+  storeId: string,
   productRows: ProductRow[]
 ): Promise<{ data: Product[] | null; error: RepositoryError | null }> {
   const productIds = productRows.map((product) => product.id);
@@ -271,11 +271,13 @@ async function mapSupabaseProductsWithRelations(
     supabase
       .from('product_variants')
       .select('*')
+      .eq('store_id', storeId)
       .in('product_id', productIds)
       .order('created_at', { ascending: true }),
     supabase
       .from('product_images')
       .select('*')
+      .eq('store_id', storeId)
       .in('product_id', productIds)
       .order('position', { ascending: true }),
     supabase
@@ -310,7 +312,7 @@ async function mapSupabaseProductsWithRelations(
     const { data, error } = await supabase
       .from('categories')
       .select('*')
-      .eq('store_id', ACTIVE_STORE_ID)
+      .eq('store_id', storeId)
       .in('id', categoryIds)
       .order('position', { ascending: true });
 
@@ -365,6 +367,7 @@ async function mapSupabaseProductsWithRelations(
 }
 
 async function fetchSupabaseProducts(
+  storeId: string,
   options: { adminOnly?: boolean; includeInactive?: boolean } = {}
 ): Promise<Product[] | null> {
   const clients = await getCatalogReadClients(options);
@@ -382,7 +385,7 @@ async function fetchSupabaseProducts(
     let productsQuery = supabase
       .from('products')
       .select('*')
-      .eq('store_id', ACTIVE_STORE_ID);
+      .eq('store_id', storeId);
 
     if (!options.includeInactive) {
       productsQuery = productsQuery.eq('status', 'active');
@@ -398,6 +401,7 @@ async function fetchSupabaseProducts(
 
     const productsResult = await mapSupabaseProductsWithRelations(
       supabase,
+      storeId,
       productRows as ProductRow[]
     );
 
@@ -422,6 +426,7 @@ async function fetchSupabaseProducts(
 }
 
 async function fetchSupabaseProductsByIds(
+  storeId: string,
   productIds: string[],
   options: { limit?: number; includeInactive?: boolean } = {}
 ): Promise<Product[] | undefined> {
@@ -446,7 +451,7 @@ async function fetchSupabaseProductsByIds(
     let productsQuery = supabase
       .from('products')
       .select('*')
-      .eq('store_id', ACTIVE_STORE_ID)
+      .eq('store_id', storeId)
       .in('id', uniqueProductIds);
 
     if (!options.includeInactive) {
@@ -468,6 +473,7 @@ async function fetchSupabaseProductsByIds(
 
     const productsResult = await mapSupabaseProductsWithRelations(
       supabase,
+      storeId,
       productRows as ProductRow[]
     );
 
@@ -487,7 +493,68 @@ async function fetchSupabaseProductsByIds(
   return undefined;
 }
 
+async function fetchSupabaseProductById(
+  storeId: string,
+  productId: string,
+  options: { includeInactive?: boolean } = {}
+): Promise<Product | null | undefined> {
+  const clients = await getCatalogReadClients();
+
+  if (clients.length === 0) {
+    logDevOnce('catalog.repository', 'using mock data', {
+      reason: 'supabase-env-missing',
+    });
+    return undefined;
+  }
+
+  let lastError: RepositoryError | null = null;
+
+  for (const supabase of clients) {
+    let productQuery = supabase
+      .from('products')
+      .select('*')
+      .eq('store_id', storeId)
+      .eq('id', productId);
+
+    if (!options.includeInactive) {
+      productQuery = productQuery.eq('status', 'active');
+    }
+
+    const { data: productRow, error } = await productQuery.maybeSingle();
+
+    if (error) {
+      lastError = error;
+      continue;
+    }
+
+    if (!productRow) {
+      return null;
+    }
+
+    const productsResult = await mapSupabaseProductsWithRelations(
+      supabase,
+      storeId,
+      [productRow as ProductRow]
+    );
+
+    if (!productsResult.data) {
+      lastError = productsResult.error;
+      continue;
+    }
+
+    return productsResult.data[0] ?? null;
+  }
+
+  logDevOnce('catalog.repository', 'using mock data', {
+    reason: 'product-by-id-query-failed',
+    ...getQueryErrorDetails(lastError),
+  });
+
+  return undefined;
+}
+
 async function fetchSupabaseProductBySlug(
+  storeId: string,
   slug: string
 ): Promise<Product | null | undefined> {
   const clients = await getCatalogReadClients();
@@ -505,7 +572,7 @@ async function fetchSupabaseProductBySlug(
     const { data: productRow, error } = await supabase
       .from('products')
       .select('*')
-      .eq('store_id', ACTIVE_STORE_ID)
+      .eq('store_id', storeId)
       .eq('status', 'active')
       .eq('slug', slug)
       .maybeSingle();
@@ -521,6 +588,7 @@ async function fetchSupabaseProductBySlug(
 
     const productsResult = await mapSupabaseProductsWithRelations(
       supabase,
+      storeId,
       [productRow as ProductRow]
     );
 
@@ -541,6 +609,7 @@ async function fetchSupabaseProductBySlug(
 }
 
 async function fetchSupabaseProductsByCategorySlug(
+  storeId: string,
   categorySlug: string
 ): Promise<Product[] | undefined> {
   const clients = await getCatalogReadClients();
@@ -558,7 +627,7 @@ async function fetchSupabaseProductsByCategorySlug(
     const { data: categoryRow, error: categoryError } = await supabase
       .from('categories')
       .select('*')
-      .eq('store_id', ACTIVE_STORE_ID)
+      .eq('store_id', storeId)
       .eq('slug', categorySlug)
       .maybeSingle();
 
@@ -585,7 +654,7 @@ async function fetchSupabaseProductsByCategorySlug(
     const productIds = (productCategoryRows as ProductCategoryRow[]).map(
       (row) => row.product_id
     );
-    const products = await fetchSupabaseProductsByIds(productIds);
+    const products = await fetchSupabaseProductsByIds(storeId, productIds);
 
     if (products !== undefined) {
       return products;
@@ -601,6 +670,7 @@ async function fetchSupabaseProductsByCategorySlug(
 }
 
 async function fetchSupabaseRelatedProducts(
+  storeId: string,
   productSlug: string,
   limit: number
 ): Promise<ProductSummary[] | undefined> {
@@ -619,7 +689,7 @@ async function fetchSupabaseRelatedProducts(
     const { data: productRow, error: productError } = await supabase
       .from('products')
       .select('*')
-      .eq('store_id', ACTIVE_STORE_ID)
+      .eq('store_id', storeId)
       .eq('status', 'active')
       .eq('slug', productSlug)
       .maybeSingle();
@@ -674,9 +744,11 @@ async function fetchSupabaseRelatedProducts(
           .filter((productId) => productId !== (productRow as ProductRow).id)
       )
     );
-    const relatedProducts = await fetchSupabaseProductsByIds(relatedProductIds, {
-      limit,
-    });
+    const relatedProducts = await fetchSupabaseProductsByIds(
+      storeId,
+      relatedProductIds,
+      { limit }
+    );
 
     if (relatedProducts !== undefined) {
       return relatedProducts.map(toProductSummary);
@@ -691,7 +763,7 @@ async function fetchSupabaseRelatedProducts(
   return undefined;
 }
 
-async function fetchSupabaseCategories(): Promise<Category[] | null> {
+async function fetchSupabaseCategories(storeId: string): Promise<Category[] | null> {
   const clients = [
     createOptionalAdminClient(),
     createOptionalPublicServerClient(),
@@ -710,7 +782,7 @@ async function fetchSupabaseCategories(): Promise<Category[] | null> {
     const { data, error } = await supabase
       .from('categories')
       .select('*')
-      .eq('store_id', ACTIVE_STORE_ID)
+      .eq('store_id', storeId)
       .order('position', { ascending: true });
 
     if (error || !data) {
@@ -735,12 +807,14 @@ async function fetchSupabaseCategories(): Promise<Category[] | null> {
   return null;
 }
 
-export async function listProductsFromRepository() {
-  return (await listProductsWithSourceFromRepository()).data;
+export async function listProductsFromRepository(storeId: string) {
+  return (await listProductsWithSourceFromRepository(storeId)).data;
 }
 
-export async function listStorefrontProductsFromRepository(): Promise<Product[]> {
-  const supabaseProducts = await fetchSupabaseProducts();
+export async function listStorefrontProductsFromRepository(
+  storeId: string
+): Promise<Product[]> {
+  const supabaseProducts = await fetchSupabaseProducts(storeId);
 
   if (supabaseProducts) {
     return supabaseProducts;
@@ -749,10 +823,12 @@ export async function listStorefrontProductsFromRepository(): Promise<Product[]>
   return mockProducts;
 }
 
-export async function listProductsWithSourceFromRepository(): Promise<
+export async function listProductsWithSourceFromRepository(
+  storeId: string
+): Promise<
   CatalogRepositoryResult<ProductSummary[]>
 > {
-  const supabaseProducts = await fetchSupabaseProducts();
+  const supabaseProducts = await fetchSupabaseProducts(storeId);
 
   if (supabaseProducts) {
     return {
@@ -767,10 +843,12 @@ export async function listProductsWithSourceFromRepository(): Promise<
   };
 }
 
-export async function listAdminProductsWithSourceFromRepository(): Promise<
+export async function listAdminProductsWithSourceFromRepository(
+  storeId: string
+): Promise<
   CatalogRepositoryResult<ProductSummary[]>
 > {
-  const supabaseProducts = await fetchSupabaseProducts({
+  const supabaseProducts = await fetchSupabaseProducts(storeId, {
     adminOnly: true,
     includeInactive: true,
   });
@@ -788,14 +866,18 @@ export async function listAdminProductsWithSourceFromRepository(): Promise<
   };
 }
 
-export async function listCategoriesFromRepository(): Promise<Category[]> {
-  return (await listCategoriesWithSourceFromRepository()).data;
+export async function listCategoriesFromRepository(
+  storeId: string
+): Promise<Category[]> {
+  return (await listCategoriesWithSourceFromRepository(storeId)).data;
 }
 
-export async function listCategoriesWithSourceFromRepository(): Promise<
+export async function listCategoriesWithSourceFromRepository(
+  storeId: string
+): Promise<
   CatalogRepositoryResult<Category[]>
 > {
-  const supabaseCategories = await fetchSupabaseCategories();
+  const supabaseCategories = await fetchSupabaseCategories(storeId);
 
   if (supabaseCategories) {
     return {
@@ -811,9 +893,10 @@ export async function listCategoriesWithSourceFromRepository(): Promise<
 }
 
 export async function getProductBySlugFromRepository(
+  storeId: string,
   slug: string
 ): Promise<Product | null> {
-  const supabaseProduct = await fetchSupabaseProductBySlug(slug);
+  const supabaseProduct = await fetchSupabaseProductBySlug(storeId, slug);
 
   if (supabaseProduct !== undefined) {
     return supabaseProduct;
@@ -823,21 +906,23 @@ export async function getProductBySlugFromRepository(
 }
 
 export async function getProductByIdFromRepository(
+  storeId: string,
   id: string
 ): Promise<Product | null> {
-  const supabaseProducts = await fetchSupabaseProducts();
+  const supabaseProduct = await fetchSupabaseProductById(storeId, id);
 
-  if (supabaseProducts) {
-    return supabaseProducts.find((product) => product.id === id) ?? null;
+  if (supabaseProduct !== undefined) {
+    return supabaseProduct;
   }
 
   return mockProducts.find((product) => product.id === id) ?? null;
 }
 
 export async function getCategoryBySlugFromRepository(
+  storeId: string,
   slug: string
 ): Promise<Category | null> {
-  const supabaseCategories = await fetchSupabaseCategories();
+  const supabaseCategories = await fetchSupabaseCategories(storeId);
 
   if (supabaseCategories) {
     return supabaseCategories.find((category) => category.slug === slug) ?? null;
@@ -847,9 +932,13 @@ export async function getCategoryBySlugFromRepository(
 }
 
 export async function listCategoryProductsFromRepository(
+  storeId: string,
   categorySlug: string
 ): Promise<Product[]> {
-  const supabaseProducts = await fetchSupabaseProductsByCategorySlug(categorySlug);
+  const supabaseProducts = await fetchSupabaseProductsByCategorySlug(
+    storeId,
+    categorySlug
+  );
 
   if (supabaseProducts !== undefined) {
     return supabaseProducts;
@@ -859,17 +948,23 @@ export async function listCategoryProductsFromRepository(
 }
 
 export async function listProductsByCategoryFromRepository(
+  storeId: string,
   categorySlug: string
 ) {
-  const products = await listCategoryProductsFromRepository(categorySlug);
+  const products = await listCategoryProductsFromRepository(storeId, categorySlug);
   return products.map(toProductSummary);
 }
 
 export async function listRelatedProductsFromRepository(
+  storeId: string,
   productSlug: string,
   limit = 3
 ) {
-  const supabaseProducts = await fetchSupabaseRelatedProducts(productSlug, limit);
+  const supabaseProducts = await fetchSupabaseRelatedProducts(
+    storeId,
+    productSlug,
+    limit
+  );
 
   if (supabaseProducts !== undefined) {
     return supabaseProducts;

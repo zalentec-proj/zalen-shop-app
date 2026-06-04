@@ -41,18 +41,20 @@ function generateOrderNumber(): string {
   return `BD-${Math.floor(100000 + Math.random() * 900000)}`;
 }
 
-export async function listOrders(): Promise<OrderListItem[]> {
-  return listOrdersFromRepository();
+export async function listOrders(storeId: string): Promise<OrderListItem[]> {
+  return listOrdersFromRepository(storeId);
 }
 
-export async function listOrdersWithSource(): Promise<
+export async function listOrdersWithSource(
+  storeId: string
+): Promise<
   OrderRepositoryResult<OrderListItem[]>
 > {
-  return listOrdersWithSourceFromRepository();
+  return listOrdersWithSourceFromRepository(storeId);
 }
 
-export async function listMockOrders(): Promise<OrderListItem[]> {
-  return listMockOrdersFromRepository();
+export async function listMockOrders(storeId: string): Promise<OrderListItem[]> {
+  return listMockOrdersFromRepository(storeId);
 }
 
 export type { OrderDataSource };
@@ -64,7 +66,7 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
 
   const resolvedItems = await Promise.all(
     parsed.items.map(async (item) => {
-      const product = await getProductById(item.productId);
+      const product = await getProductById(parsed.storeId, item.productId);
 
       if (!product) {
         throw new Error('Product not found for order item.');
