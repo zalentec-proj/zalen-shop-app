@@ -9,9 +9,10 @@ import {
   mavic3ProImage,
   mini4ProImage,
 } from '../../assets/images';
+import { ACTIVE_MOCK_STORE_ID } from '../stores/current-store';
 import { Category, Product, ProductSummary } from './product.types';
 
-const STORE_ID = 'brasil-drones-store-001';
+const STORE_ID = ACTIVE_MOCK_STORE_ID;
 
 export const mockProducts: Product[] = [
   {

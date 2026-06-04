@@ -19,7 +19,8 @@ import {
   updateProductStockAction,
 } from '@/app/admin/products/actions';
 import { logoutAction } from '@/app/login/actions';
-import Logo from '@/components/ui/Logo';
+import { currentStoreBrand } from '@/lib/branding/current-store-brand';
+import { platformBrand } from '@/lib/branding/platform-brand';
 import {
   Activity,
   ArrowUpRight,
@@ -1375,7 +1376,9 @@ export default function AdminDashboard({
                   AD
                 </div>
                 <div className="mt-2 text-sm font-semibold text-white">Admin</div>
-                <div className="mt-0.5 text-[11px] text-slate-400">Operação Brasil Drones</div>
+                <div className="mt-0.5 text-[11px] text-slate-400">
+                  Operação {currentStoreBrand.shortName}
+                </div>
               </div>
               <div className="space-y-1">
                 <SettingsField label="Nome" value="Administrador da loja" />
@@ -1391,7 +1394,7 @@ export default function AdminDashboard({
             description="Metadados visuais do painel e origem atual dos dados."
           >
             <div className="space-y-1">
-              <SettingsField label="Empresa" value="Brasil Drones & Parts" />
+              <SettingsField label="Empresa" value={currentStoreBrand.name} />
               <SettingsField label="Tema" value="Dark SaaS com paleta azul, ciano e verde" />
               <SettingsField label="Status" value="Admin inicial ativo" />
               <SettingsField
@@ -1507,7 +1510,18 @@ export default function AdminDashboard({
       <aside className="border-b border-white/6 bg-[#050C19]/95 backdrop-blur xl:fixed xl:inset-y-0 xl:left-0 xl:w-60 xl:border-b-0 xl:border-r">
         <div className="flex h-full flex-col gap-4 px-3 py-4">
           <div className="rounded-xl border border-white/6 bg-[#071124] px-3 py-3">
-            <Logo size="sm" className="h-7" />
+            <img
+              src={platformBrand.logoWhite}
+              alt={platformBrand.productName}
+              className="h-5 w-auto select-none"
+              draggable={false}
+            />
+            <div className="mt-2 text-[10px] uppercase tracking-[0.18em] text-slate-500">
+              Loja ativa
+            </div>
+            <div className="mt-0.5 truncate text-xs font-semibold text-white">
+              {currentStoreBrand.shortName}
+            </div>
           </div>
 
           <nav className="space-y-1">
@@ -1640,7 +1654,7 @@ export default function AdminDashboard({
                   {orders.length} pedidos · {ordersSourceLabel}
                 </SmallBadge>
                 <SmallBadge className="border-emerald-400/20 bg-emerald-400/10 text-emerald-200">
-                  Layout admin ativo
+                  Admin {platformBrand.shortName}
                 </SmallBadge>
               </div>
             </div>

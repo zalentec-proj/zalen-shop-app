@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { currentStoreBrand } from '@/lib/branding/current-store-brand';
+import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
 import { checkStoreRole } from '@/modules/auth/auth.service';
 import type { StoreRole } from '@/modules/auth/auth.types';
 import {
@@ -28,7 +28,7 @@ const stockSchema = z.object({
 
 async function canManageProducts(): Promise<boolean> {
   const access = await checkStoreRole(
-    currentStoreBrand.storeId,
+    ACTIVE_STORE_ID,
     writableStoreRoles
   );
 
@@ -52,7 +52,7 @@ export async function updateProductStatusAction(
   }
 
   const result = await updateProductStatus({
-    storeId: currentStoreBrand.storeId,
+    storeId: ACTIVE_STORE_ID,
     productId: parsed.data.productId,
     status: parsed.data.status,
   });
@@ -81,7 +81,7 @@ export async function updateProductStockAction(
   }
 
   const result = await updateProductStock({
-    storeId: currentStoreBrand.storeId,
+    storeId: ACTIVE_STORE_ID,
     productId: parsed.data.productId,
     stock: parsed.data.stock,
   });

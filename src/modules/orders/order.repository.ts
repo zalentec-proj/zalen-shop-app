@@ -6,6 +6,10 @@ import {
   isSupabaseAdminConfigured,
 } from '@/lib/supabase/server';
 import { logDevOnce } from '@/lib/logging/dev';
+import {
+  ACTIVE_MOCK_STORE_ID,
+  ACTIVE_STORE_ID,
+} from '@/modules/stores/current-store';
 import { getMockProductBySlug } from '../catalog/product.mock';
 import type {
   FulfillmentStatus,
@@ -15,9 +19,6 @@ import type {
   OrderStatus,
   PaymentStatus,
 } from './order.types';
-
-const MOCK_STORE_ID = 'brasil-drones-store-001';
-const BRASIL_DRONES_STORE_ID = '00000000-0000-0000-0000-000000000001';
 
 export type OrderDataSource = 'supabase' | 'mock';
 
@@ -149,7 +150,7 @@ function buildMockOrderItem(
 
   return {
     id: `${orderId}-${variant.id}`,
-    storeId: MOCK_STORE_ID,
+    storeId: ACTIVE_MOCK_STORE_ID,
     orderId,
     productId: product.id,
     variantId: variant.id,
@@ -176,7 +177,7 @@ function buildMockOrder(
 
   return {
     id: input.id,
-    storeId: MOCK_STORE_ID,
+    storeId: ACTIVE_MOCK_STORE_ID,
     orderNumber: input.orderNumber,
     customerId: input.customerId,
     customerName: input.customerName,
@@ -199,7 +200,7 @@ function buildMockOrder(
 function mapOrderItem(row: OrderItemRow): OrderItem {
   return {
     id: row.id,
-    storeId: row.store_id ?? BRASIL_DRONES_STORE_ID,
+    storeId: row.store_id ?? ACTIVE_STORE_ID,
     orderId: row.order_id,
     productId: row.product_id ?? '',
     variantId: row.variant_id ?? '',
@@ -214,7 +215,7 @@ function mapOrderItem(row: OrderItemRow): OrderItem {
 function mapOrder(row: OrderRow, items: OrderItem[]): OrderListItem {
   return {
     id: row.id,
-    storeId: row.store_id ?? BRASIL_DRONES_STORE_ID,
+    storeId: row.store_id ?? ACTIVE_STORE_ID,
     orderNumber: row.order_number,
     customerId: row.customer_id ?? undefined,
     status: toOrderStatus(row.status),
@@ -355,7 +356,7 @@ export async function listOrdersWithSourceFromRepository(): Promise<
     const { data: orderRows, error: ordersError } = await supabase
       .from('orders')
       .select('*')
-      .eq('store_id', BRASIL_DRONES_STORE_ID)
+      .eq('store_id', ACTIVE_STORE_ID)
       .order('created_at', { ascending: false });
 
     if (ordersError || !orderRows) {

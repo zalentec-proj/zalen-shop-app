@@ -5,7 +5,7 @@
  * Quando implementado deve:
  * 1. Validar state anti-CSRF
  * 2. Trocar code por access_token + refresh_token no servidor
- * 3. Criptografar tokens antes de salvar em integration_tokens
+ * 3. Criptografar tokens antes de salvar em store_integrations.credentials_encrypted
  * 4. NUNCA expor tokens no frontend ou em logs
  */
 
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
   // TODO: validar state anti-CSRF
   // TODO: trocar code por tokens (server-side)
-  // TODO: criptografar e salvar em integration_tokens
+  // TODO: criptografar e salvar em store_integrations.credentials_encrypted
 
   return NextResponse.json(
     { status: 'not_implemented' },

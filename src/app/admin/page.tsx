@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { currentStoreBrand } from '@/lib/branding/current-store-brand';
+import { platformBrand } from '@/lib/branding/platform-brand';
+import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
 import {
   listAdminProductsWithSource,
   listCategoriesWithSource,
@@ -16,7 +18,7 @@ import { logoutAction } from '@/app/login/actions';
 import AdminDashboard from './AdminDashboard';
 
 export const metadata: Metadata = {
-  title: 'Admin — Brasil Drones & Parts',
+  title: `${platformBrand.productName} Admin — ${currentStoreBrand.shortName}`,
 };
 
 export const dynamic = 'force-dynamic';
@@ -65,7 +67,7 @@ export default async function AdminPage() {
 
   const [platformRole, membership] = await Promise.all([
     getPlatformRole(user.id),
-    getStoreMembership(user.id, currentStoreBrand.storeId),
+    getStoreMembership(user.id, ACTIVE_STORE_ID),
   ]);
 
   if (!platformRole && !membership) {
