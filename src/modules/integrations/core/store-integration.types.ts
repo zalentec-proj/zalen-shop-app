@@ -1,6 +1,8 @@
 import type { IntegrationProvider } from './integration-provider.types';
 
 export type StoreIntegrationStatus =
+  | 'planned'
+  | 'pending_credentials'
   | 'disconnected'
   | 'connected'
   | 'error'

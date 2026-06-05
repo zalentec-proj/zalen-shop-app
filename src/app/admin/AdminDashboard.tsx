@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import type { ComponentType, ReactNode } from 'react';
 import { useState } from 'react';
+import { useFormStatus } from 'react-dom';
 import type {
   Category,
   ProductStatus,
@@ -23,6 +24,10 @@ import type {
   StoreIntegrationStatus,
 } from '@/modules/integrations/core/store-integration.types';
 import { logoutAction } from '@/app/login/actions';
+import {
+  updateProductStatusAction,
+  updateProductStockAction,
+} from '@/app/admin/products/actions';
 import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import { platformBrand } from '@/lib/branding/platform-brand';
 import {
@@ -207,6 +212,8 @@ const providerStatusClass: Record<IntegrationProviderStatus, string> = {
 };
 
 const storeIntegrationStatusLabel: Record<StoreIntegrationStatus, string> = {
+  planned: 'Planejado',
+  pending_credentials: 'Credenciais pendentes',
   disconnected: 'Desconectado',
   connected: 'Conectado',
   error: 'Erro',
@@ -215,6 +222,8 @@ const storeIntegrationStatusLabel: Record<StoreIntegrationStatus, string> = {
 };
 
 const storeIntegrationStatusClass: Record<StoreIntegrationStatus, string> = {
+  planned: 'border-amber-400/20 bg-amber-400/10 text-amber-200',
+  pending_credentials: 'border-amber-400/20 bg-amber-400/10 text-amber-200',
   disconnected: 'border-slate-400/20 bg-slate-400/10 text-slate-300',
   connected: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200',
   error: 'border-rose-400/20 bg-rose-400/10 text-rose-200',
@@ -311,7 +320,7 @@ function integrationActionLabel(item: StoreIntegrationListItem) {
   }
 
   if (item.provider.key === 'bling') {
-    return 'Preparar conexão';
+    return 'Conectar Bling';
   }
 
   if (!item.integration && item.provider.status === 'planned') {
@@ -319,6 +328,14 @@ function integrationActionLabel(item: StoreIntegrationListItem) {
   }
 
   return 'Preparar conexão';
+}
+
+function integrationActionHref(item: StoreIntegrationListItem) {
+  if (item.provider.key === 'bling') {
+    return '/admin/integracoes/bling';
+  }
+
+  return null;
 }
 
 function integrationLastSyncLabel(item: StoreIntegrationListItem) {
@@ -401,6 +418,62 @@ function SmallBadge({
     <span className={cn('inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold', className)}>
       {children}
     </span>
+  );
+}
+
+function InlineSubmitButton({ idleLabel = 'Salvar' }: { idleLabel?: string }) {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="inline-flex h-8 min-w-16 items-center justify-center rounded-md border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#A9C7FF] transition hover:border-[#1E3DFF]/40 hover:text-white disabled:cursor-wait disabled:opacity-70"
+    >
+      {pending ? 'Salvando' : idleLabel}
+    </button>
+  );
+}
+
+function ProductStatusForm({ product }: { product: ProductSummary }) {
+  return (
+    <form action={updateProductStatusAction} className="flex items-center gap-2">
+      <input type="hidden" name="productId" value={product.id} />
+      <select
+        name="status"
+        defaultValue={product.status}
+        aria-label={`Status de ${product.name}`}
+        className={cn(
+          'h-8 rounded-md border px-2.5 text-[11px] font-semibold outline-none transition',
+          productStatusClass[product.status],
+          'min-w-[104px] appearance-none'
+        )}
+      >
+        {Object.entries(productStatusLabel).map(([value, label]) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </select>
+      <InlineSubmitButton />
+    </form>
+  );
+}
+
+function ProductStockForm({ product }: { product: ProductSummary }) {
+  return (
+    <form action={updateProductStockAction} className="flex items-center gap-2">
+      <input type="hidden" name="productId" value={product.id} />
+      <input
+        type="number"
+        name="stock"
+        min={0}
+        defaultValue={product.stock}
+        aria-label={`Estoque de ${product.name}`}
+        className="h-8 w-20 rounded-md border border-white/8 bg-[#081225] px-2.5 text-[11px] font-semibold text-white outline-none transition [appearance:textfield] placeholder:text-slate-500 focus:border-[#1E3DFF]/35 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+      />
+      <InlineSubmitButton />
+    </form>
   );
 }
 
@@ -573,16 +646,36 @@ export default function AdminDashboard({
     (sum, product) => sum + product.price,
     0
   );
+  const totalInventoryUnits = products.reduce(
+    (sum, product) => sum + product.stock,
+    0
+  );
+  const outOfStockProducts = products.filter((product) => product.stock === 0);
 
   const categoryLoad = categories
     .map((category) => ({
       id: category.id,
       name: category.name,
+      slug: category.slug,
       count: products.filter((product) =>
         product.categories.some((productCategory) => productCategory.slug === category.slug)
       ).length,
+      units: products
+        .filter((product) =>
+          product.categories.some((productCategory) => productCategory.slug === category.slug)
+        )
+        .reduce((sum, product) => sum + product.stock, 0),
+      lowStockCount: products.filter(
+        (product) =>
+          product.stock <= 3 &&
+          product.categories.some((productCategory) => productCategory.slug === category.slug)
+      ).length,
     }))
-    .sort((left, right) => right.count - left.count);
+    .sort((left, right) => right.units - left.units || right.count - left.count);
+  const largestCategoryUnits = Math.max(
+    1,
+    ...categoryLoad.map((category) => category.units)
+  );
 
   const revenueSeriesBase = orders
     .slice()
@@ -926,310 +1019,439 @@ export default function AdminDashboard({
       { filter: 'inactive', label: 'Inativo', count: inactiveProducts.length },
     ];
     const featuredLowStockProduct = lowStockProducts[0];
+    const hasActiveProductFilters =
+      productFilter !== 'all' || productCategoryFilter !== 'all' || searchValue.length > 0;
+    const activeCategory = categories.find(
+      (category) => category.slug === productCategoryFilter
+    );
 
     return (
       <div className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
-          <MetricCard
-            icon={Package2}
-            label="Produtos no painel"
-            value={String(products.length)}
-            helper={`Catálogo carregado via ${productsSourceLabel}.`}
-          />
-          <MetricCard
-            icon={Activity}
-            label="Produtos ativos"
-            value={String(activeProducts.length)}
-            helper="Itens visíveis na loja."
-          />
-          <MetricCard
-            icon={LifeBuoy}
-            label="Baixo estoque"
-            value={String(lowStockProducts.length)}
-            helper="Produtos com estoque menor ou igual a 3."
-          />
-          <MetricCard
-            icon={CreditCard}
-            label="Preço médio"
-            value={formatCurrency(totalProductsValue / Math.max(products.length, 1))}
-            helper={`Média simples via ${productsSourceLabel}.`}
-          />
-        </div>
-
-        <div className="rounded-xl border border-white/6 bg-[#0A1730]/95 p-4 shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
-          <div className="grid gap-3 xl:grid-cols-[1fr,170px,170px,110px]">
-            <label className="relative block">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-              <input
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Buscar produto, categoria ou SKU..."
-                className="h-11 w-full rounded-lg border border-white/8 bg-[#081225] pl-9 pr-3 text-xs text-white outline-none transition placeholder:text-slate-500 focus:border-[#1E3DFF]/40"
-              />
-            </label>
-
-            <label className="block rounded-lg border border-white/8 bg-[#081225] px-3 py-1.5">
-              <span className="block text-[10px] text-slate-500">Categoria</span>
-              <select
-                value={productCategoryFilter}
-                onChange={(event) => setProductCategoryFilter(event.target.value)}
-                className="mt-0.5 h-6 w-full bg-transparent text-xs font-semibold text-slate-100 outline-none"
-              >
-                <option value="all">Todas</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.slug}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="block rounded-lg border border-white/8 bg-[#081225] px-3 py-1.5">
-              <span className="block text-[10px] text-slate-500">Status</span>
-              <select
-                value={productFilter}
-                onChange={(event) => setProductFilter(event.target.value as ProductFilter)}
-                className="mt-0.5 h-6 w-full bg-transparent text-xs font-semibold text-slate-100 outline-none"
-              >
-                {statusTabs.map((tab) => (
-                  <option key={tab.filter} value={tab.filter}>
-                    {tab.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <button
-              type="button"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs font-semibold text-slate-200 transition hover:border-[#1E3DFF]/35 hover:text-white"
-            >
-              <Filter className="h-3.5 w-3.5" />
-              Filtros
-            </button>
-          </div>
-
-          <div className="mt-4 grid gap-2 sm:grid-cols-4">
-            {statusTabs.map((tab) => (
-              <button
-                key={tab.filter}
-                type="button"
-                onClick={() => setProductFilter(tab.filter)}
-                className={cn(
-                  'flex items-center justify-center gap-2 border-b px-3 py-2 text-xs font-medium transition',
-                  productFilter === tab.filter
-                    ? 'border-[#38BDF8] text-[#7EC3FF]'
-                    : 'border-transparent text-slate-400 hover:text-slate-200'
-                )}
-              >
-                {tab.label}
-                <span
-                  className={cn(
-                    'inline-flex min-w-7 justify-center rounded-full border px-2 py-0.5 text-[10px]',
-                    productFilter === tab.filter
-                      ? 'border-[#1E3DFF]/35 bg-[#1E3DFF]/12 text-[#A9C7FF]'
-                      : 'border-white/8 bg-[#081225] text-slate-500'
-                  )}
-                >
-                  {tab.count}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-
         <Panel
-          title="Lista de produtos"
-          description="Edição operacional de estoque e status do catálogo."
+          title="Resumo do catálogo"
+          description="Leitura operacional compacta para catálogo, estoque e prioridade de conferência."
           action={
-            <button
-              type="button"
-              disabled
-              className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-3 py-2 text-xs font-semibold text-white opacity-80"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Novo produto
-            </button>
+            <div className="flex flex-wrap gap-1.5">
+              <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
+                {catalogSourceLabel}
+              </SmallBadge>
+              <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
+                Loja ativa: {currentStoreBrand.shortName}
+              </SmallBadge>
+            </div>
           }
         >
-          <div className="overflow-x-auto rounded-lg border border-white/6">
-            <div className="min-w-[980px]">
-              <div className="grid grid-cols-[minmax(280px,1.35fr)_150px_120px_120px_150px_115px] gap-3 bg-[#081225] px-4 py-3 text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                <span>Produto</span>
-                <span>Categoria</span>
-                <span>Preço</span>
-                <span>Estoque</span>
-                <span>Status</span>
-                <span className="text-right">Ações</span>
-              </div>
-              {filteredProducts.map((product) => (
-                <div
-                  key={product.id}
-                  className="grid grid-cols-[minmax(280px,1.35fr)_150px_120px_120px_150px_115px] items-center gap-3 border-t border-white/6 px-4 py-3 text-xs"
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    {product.imageUrl ? (
-                      <img
-                        src={product.imageUrl}
-                        alt={product.name}
-                        className="h-12 w-12 rounded-lg border border-white/8 object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-white/8 bg-[linear-gradient(135deg,#1E3DFF,#38BDF8)] text-xs font-semibold text-white">
-                        {initialsFromName(product.name)}
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_300px]">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                {
+                  icon: Package2,
+                  label: 'Itens no painel',
+                  value: String(products.length),
+                  helper: 'Catálogo pronto para consulta.',
+                },
+                {
+                  icon: Activity,
+                  label: 'Ativos',
+                  value: String(activeProducts.length),
+                  helper: 'Produtos já visíveis na loja.',
+                },
+                {
+                  icon: Boxes,
+                  label: 'Unidades em estoque',
+                  value: formatCompact(totalInventoryUnits),
+                  helper: `${outOfStockProducts.length} item(ns) zerados.`,
+                },
+                {
+                  icon: LifeBuoy,
+                  label: 'Baixo estoque',
+                  value: String(lowStockProducts.length),
+                  helper: 'Prioridade para conferência.',
+                },
+              ].map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <div
+                    key={item.label}
+                    className="rounded-xl border border-white/6 bg-[#081225] px-3 py-3"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-[11px] font-medium text-slate-400">
+                        {item.label}
                       </div>
-                    )}
-                    <div className="min-w-0">
-                      <div className="truncate font-semibold text-white">{product.name}</div>
-                      <div className="mt-1 truncate text-[11px] text-slate-400">
-                        SKU: {productSku(product)}
-                      </div>
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#1E3DFF]/25 bg-[#091427] text-[#7EC3FF]">
+                        <Icon className="h-4 w-4" />
+                      </span>
                     </div>
+                    <div className="mt-2 text-lg font-semibold text-white">{item.value}</div>
+                    <div className="mt-1 text-[11px] text-slate-500">{item.helper}</div>
                   </div>
-                  <div className="truncate text-slate-300">
-                    {product.categories.map((category) => category.name).join(', ')}
+                );
+              })}
+            </div>
+
+            <div className="rounded-xl border border-white/6 bg-[linear-gradient(135deg,rgba(16,31,67,0.9),rgba(8,18,37,0.96))] px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.16em] text-[#7EC3FF]">
+                    Estoque editável
                   </div>
-                  <div className="font-semibold text-slate-100">
-                    {formatCurrency(product.promotionalPrice ?? product.price)}
-                  </div>
-                  <div className="font-semibold text-slate-300">{product.stock}</div>
-                  <div>
-                    <SmallBadge className={productStatusClass[product.status]}>
-                      <span className="mr-1.5 mt-1 inline-flex h-1.5 w-1.5 rounded-full bg-current" />
-                      {productStatusLabel[product.status]}
-                    </SmallBadge>
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <button
-                      type="button"
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-300 transition hover:border-[#1E3DFF]/35 hover:text-white"
-                      aria-label={`Editar ${product.name}`}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-300 transition hover:border-[#1E3DFF]/35 hover:text-white"
-                      aria-label={`Mais ações para ${product.name}`}
-                    >
-                      <MoreHorizontal className="h-3.5 w-3.5" />
-                    </button>
+                  <div className="mt-1 text-sm font-semibold text-white">
+                    Controle direto pela tabela
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
-            <span>
-              Mostrando {filteredProducts.length > 0 ? 1 : 0} a {filteredProducts.length} de{' '}
-              {products.length} produtos
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled
-                className="inline-flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-500"
-              >
-                ‹
-              </button>
-              <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-md border border-[#1E3DFF]/35 bg-[#1E3DFF]/12 px-2 text-xs font-semibold text-[#A9C7FF]">
-                1
-              </span>
-              <button
-                type="button"
-                disabled
-                className="inline-flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-500"
-              >
-                ›
-              </button>
+                <SmallBadge className="border-emerald-400/20 bg-emerald-400/10 text-emerald-200">
+                  Inline
+                </SmallBadge>
+              </div>
+              <p className="mt-3 text-[11px] leading-5 text-slate-300">
+                Status e estoque continuam operáveis na própria lista, sem abrir telas
+                intermediárias.
+              </p>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5">
+                  <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                    Categoria focada
+                  </div>
+                  <div className="mt-1 text-xs font-semibold text-white">
+                    {activeCategory?.name ?? 'Todas as categorias'}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5">
+                  <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                    Preço médio
+                  </div>
+                  <div className="mt-1 text-xs font-semibold text-white">
+                    {formatCurrency(totalProductsValue / Math.max(products.length, 1))}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </Panel>
 
-        <div className="grid gap-4 2xl:grid-cols-[1.25fr,0.95fr]">
+        <div className="grid gap-4 2xl:grid-cols-[minmax(0,1.55fr)_320px]">
           <Panel
-            title="Categorias"
-            description={`Volume de produtos por agrupamento via ${categoriesSourceLabel}.`}
+            title="Lista de produtos"
+            description="Tabela enxuta para busca, filtro e atualização de catálogo."
+            action={
+              <button
+                type="button"
+                disabled
+                className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-3 py-2 text-xs font-semibold text-white opacity-80"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Adicionar produto
+              </button>
+            }
           >
-            <div className="space-y-1">
-              {categoryLoad.slice(0, 5).map((category, index) => (
-                <div
-                  key={category.id}
-                  className="flex items-center justify-between gap-3 border-b border-white/6 px-1 py-2.5 last:border-b-0"
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span
-                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[10px] font-semibold"
-                      style={{
-                        borderColor: ['#1E3DFF55', '#8B5CF655', '#00E67655', '#F59E0B55', '#38BDF855'][index % 5],
-                        color: ['#7EC3FF', '#A78BFA', '#86EFAC', '#FCD34D', '#67E8F9'][index % 5],
-                        backgroundColor: ['#1E3DFF18', '#8B5CF618', '#00E67618', '#F59E0B18', '#38BDF818'][index % 5],
-                      }}
-                    >
-                      {index + 1}
-                    </span>
-                    <span className="truncate text-xs font-semibold text-slate-100">
-                      {category.name}
-                    </span>
-                  </div>
-                  <span className="text-xs text-slate-300">
-                    {category.count} {category.count === 1 ? 'produto' : 'produtos'}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <button
-              type="button"
-              disabled
-              className="mt-4 inline-flex w-full cursor-not-allowed items-center justify-between rounded-lg border border-white/8 bg-[#081225] px-3 py-2 text-xs font-semibold text-[#7EC3FF] opacity-80"
-            >
-              Ver todas as categorias
-              <ChevronRight className="h-3.5 w-3.5" />
-            </button>
-          </Panel>
+            <div className="space-y-4">
+              <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_180px_160px_auto]">
+                <label className="relative block">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  <input
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Buscar produto, SKU ou categoria..."
+                    className="h-10 w-full rounded-lg border border-white/8 bg-[#081225] pl-9 pr-3 text-xs text-white outline-none transition placeholder:text-slate-500 focus:border-[#1E3DFF]/35"
+                  />
+                </label>
 
-          <Panel
-            title="Reposição visual"
-            description="Itens que entram primeiro na fila de conferência."
-          >
-            {featuredLowStockProduct ? (
-              <div className="rounded-lg border border-amber-400/15 bg-[linear-gradient(135deg,rgba(245,158,11,0.08),rgba(8,18,37,0.95))] p-3">
-                <div className="flex items-center gap-3">
-                  {featuredLowStockProduct.imageUrl ? (
-                    <img
-                      src={featuredLowStockProduct.imageUrl}
-                      alt={featuredLowStockProduct.name}
-                      className="h-12 w-12 rounded-lg border border-white/8 object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-white/8 bg-[linear-gradient(135deg,#1E3DFF,#38BDF8)] text-xs font-semibold text-white">
-                      {initialsFromName(featuredLowStockProduct.name)}
-                    </div>
-                  )}
-                  <div className="min-w-0">
-                    <div className="truncate text-xs font-semibold text-white">
-                      {featuredLowStockProduct.name}
-                    </div>
-                    <div className="mt-1 text-[11px] text-slate-300">
-                      Estoque atual: {featuredLowStockProduct.stock} unidade(s)
-                    </div>
-                  </div>
-                </div>
+                <label className="block rounded-lg border border-white/8 bg-[#081225] px-3 py-1.5">
+                  <span className="block text-[10px] text-slate-500">Categoria</span>
+                  <select
+                    value={productCategoryFilter}
+                    onChange={(event) => setProductCategoryFilter(event.target.value)}
+                    className="mt-0.5 h-6 w-full bg-transparent text-xs font-semibold text-slate-100 outline-none"
+                  >
+                    <option value="all">Todas</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.slug}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block rounded-lg border border-white/8 bg-[#081225] px-3 py-1.5">
+                  <span className="block text-[10px] text-slate-500">Status</span>
+                  <select
+                    value={productFilter}
+                    onChange={(event) => setProductFilter(event.target.value as ProductFilter)}
+                    className="mt-0.5 h-6 w-full bg-transparent text-xs font-semibold text-slate-100 outline-none"
+                  >
+                    {statusTabs.map((tab) => (
+                      <option key={tab.filter} value={tab.filter}>
+                        {tab.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
                 <button
                   type="button"
-                  disabled
-                  className="mt-4 inline-flex w-full cursor-not-allowed items-center justify-between rounded-lg border border-white/8 bg-[#081225] px-3 py-2 text-xs font-semibold text-slate-200 opacity-80"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setProductCategoryFilter('all');
+                    setProductFilter('all');
+                  }}
+                  disabled={!hasActiveProductFilters}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs font-semibold text-slate-200 transition hover:border-[#1E3DFF]/35 hover:text-white disabled:cursor-not-allowed disabled:text-slate-500"
                 >
-                  Ver produto
-                  <ArrowUpRight className="h-3.5 w-3.5" />
+                  <Filter className="h-3.5 w-3.5" />
+                  Limpar filtros
                 </button>
               </div>
-            ) : (
-              <div className="rounded-lg border border-emerald-400/15 bg-emerald-400/8 px-3 py-2.5 text-xs text-emerald-200">
-                Nenhum item em faixa crítica na base atual.
+
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap gap-1.5">
+                  {statusTabs.map((tab) => (
+                    <button
+                      key={tab.filter}
+                      type="button"
+                      onClick={() => setProductFilter(tab.filter)}
+                      className={cn(
+                        'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-medium transition',
+                        productFilter === tab.filter
+                          ? 'border-[#1E3DFF]/35 bg-[#1E3DFF]/12 text-[#A9C7FF]'
+                          : 'border-white/8 bg-[#081225] text-slate-400 hover:text-slate-200'
+                      )}
+                    >
+                      {tab.label}
+                      <span className="text-[10px] opacity-80">{tab.count}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="text-[11px] text-slate-400">
+                  {filteredProducts.length} resultado(s) ·{' '}
+                  {activeCategory?.name ?? 'Todas as categorias'}
+                </div>
               </div>
-            )}
+
+              <div className="overflow-x-auto rounded-lg border border-white/6">
+                <div className="min-w-[1120px]">
+                  <div className="grid grid-cols-[minmax(300px,1.5fr)_160px_150px_190px_210px_92px] gap-3 bg-[#081225] px-4 py-2.5 text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                    <span>Produto</span>
+                    <span>Categoria</span>
+                    <span>Preço</span>
+                    <span>Estoque</span>
+                    <span>Status</span>
+                    <span className="text-right">Ações</span>
+                  </div>
+
+                  {filteredProducts.length === 0 ? (
+                    <div className="px-4 py-10 text-center text-xs text-slate-400">
+                      Nenhum produto encontrado com os filtros atuais.
+                    </div>
+                  ) : null}
+
+                  {filteredProducts.map((product) => {
+                    const primaryCategory = product.categories[0];
+                    const extraCategoriesCount = Math.max(0, product.categories.length - 1);
+                    const priceValue = product.promotionalPrice ?? product.price;
+
+                    return (
+                      <div
+                        key={product.id}
+                        className="grid grid-cols-[minmax(300px,1.5fr)_160px_150px_190px_210px_92px] items-center gap-3 border-t border-white/6 px-4 py-3 text-xs transition hover:bg-white/[0.015]"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          {product.imageUrl ? (
+                            <img
+                              src={product.imageUrl}
+                              alt={product.name}
+                              className="h-11 w-11 rounded-lg border border-white/8 object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/8 bg-[linear-gradient(135deg,#1E3DFF,#38BDF8)] text-xs font-semibold text-white">
+                              {initialsFromName(product.name)}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <div className="truncate font-semibold text-white">
+                              {product.name}
+                            </div>
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+                              <span>SKU: {productSku(product)}</span>
+                              {product.brand ? <span>Marca: {product.brand}</span> : null}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="min-w-0">
+                          {primaryCategory ? (
+                            <div className="space-y-1">
+                              <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
+                                {primaryCategory.name}
+                              </SmallBadge>
+                              {extraCategoriesCount > 0 ? (
+                                <div className="text-[11px] text-slate-500">
+                                  +{extraCategoriesCount} categoria(s)
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-slate-500">Sem categoria</span>
+                          )}
+                        </div>
+
+                        <div>
+                          <div className="font-semibold text-slate-100">
+                            {formatCurrency(priceValue)}
+                          </div>
+                          {product.promotionalPrice ? (
+                            <div className="mt-1 text-[11px] text-slate-500 line-through">
+                              {formatCurrency(product.price)}
+                            </div>
+                          ) : (
+                            <div className="mt-1 text-[11px] text-slate-500">Preço base</div>
+                          )}
+                        </div>
+
+                        <ProductStockForm product={product} />
+
+                        <ProductStatusForm product={product} />
+
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-300 transition hover:border-[#1E3DFF]/35 hover:text-white"
+                            aria-label={`Editar ${product.name}`}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-300 transition hover:border-[#1E3DFF]/35 hover:text-white"
+                            aria-label={`Mais ações para ${product.name}`}
+                          >
+                            <MoreHorizontal className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] text-slate-400">
+                <span>
+                  Mostrando {filteredProducts.length} de {products.length} produtos ·{' '}
+                  {lowStockProducts.length} com estoque baixo
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-500"
+                  >
+                    ‹
+                  </button>
+                  <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-md border border-[#1E3DFF]/35 bg-[#1E3DFF]/12 px-2 text-xs font-semibold text-[#A9C7FF]">
+                    1
+                  </span>
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-500"
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
+            </div>
           </Panel>
+
+          <div className="space-y-4">
+            <Panel
+              title="Categorias"
+              description={`Bloco separado para distribuição de produtos e unidades via ${categoriesSourceLabel}.`}
+            >
+              <div className="space-y-3">
+                {categoryLoad.slice(0, 6).map((category) => (
+                  <div key={category.id} className="space-y-2 rounded-lg border border-white/6 bg-[#081225] px-3 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-xs font-semibold text-white">
+                          {category.name}
+                        </div>
+                        <div className="mt-1 text-[11px] text-slate-400">
+                          {category.count} produto(s) · {category.units} unidade(s)
+                        </div>
+                      </div>
+                      <SmallBadge
+                        className={
+                          category.lowStockCount > 0
+                            ? 'border-amber-400/20 bg-amber-400/10 text-amber-200'
+                            : 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200'
+                        }
+                      >
+                        {category.lowStockCount > 0
+                          ? `${category.lowStockCount} crítico(s)`
+                          : 'OK'}
+                      </SmallBadge>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-white/6">
+                      <div
+                        className="h-1.5 rounded-full bg-[linear-gradient(90deg,#1E3DFF,#38BDF8)]"
+                        style={{
+                          width: `${Math.max(
+                            8,
+                            (category.units / largestCategoryUnits) * 100
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+
+            <Panel
+              title="Reposição visual"
+              description="Card pequeno com a fila prioritária de conferência."
+            >
+              {featuredLowStockProduct ? (
+                <div className="space-y-2">
+                  {lowStockProducts.slice(0, 3).map((product) => (
+                    <div
+                      key={product.id}
+                      className="flex items-center gap-3 rounded-lg border border-amber-400/15 bg-[linear-gradient(135deg,rgba(245,158,11,0.08),rgba(8,18,37,0.95))] px-3 py-2.5"
+                    >
+                      {product.imageUrl ? (
+                        <img
+                          src={product.imageUrl}
+                          alt={product.name}
+                          className="h-10 w-10 rounded-lg border border-white/8 object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/8 bg-[linear-gradient(135deg,#1E3DFF,#38BDF8)] text-xs font-semibold text-white">
+                          {initialsFromName(product.name)}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-xs font-semibold text-white">
+                          {product.name}
+                        </div>
+                        <div className="mt-1 text-[11px] text-slate-300">
+                          Estoque atual: {product.stock} unidade(s)
+                        </div>
+                      </div>
+                      <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-amber-400/20 bg-amber-400/10 px-2 text-xs font-semibold text-amber-200">
+                        {product.stock}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-emerald-400/15 bg-emerald-400/8 px-3 py-2.5 text-xs text-emerald-200">
+                  Nenhum item em faixa crítica na base atual.
+                </div>
+              )}
+            </Panel>
+          </div>
         </div>
       </div>
     );
@@ -1493,14 +1715,24 @@ export default function AdminDashboard({
                 </div>
               </div>
 
-              <button
-                type="button"
-                disabled
-                className="inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-3 py-2 text-xs font-semibold text-[#A9C7FF] opacity-80"
-              >
-                {integrationActionLabel(primaryErpIntegration)}
-                <ChevronRight className="h-3.5 w-3.5" />
-              </button>
+              {integrationActionHref(primaryErpIntegration) ? (
+                <Link
+                  href={integrationActionHref(primaryErpIntegration)!}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-3 py-2 text-xs font-semibold text-[#A9C7FF] transition hover:border-[#1E3DFF]/45 hover:text-white"
+                >
+                  {integrationActionLabel(primaryErpIntegration)}
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-3 py-2 text-xs font-semibold text-[#A9C7FF] opacity-80"
+                >
+                  {integrationActionLabel(primaryErpIntegration)}
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           ) : (
             <div className="rounded-lg border border-amber-400/15 bg-amber-400/8 px-3 py-2.5 text-xs text-amber-100">
@@ -1550,13 +1782,22 @@ export default function AdminDashboard({
                   </div>
                   <div className="text-slate-300">{integrationLastSyncLabel(item)}</div>
                   <div className="text-right">
-                    <button
-                      type="button"
-                      disabled
-                      className="cursor-not-allowed rounded-md border border-white/8 bg-white/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300 opacity-75"
-                    >
-                      {integrationActionLabel(item)}
-                    </button>
+                    {integrationActionHref(item) ? (
+                      <Link
+                        href={integrationActionHref(item)!}
+                        className="rounded-md border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#A9C7FF] transition hover:border-[#1E3DFF]/45 hover:text-white"
+                      >
+                        {integrationActionLabel(item)}
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        className="cursor-not-allowed rounded-md border border-white/8 bg-white/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300 opacity-75"
+                      >
+                        {integrationActionLabel(item)}
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

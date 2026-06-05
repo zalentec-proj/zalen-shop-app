@@ -36,6 +36,8 @@ type RepositoryError = {
 };
 
 const storeIntegrationStatuses: StoreIntegrationStatus[] = [
+  'planned',
+  'pending_credentials',
   'disconnected',
   'connected',
   'error',

@@ -17,6 +17,9 @@ const serverEnvSchema = z.object({
   BLING_CLIENT_ID: optionalSecretString,
   BLING_CLIENT_SECRET: optionalSecretString,
   BLING_REDIRECT_URI: z.string().trim().url().optional(),
+  BLING_SCOPES: optionalSecretString,
+  BLING_ENV: optionalSecretString,
+  INTEGRATION_TOKEN_ENCRYPTION_KEY: optionalSecretString,
   MERCADO_PAGO_ACCESS_TOKEN: optionalSecretString,
   MELHOR_ENVIO_TOKEN: optionalSecretString,
   GEMINI_API_KEY: optionalSecretString,
@@ -63,6 +66,11 @@ function parseServerEnv(): ServerEnv {
     BLING_CLIENT_ID: normalizeEnvValue(process.env.BLING_CLIENT_ID),
     BLING_CLIENT_SECRET: normalizeEnvValue(process.env.BLING_CLIENT_SECRET),
     BLING_REDIRECT_URI: normalizeEnvValue(process.env.BLING_REDIRECT_URI),
+    BLING_SCOPES: normalizeEnvValue(process.env.BLING_SCOPES),
+    BLING_ENV: normalizeEnvValue(process.env.BLING_ENV),
+    INTEGRATION_TOKEN_ENCRYPTION_KEY: normalizeEnvValue(
+      process.env.INTEGRATION_TOKEN_ENCRYPTION_KEY
+    ),
     MERCADO_PAGO_ACCESS_TOKEN: normalizeEnvValue(
       process.env.MERCADO_PAGO_ACCESS_TOKEN
     ),

@@ -1,7 +1,11 @@
-/**
- * Tipos do conector Bling.
- * Contratos para a integração futura — sem implementação real ainda.
- */
+export type BlingEnvironment = 'sandbox' | 'production';
+
+export type BlingConnectionStatus =
+  | 'planned'
+  | 'pending_credentials'
+  | 'connected'
+  | 'error'
+  | 'disconnected';
 
 export interface BlingProduct {
   id: number;
@@ -30,4 +34,38 @@ export interface BlingConnectionConfig {
   accessToken?: never;
   /** Nunca expor no frontend */
   refreshToken?: never;
+}
+
+export interface BlingOAuthConfig {
+  authorizationUrl: string;
+  tokenUrl: string;
+  clientId?: string;
+  clientSecret?: string;
+  redirectUri: string;
+  scopes: string[];
+  environment: BlingEnvironment;
+  isConfigured: boolean;
+  isEncryptionConfigured: boolean;
+}
+
+export interface BlingTokenResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn?: number;
+  tokenType?: string;
+  scope?: string;
+  receivedAt: string;
+}
+
+export interface BlingAdminState {
+  providerKey: 'bling';
+  status: BlingConnectionStatus;
+  environment: BlingEnvironment | string;
+  lastSyncAt?: string;
+  lastUpdatedAt?: string;
+  isOAuthConfigured: boolean;
+  isEncryptionConfigured: boolean;
+  canStartOAuth: boolean;
+  connectPath: string;
+  warnings: string[];
 }
