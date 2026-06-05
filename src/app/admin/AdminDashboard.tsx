@@ -127,9 +127,9 @@ const viewMeta: Record<
   },
   integrations: {
     eyebrow: 'Integrações desacopladas',
-    title: 'Readiness técnico',
+    title: 'Integrações',
     description:
-      'Status visual das integrações futuras.',
+      'Conectores disponíveis e status da loja ativa.',
   },
   settings: {
     eyebrow: 'Admin interno',
@@ -1392,47 +1392,49 @@ export default function AdminDashboard({
             </SmallBadge>
           }
         >
-          <div className="overflow-hidden rounded-lg border border-white/6">
-            <div className="grid grid-cols-[1fr,0.55fr,0.65fr,0.8fr,0.7fr] gap-3 bg-[#081225] px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
-              <span>Conector</span>
-              <span>Categoria</span>
-              <span>Status</span>
-              <span>Último sync</span>
-              <span className="text-right">Ação</span>
-            </div>
-            {integrations.map((item) => (
-              <div
-                key={item.provider.key}
-                className="grid grid-cols-[1fr,0.55fr,0.65fr,0.8fr,0.7fr] gap-3 border-t border-white/6 px-3 py-2.5 text-xs"
-              >
-                <div className="min-w-0">
-                  <div className="truncate font-semibold text-white">
-                    {item.provider.name}
-                  </div>
-                  <div className="mt-1 truncate text-slate-400">
-                    {item.provider.description ?? 'Provider global da plataforma.'}
-                  </div>
-                </div>
-                <div className="text-slate-300">
-                  {providerCategoryLabel[item.provider.category]}
-                </div>
-                <div>
-                  <SmallBadge className={integrationStatusClass(item)}>
-                    {integrationStatusLabel(item)}
-                  </SmallBadge>
-                </div>
-                <div className="text-slate-300">{integrationLastSyncLabel(item)}</div>
-                <div className="text-right">
-                  <button
-                    type="button"
-                    disabled
-                    className="cursor-not-allowed rounded-md border border-white/8 bg-white/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300 opacity-75"
-                  >
-                    {integrationActionLabel(item)}
-                  </button>
-                </div>
+          <div className="overflow-x-auto rounded-lg border border-white/6">
+            <div className="min-w-[920px]">
+              <div className="grid grid-cols-[minmax(260px,1fr)_120px_130px_140px_160px] gap-3 bg-[#081225] px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                <span>Conector</span>
+                <span>Categoria</span>
+                <span>Status</span>
+                <span>Último sync</span>
+                <span className="text-right">Ação</span>
               </div>
-            ))}
+              {integrations.map((item) => (
+                <div
+                  key={item.provider.key}
+                  className="grid grid-cols-[minmax(260px,1fr)_120px_130px_140px_160px] items-center gap-3 border-t border-white/6 px-3 py-2.5 text-xs"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate font-semibold text-white">
+                      {item.provider.name}
+                    </div>
+                    <div className="mt-1 truncate text-slate-400">
+                      {item.provider.description ?? 'Provider global da plataforma.'}
+                    </div>
+                  </div>
+                  <div className="text-slate-300">
+                    {providerCategoryLabel[item.provider.category]}
+                  </div>
+                  <div>
+                    <SmallBadge className={integrationStatusClass(item)}>
+                      {integrationStatusLabel(item)}
+                    </SmallBadge>
+                  </div>
+                  <div className="text-slate-300">{integrationLastSyncLabel(item)}</div>
+                  <div className="text-right">
+                    <button
+                      type="button"
+                      disabled
+                      className="cursor-not-allowed rounded-md border border-white/8 bg-white/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300 opacity-75"
+                    >
+                      {integrationActionLabel(item)}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </Panel>
       </div>
