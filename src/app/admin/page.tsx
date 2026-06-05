@@ -9,6 +9,7 @@ import {
   listCategoriesWithSource,
 } from '@/modules/catalog/product.service';
 import { listOrdersWithSource } from '@/modules/orders/order.service';
+import { listStoreIntegrationsWithSource } from '@/modules/integrations/core/store-integration.service';
 import {
   getCurrentUser,
   getPlatformRole,
@@ -74,10 +75,16 @@ export default async function AdminPage() {
     return <AccessDenied />;
   }
 
-  const [productsResult, categoriesResult, ordersResult] = await Promise.all([
+  const [
+    productsResult,
+    categoriesResult,
+    ordersResult,
+    integrationsResult,
+  ] = await Promise.all([
     listAdminProductsWithSource(ACTIVE_STORE_ID),
     listCategoriesWithSource(ACTIVE_STORE_ID),
     listOrdersWithSource(ACTIVE_STORE_ID),
+    listStoreIntegrationsWithSource(ACTIVE_STORE_ID),
   ]);
 
   return (
@@ -85,10 +92,12 @@ export default async function AdminPage() {
       products={productsResult.data}
       categories={categoriesResult.data}
       orders={ordersResult.data}
+      integrations={integrationsResult.data}
       dataSources={{
         products: productsResult.source,
         categories: categoriesResult.source,
         orders: ordersResult.source,
+        integrations: integrationsResult.source,
       }}
       adminUser={{
         email: user.email,

@@ -14,6 +14,14 @@ import type {
   PaymentStatus,
 } from '@/modules/orders/order.types';
 import type { PlatformRole, StoreRole } from '@/modules/auth/auth.types';
+import type {
+  IntegrationProviderCategory,
+  IntegrationProviderStatus,
+} from '@/modules/integrations/core/integration-provider.types';
+import type {
+  StoreIntegrationListItem,
+  StoreIntegrationStatus,
+} from '@/modules/integrations/core/store-integration.types';
 import {
   updateProductStatusAction,
   updateProductStockAction,
@@ -58,10 +66,12 @@ interface AdminDashboardProps {
   products: ProductSummary[];
   categories: Category[];
   orders: OrderListItem[];
+  integrations: StoreIntegrationListItem[];
   dataSources: {
     products: AdminDataSource;
     categories: AdminDataSource;
     orders: AdminDataSource;
+    integrations: AdminDataSource;
   };
   adminUser: {
     email?: string;
@@ -175,6 +185,45 @@ const paymentStatusLabel: Record<PaymentStatus, string> = {
   refunded: 'Estornado',
 };
 
+const providerCategoryLabel: Record<IntegrationProviderCategory, string> = {
+  erp: 'ERP',
+  payment: 'Pagamento',
+  shipping: 'Envio',
+  sales_channel: 'Canal',
+  ai: 'IA',
+  analytics: 'Analytics',
+};
+
+const providerStatusLabel: Record<IntegrationProviderStatus, string> = {
+  planned: 'Planejado',
+  beta: 'Beta',
+  available: 'Disponível',
+  deprecated: 'Descontinuado',
+};
+
+const providerStatusClass: Record<IntegrationProviderStatus, string> = {
+  planned: 'border-amber-400/20 bg-amber-400/10 text-amber-200',
+  beta: 'border-sky-400/20 bg-sky-400/10 text-sky-200',
+  available: 'border-[#1E3DFF]/30 bg-[#1E3DFF]/10 text-[#A9C7FF]',
+  deprecated: 'border-slate-400/20 bg-slate-400/10 text-slate-300',
+};
+
+const storeIntegrationStatusLabel: Record<StoreIntegrationStatus, string> = {
+  disconnected: 'Desconectado',
+  connected: 'Conectado',
+  error: 'Erro',
+  syncing: 'Sincronizando',
+  disabled: 'Desabilitado',
+};
+
+const storeIntegrationStatusClass: Record<StoreIntegrationStatus, string> = {
+  disconnected: 'border-slate-400/20 bg-slate-400/10 text-slate-300',
+  connected: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200',
+  error: 'border-rose-400/20 bg-rose-400/10 text-rose-200',
+  syncing: 'border-cyan-400/20 bg-cyan-400/10 text-cyan-200',
+  disabled: 'border-slate-400/20 bg-slate-400/10 text-slate-300',
+};
+
 const accessRoleLabel: Record<AdminAccessRole, string> = {
   platform_owner: 'Zalen owner',
   platform_admin: 'Zalen admin',
@@ -230,6 +279,42 @@ function cn(...classes: Array<string | false | null | undefined>) {
 
 function sourceLabel(source: AdminDataSource) {
   return source === 'supabase' ? 'Supabase' : 'Mock';
+}
+
+function integrationStatusLabel(item: StoreIntegrationListItem) {
+  return item.integration
+    ? storeIntegrationStatusLabel[item.integration.status]
+    : providerStatusLabel[item.provider.status];
+}
+
+function integrationStatusClass(item: StoreIntegrationListItem) {
+  return item.integration
+    ? storeIntegrationStatusClass[item.integration.status]
+    : providerStatusClass[item.provider.status];
+}
+
+function integrationActionLabel(item: StoreIntegrationListItem) {
+  if (item.integration?.status === 'connected') {
+    return 'Ver detalhes';
+  }
+
+  if (item.provider.key === 'bling') {
+    return 'Preparar conexão';
+  }
+
+  if (!item.integration && item.provider.status === 'planned') {
+    return 'Em breve';
+  }
+
+  return 'Preparar conexão';
+}
+
+function integrationLastSyncLabel(item: StoreIntegrationListItem) {
+  if (!item.integration?.lastSyncAt) {
+    return 'Sem sync';
+  }
+
+  return formatDateTime(item.integration.lastSyncAt);
 }
 
 function Panel({
@@ -432,6 +517,7 @@ export default function AdminDashboard({
   products,
   categories,
   orders,
+  integrations,
   dataSources,
   adminUser,
 }: AdminDashboardProps) {
@@ -453,6 +539,18 @@ export default function AdminDashboard({
   const shippedOrders = orders.filter((order) => order.status === 'shipped');
   const paidOrders = orders.filter((order) => order.paymentStatus === 'paid');
   const syncedOrders = orders.filter((order) => order.externalErpId);
+  const connectedIntegrations = integrations.filter(
+    (item) => item.integration?.status === 'connected'
+  );
+  const erroredIntegrations = integrations.filter(
+    (item) => item.integration?.status === 'error'
+  );
+  const plannedIntegrations = integrations.filter(
+    (item) => !item.integration && item.provider.status === 'planned'
+  );
+  const primaryErpIntegration =
+    integrations.find((item) => item.provider.key === 'bling') ??
+    integrations.find((item) => item.provider.category === 'erp');
 
   const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
   const averageTicket = orders.length > 0 ? totalRevenue / orders.length : 0;
@@ -553,7 +651,7 @@ export default function AdminDashboard({
       id: 'integrations',
       label: 'Integrações',
       icon: Waypoints,
-      count: '03',
+      count: String(integrations.length).padStart(2, '0'),
     },
     {
       id: 'settings',
@@ -570,6 +668,7 @@ export default function AdminDashboard({
   const productsSourceLabel = sourceLabel(dataSources.products);
   const categoriesSourceLabel = sourceLabel(dataSources.categories);
   const ordersSourceLabel = sourceLabel(dataSources.orders);
+  const integrationsSourceLabel = sourceLabel(dataSources.integrations);
   const catalogSourceLabel =
     dataSources.products === 'supabase' || dataSources.categories === 'supabase'
       ? 'Supabase'
@@ -1191,137 +1290,217 @@ export default function AdminDashboard({
       <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
         <MetricCard
           icon={Database}
-          label="Catálogo"
-          value={String(products.length)}
-          helper={`Storefront e painel via ${catalogSourceLabel}.`}
-        />
-        <MetricCard
-          icon={RefreshCw}
-          label="Pedidos com ERP ref."
-          value={String(syncedOrders.length)}
-          helper="Sem chamada real ao Bling."
+          label="Providers globais"
+          value={String(integrations.length)}
+          helper={`Registry carregado via ${integrationsSourceLabel}.`}
         />
         <MetricCard
           icon={Wifi}
-          label="Integrações reais"
-          value="0"
-          helper="Bling e pagamentos seguem desligados."
+          label="Conectados"
+          value={String(connectedIntegrations.length)}
+          helper="Somente conexões por loja com status ativo."
+        />
+        <MetricCard
+          icon={RefreshCw}
+          label="Planejados"
+          value={String(plannedIntegrations.length)}
+          helper="Sem token, webhook ou chamada externa."
         />
         <MetricCard
           icon={ShieldCheck}
-          label="Layout pronto"
-          value="100%"
-          helper="Admin já respira como backoffice SaaS dark."
+          label="Alertas"
+          value={String(erroredIntegrations.length)}
+          helper="Erros reportados por store_integrations."
         />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
-        <Panel title="Bling" description="ERP operacional continua desacoplado do frontend.">
-          <div className="space-y-3">
-            <SmallBadge className="border-amber-400/20 bg-amber-400/10 text-amber-200">
-              Não integrado
-            </SmallBadge>
-            <p className="text-xs leading-5 text-slate-300">
-              O layout já prevê sincronização de pedidos e catálogo, mas sem chamar endpoints reais
-              nem assumir payloads fora da documentação oficial.
-            </p>
-            <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5 text-xs text-slate-300">
-              {syncedOrders.length} pedidos carregam referência visual de ERP.
+      <div className="grid gap-4 2xl:grid-cols-[0.85fr,1.35fr]">
+        <Panel
+          title="ERP principal"
+          description="Conector previsto para a operação da Brasil Drones."
+          action={
+            primaryErpIntegration ? (
+              <SmallBadge className={integrationStatusClass(primaryErpIntegration)}>
+                {integrationStatusLabel(primaryErpIntegration)}
+              </SmallBadge>
+            ) : null
+          }
+        >
+          {primaryErpIntegration ? (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-[#1E3DFF]/20 bg-[linear-gradient(135deg,rgba(30,61,255,0.18),rgba(8,18,37,0.95))] p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-white">
+                      {primaryErpIntegration.provider.name}
+                    </div>
+                    <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-[#7EC3FF]">
+                      {providerCategoryLabel[primaryErpIntegration.provider.category]}
+                    </div>
+                  </div>
+                  <SmallBadge className={integrationStatusClass(primaryErpIntegration)}>
+                    {integrationStatusLabel(primaryErpIntegration)}
+                  </SmallBadge>
+                </div>
+                <p className="mt-3 text-xs leading-5 text-slate-300">
+                  {primaryErpIntegration.provider.description ??
+                    'ERP planejado para sincronizar catálogo, estoque e pedidos.'}
+                </p>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5">
+                  <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                    Ambiente
+                  </div>
+                  <div className="mt-1 text-xs font-semibold text-white">
+                    {primaryErpIntegration.integration?.environment ?? 'Não configurado'}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5">
+                  <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                    Último sync
+                  </div>
+                  <div className="mt-1 text-xs font-semibold text-white">
+                    {integrationLastSyncLabel(primaryErpIntegration)}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                disabled
+                className="inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-3 py-2 text-xs font-semibold text-[#A9C7FF] opacity-80"
+              >
+                {integrationActionLabel(primaryErpIntegration)}
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
             </div>
-          </div>
+          ) : (
+            <div className="rounded-lg border border-amber-400/15 bg-amber-400/8 px-3 py-2.5 text-xs text-amber-100">
+              Nenhum provider ERP encontrado no registry atual.
+            </div>
+          )}
         </Panel>
 
-        <Panel title="Supabase" description={`Catálogo: ${catalogSourceLabel}. Pedidos: ${ordersSourceLabel}.`}>
-          <div className="space-y-3">
-            <SmallBadge className="border-sky-400/20 bg-sky-400/10 text-sky-200">
-              {catalogSourceLabel === 'Supabase' || ordersSourceLabel === 'Supabase'
-                ? 'Conectado'
-                : 'Fallback ativo'}
+        <Panel
+          title="Conectores disponíveis"
+          description="Catálogo global da plataforma combinado com o status da loja ativa."
+          action={
+            <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
+              {currentStoreBrand.shortName}
             </SmallBadge>
-            <p className="text-xs leading-5 text-slate-300">
-              O painel lê por services/repositories no servidor. Quando a configuração não está
-              disponível, o fallback mock mantém a operação local funcionando.
-            </p>
-            <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5 text-xs text-slate-300">
-              Nenhuma chave sensível é enviada ao client-side.
+          }
+        >
+          <div className="overflow-hidden rounded-lg border border-white/6">
+            <div className="grid grid-cols-[1fr,0.55fr,0.65fr,0.8fr,0.7fr] gap-3 bg-[#081225] px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
+              <span>Conector</span>
+              <span>Categoria</span>
+              <span>Status</span>
+              <span>Último sync</span>
+              <span className="text-right">Ação</span>
             </div>
-          </div>
-        </Panel>
-
-        <Panel title="Storefront" description={`Vitrine pública e painel usam catálogo via ${catalogSourceLabel}.`}>
-          <div className="space-y-3">
-            <SmallBadge className="border-emerald-400/20 bg-emerald-400/10 text-emerald-200">
-              Ativo
-            </SmallBadge>
-            <p className="text-xs leading-5 text-slate-300">
-              As rotas públicas consomem a mesma camada de catálogo, sem conhecer se a fonte é
-              Supabase ou fallback mock.
-            </p>
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/8 bg-[#081225] px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-[#1E3DFF]/35 hover:text-white"
-            >
-              Abrir storefront
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            </Link>
+            {integrations.map((item) => (
+              <div
+                key={item.provider.key}
+                className="grid grid-cols-[1fr,0.55fr,0.65fr,0.8fr,0.7fr] gap-3 border-t border-white/6 px-3 py-2.5 text-xs"
+              >
+                <div className="min-w-0">
+                  <div className="truncate font-semibold text-white">
+                    {item.provider.name}
+                  </div>
+                  <div className="mt-1 truncate text-slate-400">
+                    {item.provider.description ?? 'Provider global da plataforma.'}
+                  </div>
+                </div>
+                <div className="text-slate-300">
+                  {providerCategoryLabel[item.provider.category]}
+                </div>
+                <div>
+                  <SmallBadge className={integrationStatusClass(item)}>
+                    {integrationStatusLabel(item)}
+                  </SmallBadge>
+                </div>
+                <div className="text-slate-300">{integrationLastSyncLabel(item)}</div>
+                <div className="text-right">
+                  <button
+                    type="button"
+                    disabled
+                    className="cursor-not-allowed rounded-md border border-white/8 bg-white/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300 opacity-75"
+                  >
+                    {integrationActionLabel(item)}
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </Panel>
       </div>
 
-      <div className="grid gap-4 2xl:grid-cols-[1.15fr,1fr]">
+      <div className="grid gap-4 2xl:grid-cols-[1.1fr,1fr]">
         <Panel
-          title="Checklist de readiness"
-          description="O que já está sustentado visualmente e o que segue isolado."
+          title="Base técnica"
+          description="Separação entre registry global e conexão por loja."
         >
-          <div className="space-y-2">
+          <div className="grid gap-2 md:grid-cols-2">
             {[
-              'Rotas públicas reais usando modules/catalog.',
-              'Tela de carrinho visual mantendo linguagem operacional.',
-              'Dashboard admin dark inspirado em SaaS operacional.',
-              `Catálogo via ${catalogSourceLabel}.`,
-              'Bling ainda não integrado.',
-            ].map((item, index) => (
+              {
+                label: 'integration_providers',
+                value: `${integrations.length} providers`,
+                detail: 'Catálogo global sem credenciais.',
+              },
+              {
+                label: 'store_integrations',
+                value: `${connectedIntegrations.length} conectada(s)`,
+                detail: 'Configuração filtrada por store_id.',
+              },
+              {
+                label: 'Fonte',
+                value: integrationsSourceLabel,
+                detail: 'Fallback mock mantém o admin disponível.',
+              },
+              {
+                label: 'Pedidos com ERP ref.',
+                value: String(syncedOrders.length),
+                detail: 'Referência local, sem envio ao Bling.',
+              },
+            ].map((item) => (
               <div
-                key={item}
-                className="flex items-start gap-2 rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5"
+                key={item.label}
+                className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5"
               >
-                <span
-                  className={cn(
-                    'mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-md text-[9px] font-semibold',
-                    index < 3
-                      ? 'bg-emerald-400/12 text-emerald-200'
-                      : 'bg-amber-400/12 text-amber-200'
-                  )}
-                >
-                  {index < 3 ? 'OK' : 'TO'}
-                </span>
-                <span className="text-xs leading-5 text-slate-300">{item}</span>
+                <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                  {item.label}
+                </div>
+                <div className="mt-1 text-sm font-semibold text-white">{item.value}</div>
+                <div className="mt-1 text-[11px] leading-5 text-slate-400">
+                  {item.detail}
+                </div>
               </div>
             ))}
           </div>
         </Panel>
 
         <Panel
-          title="Fila para integração futura"
-          description="Itens operacionais que já existem visualmente e depois recebem dados reais."
+          title="Guardrails"
+          description="Limites desta sprint de conectores."
         >
           <div className="space-y-2">
-            {orders.map((order) => (
+            {[
+              'Nenhuma API externa é chamada pelo admin.',
+              'credentials_encrypted não é selecionado nem enviado ao client.',
+              'Bling aparece como ERP principal, mas ainda sem OAuth real.',
+              'Mercos permanece global e não conectado na Brasil Drones.',
+              'Mercado Pago e Melhor Envio ficam como planejados.',
+            ].map((item) => (
               <div
-                key={order.id}
-                className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5"
+                key={item}
+                className="flex items-start gap-2 rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <div className="text-xs font-semibold text-white">{order.orderNumber}</div>
-                    <div className="mt-0.5 text-[11px] text-slate-400">
-                      {order.customerName ?? 'Cliente não identificado'} • {order.salesChannel}
-                    </div>
-                  </div>
-                  <SmallBadge className={order.externalErpId ? 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200' : 'border-slate-400/20 bg-slate-400/10 text-slate-300'}>
-                    {order.externalErpId ? 'Referência ERP' : 'Local'}
-                  </SmallBadge>
-                </div>
+                <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-md bg-emerald-400/12 text-[9px] font-semibold text-emerald-200">
+                  OK
+                </span>
+                <span className="text-xs leading-5 text-slate-300">{item}</span>
               </div>
             ))}
           </div>
