@@ -64,12 +64,27 @@ Objetivo: reduzir esforço por nova loja.
 - Templates editáveis.
 - Configurações visuais por loja.
 - Domínio próprio.
+- Resolução dinâmica de store por domínio/subdomínio.
+- `{storeSlug}.zalen.shop` para lojas no domínio da plataforma.
+- `lvh.me` para testes locais com subdomínio.
 - Tema por store.
 - Componentes comuns de storefront.
 - Área do comprador.
 - Políticas e páginas institucionais.
 
-## Fase 6 — Platform Admin
+## Fase 6 — Domínios e resolução dinâmica de stores
+
+Objetivo: remover a dependência operacional de store fixa e resolver a loja pelo host da requisição.
+
+- Resolver `{storeSlug}.zalen.shop` por `stores.slug`.
+- Manter `localhost:3000` como fallback Brasil Drones durante desenvolvimento.
+- Testar `brasil-drones.lvh.me:3000` e `lb-london.lvh.me:3000`.
+- Planejar domínio próprio de clientes, como `www.brasildrones.com.br`.
+- Manter admin da loja no domínio da plataforma.
+- Reservar `app.zalen.shop/platform` para operação interna futura da Zalen.
+- Garantir que services e repositories recebam `storeId` resolvido fora deles.
+
+## Fase 7 — Platform Admin
 
 Objetivo: criar a área interna da Zalen.
 
@@ -81,7 +96,7 @@ Objetivo: criar a área interna da Zalen.
 - Suporte e logs globais.
 - Futuro billing/planos.
 
-## Fase 7 — Crescimento
+## Fase 8 — Crescimento
 
 - Catálogo social Meta/Instagram.
 - IA para descrições.

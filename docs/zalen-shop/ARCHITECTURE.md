@@ -142,7 +142,22 @@ Será uma área futura para a Zalen gerenciar todas as lojas, conectores, suport
 
 Não implementar `/platform` no MVP.
 
-## 8. Platform connectors registry
+## 8. Store resolution by host
+
+No MVP, `localhost:3000` continua usando Brasil Drones como fallback por meio da store ativa fixa.
+
+A estratégia futura é resolver a loja pelo host da requisição:
+
+- `{storeSlug}.zalen.shop` identifica lojas no domínio da plataforma;
+- `brasil-drones.lvh.me:3000` e `lb-london.lvh.me:3000` permitem teste local com subdomínio;
+- domínios próprios, como `www.brasildrones.com.br`, serão resolvidos por configuração futura de domínio;
+- `app.zalen.shop/platform` será reservado para o futuro platform admin.
+
+O admin da loja deve permanecer no domínio da plataforma, por exemplo `brasil-drones.zalen.shop/admin`, mesmo quando o storefront público usar domínio próprio.
+
+Detalhes: ver `docs/zalen-shop/DOMAIN_AND_STORE_RESOLUTION.md`.
+
+## 9. Platform connectors registry
 
 Conectores pertencem ao core da Zalen Shop. Lojas apenas ativam/configuram conectores disponíveis.
 
@@ -168,7 +183,7 @@ Brasil Drones → Bling
 LB London → Mercos
 ```
 
-## 9. Regra de integração
+## 10. Regra de integração
 
 A interface visual não pode chamar APIs externas diretamente.
 
@@ -212,7 +227,7 @@ ERP Connector
 Bling ou Mercos
 ```
 
-## 10. Conectores
+## 11. Conectores
 
 Cada conector deve ser um módulo isolado com:
 
@@ -226,7 +241,7 @@ Cada conector deve ser um módulo isolado com:
 - idempotência;
 - validação de webhook quando aplicável.
 
-## 11. Ambientes
+## 12. Ambientes
 
 - local;
 - staging;
@@ -236,7 +251,7 @@ Cada ambiente deve ter variáveis, banco, credenciais e integrações separadas.
 
 O projeto atual usa Supabase Cloud como base principal de staging/desenvolvimento, com Supabase local opcional.
 
-## 12. Segurança arquitetural
+## 13. Segurança arquitetural
 
 - Credenciais nunca vão para frontend.
 - Service role nunca é importado em Client Components.
