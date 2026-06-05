@@ -22,10 +22,6 @@ import type {
   StoreIntegrationListItem,
   StoreIntegrationStatus,
 } from '@/modules/integrations/core/store-integration.types';
-import {
-  updateProductStatusAction,
-  updateProductStockAction,
-} from '@/app/admin/products/actions';
 import { logoutAction } from '@/app/login/actions';
 import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import { platformBrand } from '@/lib/branding/platform-brand';
@@ -37,10 +33,14 @@ import {
   ChevronRight,
   CreditCard,
   Database,
+  Filter,
   Gauge,
   LayoutGrid,
   LifeBuoy,
+  MoreHorizontal,
   Package2,
+  Pencil,
+  Plus,
   RefreshCw,
   LogOut,
   Search,
@@ -117,7 +117,7 @@ const viewMeta: Record<
     eyebrow: 'Catálogo operacional',
     title: 'Produtos e estoque',
     description:
-      'Tabela de catálogo, faixa de preço e estoque.',
+      'Gerencie seu catálogo, preços e estoque.',
   },
   orders: {
     eyebrow: 'Mesa operacional',
@@ -150,8 +150,6 @@ const productStatusLabel: Record<ProductStatus, string> = {
   inactive: 'Inativo',
   draft: 'Rascunho',
 };
-
-const productStatusOptions: ProductStatus[] = ['active', 'draft', 'inactive'];
 
 const orderStatusClass: Record<OrderStatus, string> = {
   pending: 'border-amber-400/20 bg-amber-400/10 text-amber-200',
@@ -271,6 +269,20 @@ function matchesSearch(tokens: Array<string | undefined>, query: string) {
 
   const normalizedQuery = query.trim().toLowerCase();
   return tokens.some((token) => token?.toLowerCase().includes(normalizedQuery));
+}
+
+function productSku(product: ProductSummary) {
+  const brandPrefix = product.brand
+    ?.replace(/[^a-z0-9]/gi, '')
+    .slice(0, 3)
+    .toUpperCase();
+  const slugPrefix = product.slug
+    .split('-')
+    .map((part) => part.slice(0, 4).toUpperCase())
+    .join('-')
+    .slice(0, 16);
+
+  return [brandPrefix, slugPrefix].filter(Boolean).join('-');
 }
 
 function cn(...classes: Array<string | false | null | undefined>) {
@@ -526,11 +538,14 @@ export default function AdminDashboard({
     useState<SettingsSection>('profile');
   const [searchQuery, setSearchQuery] = useState('');
   const [productFilter, setProductFilter] = useState<ProductFilter>('all');
+  const [productCategoryFilter, setProductCategoryFilter] = useState('all');
   const [orderFilter, setOrderFilter] = useState<OrderFilter>('all');
 
   const searchValue = searchQuery.trim().toLowerCase();
 
   const activeProducts = products.filter((product) => product.status === 'active');
+  const draftProducts = products.filter((product) => product.status === 'draft');
+  const inactiveProducts = products.filter((product) => product.status === 'inactive');
   const lowStockProducts = products.filter((product) => product.stock <= 3);
   const pendingOrders = orders.filter((order) => order.status === 'pending');
   const processingOrders = orders.filter(
@@ -595,17 +610,21 @@ export default function AdminDashboard({
 
   const filteredProducts = products.filter((product) => {
     const statusMatches = productFilter === 'all' || product.status === productFilter;
+    const categoryMatches =
+      productCategoryFilter === 'all' ||
+      product.categories.some((category) => category.slug === productCategoryFilter);
     const textMatches = matchesSearch(
       [
         product.name,
         product.slug,
         product.brand,
+        productSku(product),
         ...product.categories.map((category) => category.name),
       ],
       searchValue
     );
 
-    return statusMatches && textMatches;
+    return statusMatches && categoryMatches && textMatches;
   });
 
   const filteredOrders = orders.filter((order) => {
@@ -673,7 +692,6 @@ export default function AdminDashboard({
     dataSources.products === 'supabase' || dataSources.categories === 'supabase'
       ? 'Supabase'
       : 'Mock';
-  const canMutateProducts = dataSources.products === 'supabase';
 
   const renderDashboard = () => (
     <div className="space-y-4">
@@ -900,214 +918,322 @@ export default function AdminDashboard({
     </div>
   );
 
-  const renderProducts = () => (
-    <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
-        <MetricCard
-          icon={Store}
-          label="Produtos no painel"
-          value={String(products.length)}
-          helper={`Catálogo carregado via ${productsSourceLabel}.`}
-        />
-        <MetricCard
-          icon={Activity}
-          label="Ativos"
-          value={String(activeProducts.length)}
-          helper="Itens visíveis no storefront atual."
-        />
-        <MetricCard
-          icon={LifeBuoy}
-          label="Baixo estoque"
-          value={String(lowStockProducts.length)}
-          helper="Produtos com estoque menor ou igual a 3 unidades."
-        />
-        <MetricCard
-          icon={CreditCard}
-          label="Faixa média"
-          value={formatCurrency(totalProductsValue / Math.max(products.length, 1))}
-          helper={`Média simples via ${productsSourceLabel}.`}
-        />
-      </div>
+  const renderProducts = () => {
+    const statusTabs: Array<{ filter: ProductFilter; label: string; count: number }> = [
+      { filter: 'all', label: 'Todos', count: products.length },
+      { filter: 'active', label: 'Ativo', count: activeProducts.length },
+      { filter: 'draft', label: 'Rascunho', count: draftProducts.length },
+      { filter: 'inactive', label: 'Inativo', count: inactiveProducts.length },
+    ];
+    const featuredLowStockProduct = lowStockProducts[0];
 
-      <div className="grid gap-4 2xl:grid-cols-[1.45fr,0.8fr]">
+    return (
+      <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+          <MetricCard
+            icon={Package2}
+            label="Produtos no painel"
+            value={String(products.length)}
+            helper={`Catálogo carregado via ${productsSourceLabel}.`}
+          />
+          <MetricCard
+            icon={Activity}
+            label="Produtos ativos"
+            value={String(activeProducts.length)}
+            helper="Itens visíveis na loja."
+          />
+          <MetricCard
+            icon={LifeBuoy}
+            label="Baixo estoque"
+            value={String(lowStockProducts.length)}
+            helper="Produtos com estoque menor ou igual a 3."
+          />
+          <MetricCard
+            icon={CreditCard}
+            label="Preço médio"
+            value={formatCurrency(totalProductsValue / Math.max(products.length, 1))}
+            helper={`Média simples via ${productsSourceLabel}.`}
+          />
+        </div>
+
+        <div className="rounded-xl border border-white/6 bg-[#0A1730]/95 p-4 shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
+          <div className="grid gap-3 xl:grid-cols-[1fr,170px,170px,110px]">
+            <label className="relative block">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Buscar produto, categoria ou SKU..."
+                className="h-11 w-full rounded-lg border border-white/8 bg-[#081225] pl-9 pr-3 text-xs text-white outline-none transition placeholder:text-slate-500 focus:border-[#1E3DFF]/40"
+              />
+            </label>
+
+            <label className="block rounded-lg border border-white/8 bg-[#081225] px-3 py-1.5">
+              <span className="block text-[10px] text-slate-500">Categoria</span>
+              <select
+                value={productCategoryFilter}
+                onChange={(event) => setProductCategoryFilter(event.target.value)}
+                className="mt-0.5 h-6 w-full bg-transparent text-xs font-semibold text-slate-100 outline-none"
+              >
+                <option value="all">Todas</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.slug}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block rounded-lg border border-white/8 bg-[#081225] px-3 py-1.5">
+              <span className="block text-[10px] text-slate-500">Status</span>
+              <select
+                value={productFilter}
+                onChange={(event) => setProductFilter(event.target.value as ProductFilter)}
+                className="mt-0.5 h-6 w-full bg-transparent text-xs font-semibold text-slate-100 outline-none"
+              >
+                {statusTabs.map((tab) => (
+                  <option key={tab.filter} value={tab.filter}>
+                    {tab.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <button
+              type="button"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs font-semibold text-slate-200 transition hover:border-[#1E3DFF]/35 hover:text-white"
+            >
+              <Filter className="h-3.5 w-3.5" />
+              Filtros
+            </button>
+          </div>
+
+          <div className="mt-4 grid gap-2 sm:grid-cols-4">
+            {statusTabs.map((tab) => (
+              <button
+                key={tab.filter}
+                type="button"
+                onClick={() => setProductFilter(tab.filter)}
+                className={cn(
+                  'flex items-center justify-center gap-2 border-b px-3 py-2 text-xs font-medium transition',
+                  productFilter === tab.filter
+                    ? 'border-[#38BDF8] text-[#7EC3FF]'
+                    : 'border-transparent text-slate-400 hover:text-slate-200'
+                )}
+              >
+                {tab.label}
+                <span
+                  className={cn(
+                    'inline-flex min-w-7 justify-center rounded-full border px-2 py-0.5 text-[10px]',
+                    productFilter === tab.filter
+                      ? 'border-[#1E3DFF]/35 bg-[#1E3DFF]/12 text-[#A9C7FF]'
+                      : 'border-white/8 bg-[#081225] text-slate-500'
+                  )}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <Panel
           title="Lista de produtos"
           description="Edição operacional de estoque e status do catálogo."
           action={
-            <div className="flex flex-wrap gap-1.5">
-              {(['all', 'active', 'draft', 'inactive'] as ProductFilter[]).map((filter) => (
-                <button
-                  key={filter}
-                  type="button"
-                  onClick={() => setProductFilter(filter)}
-                  className={cn(
-                    'rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] transition',
-                    productFilter === filter
-                      ? 'border-[#1E3DFF]/35 bg-[#1E3DFF]/12 text-[#A9C7FF]'
-                      : 'border-white/8 bg-[#081225] text-slate-400 hover:text-slate-200'
-                  )}
-                >
-                  {filter === 'all' ? 'Todos' : productStatusLabel[filter]}
-                </button>
-              ))}
-            </div>
+            <button
+              type="button"
+              disabled
+              className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-3 py-2 text-xs font-semibold text-white opacity-80"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Novo produto
+            </button>
           }
         >
-          {!canMutateProducts ? (
-            <div className="mb-3 rounded-lg border border-amber-400/15 bg-amber-400/8 px-3 py-2 text-xs text-amber-100">
-              Fonte mock ativa: edição desabilitada até conectar a chave server-side do Supabase.
-            </div>
-          ) : null}
-          <div className="overflow-hidden rounded-lg border border-white/6">
-            <div className="grid grid-cols-[1.45fr,0.9fr,0.72fr,0.9fr,1fr] gap-3 bg-[#081225] px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
-              <span>Produto</span>
-              <span>Categoria</span>
-              <span>Preço</span>
-              <span>Estoque</span>
-              <span>Status</span>
-            </div>
-            {filteredProducts.map((product) => (
-              <div
-                key={product.id}
-                className="grid grid-cols-[1.45fr,0.9fr,0.72fr,0.9fr,1fr] gap-3 border-t border-white/6 px-3 py-2 text-xs"
-              >
-                <div className="flex items-center gap-3">
-                  {product.imageUrl ? (
-                    <img
-                      src={product.imageUrl}
-                      alt={product.name}
-                      className="h-9 w-9 rounded-lg object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[linear-gradient(135deg,#1E3DFF,#38BDF8)] text-xs font-semibold text-white">
-                      {initialsFromName(product.name)}
-                    </div>
-                  )}
-                  <div className="min-w-0">
-                    <div className="truncate font-semibold text-white">{product.name}</div>
-                    <div className="mt-1 truncate text-slate-400">
-                      {product.brand ?? 'Sem marca'}
+          <div className="overflow-x-auto rounded-lg border border-white/6">
+            <div className="min-w-[980px]">
+              <div className="grid grid-cols-[minmax(280px,1.35fr)_150px_120px_120px_150px_115px] gap-3 bg-[#081225] px-4 py-3 text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                <span>Produto</span>
+                <span>Categoria</span>
+                <span>Preço</span>
+                <span>Estoque</span>
+                <span>Status</span>
+                <span className="text-right">Ações</span>
+              </div>
+              {filteredProducts.map((product) => (
+                <div
+                  key={product.id}
+                  className="grid grid-cols-[minmax(280px,1.35fr)_150px_120px_120px_150px_115px] items-center gap-3 border-t border-white/6 px-4 py-3 text-xs"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    {product.imageUrl ? (
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="h-12 w-12 rounded-lg border border-white/8 object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-white/8 bg-[linear-gradient(135deg,#1E3DFF,#38BDF8)] text-xs font-semibold text-white">
+                        {initialsFromName(product.name)}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="truncate font-semibold text-white">{product.name}</div>
+                      <div className="mt-1 truncate text-[11px] text-slate-400">
+                        SKU: {productSku(product)}
+                      </div>
                     </div>
                   </div>
+                  <div className="truncate text-slate-300">
+                    {product.categories.map((category) => category.name).join(', ')}
+                  </div>
+                  <div className="font-semibold text-slate-100">
+                    {formatCurrency(product.promotionalPrice ?? product.price)}
+                  </div>
+                  <div className="font-semibold text-slate-300">{product.stock}</div>
+                  <div>
+                    <SmallBadge className={productStatusClass[product.status]}>
+                      <span className="mr-1.5 mt-1 inline-flex h-1.5 w-1.5 rounded-full bg-current" />
+                      {productStatusLabel[product.status]}
+                    </SmallBadge>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-300 transition hover:border-[#1E3DFF]/35 hover:text-white"
+                      aria-label={`Editar ${product.name}`}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-300 transition hover:border-[#1E3DFF]/35 hover:text-white"
+                      aria-label={`Mais ações para ${product.name}`}
+                    >
+                      <MoreHorizontal className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
-                <div className="text-slate-300">
-                  {product.categories.map((category) => category.name).join(', ')}
-                </div>
-                <div className="font-semibold text-white">
-                  {formatCurrency(product.promotionalPrice ?? product.price)}
-                </div>
-                <form
-                  action={updateProductStockAction}
-                  className="flex items-center gap-1.5"
-                >
-                  <input type="hidden" name="productId" value={product.id} />
-                  <input
-                    type="number"
-                    name="stock"
-                    min={0}
-                    defaultValue={product.stock}
-                    disabled={!canMutateProducts}
-                    className="h-8 w-16 rounded-md border border-white/8 bg-[#050B18] px-2 text-xs font-semibold text-white outline-none transition focus:border-[#1E3DFF]/45 disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!canMutateProducts}
-                    className="h-8 rounded-md border border-white/8 bg-white/5 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-200 transition hover:border-[#1E3DFF]/35 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Salvar
-                  </button>
-                </form>
-                <form
-                  action={updateProductStatusAction}
-                  className="flex items-center gap-1.5"
-                >
-                  <input type="hidden" name="productId" value={product.id} />
-                  <select
-                    name="status"
-                    defaultValue={product.status}
-                    disabled={!canMutateProducts}
-                    className="h-8 min-w-24 rounded-md border border-white/8 bg-[#050B18] px-2 text-xs font-semibold text-slate-100 outline-none transition focus:border-[#1E3DFF]/45 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {productStatusOptions.map((status) => (
-                      <option key={status} value={status}>
-                        {productStatusLabel[status]}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="submit"
-                    disabled={!canMutateProducts}
-                    className={cn(
-                      'h-8 rounded-md border px-2 text-[10px] font-semibold uppercase tracking-[0.12em] transition disabled:cursor-not-allowed disabled:opacity-50',
-                      productStatusClass[product.status]
-                    )}
-                  >
-                    Aplicar
-                  </button>
-                </form>
-              </div>
-            ))}
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
+            <span>
+              Mostrando {filteredProducts.length > 0 ? 1 : 0} a {filteredProducts.length} de{' '}
+              {products.length} produtos
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled
+                className="inline-flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-500"
+              >
+                ‹
+              </button>
+              <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-md border border-[#1E3DFF]/35 bg-[#1E3DFF]/12 px-2 text-xs font-semibold text-[#A9C7FF]">
+                1
+              </span>
+              <button
+                type="button"
+                disabled
+                className="inline-flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-500"
+              >
+                ›
+              </button>
+            </div>
           </div>
         </Panel>
 
-        <div className="space-y-4">
+        <div className="grid gap-4 2xl:grid-cols-[1.25fr,0.95fr]">
           <Panel
             title="Categorias"
             description={`Volume de produtos por agrupamento via ${categoriesSourceLabel}.`}
           >
-            <div className="space-y-2">
-              {categoryLoad.map((category, index) => (
+            <div className="space-y-1">
+              {categoryLoad.slice(0, 5).map((category, index) => (
                 <div
                   key={category.id}
-                  className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2"
+                  className="flex items-center justify-between gap-3 border-b border-white/6 px-1 py-2.5 last:border-b-0"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="h-2 w-2 rounded-full"
-                        style={{
-                          backgroundColor: ['#38BDF8', '#1E3DFF', '#00E676', '#8B5CF6'][index % 4],
-                        }}
-                      />
-                      <span className="text-xs font-medium text-slate-100">{category.name}</span>
-                    </div>
-                    <span className="text-[11px] text-slate-400">
-                      {category.count} produto(s)
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span
+                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[10px] font-semibold"
+                      style={{
+                        borderColor: ['#1E3DFF55', '#8B5CF655', '#00E67655', '#F59E0B55', '#38BDF855'][index % 5],
+                        color: ['#7EC3FF', '#A78BFA', '#86EFAC', '#FCD34D', '#67E8F9'][index % 5],
+                        backgroundColor: ['#1E3DFF18', '#8B5CF618', '#00E67618', '#F59E0B18', '#38BDF818'][index % 5],
+                      }}
+                    >
+                      {index + 1}
+                    </span>
+                    <span className="truncate text-xs font-semibold text-slate-100">
+                      {category.name}
                     </span>
                   </div>
+                  <span className="text-xs text-slate-300">
+                    {category.count} {category.count === 1 ? 'produto' : 'produtos'}
+                  </span>
                 </div>
               ))}
             </div>
+            <button
+              type="button"
+              disabled
+              className="mt-4 inline-flex w-full cursor-not-allowed items-center justify-between rounded-lg border border-white/8 bg-[#081225] px-3 py-2 text-xs font-semibold text-[#7EC3FF] opacity-80"
+            >
+              Ver todas as categorias
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
           </Panel>
 
           <Panel
             title="Reposição visual"
             description="Itens que entram primeiro na fila de conferência."
           >
-            <div className="space-y-2">
-              {lowStockProducts.length > 0 ? (
-                lowStockProducts.map((product) => (
-                  <div
-                    key={product.id}
-                    className="rounded-lg border border-amber-400/12 bg-amber-400/6 px-3 py-2.5"
-                  >
-                    <div className="text-xs font-semibold text-white">{product.name}</div>
-                    <div className="mt-0.5 text-[11px] text-slate-300">
-                      Estoque atual: {product.stock} unidade(s)
+            {featuredLowStockProduct ? (
+              <div className="rounded-lg border border-amber-400/15 bg-[linear-gradient(135deg,rgba(245,158,11,0.08),rgba(8,18,37,0.95))] p-3">
+                <div className="flex items-center gap-3">
+                  {featuredLowStockProduct.imageUrl ? (
+                    <img
+                      src={featuredLowStockProduct.imageUrl}
+                      alt={featuredLowStockProduct.name}
+                      className="h-12 w-12 rounded-lg border border-white/8 object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-white/8 bg-[linear-gradient(135deg,#1E3DFF,#38BDF8)] text-xs font-semibold text-white">
+                      {initialsFromName(featuredLowStockProduct.name)}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <div className="truncate text-xs font-semibold text-white">
+                      {featuredLowStockProduct.name}
+                    </div>
+                    <div className="mt-1 text-[11px] text-slate-300">
+                      Estoque atual: {featuredLowStockProduct.stock} unidade(s)
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="rounded-lg border border-emerald-400/15 bg-emerald-400/8 px-3 py-2.5 text-xs text-emerald-200">
-                  Nenhum item em faixa crítica na base atual.
                 </div>
-              )}
-            </div>
+                <button
+                  type="button"
+                  disabled
+                  className="mt-4 inline-flex w-full cursor-not-allowed items-center justify-between rounded-lg border border-white/8 bg-[#081225] px-3 py-2 text-xs font-semibold text-slate-200 opacity-80"
+                >
+                  Ver produto
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-emerald-400/15 bg-emerald-400/8 px-3 py-2.5 text-xs text-emerald-200">
+                Nenhum item em faixa crítica na base atual.
+              </div>
+            )}
           </Panel>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderOrders = () => (
     <div className="space-y-4">
