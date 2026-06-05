@@ -24,15 +24,30 @@ GET /api/integrations/bling/connect
 GET /api/integrations/bling/callback
 ```
 
+## Domínios oficiais
+
+```txt
+Homepage pública: https://www.zalenshop.com.br
+Manual público: https://www.zalenshop.com.br/manual/bling
+Redirect produção: https://app.zalenshop.com.br/api/integrations/bling/callback
+Redirect local: http://localhost:3000/api/integrations/bling/callback
+```
+
 ## Variáveis de ambiente
 
 ```env
 BLING_CLIENT_ID=
 BLING_CLIENT_SECRET=
-BLING_REDIRECT_URI=http://localhost:3000/api/integrations/bling/callback
+BLING_REDIRECT_URI=https://app.zalenshop.com.br/api/integrations/bling/callback
 BLING_SCOPES=
 BLING_ENV=sandbox
 INTEGRATION_TOKEN_ENCRYPTION_KEY=
+```
+
+Para desenvolvimento local, usar:
+
+```env
+BLING_REDIRECT_URI=http://localhost:3000/api/integrations/bling/callback
 ```
 
 ## Comportamento esperado

@@ -6,6 +6,12 @@ A Zalen Shop deve evoluir para resolver a loja ativa pelo host da requisição, 
 
 No MVP atual, `localhost:3000` continua usando Brasil Drones como fallback por meio da store ativa fixa.
 
+Domínios definidos para esta fase:
+
+- `www.zalenshop.com.br` é a landing pública da Zalen Shop e vive em outro projeto.
+- `app.zalenshop.com.br` é este app principal, responsável por login, admin e OAuth.
+- `brasil-drones.zalenshop.com.br` será o storefront futuro da Brasil Drones por subdomínio.
+
 ## 2. Tipos de experiência
 
 ### Storefront
@@ -14,8 +20,8 @@ O storefront é a loja pública vista pelo comprador.
 
 Exemplos futuros:
 
-- `brasil-drones.zalen.shop`
-- `lb-london.zalen.shop`
+- `brasil-drones.zalenshop.com.br`
+- `lb-london.zalenshop.com.br`
 - `www.brasildrones.com.br`
 
 O storefront deve usar a identidade visual da loja ativa.
@@ -26,8 +32,8 @@ O admin da loja é o painel operacional usado pelo cliente para gerenciar produt
 
 Exemplos futuros:
 
-- `brasil-drones.zalen.shop/admin`
-- `lb-london.zalen.shop/admin`
+- `brasil-drones.zalenshop.com.br/admin`
+- `lb-london.zalenshop.com.br/admin`
 
 O admin deve usar identidade Zalen Shop, com a loja ativa exibida como contexto.
 
@@ -37,7 +43,7 @@ O platform admin será uma área futura para a equipe Zalen gerenciar múltiplas
 
 Exemplo futuro:
 
-- `app.zalen.shop/platform`
+- `app.zalenshop.com.br/platform`
 
 Essa área não será implementada no MVP atual.
 
@@ -46,14 +52,14 @@ Essa área não será implementada no MVP atual.
 O padrão principal da plataforma será:
 
 ```txt
-{storeSlug}.zalen.shop
+{storeSlug}.zalenshop.com.br
 ```
 
 Exemplos:
 
 ```txt
-brasil-drones.zalen.shop
-lb-london.zalen.shop
+brasil-drones.zalenshop.com.br
+lb-london.zalenshop.com.br
 ```
 
 O `storeSlug` deve ser resolvido contra a tabela `stores.slug`. Depois disso, todas as queries de dados da loja devem continuar filtrando por `store_id`.
@@ -89,7 +95,7 @@ Fluxo conceitual futuro:
 ```txt
 Host da request
 ↓
-Se for *.zalen.shop, resolver por subdomínio
+Se for *.zalenshop.com.br, resolver por subdomínio
 ↓
 Se for domínio próprio, resolver por domínio cadastrado
 ↓
@@ -112,7 +118,7 @@ O admin deve ficar em domínio/subdomínio controlado pela Zalen para manter:
 Assim, mesmo que a Brasil Drones use `www.brasildrones.com.br` como storefront, o admin deve ser acessado em:
 
 ```txt
-brasil-drones.zalen.shop/admin
+brasil-drones.zalenshop.com.br/admin
 ```
 
 ## 6. Ambientes locais
@@ -166,6 +172,8 @@ Regras atuais:
 
 - não alterar `ACTIVE_STORE_ID` nesta fase;
 - não alterar comportamento de `localhost`;
+- não redirecionar `/` para `/login` ainda, porque hoje `/` renderiza o storefront Brasil Drones via fallback MVP;
+- reavaliar redirect de `app.zalenshop.com.br/` para `/login` quando a resolução por host for implementada;
 - não criar `/platform`;
 - não mudar rotas públicas;
 - não alterar Bling, Mercos ou qualquer conector real;
@@ -183,5 +191,5 @@ Itens esperados:
 - lookup por `stores.slug`;
 - fallback explícito para Brasil Drones apenas em desenvolvimento/MVP;
 - possível tabela futura `store_domains`;
-- testes para `localhost`, `lvh.me`, `{storeSlug}.zalen.shop` e domínio próprio;
+- testes para `localhost`, `lvh.me`, `{storeSlug}.zalenshop.com.br` e domínio próprio;
 - repositories e services recebendo `storeId` resolvido fora deles.
