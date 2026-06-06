@@ -38,8 +38,10 @@ Parâmetros usados nesta sprint:
 - `response_type=code`
 - `client_id`
 - `state`
-- `redirect_uri`
-- `scope`, apenas se `BLING_SCOPES` estiver configurado
+
+`redirect_uri` e `scope` são mantidos no cadastro do aplicativo Bling. A
+requisição de autorização não envia esses parâmetros para evitar
+`redirect_uri_mismatch`; o Bling usa os valores cadastrados no app.
 
 ### URL de callback no projeto
 
@@ -76,8 +78,8 @@ code={authorization_code}
 ### refresh_token
 
 - Deve ser tratado como segredo server-side.
-- Renovação automática ainda não foi implementada.
-- Estrutura de armazenamento criptografado foi preparada.
+- A homologação server-side já tenta renovar uma vez se o access token expirar.
+- O armazenamento criptografado está preparado em `store_integrations`.
 
 ### Header enable-jwt
 

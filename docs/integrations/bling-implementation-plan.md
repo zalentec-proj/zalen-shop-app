@@ -68,6 +68,8 @@ BLING_REDIRECT_URI=http://localhost:3000/api/integrations/bling/callback
 ### Envs presentes e criptografia presente
 
 - `/api/integrations/bling/connect` redireciona para autorização Bling.
+- A URL de autorização envia apenas `response_type`, `client_id` e `state`;
+  `redirect_uri` e `scope` ficam definidos no cadastro do app Bling.
 - Callback valida `state`.
 - Callback troca `code` por token server-side.
 - Tokens são criptografados e salvos em `store_integrations.credentials_encrypted`.

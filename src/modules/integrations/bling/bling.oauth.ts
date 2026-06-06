@@ -37,11 +37,6 @@ export function buildBlingAuthorizationUrl(
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('client_id', config.clientId);
   url.searchParams.set('state', state);
-  url.searchParams.set('redirect_uri', config.redirectUri);
-
-  if (config.scopes.length > 0) {
-    url.searchParams.set('scope', config.scopes.join(' '));
-  }
 
   return url;
 }
