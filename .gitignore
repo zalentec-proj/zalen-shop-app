@@ -11,3 +11,4 @@ tsconfig.tsbuildinfo
 !.env.example
 supabase/.branches/
 supabase/.temp/
+.vercel
