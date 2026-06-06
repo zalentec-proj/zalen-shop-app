@@ -119,8 +119,9 @@ seguinte. Se o header estiver ausente, a execução para com falha controlada.
 
 - Tempo total máximo: 10 segundos.
 - Limite entre requests: 2 segundos.
-- A implementação usa deadline total de 10 segundos e timeout curto por request
-  para não ultrapassar o fluxo aceito pela homologação.
+- A implementação usa deadline total de 10 segundos, timeout curto por request
+  e aguarda 2 segundos entre chamadas para não acionar `429` no fluxo aceito
+  pela homologação.
 
 ### Refresh token
 

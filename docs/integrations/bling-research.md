@@ -81,6 +81,7 @@ code={authorization_code}
 - A homologação server-side já tenta renovar uma vez se o access token expirar.
 - No fluxo de homologação, uma resposta `400` também é tratada como possível
   invalidação controlada de token e gera uma única tentativa de refresh.
+- O fluxo de homologação aguarda 2 segundos entre chamadas para evitar `429`.
 - O armazenamento criptografado está preparado em `store_integrations`.
 
 ### Header enable-jwt

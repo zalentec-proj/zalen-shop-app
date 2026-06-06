@@ -13,6 +13,7 @@ const baseUrl = 'https://api.bling.com.br/Api/v3/homologacao';
 const homologationHeaderName = 'x-bling-homologacao';
 const maxRequestMs = 2000;
 const maxTotalMs = 10000;
+const requestSpacingMs = 2000;
 
 const stepLabels: Record<BlingHomologationStepKey, string> = {
   get_product: 'GET produtos',
@@ -55,6 +56,17 @@ function createAbortSignal(deadline: number) {
     signal: controller.signal,
     clear: () => clearTimeout(timeout),
   };
+}
+
+async function waitBeforeNextRequest(
+  nextStep: BlingHomologationStepKey,
+  deadline: number
+) {
+  if (getRemainingMs(deadline) <= requestSpacingMs) {
+    throw new BlingHomologationClientError(nextStep, 'homologation_timeout');
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, requestSpacingMs));
 }
 
 function parseJson(text: string): unknown {
@@ -305,6 +317,8 @@ export class BlingHomologationClient {
       throw new BlingHomologationClientError('get_product', 'invalid_get_payload');
     }
 
+    await waitBeforeNextRequest('post_product', deadline);
+
     const postResponse = await runStep('post_product', () =>
       this.request('post_product', '/produtos', {
         method: 'POST',
@@ -320,6 +334,8 @@ export class BlingHomologationClient {
       throw new BlingHomologationClientError('post_product', 'missing_product_id');
     }
 
+    await waitBeforeNextRequest('put_product', deadline);
+
     const putResponse = await runStep('put_product', () =>
       this.request('put_product', `/produtos/${productId}`, {
         method: 'PUT',
@@ -332,6 +348,8 @@ export class BlingHomologationClient {
       })
     );
     const thirdHeader = assertHomologationHeader('put_product', putResponse);
+
+    await waitBeforeNextRequest('patch_product_situation', deadline);
 
     const patchResponse = await runStep('patch_product_situation', () =>
       this.request('patch_product_situation', `/produtos/${productId}/situacoes`, {
@@ -347,6 +365,8 @@ export class BlingHomologationClient {
       'patch_product_situation',
       patchResponse
     );
+
+    await waitBeforeNextRequest('delete_product', deadline);
 
     await runStep('delete_product', () =>
       this.request('delete_product', `/produtos/${productId}`, {
