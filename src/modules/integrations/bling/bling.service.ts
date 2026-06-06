@@ -13,6 +13,8 @@ import {
 } from './bling.repository';
 import type { BlingAdminState, BlingTokenResponse } from './bling.types';
 
+type BlingHomologationAdminState = NonNullable<BlingAdminState['homologation']>;
+
 function toBlingConnectionStatus(status: string | undefined) {
   if (
     status === 'planned' ||
@@ -25,6 +27,31 @@ function toBlingConnectionStatus(status: string | undefined) {
   }
 
   return 'pending_credentials';
+}
+
+function toBlingHomologationState(settings: Record<string, unknown>) {
+  const homologation = settings.homologation;
+
+  if (!homologation || typeof homologation !== 'object') {
+    return undefined;
+  }
+
+  const record = homologation as Record<string, unknown>;
+  const status = record.status;
+
+  if (status !== 'running' && status !== 'success' && status !== 'error') {
+    return undefined;
+  }
+
+  return {
+    status,
+    updatedAt:
+      typeof record.updatedAt === 'string' ? record.updatedAt : undefined,
+    summary:
+      record.summary && typeof record.summary === 'object'
+        ? (record.summary as BlingHomologationAdminState['summary'])
+        : undefined,
+  } satisfies BlingHomologationAdminState;
 }
 
 export async function getBlingAdminState(
@@ -53,6 +80,9 @@ export async function getBlingAdminState(
     canStartOAuth: config.isConfigured && config.isEncryptionConfigured,
     connectPath: BLING_CONNECT_PATH,
     warnings,
+    homologation: integration
+      ? toBlingHomologationState(integration.settings)
+      : undefined,
   };
 }
 

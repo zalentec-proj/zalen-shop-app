@@ -8,6 +8,7 @@ import { platformBrand } from '@/lib/branding/platform-brand';
 import { getCurrentUser, canAccessStore } from '@/modules/auth/auth.service';
 import { getBlingAdminState } from '@/modules/integrations/bling/bling.service';
 import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
+import { BlingHomologationPanel } from './BlingHomologationPanel';
 
 export const metadata: Metadata = {
   title: `${platformBrand.productName} Admin — Bling`,
@@ -202,6 +203,12 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
                 Testar conexão
               </button>
             </section>
+
+            <BlingHomologationPanel
+              canRun={status === 'connected' && state.isEncryptionConfigured}
+              initialStatus={state.homologation?.status}
+              initialSummary={state.homologation?.summary}
+            />
 
             <section className="rounded-xl border border-white/8 bg-[#0A1730]/95 p-4">
               <h2 className="text-base font-semibold">Próxima etapa</h2>

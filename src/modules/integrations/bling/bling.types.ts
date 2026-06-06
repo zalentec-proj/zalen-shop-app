@@ -68,4 +68,21 @@ export interface BlingAdminState {
   canStartOAuth: boolean;
   connectPath: string;
   warnings: string[];
+  homologation?: {
+    status: 'running' | 'success' | 'error';
+    updatedAt?: string;
+    summary?: {
+      status?: 'success' | 'error';
+      durationMs?: number;
+      tokenRefreshed?: boolean;
+      productId?: number;
+      errorCode?: string;
+      steps?: Array<{
+        key?: string;
+        status?: 'pending' | 'success' | 'error';
+        statusCode?: number;
+        errorCode?: string;
+      }>;
+    };
+  };
 }

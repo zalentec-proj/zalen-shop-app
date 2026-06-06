@@ -22,6 +22,7 @@ Implementada a base segura para preparar OAuth Bling da Brasil Drones, sem sync 
 ```txt
 GET /api/integrations/bling/connect
 GET /api/integrations/bling/callback
+POST /api/integrations/bling/homologation/run
 ```
 
 ## Domínios oficiais
@@ -40,7 +41,7 @@ BLING_CLIENT_ID=
 BLING_CLIENT_SECRET=
 BLING_REDIRECT_URI=https://app.zalenshop.com.br/api/integrations/bling/callback
 BLING_SCOPES=
-BLING_ENV=sandbox
+BLING_ENV=production
 INTEGRATION_TOKEN_ENCRYPTION_KEY=
 ```
 
@@ -72,20 +73,85 @@ BLING_REDIRECT_URI=http://localhost:3000/api/integrations/bling/callback
 - Tokens são criptografados e salvos em `store_integrations.credentials_encrypted`.
 - Status da loja passa para `connected`.
 
+## Homologação oficial da API Bling
+
+Fonte oficial: https://developer.bling.com.br/homologacao#execu%C3%A7%C3%A3o
+
+A execução de homologação é server-side e só pode ser iniciada por usuário autenticado
+com acesso à loja ativa. O frontend chama apenas a rota interna da Zalen Shop:
+
+```txt
+POST /api/integrations/bling/homologation/run
+```
+
+A rota descriptografa as credenciais salvas em
+`store_integrations.credentials_encrypted`, executa a sequência oficial e retorna
+somente um resumo por etapa. Access token e refresh token nunca são enviados ao
+frontend, nunca são logados e nunca entram em payload público.
+
+### Sequência executada
+
+```txt
+GET    https://api.bling.com.br/Api/v3/homologacao/produtos
+POST   https://api.bling.com.br/Api/v3/homologacao/produtos
+PUT    https://api.bling.com.br/Api/v3/homologacao/produtos/{id}
+PATCH  https://api.bling.com.br/Api/v3/homologacao/produtos/{id}/situacoes
+DELETE https://api.bling.com.br/Api/v3/homologacao/produtos/{id}
+```
+
+Regras implementadas:
+
+- O body do `POST` usa os dados retornados em `data` pelo `GET`, sem wrapper.
+- O `PUT` envia os dados atualizados do produto com `nome` alterado para `Copo`,
+  conforme exemplo oficial.
+- O `PATCH` envia `{ "situacao": "I" }`.
+- O produto retornado pelo `POST` é removido no `DELETE`.
+
+### Header `x-bling-homologacao`
+
+A cada request de homologação, o Bling retorna um header
+`x-bling-homologacao`. O valor recebido em uma etapa deve ser enviado na etapa
+seguinte. Se o header estiver ausente, a execução para com falha controlada.
+
+### Limites
+
+- Tempo total máximo: 10 segundos.
+- Limite entre requests: 2 segundos.
+- A implementação usa deadline total de 10 segundos e timeout curto por request
+  para não ultrapassar o fluxo aceito pela homologação.
+
+### Refresh token
+
+Se uma chamada de homologação retornar erro compatível com token inválido ou
+expirado, a rota tenta renovar o access token uma única vez usando o refresh
+token, salva novamente as credenciais criptografadas e repete apenas a chamada
+que falhou. Não há loop infinito.
+
+### Resultado no admin
+
+A página `/admin/integracoes/bling` mostra um bloco "Homologação" com:
+
+- status geral;
+- resultado de GET, POST, PUT, PATCH e DELETE;
+- duração total;
+- indicação de token renovado, sem mostrar o token.
+
+O resumo operacional é salvo em `settings_json.homologation`, sem payloads
+sensíveis.
+
 ## O que não foi implementado
 
 - Sync de produtos.
 - Sync de estoque.
 - Envio de pedidos para Bling.
-- Refresh automático de token.
-- Teste de conexão real.
+- Sync real baseado no produto usado na homologação.
 - Webhooks reais.
 - Reprocessamento de erros.
 
 ## Próximas etapas
 
-1. Validar OAuth em sandbox/app Bling real.
-2. Implementar refresh token server-side.
+1. Validar OAuth em produção com o app Bling real.
+2. Executar a homologação no admin após o OAuth conectado.
 3. Implementar `testConnection`.
 4. Pesquisar e mapear endpoints de produtos.
 5. Implementar sync incremental de produtos e estoque.

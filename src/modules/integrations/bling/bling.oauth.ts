@@ -101,3 +101,59 @@ export async function exchangeBlingAuthorizationCode(
     receivedAt: new Date().toISOString(),
   };
 }
+
+export async function refreshBlingAccessToken(
+  config: BlingOAuthConfig,
+  refreshToken: string
+): Promise<BlingTokenResponse> {
+  if (!config.clientId || !config.clientSecret) {
+    throw new BlingOAuthError(
+      'Bling OAuth credentials are not configured.',
+      'missing_oauth_credentials'
+    );
+  }
+
+  const response = await fetch(config.tokenUrl, {
+    method: 'POST',
+    headers: {
+      Accept: '1.0',
+      Authorization: `Basic ${Buffer.from(
+        `${config.clientId}:${config.clientSecret}`
+      ).toString('base64')}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'enable-jwt': '1',
+    },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+    }),
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    throw new BlingOAuthError(
+      'Bling OAuth refresh failed.',
+      'token_refresh_failed',
+      response.status
+    );
+  }
+
+  const parsed = blingTokenResponseSchema.safeParse(await response.json());
+
+  if (!parsed.success) {
+    throw new BlingOAuthError(
+      'Bling OAuth refresh response is invalid.',
+      'invalid_refresh_response',
+      response.status
+    );
+  }
+
+  return {
+    accessToken: parsed.data.access_token,
+    refreshToken: parsed.data.refresh_token,
+    expiresIn: parsed.data.expires_in,
+    tokenType: parsed.data.token_type,
+    scope: parsed.data.scope,
+    receivedAt: new Date().toISOString(),
+  };
+}

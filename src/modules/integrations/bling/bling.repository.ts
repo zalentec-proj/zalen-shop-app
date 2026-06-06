@@ -11,6 +11,7 @@ type BlingIntegrationRow = {
   provider_key: string;
   environment: string;
   status: string;
+  credentials_encrypted?: string | null;
   settings_json: Record<string, unknown> | null;
   last_sync_at: string | null;
   created_at: string | null;
@@ -77,6 +78,43 @@ export async function getBlingIntegrationFromRepository(
   }
 
   return mapBlingIntegration(data as BlingIntegrationRow);
+}
+
+export async function getBlingEncryptedCredentialsFromRepository(
+  storeId: string
+): Promise<{
+  credentialsEncrypted: string;
+  environment: BlingEnvironment;
+  settings: Record<string, unknown>;
+} | null> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('store_integrations')
+    .select('environment, credentials_encrypted, settings_json')
+    .eq('store_id', storeId)
+    .eq('provider_key', BLING_PROVIDER_KEY)
+    .eq('status', 'connected')
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data?.credentials_encrypted) {
+    return null;
+  }
+
+  return {
+    credentialsEncrypted: data.credentials_encrypted,
+    environment:
+      data.environment === 'production' || data.environment === 'sandbox'
+        ? data.environment
+        : 'sandbox',
+    settings: data.settings_json ?? {},
+  };
 }
 
 async function upsertBlingIntegration(input: {
@@ -165,4 +203,39 @@ export async function saveBlingCredentialsInRepository(input: {
       scope: input.scope,
     },
   });
+}
+
+export async function recordBlingHomologationEventInRepository(input: {
+  storeId: string;
+  environment: BlingEnvironment;
+  event: 'homologation_started' | 'homologation_success' | 'homologation_failed';
+  status: 'running' | 'success' | 'error';
+  summary?: Record<string, unknown>;
+}) {
+  const supabase = requireAdminClient();
+
+  const current = await getBlingEncryptedCredentialsFromRepository(input.storeId);
+  const previousSettings = current?.settings ?? {};
+
+  const { error } = await supabase
+    .from('store_integrations')
+    .update({
+      settings_json: {
+        ...previousSettings,
+        homologation: {
+          event: input.event,
+          status: input.status,
+          summary: input.summary ?? null,
+          updatedAt: new Date().toISOString(),
+        },
+      },
+      updated_at: new Date().toISOString(),
+    })
+    .eq('store_id', input.storeId)
+    .eq('provider_key', BLING_PROVIDER_KEY)
+    .eq('environment', input.environment);
+
+  if (error) {
+    throw new Error('Unable to record Bling homologation event.');
+  }
 }
