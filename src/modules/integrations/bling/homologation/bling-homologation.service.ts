@@ -159,8 +159,16 @@ export async function runBlingHomologation(
       typeof error.code === 'string'
         ? error.code
         : 'homologation_failed';
+    const errorSteps =
+      error &&
+      typeof error === 'object' &&
+      'steps' in error &&
+      Array.isArray(error.steps)
+        ? (error.steps as BlingHomologationStepResult[])
+        : null;
     const failedSteps =
-      error && typeof error === 'object' && 'step' in error
+      errorSteps ??
+      (error && typeof error === 'object' && 'step' in error
         ? stepOrder.map((step) =>
             step.key === (error as { step?: string }).step
               ? {
@@ -170,7 +178,7 @@ export async function runBlingHomologation(
                 }
               : step
           )
-        : stepOrder;
+        : stepOrder);
     const result = createErrorResult({
       environment,
       startedAt,

@@ -129,6 +129,11 @@ expirado, a rota tenta renovar o access token uma única vez usando o refresh
 token, salva novamente as credenciais criptografadas e repete apenas a chamada
 que falhou. Não há loop infinito.
 
+Durante a homologação, o Bling pode invalidar o access token em uma das etapas
+e retornar uma falha genérica `400`. A implementação trata `400` como candidato
+a refresh apenas nesse fluxo controlado e repete a chamada uma única vez. Se a
+falha persistir após o refresh, o erro é retornado sem nova tentativa.
+
 ### Resultado no admin
 
 A página `/admin/integracoes/bling` mostra um bloco "Homologação" com:

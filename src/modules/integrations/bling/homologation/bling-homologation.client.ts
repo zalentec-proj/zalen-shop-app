@@ -32,7 +32,8 @@ class BlingHomologationClientError extends Error {
   constructor(
     public readonly step: BlingHomologationStepKey,
     public readonly code: string,
-    public readonly statusCode?: number
+    public readonly statusCode?: number,
+    public readonly steps?: BlingHomologationStepResult[]
   ) {
     super(code);
     this.name = 'BlingHomologationClientError';
@@ -112,6 +113,16 @@ function isInvalidTokenResponse(status: number, body: unknown) {
   }
 
   return false;
+}
+
+function shouldAttemptRefresh(status: number, body: unknown) {
+  if (isInvalidTokenResponse(status, body)) {
+    return true;
+  }
+
+  // Bling's homologation can invalidate the access token during one step and
+  // may return a generic 400 instead of a classic 401/403 auth response.
+  return status === 400;
 }
 
 function assertSuccess(
@@ -219,7 +230,7 @@ export class BlingHomologationClient {
       const text = await response.text();
       const body = parseJson(text);
 
-      if (!response.ok && !retried && isInvalidTokenResponse(response.status, body)) {
+      if (!response.ok && !retried && shouldAttemptRefresh(response.status, body)) {
         await this.refreshTokenOnce(step);
         return this.request(step, path, init, true);
       }
@@ -272,7 +283,12 @@ export class BlingHomologationClient {
           errorCode: clientError.code,
         });
 
-        throw clientError;
+        throw new BlingHomologationClientError(
+          clientError.step,
+          clientError.code,
+          clientError.statusCode,
+          [...steps]
+        );
       }
     };
 
