@@ -63,6 +63,7 @@ import {
 type AdminView = 'dashboard' | 'products' | 'orders' | 'integrations' | 'settings';
 type SettingsSection = 'profile' | 'operations' | 'notifications';
 type ProductFilter = 'all' | ProductStatus;
+type ProductSourceFilter = 'all' | 'zalen' | 'bling';
 type OrderFilter = 'all' | OrderStatus;
 type AdminAccessRole = PlatformRole | StoreRole;
 type AdminDataSource = 'supabase' | 'mock';
@@ -298,10 +299,23 @@ function productSourceLabel(product: ProductSummary) {
   return product.externalProvider === 'bling' ? 'Bling' : 'Zalen';
 }
 
+function productSourceValue(product: ProductSummary): Exclude<ProductSourceFilter, 'all'> {
+  return product.externalProvider === 'bling' ? 'bling' : 'zalen';
+}
+
 function productSourceClass(product: ProductSummary) {
   return product.externalProvider === 'bling'
     ? 'border-cyan-400/20 bg-cyan-400/10 text-cyan-200'
     : 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200';
+}
+
+function productMatchKey(product: ProductSummary) {
+  return product.name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
 }
 
 function cn(...classes: Array<string | false | null | undefined>) {
@@ -622,6 +636,8 @@ export default function AdminDashboard({
   const [searchQuery, setSearchQuery] = useState('');
   const [productFilter, setProductFilter] = useState<ProductFilter>('all');
   const [productCategoryFilter, setProductCategoryFilter] = useState('all');
+  const [productSourceFilter, setProductSourceFilter] =
+    useState<ProductSourceFilter>('all');
   const [orderFilter, setOrderFilter] = useState<OrderFilter>('all');
 
   const searchValue = searchQuery.trim().toLowerCase();
@@ -630,6 +646,32 @@ export default function AdminDashboard({
   const draftProducts = products.filter((product) => product.status === 'draft');
   const inactiveProducts = products.filter((product) => product.status === 'inactive');
   const lowStockProducts = products.filter((product) => product.stock <= 3);
+  const nativeProducts = products.filter(
+    (product) => productSourceValue(product) === 'zalen'
+  );
+  const blingProducts = products.filter(
+    (product) => productSourceValue(product) === 'bling'
+  );
+  const nativeProductKeys = new Set(
+    nativeProducts.map(productMatchKey).filter(Boolean)
+  );
+  const blingProductKeys = new Set(
+    blingProducts.map(productMatchKey).filter(Boolean)
+  );
+  const potentialDuplicateKeys = new Set(
+    Array.from(nativeProductKeys).filter((key) => blingProductKeys.has(key))
+  );
+  const potentialDuplicateProductIds = new Set(
+    products
+      .filter((product) => potentialDuplicateKeys.has(productMatchKey(product)))
+      .map((product) => product.id)
+  );
+  const potentialDuplicateGroups = Array.from(potentialDuplicateKeys)
+    .map((key) => ({
+      key,
+      products: products.filter((product) => productMatchKey(product) === key),
+    }))
+    .filter((group) => group.products.length > 1);
   const pendingOrders = orders.filter((order) => order.status === 'pending');
   const processingOrders = orders.filter(
     (order) => order.status === 'confirmed' || order.status === 'processing'
@@ -719,6 +761,9 @@ export default function AdminDashboard({
     const categoryMatches =
       productCategoryFilter === 'all' ||
       product.categories.some((category) => category.slug === productCategoryFilter);
+    const sourceMatches =
+      productSourceFilter === 'all' ||
+      productSourceValue(product) === productSourceFilter;
     const textMatches = matchesSearch(
       [
         product.name,
@@ -731,7 +776,7 @@ export default function AdminDashboard({
       searchValue
     );
 
-    return statusMatches && categoryMatches && textMatches;
+    return statusMatches && categoryMatches && sourceMatches && textMatches;
   });
 
   const filteredOrders = orders.filter((order) => {
@@ -1034,10 +1079,19 @@ export default function AdminDashboard({
     ];
     const featuredLowStockProduct = lowStockProducts[0];
     const hasActiveProductFilters =
-      productFilter !== 'all' || productCategoryFilter !== 'all' || searchValue.length > 0;
+      productFilter !== 'all' ||
+      productCategoryFilter !== 'all' ||
+      productSourceFilter !== 'all' ||
+      searchValue.length > 0;
     const activeCategory = categories.find(
       (category) => category.slug === productCategoryFilter
     );
+    const sourceFilterLabel =
+      productSourceFilter === 'bling'
+        ? 'Fonte Bling'
+        : productSourceFilter === 'zalen'
+          ? 'Fonte Zalen'
+          : 'Todas as fontes';
 
     return (
       <div className="space-y-4">
@@ -1161,7 +1215,7 @@ export default function AdminDashboard({
             }
           >
             <div className="space-y-4">
-              <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_180px_160px_auto]">
+              <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_180px_140px_160px_auto]">
                 <label className="relative block">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                   <input
@@ -1189,6 +1243,21 @@ export default function AdminDashboard({
                 </label>
 
                 <label className="block rounded-lg border border-white/8 bg-[#081225] px-3 py-1.5">
+                  <span className="block text-[10px] text-slate-500">Fonte</span>
+                  <select
+                    value={productSourceFilter}
+                    onChange={(event) =>
+                      setProductSourceFilter(event.target.value as ProductSourceFilter)
+                    }
+                    className="mt-0.5 h-6 w-full bg-transparent text-xs font-semibold text-slate-100 outline-none"
+                  >
+                    <option value="all">Todas</option>
+                    <option value="zalen">Zalen</option>
+                    <option value="bling">Bling</option>
+                  </select>
+                </label>
+
+                <label className="block rounded-lg border border-white/8 bg-[#081225] px-3 py-1.5">
                   <span className="block text-[10px] text-slate-500">Status</span>
                   <select
                     value={productFilter}
@@ -1208,6 +1277,7 @@ export default function AdminDashboard({
                   onClick={() => {
                     setSearchQuery('');
                     setProductCategoryFilter('all');
+                    setProductSourceFilter('all');
                     setProductFilter('all');
                   }}
                   disabled={!hasActiveProductFilters}
@@ -1240,7 +1310,7 @@ export default function AdminDashboard({
 
                 <div className="text-[11px] text-slate-400">
                   {filteredProducts.length} resultado(s) ·{' '}
-                  {activeCategory?.name ?? 'Todas as categorias'}
+                  {activeCategory?.name ?? 'Todas as categorias'} · {sourceFilterLabel}
                 </div>
               </div>
 
@@ -1265,6 +1335,8 @@ export default function AdminDashboard({
                     const primaryCategory = product.categories[0];
                     const extraCategoriesCount = Math.max(0, product.categories.length - 1);
                     const priceValue = product.promotionalPrice ?? product.price;
+                    const hasPotentialDuplicate =
+                      potentialDuplicateProductIds.has(product.id);
 
                     return (
                       <div
@@ -1293,6 +1365,11 @@ export default function AdminDashboard({
                               <SmallBadge className={productSourceClass(product)}>
                                 Fonte: {productSourceLabel(product)}
                               </SmallBadge>
+                              {hasPotentialDuplicate ? (
+                                <SmallBadge className="border-amber-400/20 bg-amber-400/10 text-amber-200">
+                                  Possível duplicado
+                                </SmallBadge>
+                              ) : null}
                               {product.externalProvider === 'bling' && blingLastSyncAt ? (
                                 <span>Sync: {formatDateTime(blingLastSyncAt)}</span>
                               ) : null}
@@ -1385,6 +1462,84 @@ export default function AdminDashboard({
           </Panel>
 
           <div className="space-y-4">
+            <Panel
+              title="Conciliação Zalen/Bling"
+              description="Produtos manuais são preservados; revise duplicidades antes de vincular ou arquivar."
+            >
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-lg border border-emerald-400/15 bg-emerald-400/8 px-2.5 py-2">
+                  <div className="text-[10px] uppercase tracking-[0.14em] text-emerald-200">
+                    Zalen
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-white">
+                    {nativeProducts.length}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-cyan-400/15 bg-cyan-400/8 px-2.5 py-2">
+                  <div className="text-[10px] uppercase tracking-[0.14em] text-cyan-200">
+                    Bling
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-white">
+                    {blingProducts.length}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-amber-400/15 bg-amber-400/8 px-2.5 py-2">
+                  <div className="text-[10px] uppercase tracking-[0.14em] text-amber-200">
+                    Revisar
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-white">
+                    {potentialDuplicateGroups.length}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 space-y-2">
+                {potentialDuplicateGroups.length > 0 ? (
+                  potentialDuplicateGroups.slice(0, 4).map((group) => (
+                    <div
+                      key={group.key}
+                      className="rounded-lg border border-amber-400/15 bg-[#081225] px-3 py-2.5"
+                    >
+                      <div className="truncate text-xs font-semibold text-white">
+                        {group.products[0]?.name ?? group.key}
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-1.5 text-[11px] text-slate-400">
+                        {group.products.map((product) => (
+                          <SmallBadge
+                            key={product.id}
+                            className={productSourceClass(product)}
+                          >
+                            {productSourceLabel(product)}
+                          </SmallBadge>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-lg border border-emerald-400/15 bg-emerald-400/8 px-3 py-2.5 text-xs text-emerald-200">
+                    Nenhum par Zalen/Bling com mesmo nome na lista atual.
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-3 grid gap-2">
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex cursor-not-allowed items-center justify-center rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-[11px] font-semibold text-slate-500"
+                >
+                  Vincular ao Bling em breve
+                </button>
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex cursor-not-allowed items-center justify-center rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-[11px] font-semibold text-slate-500"
+                >
+                  Arquivar manual em breve
+                </button>
+              </div>
+            </Panel>
+
             <Panel
               title="Categorias"
               description={`Bloco separado para distribuição de produtos e unidades via ${categoriesSourceLabel}.`}
