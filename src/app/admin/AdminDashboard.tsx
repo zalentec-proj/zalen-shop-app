@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import type { ComponentType, ReactNode } from 'react';
 import { useState } from 'react';
 import { useFormStatus } from 'react-dom';
@@ -326,6 +327,16 @@ function sourceLabel(source: AdminDataSource) {
   return source === 'supabase' ? 'Supabase' : 'Mock';
 }
 
+function isAdminView(value: string | null): value is AdminView {
+  return (
+    value === 'dashboard' ||
+    value === 'products' ||
+    value === 'orders' ||
+    value === 'integrations' ||
+    value === 'settings'
+  );
+}
+
 function integrationStatusLabel(item: StoreIntegrationListItem) {
   return item.integration
     ? storeIntegrationStatusLabel[item.integration.status]
@@ -630,7 +641,11 @@ export default function AdminDashboard({
   dataSources,
   adminUser,
 }: AdminDashboardProps) {
-  const [activeView, setActiveView] = useState<AdminView>('dashboard');
+  const searchParams = useSearchParams();
+  const requestedView = searchParams.get('view');
+  const [activeView, setActiveView] = useState<AdminView>(() =>
+    isAdminView(requestedView) ? requestedView : 'dashboard'
+  );
   const [settingsSection, setSettingsSection] =
     useState<SettingsSection>('profile');
   const [searchQuery, setSearchQuery] = useState('');
@@ -799,6 +814,7 @@ export default function AdminDashboard({
     label: string;
     icon: ComponentType<{ className?: string }>;
     count: string;
+    href?: string;
   }> = [
     {
       id: 'dashboard',
@@ -829,6 +845,7 @@ export default function AdminDashboard({
       label: 'Configurações',
       icon: Settings2,
       count: '02',
+      href: '/admin/configuracoes',
     },
   ];
 
@@ -2251,19 +2268,14 @@ export default function AdminDashboard({
             {sidebarItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeView === item.id;
-
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setActiveView(item.id)}
-                  className={cn(
-                    'flex w-full items-center justify-between rounded-xl border px-2.5 py-2 text-left text-xs transition',
-                    isActive
-                      ? 'border-[#1E3DFF]/35 bg-[linear-gradient(135deg,rgba(30,61,255,0.2),rgba(8,18,37,0.95))] text-white shadow-[0_14px_28px_rgba(30,61,255,0.18)]'
-                      : 'border-transparent bg-transparent text-slate-400 hover:border-white/6 hover:bg-[#081225] hover:text-slate-200'
-                  )}
-                >
+              const itemClassName = cn(
+                'flex w-full items-center justify-between rounded-xl border px-2.5 py-2 text-left text-xs transition',
+                isActive
+                  ? 'border-[#1E3DFF]/35 bg-[linear-gradient(135deg,rgba(30,61,255,0.2),rgba(8,18,37,0.95))] text-white shadow-[0_14px_28px_rgba(30,61,255,0.18)]'
+                  : 'border-transparent bg-transparent text-slate-400 hover:border-white/6 hover:bg-[#081225] hover:text-slate-200'
+              );
+              const content = (
+                <>
                   <span className="flex items-center gap-2">
                     <span
                       className={cn(
@@ -2280,6 +2292,21 @@ export default function AdminDashboard({
                   <span className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
                     {item.count}
                   </span>
+                </>
+              );
+
+              return item.href ? (
+                <Link key={item.id} href={item.href} className={itemClassName}>
+                  {content}
+                </Link>
+              ) : (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActiveView(item.id)}
+                  className={itemClassName}
+                >
+                  {content}
                 </button>
               );
             })}
