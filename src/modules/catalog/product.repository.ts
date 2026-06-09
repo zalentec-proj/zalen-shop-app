@@ -62,6 +62,44 @@ export interface UpdateProductStockInput {
   stock: number;
 }
 
+export interface UpsertIntegrationCategoryInput {
+  externalId: string;
+  name: string;
+}
+
+export interface UpsertIntegrationProductInput {
+  storeId: string;
+  externalProvider: string;
+  externalId: string;
+  name: string;
+  slug: string;
+  description?: string;
+  brand?: string;
+  status: ProductStatus;
+  requiresShipping?: boolean;
+  variant: {
+    externalId: string;
+    sku?: string;
+    price: number;
+    promotionalPrice?: number;
+    stock: number;
+    weight?: number;
+    width?: number;
+    height?: number;
+    depth?: number;
+    attributes?: Record<string, string>;
+  };
+  category?: UpsertIntegrationCategoryInput;
+  imageUrl?: string;
+}
+
+export interface UpsertIntegrationProductResult {
+  action: 'created' | 'updated';
+  productId: string;
+  categoryLinked: boolean;
+  categoryCreated: boolean;
+}
+
 type SupabaseCatalogClient =
   | NonNullable<ReturnType<typeof createOptionalAdminClient>>
   | NonNullable<Awaited<ReturnType<typeof createOptionalClient>>>
@@ -233,6 +271,18 @@ function getQueryErrorDetails(error: RepositoryError | null) {
 
 function toCompactLogText(value: string | undefined) {
   return value?.replace(/\s+/g, ' ').slice(0, 220);
+}
+
+function toSlug(value: string) {
+  const slug = value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+
+  return slug || 'produto';
 }
 
 async function getCatalogReadClients(
@@ -807,6 +857,139 @@ async function fetchSupabaseCategories(storeId: string): Promise<Category[] | nu
   return null;
 }
 
+async function createUniqueProductSlug(
+  supabase: SupabaseCatalogClient,
+  input: {
+    storeId: string;
+    baseSlug: string;
+    externalProvider: string;
+    externalId: string;
+    currentProductId?: string;
+  }
+) {
+  const normalizedBase = toSlug(input.baseSlug);
+  const candidates = [
+    normalizedBase,
+    `${normalizedBase}-${toSlug(input.externalProvider)}-${toSlug(input.externalId)}`,
+  ];
+
+  for (let index = 2; index <= 20; index += 1) {
+    candidates.push(`${normalizedBase}-${index}`);
+  }
+
+  for (const candidate of candidates) {
+    const query = supabase
+      .from('products')
+      .select('id')
+      .eq('store_id', input.storeId)
+      .eq('slug', candidate)
+      .limit(1);
+
+    const { data, error } = await query.maybeSingle();
+
+    if (error) {
+      throw new Error('Unable to validate product slug.');
+    }
+
+    if (!data || data.id === input.currentProductId) {
+      return candidate;
+    }
+  }
+
+  return `${normalizedBase}-${Date.now()}`;
+}
+
+async function createUniqueCategorySlug(
+  supabase: SupabaseCatalogClient,
+  storeId: string,
+  categoryName: string,
+  currentCategoryId?: string
+) {
+  const normalizedBase = toSlug(categoryName);
+  const candidates = [normalizedBase];
+
+  for (let index = 2; index <= 20; index += 1) {
+    candidates.push(`${normalizedBase}-${index}`);
+  }
+
+  for (const candidate of candidates) {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('id')
+      .eq('store_id', storeId)
+      .eq('slug', candidate)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error('Unable to validate category slug.');
+    }
+
+    if (!data || data.id === currentCategoryId) {
+      return candidate;
+    }
+  }
+
+  return `${normalizedBase}-${Date.now()}`;
+}
+
+async function upsertIntegrationCategory(
+  supabase: SupabaseCatalogClient,
+  storeId: string,
+  category: UpsertIntegrationCategoryInput
+) {
+  const { data: existing, error: existingError } = await supabase
+    .from('categories')
+    .select('id, slug')
+    .eq('store_id', storeId)
+    .eq('external_id', category.externalId)
+    .limit(1)
+    .maybeSingle();
+
+  if (existingError) {
+    throw new Error('Unable to query integration category.');
+  }
+
+  if (existing) {
+    const { error } = await supabase
+      .from('categories')
+      .update({ name: category.name })
+      .eq('store_id', storeId)
+      .eq('id', existing.id);
+
+    if (error) {
+      throw new Error('Unable to update integration category.');
+    }
+
+    return {
+      id: existing.id as string,
+      created: false,
+    };
+  }
+
+  const slug = await createUniqueCategorySlug(supabase, storeId, category.name);
+  const { data, error } = await supabase
+    .from('categories')
+    .insert({
+      store_id: storeId,
+      external_id: category.externalId,
+      name: category.name,
+      slug,
+      position: 0,
+    })
+    .select('id')
+    .single();
+
+  if (error || !data) {
+    throw new Error('Unable to create integration category.');
+  }
+
+  return {
+    id: data.id as string,
+    created: true,
+  };
+}
+
 export async function listProductsFromRepository(storeId: string) {
   return (await listProductsWithSourceFromRepository(storeId)).data;
 }
@@ -1080,5 +1263,194 @@ export async function updateProductStockInRepository(
     persisted: false,
     source: 'supabase',
     error: 'product-stock-update-failed',
+  };
+}
+
+export async function upsertIntegrationProductInRepository(
+  input: UpsertIntegrationProductInput
+): Promise<UpsertIntegrationProductResult> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    throw new Error('Supabase admin client is not configured.');
+  }
+
+  const now = new Date().toISOString();
+  const { data: existingProduct, error: existingProductError } = await supabase
+    .from('products')
+    .select('id, slug')
+    .eq('store_id', input.storeId)
+    .eq('external_provider', input.externalProvider)
+    .eq('external_id', input.externalId)
+    .limit(1)
+    .maybeSingle();
+
+  if (existingProductError) {
+    throw new Error('Unable to query integration product.');
+  }
+
+  const slug = await createUniqueProductSlug(supabase, {
+    storeId: input.storeId,
+    baseSlug: input.slug,
+    externalProvider: input.externalProvider,
+    externalId: input.externalId,
+    currentProductId: existingProduct?.id as string | undefined,
+  });
+
+  const productPayload = {
+    store_id: input.storeId,
+    external_provider: input.externalProvider,
+    external_id: input.externalId,
+    name: input.name,
+    slug,
+    description: input.description ?? null,
+    brand: input.brand ?? null,
+    status: input.status,
+    requires_shipping: input.requiresShipping ?? true,
+    updated_at: now,
+  };
+
+  let productId: string;
+  let action: UpsertIntegrationProductResult['action'];
+
+  if (existingProduct) {
+    const { data, error } = await supabase
+      .from('products')
+      .update(productPayload)
+      .eq('store_id', input.storeId)
+      .eq('id', existingProduct.id)
+      .select('id')
+      .single();
+
+    if (error || !data) {
+      throw new Error('Unable to update integration product.');
+    }
+
+    productId = data.id as string;
+    action = 'updated';
+  } else {
+    const { data, error } = await supabase
+      .from('products')
+      .insert({
+        ...productPayload,
+        created_at: now,
+      })
+      .select('id')
+      .single();
+
+    if (error || !data) {
+      throw new Error('Unable to create integration product.');
+    }
+
+    productId = data.id as string;
+    action = 'created';
+  }
+
+  const { data: existingVariant, error: existingVariantError } = await supabase
+    .from('product_variants')
+    .select('id')
+    .eq('store_id', input.storeId)
+    .eq('product_id', productId)
+    .eq('external_id', input.variant.externalId)
+    .limit(1)
+    .maybeSingle();
+
+  if (existingVariantError) {
+    throw new Error('Unable to query integration product variant.');
+  }
+
+  const variantPayload = {
+    store_id: input.storeId,
+    product_id: productId,
+    external_id: input.variant.externalId,
+    sku: input.variant.sku ?? null,
+    price: input.variant.price,
+    promotional_price: input.variant.promotionalPrice ?? null,
+    stock: input.variant.stock,
+    weight: input.variant.weight ?? null,
+    width: input.variant.width ?? null,
+    height: input.variant.height ?? null,
+    depth: input.variant.depth ?? null,
+    attributes_json: input.variant.attributes ?? {},
+  };
+
+  if (existingVariant) {
+    const { error } = await supabase
+      .from('product_variants')
+      .update(variantPayload)
+      .eq('store_id', input.storeId)
+      .eq('id', existingVariant.id);
+
+    if (error) {
+      throw new Error('Unable to update integration product variant.');
+    }
+  } else {
+    const { error } = await supabase.from('product_variants').insert({
+      ...variantPayload,
+      created_at: now,
+    });
+
+    if (error) {
+      throw new Error('Unable to create integration product variant.');
+    }
+  }
+
+  if (input.imageUrl) {
+    const { data: existingImage, error: existingImageError } = await supabase
+      .from('product_images')
+      .select('id')
+      .eq('store_id', input.storeId)
+      .eq('product_id', productId)
+      .eq('url', input.imageUrl)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingImageError) {
+      throw new Error('Unable to query integration product image.');
+    }
+
+    if (!existingImage) {
+      const { error } = await supabase.from('product_images').insert({
+        store_id: input.storeId,
+        product_id: productId,
+        url: input.imageUrl,
+        position: 0,
+        alt: input.name,
+      });
+
+      if (error) {
+        throw new Error('Unable to create integration product image.');
+      }
+    }
+  }
+
+  let categoryLinked = false;
+  let categoryCreated = false;
+
+  if (input.category) {
+    const category = await upsertIntegrationCategory(
+      supabase,
+      input.storeId,
+      input.category
+    );
+
+    const { error } = await supabase.from('product_categories').upsert({
+      product_id: productId,
+      category_id: category.id,
+    });
+
+    if (error) {
+      throw new Error('Unable to link integration product category.');
+    }
+
+    categoryLinked = true;
+    categoryCreated = category.created;
+  }
+
+  return {
+    action,
+    productId,
+    categoryLinked,
+    categoryCreated,
   };
 }

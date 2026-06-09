@@ -14,6 +14,7 @@ import {
 import type { BlingAdminState, BlingTokenResponse } from './bling.types';
 
 type BlingHomologationAdminState = NonNullable<BlingAdminState['homologation']>;
+type BlingProductSyncAdminState = NonNullable<BlingAdminState['productSync']>;
 
 function toBlingConnectionStatus(status: string | undefined) {
   if (
@@ -54,6 +55,31 @@ function toBlingHomologationState(settings: Record<string, unknown>) {
   } satisfies BlingHomologationAdminState;
 }
 
+function toBlingProductSyncState(settings: Record<string, unknown>) {
+  const productSync = settings.productSync;
+
+  if (!productSync || typeof productSync !== 'object') {
+    return undefined;
+  }
+
+  const record = productSync as Record<string, unknown>;
+  const status = record.status;
+
+  if (status !== 'running' && status !== 'success' && status !== 'error') {
+    return undefined;
+  }
+
+  return {
+    status,
+    updatedAt:
+      typeof record.updatedAt === 'string' ? record.updatedAt : undefined,
+    summary:
+      record.summary && typeof record.summary === 'object'
+        ? (record.summary as BlingProductSyncAdminState['summary'])
+        : undefined,
+  } satisfies BlingProductSyncAdminState;
+}
+
 export async function getBlingAdminState(
   storeId: string
 ): Promise<BlingAdminState> {
@@ -82,6 +108,9 @@ export async function getBlingAdminState(
     warnings,
     homologation: integration
       ? toBlingHomologationState(integration.settings)
+      : undefined,
+    productSync: integration
+      ? toBlingProductSyncState(integration.settings)
       : undefined,
   };
 }

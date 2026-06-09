@@ -9,6 +9,7 @@ import { getCurrentUser, canAccessStore } from '@/modules/auth/auth.service';
 import { getBlingAdminState } from '@/modules/integrations/bling/bling.service';
 import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
 import { BlingHomologationPanel } from './BlingHomologationPanel';
+import { BlingProductSyncPanel } from './BlingProductSyncPanel';
 
 export const metadata: Metadata = {
   title: `${platformBrand.productName} Admin — Bling`,
@@ -210,13 +211,12 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
               initialSummary={state.homologation?.summary}
             />
 
-            <section className="rounded-xl border border-white/8 bg-[#0A1730]/95 p-4">
-              <h2 className="text-base font-semibold">Próxima etapa</h2>
-              <p className="mt-1 text-xs leading-5 text-slate-400">
-                Sincronizar produtos, estoque e depois pedidos. Esta tela ainda não
-                executa sync real nem webhooks.
-              </p>
-            </section>
+            <BlingProductSyncPanel
+              canRun={status === 'connected' && state.isEncryptionConfigured}
+              initialStatus={state.productSync?.status}
+              initialUpdatedAt={state.productSync?.updatedAt}
+              initialSummary={state.productSync?.summary}
+            />
           </aside>
         </div>
       </section>

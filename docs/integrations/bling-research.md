@@ -1,6 +1,6 @@
 # Pesquisa Técnica — Bling
 
-> Status: **OAuth Ready / sync pendente**
+> Status: **App público / OAuth Ready / Product Sync v1**
 > Fontes oficiais consultadas: https://developer.bling.com.br
 
 ## Fonte oficial
@@ -8,8 +8,10 @@
 Links consultados durante a pesquisa:
 
 - [x] https://developer.bling.com.br/bling-api
+- [x] https://developer.bling.com.br/referencia
 - [x] https://developer.bling.com.br/migracao-jwt
 - [x] https://developer.bling.com.br/aplicativos
+- [x] https://developer.bling.com.br/limites
 - [ ] https://developer.bling.com.br/webhooks
 
 ## Objetivo da integração
@@ -109,24 +111,41 @@ Escopos mínimos ainda dependem da etapa de sync:
 
 ## Produtos
 
-Não implementado nesta sprint.
+Implementado na v1 de sync de catálogo, após aprovação/publicação do app Zalen
+Shop no Bling.
 
-Antes de implementar:
+Endpoints oficiais usados:
 
-- confirmar endpoints oficiais de produtos;
-- confirmar paginação;
-- confirmar payloads;
-- mapear produto Bling para `products`, `product_variants`, `product_images` e `categories`.
+```txt
+GET https://api.bling.com.br/Api/v3/produtos
+GET https://api.bling.com.br/Api/v3/produtos/{idProduto}
+GET https://api.bling.com.br/Api/v3/categorias/produtos/{idCategoriaProduto}
+```
+
+Regras da v1:
+
+- chamadas sempre server-side;
+- produtos Bling são identificados por `store_id + external_provider + external_id`;
+- produtos nativos sem vínculo externo não são sobrescritos;
+- storefront e admin continuam lendo do Supabase;
+- variante padrão é criada/atualizada com SKU, preço e estoque;
+- categoria é vinculada quando `categoria.id` resolve para descrição clara;
+- variações complexas ficam como pendência documentada.
 
 ## Estoque
 
-Não implementado nesta sprint.
+Estoque básico é sincronizado a partir de `estoque.saldoVirtualTotal` retornado
+no produto Bling.
 
-Antes de implementar:
+Endpoint oficial separado identificado para evolução futura:
 
-- confirmar endpoint oficial de estoque;
-- confirmar se estoque vem por produto, variação, depósito ou outra entidade;
-- definir regra de atualização no Zalen.
+```txt
+GET https://api.bling.com.br/Api/v3/estoques/saldos
+GET https://api.bling.com.br/Api/v3/estoques/saldos/{idDeposito}
+```
+
+Pendência: implementar estoque por depósito quando a operação precisar separar
+saldo físico, saldo virtual e centros de distribuição.
 
 ## Pedidos
 
@@ -168,13 +187,14 @@ INTEGRATION_TOKEN_ENCRYPTION_KEY=
 - [x] Tokens nunca salvos sem criptografia.
 - [x] `credentials_encrypted` não é selecionado no admin.
 - [x] Store filtrada por `storeId`.
+- [x] Sync de produtos usa somente rota server-side e resumo sanitizado.
 - [ ] Webhook validado por assinatura antes de processar.
 - [ ] Sync e envio de pedidos com idempotência.
 
 ## Dúvidas pendentes
 
 - [ ] Confirmar escopos mínimos definitivos para produtos, estoque e pedidos.
-- [ ] Confirmar endpoints e payloads de sync de produtos.
+- [x] Confirmar endpoints e payloads de sync de produtos.
 - [ ] Confirmar endpoints e payloads de criação de pedidos.
 - [ ] Confirmar validação de assinatura de webhooks.
 - [ ] Confirmar rate limit operacional da API.

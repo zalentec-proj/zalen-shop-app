@@ -85,4 +85,26 @@ export interface BlingAdminState {
       }>;
     };
   };
+  productSync?: {
+    status: 'running' | 'success' | 'error';
+    updatedAt?: string;
+    summary?: {
+      status?: 'success' | 'error';
+      jobId?: string;
+      startedAt?: string;
+      finishedAt?: string;
+      durationMs?: number;
+      pagesProcessed?: number;
+      productsProcessed?: number;
+      productsCreated?: number;
+      productsUpdated?: number;
+      productsSkipped?: number;
+      categoriesLinked?: number;
+      categoriesCreated?: number;
+      categoriesSkipped?: number;
+      errors?: number;
+      tokenRefreshed?: boolean;
+      errorCode?: string;
+    };
+  };
 }

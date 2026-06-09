@@ -2,7 +2,9 @@
 
 ## Status desta sprint
 
-Implementada a base segura para preparar OAuth Bling da Brasil Drones, sem sync real de produtos, pedidos ou webhooks.
+Implementada a base segura para OAuth Bling da Brasil Drones e a primeira versão
+real de sincronização de produtos. O app Zalen Shop está aprovado/publicado no
+Bling. Pedidos e webhooks continuam fora do escopo desta etapa.
 
 ## O que foi implementado
 
@@ -16,6 +18,9 @@ Implementada a base segura para preparar OAuth Bling da Brasil Drones, sem sync 
 - Bloqueio de persistência de tokens se criptografia estiver ausente.
 - Página `/admin/integracoes/bling`.
 - Botão de conexão a partir da seção de integrações do admin.
+- Sync server-side de produtos Bling para o catálogo Supabase.
+- Preservação de produtos nativos sem vínculo externo.
+- Origem do produto exibida no admin: Zalen ou Bling.
 
 ## Rotas
 
@@ -23,6 +28,7 @@ Implementada a base segura para preparar OAuth Bling da Brasil Drones, sem sync 
 GET /api/integrations/bling/connect
 GET /api/integrations/bling/callback
 POST /api/integrations/bling/homologation/run
+POST /api/integrations/bling/products/sync
 ```
 
 ## Domínios oficiais
@@ -149,19 +155,53 @@ sensíveis.
 
 ## O que não foi implementado
 
-- Sync de produtos.
-- Sync de estoque.
+- Sync de estoque por depósito.
 - Envio de pedidos para Bling.
 - Sync real baseado no produto usado na homologação.
 - Webhooks reais.
 - Reprocessamento de erros.
 
+## Product Sync v1
+
+A Zalen Shop continua sendo a fonte de leitura do storefront e do admin via
+Supabase. O Bling é um conector opcional configurado por loja, não uma dependência
+global da plataforma.
+
+Endpoints oficiais usados:
+
+```txt
+GET https://api.bling.com.br/Api/v3/produtos
+GET https://api.bling.com.br/Api/v3/produtos/{idProduto}
+GET https://api.bling.com.br/Api/v3/categorias/produtos/{idCategoriaProduto}
+```
+
+Regras implementadas:
+
+- A rota interna `POST /api/integrations/bling/products/sync` exige sessão e
+  acesso à loja ativa.
+- O sync usa `store_id`, `store_integrations.credentials_encrypted` e refresh
+  token server-side quando necessário.
+- Tokens nunca são enviados ao frontend nem entram em logs ou respostas.
+- Produtos Bling são gravados com `external_provider = "bling"` e `external_id`.
+- Produto existente só é atualizado por `store_id + external_provider + external_id`.
+- Produtos nativos sem vínculo externo não são sobrescritos por nome, slug ou SKU.
+- Slug conflitante recebe sufixo seguro para preservar URLs nativas.
+- `sync_jobs` registra execução com resumo sanitizado e sem payload bruto.
+- `store_integrations.last_sync_at` e `settings_json.productSync` guardam o
+  último resumo operacional.
+
+Limitações da v1:
+
+- Variações complexas do Bling ainda não viram múltiplas variantes Zalen.
+- Estoque por depósito ainda não usa `/estoques/saldos`.
+- Categorias só são vinculadas quando o `categoria.id` resolve para descrição
+  clara no endpoint oficial de categorias.
+
 ## Próximas etapas
 
-1. Validar OAuth em produção com o app Bling real.
-2. Executar a homologação no admin após o OAuth conectado.
-3. Implementar `testConnection`.
-4. Pesquisar e mapear endpoints de produtos.
-5. Implementar sync incremental de produtos e estoque.
-6. Implementar envio idempotente de pedidos.
-7. Implementar webhooks com validação de assinatura.
+1. Implementar sync incremental por `dataAlteracaoInicial`.
+2. Implementar estoque por depósito via `/estoques/saldos`.
+3. Mapear variações Bling para múltiplas `product_variants`.
+4. Implementar envio idempotente de pedidos.
+5. Implementar webhooks com validação de assinatura.
+6. Preparar Mercado Pago e Melhor Envio como conectores opcionais futuros.

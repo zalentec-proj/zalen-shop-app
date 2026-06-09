@@ -294,6 +294,16 @@ function productSku(product: ProductSummary) {
   return [brandPrefix, slugPrefix].filter(Boolean).join('-');
 }
 
+function productSourceLabel(product: ProductSummary) {
+  return product.externalProvider === 'bling' ? 'Bling' : 'Zalen';
+}
+
+function productSourceClass(product: ProductSummary) {
+  return product.externalProvider === 'bling'
+    ? 'border-cyan-400/20 bg-cyan-400/10 text-cyan-200'
+    : 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200';
+}
+
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
 }
@@ -639,6 +649,9 @@ export default function AdminDashboard({
   const primaryErpIntegration =
     integrations.find((item) => item.provider.key === 'bling') ??
     integrations.find((item) => item.provider.category === 'erp');
+  const blingLastSyncAt = integrations.find(
+    (item) => item.provider.key === 'bling'
+  )?.integration?.lastSyncAt;
 
   const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
   const averageTicket = orders.length > 0 ? totalRevenue / orders.length : 0;
@@ -712,6 +725,7 @@ export default function AdminDashboard({
         product.slug,
         product.brand,
         productSku(product),
+        productSourceLabel(product),
         ...product.categories.map((category) => category.name),
       ],
       searchValue
@@ -1276,6 +1290,12 @@ export default function AdminDashboard({
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
                               <span>SKU: {productSku(product)}</span>
                               {product.brand ? <span>Marca: {product.brand}</span> : null}
+                              <SmallBadge className={productSourceClass(product)}>
+                                Fonte: {productSourceLabel(product)}
+                              </SmallBadge>
+                              {product.externalProvider === 'bling' && blingLastSyncAt ? (
+                                <span>Sync: {formatDateTime(blingLastSyncAt)}</span>
+                              ) : null}
                             </div>
                           </div>
                         </div>

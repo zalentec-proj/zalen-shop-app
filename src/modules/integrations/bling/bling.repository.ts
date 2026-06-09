@@ -18,6 +18,8 @@ type BlingIntegrationRow = {
   updated_at: string | null;
 };
 
+type BlingSyncJobStatus = 'running' | 'success' | 'error';
+
 const fallbackDate = new Date(0).toISOString();
 
 function mapBlingIntegration(row: BlingIntegrationRow): StoreIntegration {
@@ -191,14 +193,22 @@ export async function saveBlingCredentialsInRepository(input: {
   expiresIn?: number;
   scope?: string;
 }) {
+  const current = await getBlingIntegrationFromRepository(input.storeId);
+  const previousSettings = current?.settings ?? {};
+
   await upsertBlingIntegration({
     storeId: input.storeId,
     environment: input.environment,
     status: 'connected',
     credentialsEncrypted: input.credentialsEncrypted,
     settings: {
+      ...previousSettings,
       primary: true,
-      connectedAt: new Date().toISOString(),
+      connectedAt:
+        typeof previousSettings.connectedAt === 'string'
+          ? previousSettings.connectedAt
+          : new Date().toISOString(),
+      credentialsUpdatedAt: new Date().toISOString(),
       expiresIn: input.expiresIn,
       scope: input.scope,
     },
@@ -237,5 +247,118 @@ export async function recordBlingHomologationEventInRepository(input: {
 
   if (error) {
     throw new Error('Unable to record Bling homologation event.');
+  }
+}
+
+export async function hasRunningBlingProductSyncJobInRepository(storeId: string) {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return false;
+  }
+
+  const { data, error } = await supabase
+    .from('sync_jobs')
+    .select('id')
+    .eq('store_id', storeId)
+    .eq('provider', BLING_PROVIDER_KEY)
+    .eq('job_type', 'product_sync')
+    .eq('status', 'running')
+    .is('processed_at', null)
+    .limit(1)
+    .maybeSingle();
+
+  return Boolean(!error && data);
+}
+
+export async function createBlingProductSyncJobInRepository(input: {
+  storeId: string;
+  summary?: Record<string, unknown>;
+}) {
+  const supabase = requireAdminClient();
+
+  const { data, error } = await supabase
+    .from('sync_jobs')
+    .insert({
+      store_id: input.storeId,
+      provider: BLING_PROVIDER_KEY,
+      job_type: 'product_sync',
+      status: 'running',
+      attempts: 1,
+      payload: input.summary ?? {},
+    })
+    .select('id')
+    .single();
+
+  if (error || !data) {
+    throw new Error('Unable to create Bling product sync job.');
+  }
+
+  return data.id as string;
+}
+
+export async function completeBlingProductSyncJobInRepository(input: {
+  jobId: string;
+  storeId: string;
+  status: Exclude<BlingSyncJobStatus, 'running'>;
+  summary: Record<string, unknown>;
+  lastError?: string;
+}) {
+  const supabase = requireAdminClient();
+
+  const { error } = await supabase
+    .from('sync_jobs')
+    .update({
+      status: input.status,
+      payload: input.summary,
+      last_error: input.lastError ?? null,
+      processed_at: new Date().toISOString(),
+    })
+    .eq('id', input.jobId)
+    .eq('store_id', input.storeId)
+    .eq('provider', BLING_PROVIDER_KEY)
+    .eq('job_type', 'product_sync');
+
+  if (error) {
+    throw new Error('Unable to complete Bling product sync job.');
+  }
+}
+
+export async function recordBlingProductSyncEventInRepository(input: {
+  storeId: string;
+  environment: BlingEnvironment;
+  status: BlingSyncJobStatus;
+  summary?: Record<string, unknown>;
+}) {
+  const supabase = requireAdminClient();
+
+  const current = await getBlingEncryptedCredentialsFromRepository(input.storeId);
+  const previousSettings = current?.settings ?? {};
+  const updatedAt = new Date().toISOString();
+  const updatePayload: Record<string, unknown> = {
+    settings_json: {
+      ...previousSettings,
+      productSync: {
+        status: input.status,
+        summary: input.summary ?? null,
+        updatedAt,
+      },
+    },
+    updated_at: updatedAt,
+  };
+
+  if (input.status === 'success') {
+    updatePayload.last_sync_at = updatedAt;
+  }
+
+  const { error } = await supabase
+    .from('store_integrations')
+    .update(updatePayload)
+    .eq('store_id', input.storeId)
+    .eq('provider_key', BLING_PROVIDER_KEY)
+    .eq('environment', input.environment);
+
+  if (error) {
+    throw new Error('Unable to record Bling product sync event.');
   }
 }
