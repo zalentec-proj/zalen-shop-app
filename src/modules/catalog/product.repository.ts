@@ -100,6 +100,12 @@ export interface UpsertIntegrationProductResult {
   categoryCreated: boolean;
 }
 
+type UpsertIntegrationCategoryResult = {
+  id: string;
+  created: boolean;
+  duplicateCategoryIds: string[];
+};
+
 type SupabaseCatalogClient =
   | NonNullable<ReturnType<typeof createOptionalAdminClient>>
   | NonNullable<Awaited<ReturnType<typeof createOptionalClient>>>
@@ -937,7 +943,20 @@ async function upsertIntegrationCategory(
   supabase: SupabaseCatalogClient,
   storeId: string,
   category: UpsertIntegrationCategoryInput
-) {
+): Promise<UpsertIntegrationCategoryResult> {
+  const slug = toSlug(category.name);
+  const { data: existingBySlug, error: existingBySlugError } = await supabase
+    .from('categories')
+    .select('id, external_id')
+    .eq('store_id', storeId)
+    .eq('slug', slug)
+    .limit(1)
+    .maybeSingle();
+
+  if (existingBySlugError) {
+    throw new Error('Unable to query integration category by slug.');
+  }
+
   const { data: existing, error: existingError } = await supabase
     .from('categories')
     .select('id, slug')
@@ -948,6 +967,35 @@ async function upsertIntegrationCategory(
 
   if (existingError) {
     throw new Error('Unable to query integration category.');
+  }
+
+  if (existingBySlug) {
+    const shouldAttachExternalId =
+      !existingBySlug.external_id || existingBySlug.external_id === category.externalId;
+    const updatePayload: Record<string, unknown> = {
+      name: category.name,
+    };
+
+    if (shouldAttachExternalId) {
+      updatePayload.external_id = category.externalId;
+    }
+
+    const { error } = await supabase
+      .from('categories')
+      .update(updatePayload)
+      .eq('store_id', storeId)
+      .eq('id', existingBySlug.id);
+
+    if (error) {
+      throw new Error('Unable to update integration category by slug.');
+    }
+
+    return {
+      id: existingBySlug.id as string,
+      created: false,
+      duplicateCategoryIds:
+        existing && existing.id !== existingBySlug.id ? [existing.id as string] : [],
+    };
   }
 
   if (existing) {
@@ -964,17 +1012,18 @@ async function upsertIntegrationCategory(
     return {
       id: existing.id as string,
       created: false,
+      duplicateCategoryIds: [],
     };
   }
 
-  const slug = await createUniqueCategorySlug(supabase, storeId, category.name);
+  const uniqueSlug = await createUniqueCategorySlug(supabase, storeId, category.name);
   const { data, error } = await supabase
     .from('categories')
     .insert({
       store_id: storeId,
       external_id: category.externalId,
       name: category.name,
-      slug,
+      slug: uniqueSlug,
       position: 0,
     })
     .select('id')
@@ -987,6 +1036,7 @@ async function upsertIntegrationCategory(
   return {
     id: data.id as string,
     created: true,
+    duplicateCategoryIds: [],
   };
 }
 
@@ -1441,6 +1491,43 @@ export async function upsertIntegrationProductInRepository(
 
     if (error) {
       throw new Error('Unable to link integration product category.');
+    }
+
+    if (category.duplicateCategoryIds.length > 0) {
+      const { error: unlinkError } = await supabase
+        .from('product_categories')
+        .delete()
+        .eq('product_id', productId)
+        .in('category_id', category.duplicateCategoryIds);
+
+      if (unlinkError) {
+        throw new Error('Unable to unlink duplicate integration category.');
+      }
+
+      for (const duplicateCategoryId of category.duplicateCategoryIds) {
+        const { data: remainingLinks, error: linksError } = await supabase
+          .from('product_categories')
+          .select('product_id')
+          .eq('category_id', duplicateCategoryId)
+          .limit(1);
+
+        if (linksError) {
+          throw new Error('Unable to inspect duplicate integration category.');
+        }
+
+        if (remainingLinks.length === 0) {
+          const { error: deleteCategoryError } = await supabase
+            .from('categories')
+            .delete()
+            .eq('store_id', input.storeId)
+            .eq('id', duplicateCategoryId)
+            .eq('external_id', input.category.externalId);
+
+          if (deleteCategoryError) {
+            throw new Error('Unable to delete duplicate integration category.');
+          }
+        }
+      }
     }
 
     categoryLinked = true;
