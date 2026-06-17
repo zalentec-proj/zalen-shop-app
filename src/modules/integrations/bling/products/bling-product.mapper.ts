@@ -36,12 +36,18 @@ function toSlug(value: string) {
   return slug || 'produto';
 }
 
-function toStatus(situacao: string | undefined): ProductStatus {
-  if (situacao === 'A') {
+function toStatus(situacao: string | number | boolean | undefined): ProductStatus {
+  const normalized = String(situacao ?? '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+
+  if (['A', 'ATIVO', 'ACTIVE', 'S', 'SIM', 'TRUE', '1'].includes(normalized)) {
     return 'active';
   }
 
-  if (situacao === 'I') {
+  if (['I', 'INATIVO', 'INACTIVE', 'N', 'NAO', 'FALSE', '0'].includes(normalized)) {
     return 'inactive';
   }
 

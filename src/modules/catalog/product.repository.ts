@@ -118,6 +118,13 @@ type UpsertIntegrationCategoryResult = {
   duplicateCategoryIds: string[];
 };
 
+type CategoryLookupRow = {
+  id: string;
+  external_id: string | null;
+  slug: string;
+  name: string;
+};
+
 type SupabaseCatalogClient =
   | NonNullable<ReturnType<typeof createOptionalAdminClient>>
   | NonNullable<Awaited<ReturnType<typeof createOptionalClient>>>
@@ -301,6 +308,61 @@ function toSlug(value: string) {
     .slice(0, 80);
 
   return slug || 'produto';
+}
+
+function uniqueStrings(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function getCanonicalCategorySlugs(categoryName: string) {
+  const slug = toSlug(categoryName);
+  const aliasesBySlug: Record<string, string[]> = {
+    drone: ['drones'],
+    drones: ['drones'],
+    peca: ['pecas'],
+    pecas: ['pecas'],
+    parte: ['pecas'],
+    partes: ['pecas'],
+    componente: ['pecas'],
+    componentes: ['pecas'],
+    helice: ['pecas'],
+    helices: ['pecas'],
+    acessorio: ['acessorios'],
+    acessorios: ['acessorios'],
+    bateria: ['baterias'],
+    baterias: ['baterias'],
+    kit: ['kits-e-combos'],
+    kits: ['kits-e-combos'],
+    combo: ['kits-e-combos'],
+    combos: ['kits-e-combos'],
+    'kit-combo': ['kits-e-combos'],
+    'kits-combos': ['kits-e-combos'],
+    'kits-e-combos': ['kits-e-combos'],
+  };
+
+  const singularOrPlural =
+    slug.endsWith('s') && slug.length > 3 ? slug.slice(0, -1) : `${slug}s`;
+
+  return uniqueStrings([
+    slug,
+    ...(aliasesBySlug[slug] ?? []),
+    ...(aliasesBySlug[singularOrPlural] ?? []),
+  ]);
+}
+
+function getPreferredCategoryMatch(
+  rows: CategoryLookupRow[],
+  candidateSlugs: string[]
+) {
+  for (const slug of candidateSlugs) {
+    const match = rows.find((row) => row.slug === slug);
+
+    if (match) {
+      return match;
+    }
+  }
+
+  return undefined;
 }
 
 async function getCatalogReadClients(
@@ -956,22 +1018,25 @@ async function upsertIntegrationCategory(
   storeId: string,
   category: UpsertIntegrationCategoryInput
 ): Promise<UpsertIntegrationCategoryResult> {
-  const slug = toSlug(category.name);
-  const { data: existingBySlug, error: existingBySlugError } = await supabase
+  const candidateSlugs = getCanonicalCategorySlugs(category.name);
+  const { data: existingBySlugRows, error: existingBySlugError } = await supabase
     .from('categories')
-    .select('id, external_id')
+    .select('id, external_id, slug, name')
     .eq('store_id', storeId)
-    .eq('slug', slug)
-    .limit(1)
-    .maybeSingle();
+    .in('slug', candidateSlugs);
 
   if (existingBySlugError) {
     throw new Error('Unable to query integration category by slug.');
   }
 
+  const existingBySlug = getPreferredCategoryMatch(
+    (existingBySlugRows as CategoryLookupRow[] | null) ?? [],
+    candidateSlugs
+  );
+
   const { data: existing, error: existingError } = await supabase
     .from('categories')
-    .select('id, slug')
+    .select('id, external_id, slug, name')
     .eq('store_id', storeId)
     .eq('external_id', category.externalId)
     .limit(1)
@@ -981,25 +1046,42 @@ async function upsertIntegrationCategory(
     throw new Error('Unable to query integration category.');
   }
 
-  if (existingBySlug) {
-    const shouldAttachExternalId =
-      !existingBySlug.external_id || existingBySlug.external_id === category.externalId;
-    const updatePayload: Record<string, unknown> = {
-      name: category.name,
-    };
+  const hasExternalIdConflict =
+    Boolean(existingBySlug?.external_id) &&
+    existingBySlug?.external_id !== category.externalId;
 
-    if (shouldAttachExternalId) {
-      updatePayload.external_id = category.externalId;
-    }
-
+  if (hasExternalIdConflict && existing) {
     const { error } = await supabase
       .from('categories')
-      .update(updatePayload)
+      .update({ name: category.name })
       .eq('store_id', storeId)
-      .eq('id', existingBySlug.id);
+      .eq('id', existing.id);
 
     if (error) {
-      throw new Error('Unable to update integration category by slug.');
+      throw new Error('Unable to update integration category.');
+    }
+
+    return {
+      id: existing.id as string,
+      created: false,
+      duplicateCategoryIds: [],
+    };
+  }
+
+  if (existingBySlug && !hasExternalIdConflict) {
+    const shouldAttachExternalId =
+      !existingBySlug.external_id || existingBySlug.external_id === category.externalId;
+
+    if (shouldAttachExternalId) {
+      const { error } = await supabase
+        .from('categories')
+        .update({ external_id: category.externalId })
+        .eq('store_id', storeId)
+        .eq('id', existingBySlug.id);
+
+      if (error) {
+        throw new Error('Unable to update integration category by slug.');
+      }
     }
 
     return {

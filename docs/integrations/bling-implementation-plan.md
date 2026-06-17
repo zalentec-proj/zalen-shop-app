@@ -24,6 +24,10 @@ Bling. Pedidos e webhooks continuam fora do escopo desta etapa.
 - Sync incremental por `dataAlteracaoInicial` após o primeiro sync completo.
 - Mapeamento de variações Bling para múltiplas `product_variants`.
 - Consulta de saldos via endpoint oficial de estoque quando o escopo permitir.
+- Normalização de status do produto Bling para evitar rascunho indevido quando
+  o provedor retorna formatos equivalentes a ativo/inativo.
+- Reconciliação conservadora de categorias Bling com categorias nativas Zalen
+  por slug e aliases canônicos, evitando duplicidade simples.
 
 ## Rotas
 
@@ -194,15 +198,30 @@ Regras implementadas:
 - `store_integrations.last_sync_at` e `settings_json.productSync` guardam o
   último resumo operacional.
 - Se `last_sync_at` existir, o próximo sync usa `dataAlteracaoInicial`.
+- A rota aceita modo incremental ou completo. O admin usa sync incremental no
+  botão principal e oferece "Reprocessar tudo" para reparar status/categorias de
+  produtos já importados sem depender de alteração recente no Bling.
 - Produtos com `variacoes` geram variantes separadas no catálogo Zalen.
 - Estoque usa `/estoques/saldos` por produto/variação quando disponível; se o
   escopo de estoque falhar, o sync continua com o saldo do payload de produto.
+- Status do produto é normalizado antes de gravar no catálogo. Valores ativos
+  conhecidos (`A`, `Ativo`, `Active`, `S`, `Sim`, `true`, `1`) publicam o produto;
+  valores inativos conhecidos (`I`, `Inativo`, `Inactive`, `N`, `Não`, `false`,
+  `0`) deixam o produto inativo. Valores desconhecidos continuam como rascunho.
+- Categorias vindas do Bling tentam reutilizar categorias nativas por slug
+  normalizado e aliases operacionais da Brasil Drones (`drones`, `pecas`,
+  `acessorios`, `baterias`, `kits-e-combos`) antes de criar nova categoria.
+- Quando uma categoria nativa sem `external_id` é reutilizada, o sync anexa o
+  vínculo externo do Bling sem renomear a categoria Zalen.
+- Se uma categoria duplicada antiga com o mesmo `external_id` existir, o próximo
+  sync relinka o produto para a categoria nativa e remove a duplicada quando ela
+  ficar sem produtos.
 
 Limitações da v1:
 
 - Estoque por depósito específico ainda não usa `/estoques/saldos/{idDeposito}`.
-- Categorias só são vinculadas quando o `categoria.id` resolve para descrição
-  clara no endpoint oficial de categorias.
+- Categorias ambíguas, fora dos aliases definidos, ainda podem gerar categoria
+  nova para não perder classificação.
 
 ## Próximas etapas
 

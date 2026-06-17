@@ -118,7 +118,8 @@ async function runSafely(operation: () => Promise<void>) {
 }
 
 export async function runBlingProductSync(
-  storeId: string
+  storeId: string,
+  options: { mode?: 'full' | 'incremental' } = {}
 ): Promise<BlingProductSyncResult> {
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
@@ -150,7 +151,8 @@ export async function runBlingProductSync(
     environment = clientContext.environment;
     const activeClient = clientContext.client;
     const integration = await getBlingIntegrationFromRepository(storeId);
-    const syncSince = integration?.lastSyncAt;
+    const syncSince =
+      options.mode === 'full' ? undefined : integration?.lastSyncAt;
 
     if (syncSince) {
       summary = {

@@ -53,7 +53,7 @@ export function BlingProductSyncPanel({
   );
   const [errorCode, setErrorCode] = useState<string | undefined>();
 
-  const runSync = () => {
+  const runSync = (mode: 'incremental' | 'full' = 'incremental') => {
     setErrorCode(undefined);
     setStatus('running');
 
@@ -63,7 +63,9 @@ export function BlingProductSyncPanel({
           method: 'POST',
           headers: {
             Accept: 'application/json',
+            'Content-Type': 'application/json',
           },
+          body: JSON.stringify({ mode }),
         });
         const payload = (await response.json()) as SyncResponse;
 
@@ -130,15 +132,25 @@ export function BlingProductSyncPanel({
         </div>
       ) : null}
 
-      <button
-        type="button"
-        onClick={runSync}
-        disabled={disabled}
-        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-3 py-2 text-xs font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:border-white/8 disabled:bg-white/5 disabled:text-slate-500 disabled:hover:brightness-100"
-      >
-        <RefreshCw className={`h-3.5 w-3.5 ${isPending ? 'animate-spin' : ''}`} />
-        {isPending || status === 'running' ? 'Sincronizando...' : 'Sincronizar produtos'}
-      </button>
+      <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto]">
+        <button
+          type="button"
+          onClick={() => runSync('incremental')}
+          disabled={disabled}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-3 py-2 text-xs font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:border-white/8 disabled:bg-white/5 disabled:text-slate-500 disabled:hover:brightness-100"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${isPending ? 'animate-spin' : ''}`} />
+          {isPending || status === 'running' ? 'Sincronizando...' : 'Sincronizar produtos'}
+        </button>
+        <button
+          type="button"
+          onClick={() => runSync('full')}
+          disabled={disabled}
+          className="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/10 disabled:cursor-not-allowed disabled:text-slate-500 disabled:hover:border-white/10 disabled:hover:bg-white/5"
+        >
+          Reprocessar tudo
+        </button>
+      </div>
 
       {!canRun ? (
         <p className="mt-2 text-[11px] text-slate-500">
