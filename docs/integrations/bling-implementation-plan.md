@@ -210,6 +210,9 @@ Regras implementadas:
   campos como `imagemURL`, `imageUrl`, `urlImagem`, `imagem`, `imagens` ou
   `midia.imagens`. Quando o produto pai não tem imagem, o sync tenta a primeira
   imagem disponível nas variações.
+- Quando o Bling retorna imagem, o sync coloca essa URL como imagem primária
+  (`position = 0`) e remove imagens antigas daquele produto sincronizado para
+  evitar fallback ou imagem de produto anterior no storefront.
 - Status do produto é normalizado antes de gravar no catálogo. Valores ativos
   conhecidos (`A`, `Ativo`, `Active`, `S`, `Sim`, `true`, `1`) publicam o produto;
   valores inativos conhecidos (`I`, `Inativo`, `Inactive`, `N`, `Não`, `false`,

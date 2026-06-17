@@ -1602,7 +1602,21 @@ export async function upsertIntegrationProductInRepository(
       throw new Error('Unable to query integration product image.');
     }
 
-    if (!existingImage) {
+    if (existingImage) {
+      const { error } = await supabase
+        .from('product_images')
+        .update({
+          position: 0,
+          alt: input.name,
+        })
+        .eq('store_id', input.storeId)
+        .eq('product_id', productId)
+        .eq('id', existingImage.id);
+
+      if (error) {
+        throw new Error('Unable to update integration product image.');
+      }
+    } else {
       const { error } = await supabase.from('product_images').insert({
         store_id: input.storeId,
         product_id: productId,
@@ -1614,6 +1628,17 @@ export async function upsertIntegrationProductInRepository(
       if (error) {
         throw new Error('Unable to create integration product image.');
       }
+    }
+
+    const { error: staleImagesError } = await supabase
+      .from('product_images')
+      .delete()
+      .eq('store_id', input.storeId)
+      .eq('product_id', productId)
+      .neq('url', input.imageUrl);
+
+    if (staleImagesError) {
+      throw new Error('Unable to remove stale integration product images.');
     }
   }
 
