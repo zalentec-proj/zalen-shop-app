@@ -7,17 +7,38 @@ import { runBlingProductSync } from '@/modules/integrations/bling/products/bling
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-function getSyncMode(body: unknown): 'full' | 'incremental' {
-  if (
-    body &&
-    typeof body === 'object' &&
-    'mode' in body &&
-    body.mode === 'full'
-  ) {
-    return 'full';
+function getSyncRequest(body: unknown): {
+  mode: 'full' | 'incremental';
+  productId?: string;
+} {
+  const base = {
+    mode: 'incremental' as const,
+  };
+
+  if (!body || typeof body !== 'object') {
+    return base;
   }
 
-  return 'incremental';
+  const record = body as Record<string, unknown>;
+  const productId = typeof record.productId === 'string' ? record.productId.trim() : '';
+
+  if (productId && /^\d+$/.test(productId)) {
+    return {
+      mode: 'full',
+      productId,
+    };
+  }
+
+  if (
+    'mode' in record &&
+    record.mode === 'full'
+  ) {
+    return {
+      mode: 'full',
+    };
+  }
+
+  return base;
 }
 
 export async function POST(request: NextRequest) {
@@ -45,9 +66,7 @@ export async function POST(request: NextRequest) {
     body = undefined;
   }
 
-  const result = await runBlingProductSync(ACTIVE_STORE_ID, {
-    mode: getSyncMode(body),
-  });
+  const result = await runBlingProductSync(ACTIVE_STORE_ID, getSyncRequest(body));
 
   if (result.status === 'success') {
     revalidatePath('/');

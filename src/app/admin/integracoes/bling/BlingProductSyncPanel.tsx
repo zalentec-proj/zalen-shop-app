@@ -68,7 +68,10 @@ export function BlingProductSyncPanel({
   );
   const [errorCode, setErrorCode] = useState<string | undefined>();
 
-  const runSync = (mode: 'incremental' | 'full' = 'incremental') => {
+  const runSync = (
+    mode: 'incremental' | 'full' = 'incremental',
+    productId?: string
+  ) => {
     setErrorCode(undefined);
     setStatus('running');
 
@@ -80,7 +83,7 @@ export function BlingProductSyncPanel({
             Accept: 'application/json',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ mode }),
+          body: JSON.stringify({ mode, productId }),
         });
         const payload = (await response.json()) as SyncResponse;
 
@@ -137,7 +140,11 @@ export function BlingProductSyncPanel({
           {summary?.finishedAt ?? updatedAt ?? 'Não executado'}
         </span>
         <span className="ml-2 rounded-full border border-white/8 bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-slate-300">
-          {summary?.syncMode === 'incremental' ? 'incremental' : 'completo'}
+          {summary?.syncMode === 'single'
+            ? 'produto'
+            : summary?.syncMode === 'incremental'
+              ? 'incremental'
+              : 'completo'}
         </span>
       </div>
 
@@ -201,6 +208,16 @@ export function BlingProductSyncPanel({
                   <span className="text-[11px] text-rose-200">
                     Erro: {item.errorCode}
                   </span>
+                ) : null}
+                {item.externalId ? (
+                  <button
+                    type="button"
+                    onClick={() => runSync('full', item.externalId)}
+                    disabled={disabled}
+                    className="mt-1 w-fit rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/10 disabled:cursor-not-allowed disabled:text-slate-500"
+                  >
+                    Reprocessar produto
+                  </button>
                 ) : null}
               </div>
             ))}

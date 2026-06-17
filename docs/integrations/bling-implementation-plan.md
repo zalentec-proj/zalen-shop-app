@@ -31,6 +31,8 @@ Bling. Pedidos e webhooks continuam fora do escopo desta etapa.
 - Extração robusta de URL de imagem do produto/variação Bling para salvar em
   `product_images`, sem baixar ou expor arquivos externos no frontend de admin.
 - Diagnóstico sanitizado por produto no resumo do sync de catálogo.
+- Reprocessamento unitário de produto Bling pelo `externalId` exibido no
+  diagnóstico do admin.
 - Sync dedicado de estoque para variantes já vinculadas ao Bling.
 
 ## Rotas
@@ -206,6 +208,8 @@ Regras implementadas:
 - A rota aceita modo incremental ou completo. O admin usa sync incremental no
   botão principal e oferece "Reprocessar tudo" para reparar status/categorias de
   produtos já importados sem depender de alteração recente no Bling.
+- A mesma rota aceita `productId` numérico para reprocessar um único produto
+  Bling, sem percorrer o catálogo inteiro.
 - Produtos com `variacoes` geram variantes separadas no catálogo Zalen.
 - Estoque usa `/estoques/saldos` por produto/variação quando disponível; se o
   escopo de estoque falhar, o sync continua com o saldo do payload de produto.
@@ -231,6 +235,7 @@ Regras implementadas:
 - O resumo do sync guarda diagnóstico sanitizado dos últimos produtos processados:
   `externalId`, nome, SKU, ação, status mapeado, categoria, presença de imagem,
   quantidade de variantes/saldos e erro seguro quando houver.
+- O admin usa o `externalId` do diagnóstico para acionar "Reprocessar produto".
 
 ## Inventory Sync v1
 
@@ -262,13 +267,12 @@ Limitações da v1:
   nova para não perder classificação.
 - Upload/cópia da imagem para Supabase Storage ainda não foi implementado; a v1
   usa a URL pública retornada pelo Bling.
-- Reprocessamento unitário por produto ainda não foi implementado; por enquanto
-  usar "Reprocessar tudo" para catálogo e "Sincronizar estoque" para saldos.
+- Reprocessamento unitário depende do produto aparecer no diagnóstico recente ou
+  de futura busca por `externalId` manual.
 
 ## Próximas etapas
 
-1. Implementar reprocessamento unitário por produto.
-2. Implementar estoque por depósito específico via `/estoques/saldos/{idDeposito}`.
-3. Implementar envio idempotente de pedidos.
-4. Implementar webhooks com validação de assinatura.
-5. Preparar Mercado Pago e Melhor Envio como conectores opcionais futuros.
+1. Implementar estoque por depósito específico via `/estoques/saldos/{idDeposito}`.
+2. Implementar envio idempotente de pedidos.
+3. Implementar webhooks com validação de assinatura.
+4. Preparar Mercado Pago e Melhor Envio como conectores opcionais futuros.

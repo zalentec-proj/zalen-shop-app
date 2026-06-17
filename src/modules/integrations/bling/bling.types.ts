@@ -105,8 +105,9 @@ export interface BlingAdminState {
       errors?: number;
       variantsProcessed?: number;
       stockBalancesSynced?: number;
-      syncMode?: 'full' | 'incremental';
+      syncMode?: 'full' | 'incremental' | 'single';
       syncSince?: string;
+      syncProductId?: string;
       tokenRefreshed?: boolean;
       errorCode?: string;
       diagnostics?: Array<{

@@ -128,7 +128,7 @@ function addDiagnostic(
 
 export async function runBlingProductSync(
   storeId: string,
-  options: { mode?: 'full' | 'incremental' } = {}
+  options: { mode?: 'full' | 'incremental'; productId?: string } = {}
 ): Promise<BlingProductSyncResult> {
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
@@ -161,9 +161,15 @@ export async function runBlingProductSync(
     const activeClient = clientContext.client;
     const integration = await getBlingIntegrationFromRepository(storeId);
     const syncSince =
-      options.mode === 'full' ? undefined : integration?.lastSyncAt;
+      options.mode === 'full' || options.productId ? undefined : integration?.lastSyncAt;
 
-    if (syncSince) {
+    if (options.productId) {
+      summary = {
+        ...summary,
+        syncMode: 'single',
+        syncProductId: options.productId,
+      };
+    } else if (syncSince) {
       summary = {
         ...summary,
         syncMode: 'incremental',
@@ -257,96 +263,111 @@ export async function runBlingProductSync(
       return stockByProductId;
     };
 
-    while (true) {
-      const listResponse = await request<BlingProductListResponse>('/produtos', {
-        pagina: page,
-        limite: pageLimit,
-        dataAlteracaoInicial: syncSince,
-      });
-      const products = Array.isArray(listResponse.data) ? listResponse.data : [];
-
-      if (products.length === 0) {
-        break;
+    const processProduct = async (listProduct: BlingProductDetail) => {
+      if (!listProduct.id) {
+        summary.productsSkipped += 1;
+        summary.errors += 1;
+        addDiagnostic(summary, {
+          name: listProduct.nome?.trim(),
+          sku: listProduct.codigo?.trim(),
+          action: 'error',
+          errorCode: 'missing_bling_product_id',
+        });
+        return;
       }
 
-      summary.pagesProcessed += 1;
-
-      for (const listProduct of products) {
-        if (!listProduct.id) {
-          summary.productsSkipped += 1;
-          summary.errors += 1;
-          continue;
-        }
-
-        try {
-          const detailResponse = await request<BlingProductDetailResponse>(
-            `/produtos/${listProduct.id}`
-          );
-          const product = (detailResponse.data ?? listProduct) as BlingProductDetail;
-          const categoryId = product.categoria?.id;
-          const categoryName = categoryId
-            ? await getCategoryName(categoryId)
-            : undefined;
-          const stockByProductId = await getStockByProductId(product);
-          const mappedProduct = mapBlingProductToCatalogInput({
-            storeId,
-            product,
-            categoryName,
+      try {
+        const detailResponse = await request<BlingProductDetailResponse>(
+          `/produtos/${listProduct.id}`
+        );
+        const product = (detailResponse.data ?? listProduct) as BlingProductDetail;
+        const categoryId = product.categoria?.id;
+        const categoryName = categoryId
+          ? await getCategoryName(categoryId)
+          : undefined;
+        const stockByProductId = await getStockByProductId(product);
+        const mappedProduct = mapBlingProductToCatalogInput({
+          storeId,
+          product,
+          categoryName,
           stockByProductId,
-          });
-          const result = await upsertIntegrationProductInRepository(mappedProduct);
+        });
+        const result = await upsertIntegrationProductInRepository(mappedProduct);
 
-          summary.productsProcessed += 1;
-          summary.variantsProcessed += mappedProduct.variants?.length ?? 1;
+        summary.productsProcessed += 1;
+        summary.variantsProcessed += mappedProduct.variants?.length ?? 1;
 
-          if (result.action === 'created') {
-            summary.productsCreated += 1;
-          } else {
-            summary.productsUpdated += 1;
-          }
-
-          if (result.categoryLinked) {
-            summary.categoriesLinked += 1;
-          } else if (product.categoria?.id && !mappedProduct.categoryWasClear) {
-            summary.categoriesSkipped += 1;
-          }
-
-          if (result.categoryCreated) {
-            summary.categoriesCreated += 1;
-          }
-
-          addDiagnostic(summary, {
-            externalId: mappedProduct.externalId,
-            name: mappedProduct.name,
-            sku: mappedProduct.variant.sku,
-            action: result.action,
-            status: mappedProduct.status,
-            category: mappedProduct.category?.name,
-            categoryLinked: result.categoryLinked,
-            imageFound: Boolean(mappedProduct.imageUrl),
-            variants: mappedProduct.variants?.length ?? 1,
-            stockItems: stockByProductId.size,
-          });
-
-          // Complex Bling variations are mapped into product_variants in this sprint.
-        } catch (productError) {
-          summary.productsSkipped += 1;
-          summary.errors += 1;
-          addDiagnostic(summary, {
-            externalId: String(listProduct.id),
-            name: listProduct.nome?.trim(),
-            sku: listProduct.codigo?.trim(),
-            action: 'error',
-            errorCode: toSafeErrorCode(productError),
-          });
+        if (result.action === 'created') {
+          summary.productsCreated += 1;
+        } else {
+          summary.productsUpdated += 1;
         }
-      }
 
-      if (products.length < pageLimit) {
-        break;
-      }
+        if (result.categoryLinked) {
+          summary.categoriesLinked += 1;
+        } else if (product.categoria?.id && !mappedProduct.categoryWasClear) {
+          summary.categoriesSkipped += 1;
+        }
 
-      page += 1;
+        if (result.categoryCreated) {
+          summary.categoriesCreated += 1;
+        }
+
+        addDiagnostic(summary, {
+          externalId: mappedProduct.externalId,
+          name: mappedProduct.name,
+          sku: mappedProduct.variant.sku,
+          action: result.action,
+          status: mappedProduct.status,
+          category: mappedProduct.category?.name,
+          categoryLinked: result.categoryLinked,
+          imageFound: Boolean(mappedProduct.imageUrl),
+          variants: mappedProduct.variants?.length ?? 1,
+          stockItems: stockByProductId.size,
+        });
+      } catch (productError) {
+        summary.productsSkipped += 1;
+        summary.errors += 1;
+        addDiagnostic(summary, {
+          externalId: String(listProduct.id),
+          name: listProduct.nome?.trim(),
+          sku: listProduct.codigo?.trim(),
+          action: 'error',
+          errorCode: toSafeErrorCode(productError),
+        });
+      }
+    };
+
+    if (options.productId) {
+      summary.pagesProcessed = 1;
+      await processProduct({
+        id: Number(options.productId),
+      });
+    } else {
+      while (true) {
+        const listResponse = await request<BlingProductListResponse>('/produtos', {
+          pagina: page,
+          limite: pageLimit,
+          dataAlteracaoInicial: syncSince,
+        });
+        const products = Array.isArray(listResponse.data) ? listResponse.data : [];
+
+        if (products.length === 0) {
+          break;
+        }
+
+        summary.pagesProcessed += 1;
+
+        for (const listProduct of products) {
+          await processProduct(listProduct as BlingProductDetail);
+        }
+
+        if (products.length < pageLimit) {
+          break;
+        }
+
+        page += 1;
+      }
     }
 
     tokenRefreshed = client.hasRefreshedToken();

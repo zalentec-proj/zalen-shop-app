@@ -136,6 +136,8 @@ Regras da v1:
 - saldos usam `/estoques/saldos` quando o escopo de estoque está disponível.
 - o resumo do sync registra diagnóstico sanitizado dos últimos produtos
   processados, sem payload bruto.
+- produto individual pode ser reprocessado pela rota interna usando `productId`
+  numérico, mantendo chamada ao Bling server-side.
 
 ## Estoque
 
