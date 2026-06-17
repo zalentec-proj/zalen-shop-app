@@ -89,6 +89,20 @@ export type MappedBlingProduct = UpsertIntegrationProductInput & {
   hasComplexVariations: boolean;
 };
 
+export interface BlingProductSyncDiagnostic {
+  externalId?: string;
+  name?: string;
+  sku?: string;
+  action: 'created' | 'updated' | 'skipped' | 'error';
+  status?: string;
+  category?: string;
+  categoryLinked?: boolean;
+  imageFound?: boolean;
+  variants?: number;
+  stockItems?: number;
+  errorCode?: string;
+}
+
 export interface BlingProductSyncSummary {
   status: 'success' | 'error';
   jobId?: string;
@@ -110,6 +124,7 @@ export interface BlingProductSyncSummary {
   syncSince?: string;
   tokenRefreshed: boolean;
   errorCode?: string;
+  diagnostics: BlingProductSyncDiagnostic[];
 }
 
 export interface BlingProductSyncResult {

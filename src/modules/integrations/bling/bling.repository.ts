@@ -19,6 +19,7 @@ type BlingIntegrationRow = {
 };
 
 type BlingSyncJobStatus = 'running' | 'success' | 'error';
+type BlingSyncJobType = 'product_sync' | 'inventory_sync';
 
 const fallbackDate = new Date(0).toISOString();
 
@@ -250,7 +251,10 @@ export async function recordBlingHomologationEventInRepository(input: {
   }
 }
 
-export async function hasRunningBlingProductSyncJobInRepository(storeId: string) {
+async function hasRunningBlingSyncJobInRepository(
+  storeId: string,
+  jobType: BlingSyncJobType
+) {
   const supabase = createOptionalAdminClient();
 
   if (!supabase) {
@@ -262,7 +266,7 @@ export async function hasRunningBlingProductSyncJobInRepository(storeId: string)
     .select('id')
     .eq('store_id', storeId)
     .eq('provider', BLING_PROVIDER_KEY)
-    .eq('job_type', 'product_sync')
+    .eq('job_type', jobType)
     .eq('status', 'running')
     .is('processed_at', null)
     .limit(1)
@@ -271,8 +275,9 @@ export async function hasRunningBlingProductSyncJobInRepository(storeId: string)
   return Boolean(!error && data);
 }
 
-export async function createBlingProductSyncJobInRepository(input: {
+async function createBlingSyncJobInRepository(input: {
   storeId: string;
+  jobType: BlingSyncJobType;
   summary?: Record<string, unknown>;
 }) {
   const supabase = requireAdminClient();
@@ -282,7 +287,7 @@ export async function createBlingProductSyncJobInRepository(input: {
     .insert({
       store_id: input.storeId,
       provider: BLING_PROVIDER_KEY,
-      job_type: 'product_sync',
+      job_type: input.jobType,
       status: 'running',
       attempts: 1,
       payload: input.summary ?? {},
@@ -291,15 +296,16 @@ export async function createBlingProductSyncJobInRepository(input: {
     .single();
 
   if (error || !data) {
-    throw new Error('Unable to create Bling product sync job.');
+    throw new Error('Unable to create Bling sync job.');
   }
 
   return data.id as string;
 }
 
-export async function completeBlingProductSyncJobInRepository(input: {
+async function completeBlingSyncJobInRepository(input: {
   jobId: string;
   storeId: string;
+  jobType: BlingSyncJobType;
   status: Exclude<BlingSyncJobStatus, 'running'>;
   summary: Record<string, unknown>;
   lastError?: string;
@@ -317,18 +323,20 @@ export async function completeBlingProductSyncJobInRepository(input: {
     .eq('id', input.jobId)
     .eq('store_id', input.storeId)
     .eq('provider', BLING_PROVIDER_KEY)
-    .eq('job_type', 'product_sync');
+    .eq('job_type', input.jobType);
 
   if (error) {
-    throw new Error('Unable to complete Bling product sync job.');
+    throw new Error('Unable to complete Bling sync job.');
   }
 }
 
-export async function recordBlingProductSyncEventInRepository(input: {
+async function recordBlingSyncEventInRepository(input: {
   storeId: string;
   environment: BlingEnvironment;
+  settingsKey: 'productSync' | 'inventorySync';
   status: BlingSyncJobStatus;
   summary?: Record<string, unknown>;
+  updateLastSyncAt?: boolean;
 }) {
   const supabase = requireAdminClient();
 
@@ -338,7 +346,7 @@ export async function recordBlingProductSyncEventInRepository(input: {
   const updatePayload: Record<string, unknown> = {
     settings_json: {
       ...previousSettings,
-      productSync: {
+      [input.settingsKey]: {
         status: input.status,
         summary: input.summary ?? null,
         updatedAt,
@@ -347,7 +355,7 @@ export async function recordBlingProductSyncEventInRepository(input: {
     updated_at: updatedAt,
   };
 
-  if (input.status === 'success') {
+  if (input.status === 'success' && input.updateLastSyncAt) {
     updatePayload.last_sync_at = updatedAt;
   }
 
@@ -359,6 +367,85 @@ export async function recordBlingProductSyncEventInRepository(input: {
     .eq('environment', input.environment);
 
   if (error) {
-    throw new Error('Unable to record Bling product sync event.');
+    throw new Error('Unable to record Bling sync event.');
   }
+}
+
+export async function hasRunningBlingProductSyncJobInRepository(storeId: string) {
+  return hasRunningBlingSyncJobInRepository(storeId, 'product_sync');
+}
+
+export async function createBlingProductSyncJobInRepository(input: {
+  storeId: string;
+  summary?: Record<string, unknown>;
+}) {
+  return createBlingSyncJobInRepository({
+    ...input,
+    jobType: 'product_sync',
+  });
+}
+
+export async function completeBlingProductSyncJobInRepository(input: {
+  jobId: string;
+  storeId: string;
+  status: Exclude<BlingSyncJobStatus, 'running'>;
+  summary: Record<string, unknown>;
+  lastError?: string;
+}) {
+  return completeBlingSyncJobInRepository({
+    ...input,
+    jobType: 'product_sync',
+  });
+}
+
+export async function recordBlingProductSyncEventInRepository(input: {
+  storeId: string;
+  environment: BlingEnvironment;
+  status: BlingSyncJobStatus;
+  summary?: Record<string, unknown>;
+}) {
+  return recordBlingSyncEventInRepository({
+    ...input,
+    settingsKey: 'productSync',
+    updateLastSyncAt: true,
+  });
+}
+
+export async function hasRunningBlingInventorySyncJobInRepository(storeId: string) {
+  return hasRunningBlingSyncJobInRepository(storeId, 'inventory_sync');
+}
+
+export async function createBlingInventorySyncJobInRepository(input: {
+  storeId: string;
+  summary?: Record<string, unknown>;
+}) {
+  return createBlingSyncJobInRepository({
+    ...input,
+    jobType: 'inventory_sync',
+  });
+}
+
+export async function completeBlingInventorySyncJobInRepository(input: {
+  jobId: string;
+  storeId: string;
+  status: Exclude<BlingSyncJobStatus, 'running'>;
+  summary: Record<string, unknown>;
+  lastError?: string;
+}) {
+  return completeBlingSyncJobInRepository({
+    ...input,
+    jobType: 'inventory_sync',
+  });
+}
+
+export async function recordBlingInventorySyncEventInRepository(input: {
+  storeId: string;
+  environment: BlingEnvironment;
+  status: BlingSyncJobStatus;
+  summary?: Record<string, unknown>;
+}) {
+  return recordBlingSyncEventInRepository({
+    ...input,
+    settingsKey: 'inventorySync',
+  });
 }

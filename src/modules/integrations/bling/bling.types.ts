@@ -109,6 +109,45 @@ export interface BlingAdminState {
       syncSince?: string;
       tokenRefreshed?: boolean;
       errorCode?: string;
+      diagnostics?: Array<{
+        externalId?: string;
+        name?: string;
+        sku?: string;
+        action?: 'created' | 'updated' | 'skipped' | 'error';
+        status?: string;
+        category?: string;
+        categoryLinked?: boolean;
+        imageFound?: boolean;
+        variants?: number;
+        stockItems?: number;
+        errorCode?: string;
+      }>;
+    };
+  };
+  inventorySync?: {
+    status: 'running' | 'success' | 'error';
+    updatedAt?: string;
+    summary?: {
+      status?: 'success' | 'error';
+      jobId?: string;
+      startedAt?: string;
+      finishedAt?: string;
+      durationMs?: number;
+      variantsProcessed?: number;
+      variantsUpdated?: number;
+      variantsSkipped?: number;
+      stockBalancesSynced?: number;
+      errors?: number;
+      tokenRefreshed?: boolean;
+      errorCode?: string;
+      diagnostics?: Array<{
+        externalId?: string;
+        sku?: string;
+        previousStock?: number;
+        nextStock?: number;
+        action?: 'updated' | 'skipped' | 'error';
+        errorCode?: string;
+      }>;
     };
   };
 }

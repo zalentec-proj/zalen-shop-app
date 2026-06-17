@@ -8,7 +8,9 @@ Status atual:
 - Rotas server-side criadas.
 - Persistência segura preparada em `store_integrations.credentials_encrypted`.
 - Tokens só são salvos se `INTEGRATION_TOKEN_ENCRYPTION_KEY` estiver configurada.
-- Sync de produtos, pedidos e webhooks reais ainda não implementados.
+- Sync real de produtos implementado.
+- Sync dedicado de estoque implementado para variantes já vinculadas.
+- Pedidos e webhooks reais ainda não implementados.
 
 Arquivos principais:
 
@@ -16,6 +18,8 @@ Arquivos principais:
 - `bling.oauth.ts`: autorização e troca de authorization code.
 - `bling.repository.ts`: leitura/gravação de status por `storeId`.
 - `bling.service.ts`: orquestração server-side.
+- `products/`: sync de catálogo Bling para Supabase.
+- `inventory/`: sync de estoque Bling para variantes Supabase.
 - `bling.connector.ts`: placeholder do conector operacional futuro.
 
 Env necessária:

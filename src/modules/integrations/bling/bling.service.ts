@@ -15,6 +15,7 @@ import type { BlingAdminState, BlingTokenResponse } from './bling.types';
 
 type BlingHomologationAdminState = NonNullable<BlingAdminState['homologation']>;
 type BlingProductSyncAdminState = NonNullable<BlingAdminState['productSync']>;
+type BlingInventorySyncAdminState = NonNullable<BlingAdminState['inventorySync']>;
 
 function toBlingConnectionStatus(status: string | undefined) {
   if (
@@ -80,6 +81,31 @@ function toBlingProductSyncState(settings: Record<string, unknown>) {
   } satisfies BlingProductSyncAdminState;
 }
 
+function toBlingInventorySyncState(settings: Record<string, unknown>) {
+  const inventorySync = settings.inventorySync;
+
+  if (!inventorySync || typeof inventorySync !== 'object') {
+    return undefined;
+  }
+
+  const record = inventorySync as Record<string, unknown>;
+  const status = record.status;
+
+  if (status !== 'running' && status !== 'success' && status !== 'error') {
+    return undefined;
+  }
+
+  return {
+    status,
+    updatedAt:
+      typeof record.updatedAt === 'string' ? record.updatedAt : undefined,
+    summary:
+      record.summary && typeof record.summary === 'object'
+        ? (record.summary as BlingInventorySyncAdminState['summary'])
+        : undefined,
+  } satisfies BlingInventorySyncAdminState;
+}
+
 export async function getBlingAdminState(
   storeId: string
 ): Promise<BlingAdminState> {
@@ -111,6 +137,9 @@ export async function getBlingAdminState(
       : undefined,
     productSync: integration
       ? toBlingProductSyncState(integration.settings)
+      : undefined,
+    inventorySync: integration
+      ? toBlingInventorySyncState(integration.settings)
       : undefined,
   };
 }

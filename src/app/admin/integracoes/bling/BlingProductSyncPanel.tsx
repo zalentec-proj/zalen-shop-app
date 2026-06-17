@@ -21,6 +21,21 @@ const safeErrorLabel: Record<string, string> = {
   product_sync_already_running: 'Já existe uma sincronização em andamento.',
 };
 
+function ActionBadge({ action }: { action?: string }) {
+  const className =
+    action === 'error'
+      ? 'border-rose-400/20 bg-rose-400/10 text-rose-200'
+      : action === 'created'
+        ? 'border-sky-400/20 bg-sky-400/10 text-sky-200'
+        : 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200';
+
+  return (
+    <span className={`rounded-full border px-2 py-0.5 text-[10px] ${className}`}>
+      {action ?? 'ok'}
+    </span>
+  );
+}
+
 function Metric({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2">
@@ -156,6 +171,41 @@ export function BlingProductSyncPanel({
         <p className="mt-2 text-[11px] text-slate-500">
           Conecte o Bling via OAuth antes de sincronizar produtos.
         </p>
+      ) : null}
+
+      {summary?.diagnostics?.length ? (
+        <div className="mt-4 rounded-lg border border-white/6 bg-[#081225]">
+          <div className="border-b border-white/6 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+            Diagnóstico recente
+          </div>
+          <div className="divide-y divide-white/6">
+            {summary.diagnostics.slice(-5).map((item, index) => (
+              <div
+                key={`${item.externalId ?? 'produto'}-${index}`}
+                className="grid gap-1 px-3 py-2 text-xs text-slate-400"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate font-semibold text-slate-200">
+                    {item.name ?? item.externalId ?? 'Produto Bling'}
+                  </span>
+                  <ActionBadge action={item.action} />
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
+                  <span>ID: {item.externalId ?? '-'}</span>
+                  <span>SKU: {item.sku ?? '-'}</span>
+                  <span>Imagem: {item.imageFound ? 'sim' : 'não'}</span>
+                  <span>Categoria: {item.category ?? '-'}</span>
+                  <span>Estoque: {item.stockItems ?? 0}</span>
+                </div>
+                {item.errorCode ? (
+                  <span className="text-[11px] text-rose-200">
+                    Erro: {item.errorCode}
+                  </span>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
       ) : null}
     </section>
   );

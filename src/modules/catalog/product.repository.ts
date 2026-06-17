@@ -112,6 +112,14 @@ export interface UpsertIntegrationProductResult {
   categoryCreated: boolean;
 }
 
+export interface IntegrationProductVariantStockRow {
+  id: string;
+  productId: string;
+  externalId: string;
+  sku?: string;
+  stock: number;
+}
+
 type UpsertIntegrationCategoryResult = {
   id: string;
   created: boolean;
@@ -1408,6 +1416,66 @@ export async function updateProductStockInRepository(
     source: 'supabase',
     error: 'product-stock-update-failed',
   };
+}
+
+export async function listIntegrationProductVariantsForProvider(
+  storeId: string,
+  externalProvider: string
+): Promise<IntegrationProductVariantStockRow[]> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    throw new Error('Supabase admin client is not configured.');
+  }
+
+  const { data, error } = await supabase
+    .from('product_variants')
+    .select('id, product_id, external_id, sku, stock, products!inner(external_provider)')
+    .eq('store_id', storeId)
+    .eq('products.external_provider', externalProvider)
+    .not('external_id', 'is', null);
+
+  if (error || !data) {
+    throw new Error('Unable to query integration product variants.');
+  }
+
+  return (data as Array<{
+    id: string;
+    product_id: string;
+    external_id: string | null;
+    sku: string | null;
+    stock: number | null;
+  }>)
+    .filter((row) => row.external_id)
+    .map((row) => ({
+      id: row.id,
+      productId: row.product_id,
+      externalId: row.external_id as string,
+      sku: row.sku ?? undefined,
+      stock: row.stock ?? 0,
+    }));
+}
+
+export async function updateIntegrationVariantStockInRepository(input: {
+  storeId: string;
+  variantId: string;
+  stock: number;
+}) {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    throw new Error('Supabase admin client is not configured.');
+  }
+
+  const { error } = await supabase
+    .from('product_variants')
+    .update({ stock: input.stock })
+    .eq('store_id', input.storeId)
+    .eq('id', input.variantId);
+
+  if (error) {
+    throw new Error('Unable to update integration variant stock.');
+  }
 }
 
 export async function upsertIntegrationProductInRepository(

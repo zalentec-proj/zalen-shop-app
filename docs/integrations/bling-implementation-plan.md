@@ -30,6 +30,8 @@ Bling. Pedidos e webhooks continuam fora do escopo desta etapa.
   por slug e aliases canônicos, evitando duplicidade simples.
 - Extração robusta de URL de imagem do produto/variação Bling para salvar em
   `product_images`, sem baixar ou expor arquivos externos no frontend de admin.
+- Diagnóstico sanitizado por produto no resumo do sync de catálogo.
+- Sync dedicado de estoque para variantes já vinculadas ao Bling.
 
 ## Rotas
 
@@ -38,6 +40,7 @@ GET /api/integrations/bling/connect
 GET /api/integrations/bling/callback
 POST /api/integrations/bling/homologation/run
 POST /api/integrations/bling/products/sync
+POST /api/integrations/bling/inventory/sync
 ```
 
 ## Domínios oficiais
@@ -164,11 +167,11 @@ sensíveis.
 
 ## O que não foi implementado
 
-- Sync de estoque por depósito.
+- Sync de estoque por depósito específico.
 - Envio de pedidos para Bling.
 - Sync real baseado no produto usado na homologação.
 - Webhooks reais.
-- Reprocessamento de erros.
+- Reprocessamento unitário por produto.
 
 ## Product Sync v1
 
@@ -225,6 +228,32 @@ Regras implementadas:
 - Se uma categoria duplicada antiga com o mesmo `external_id` existir, o próximo
   sync relinka o produto para a categoria nativa e remove a duplicada quando ela
   ficar sem produtos.
+- O resumo do sync guarda diagnóstico sanitizado dos últimos produtos processados:
+  `externalId`, nome, SKU, ação, status mapeado, categoria, presença de imagem,
+  quantidade de variantes/saldos e erro seguro quando houver.
+
+## Inventory Sync v1
+
+O estoque pode ser sincronizado sem reprocessar catálogo inteiro.
+
+Endpoint oficial usado:
+
+```txt
+GET https://api.bling.com.br/Api/v3/estoques/saldos
+```
+
+Regras implementadas:
+
+- A rota interna `POST /api/integrations/bling/inventory/sync` exige sessão e
+  acesso à loja ativa.
+- O sync lista variantes já vinculadas ao Bling por `external_id`.
+- O saldo é buscado em lotes usando `/estoques/saldos`.
+- Apenas `product_variants.stock` é atualizado.
+- Produtos nativos sem vínculo Bling não são alterados.
+- `sync_jobs` registra execução como `inventory_sync`.
+- `settings_json.inventorySync` guarda o último resumo operacional.
+- O resumo guarda diagnóstico sanitizado dos últimos itens processados:
+  `externalId`, SKU, estoque anterior, estoque novo, ação e erro seguro.
 
 Limitações da v1:
 
@@ -233,11 +262,13 @@ Limitações da v1:
   nova para não perder classificação.
 - Upload/cópia da imagem para Supabase Storage ainda não foi implementado; a v1
   usa a URL pública retornada pelo Bling.
+- Reprocessamento unitário por produto ainda não foi implementado; por enquanto
+  usar "Reprocessar tudo" para catálogo e "Sincronizar estoque" para saldos.
 
 ## Próximas etapas
 
-1. Implementar estoque por depósito específico via `/estoques/saldos/{idDeposito}`.
-2. Criar tela detalhada de histórico/reprocessamento de sync.
+1. Implementar reprocessamento unitário por produto.
+2. Implementar estoque por depósito específico via `/estoques/saldos/{idDeposito}`.
 3. Implementar envio idempotente de pedidos.
 4. Implementar webhooks com validação de assinatura.
 5. Preparar Mercado Pago e Melhor Envio como conectores opcionais futuros.

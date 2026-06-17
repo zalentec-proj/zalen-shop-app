@@ -1,6 +1,6 @@
 # Pesquisa Técnica — Bling
 
-> Status: **App público / OAuth Ready / Product Sync v1**
+> Status: **App público / OAuth Ready / Product Sync v1 / Inventory Sync v1**
 > Fontes oficiais consultadas: https://developer.bling.com.br
 
 ## Fonte oficial
@@ -134,6 +134,8 @@ Regras da v1:
 - após o primeiro sync, `dataAlteracaoInicial` usa o último sync bem-sucedido;
 - categoria é vinculada quando `categoria.id` resolve para descrição clara;
 - saldos usam `/estoques/saldos` quando o escopo de estoque está disponível.
+- o resumo do sync registra diagnóstico sanitizado dos últimos produtos
+  processados, sem payload bruto.
 
 ## Estoque
 
@@ -150,6 +152,14 @@ GET https://api.bling.com.br/Api/v3/estoques/saldos/{idDeposito}
 
 Pendência: implementar seleção de depósito específico quando a operação precisar
 separar saldo físico, saldo virtual e centros de distribuição.
+
+Implementado na v1 de estoque:
+
+- rota server-side `POST /api/integrations/bling/inventory/sync`;
+- leitura das variantes já vinculadas ao Bling via `external_id`;
+- atualização exclusiva de `product_variants.stock`;
+- registro de job `inventory_sync`;
+- diagnóstico sanitizado por variante processada.
 
 ## Pedidos
 
@@ -192,6 +202,7 @@ INTEGRATION_TOKEN_ENCRYPTION_KEY=
 - [x] `credentials_encrypted` não é selecionado no admin.
 - [x] Store filtrada por `storeId`.
 - [x] Sync de produtos usa somente rota server-side e resumo sanitizado.
+- [x] Sync de estoque usa somente rota server-side e resumo sanitizado.
 - [ ] Webhook validado por assinatura antes de processar.
 - [ ] Sync e envio de pedidos com idempotência.
 

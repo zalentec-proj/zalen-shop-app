@@ -9,6 +9,7 @@ import { getCurrentUser, canAccessStore } from '@/modules/auth/auth.service';
 import { getBlingAdminState } from '@/modules/integrations/bling/bling.service';
 import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
 import { BlingHomologationPanel } from './BlingHomologationPanel';
+import { BlingInventorySyncPanel } from './BlingInventorySyncPanel';
 import { BlingProductSyncPanel } from './BlingProductSyncPanel';
 
 export const metadata: Metadata = {
@@ -216,6 +217,13 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
               initialStatus={state.productSync?.status}
               initialUpdatedAt={state.productSync?.updatedAt}
               initialSummary={state.productSync?.summary}
+            />
+
+            <BlingInventorySyncPanel
+              canRun={status === 'connected' && state.isEncryptionConfigured}
+              initialStatus={state.inventorySync?.status}
+              initialUpdatedAt={state.inventorySync?.updatedAt}
+              initialSummary={state.inventorySync?.summary}
             />
           </aside>
         </div>

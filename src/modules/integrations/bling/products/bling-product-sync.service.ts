@@ -24,6 +24,7 @@ import type {
 
 const pageLimit = 100;
 const requestIntervalMs = 400;
+const diagnosticsLimit = 30;
 
 function sleep(ms: number) {
   return new Promise((resolve) => {
@@ -62,6 +63,7 @@ function createInitialSummary(startedAt: string): BlingProductSyncSummary {
     stockBalancesSynced: 0,
     syncMode: 'full',
     tokenRefreshed: false,
+    diagnostics: [],
   };
 }
 
@@ -115,6 +117,13 @@ async function runSafely(operation: () => Promise<void>) {
   } catch {
     // Operational bookkeeping must never leak sensitive provider details.
   }
+}
+
+function addDiagnostic(
+  summary: BlingProductSyncSummary,
+  diagnostic: BlingProductSyncSummary['diagnostics'][number]
+) {
+  summary.diagnostics = [...summary.diagnostics, diagnostic].slice(-diagnosticsLimit);
 }
 
 export async function runBlingProductSync(
@@ -283,7 +292,7 @@ export async function runBlingProductSync(
             storeId,
             product,
             categoryName,
-            stockByProductId,
+          stockByProductId,
           });
           const result = await upsertIntegrationProductInRepository(mappedProduct);
 
@@ -306,10 +315,30 @@ export async function runBlingProductSync(
             summary.categoriesCreated += 1;
           }
 
+          addDiagnostic(summary, {
+            externalId: mappedProduct.externalId,
+            name: mappedProduct.name,
+            sku: mappedProduct.variant.sku,
+            action: result.action,
+            status: mappedProduct.status,
+            category: mappedProduct.category?.name,
+            categoryLinked: result.categoryLinked,
+            imageFound: Boolean(mappedProduct.imageUrl),
+            variants: mappedProduct.variants?.length ?? 1,
+            stockItems: stockByProductId.size,
+          });
+
           // Complex Bling variations are mapped into product_variants in this sprint.
-        } catch {
+        } catch (productError) {
           summary.productsSkipped += 1;
           summary.errors += 1;
+          addDiagnostic(summary, {
+            externalId: String(listProduct.id),
+            name: listProduct.nome?.trim(),
+            sku: listProduct.codigo?.trim(),
+            action: 'error',
+            errorCode: toSafeErrorCode(productError),
+          });
         }
       }
 
