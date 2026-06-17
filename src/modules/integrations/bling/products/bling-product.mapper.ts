@@ -1,5 +1,9 @@
 import type { ProductStatus } from '@/modules/catalog/product.types';
-import type { BlingProductDetail, MappedBlingProduct } from './bling-product.types';
+import type {
+  BlingProductDetail,
+  BlingProductVariation,
+  MappedBlingProduct,
+} from './bling-product.types';
 
 const provider = 'bling';
 
@@ -73,10 +77,51 @@ function getImageUrl(product: BlingProductDetail) {
   );
 }
 
+function mapProductVariant(input: {
+  product: BlingProductDetail | BlingProductVariation;
+  fallbackProduct: BlingProductDetail;
+  stockByProductId?: Map<string, number>;
+}) {
+  const externalId = String(input.product.id ?? input.fallbackProduct.id);
+  const dimensions = input.product.dimensoes ?? input.fallbackProduct.dimensoes;
+  const unidadeMedida = dimensions?.unidadeMedida;
+  const width = toCentimeters(toNumber(dimensions?.largura), unidadeMedida);
+  const height = toCentimeters(toNumber(dimensions?.altura), unidadeMedida);
+  const depth = toCentimeters(toNumber(dimensions?.profundidade), unidadeMedida);
+  const weight = toNumber(
+    input.product.pesoBruto ??
+      input.product.pesoLiquido ??
+      input.fallbackProduct.pesoBruto ??
+      input.fallbackProduct.pesoLiquido
+  );
+  const variationName =
+    'variacao' in input.product ? input.product.variacao?.nome : undefined;
+  const stock =
+    input.stockByProductId?.get(externalId) ??
+    toStock(input.product.estoque?.saldoVirtualTotal);
+
+  const attributes: Record<string, string> | undefined = variationName
+    ? { variacao: variationName }
+    : undefined;
+
+  return {
+    externalId,
+    sku: input.product.codigo?.trim() || input.fallbackProduct.codigo?.trim() || undefined,
+    price: toNonNegativeNumber(input.product.preco ?? input.fallbackProduct.preco),
+    stock,
+    weight,
+    width,
+    height,
+    depth,
+    attributes,
+  };
+}
+
 export function mapBlingProductToCatalogInput(input: {
   storeId: string;
   product: BlingProductDetail;
   categoryName?: string;
+  stockByProductId?: Map<string, number>;
 }): MappedBlingProduct {
   if (!input.product.id) {
     throw new Error('missing_bling_product_id');
@@ -91,12 +136,25 @@ export function mapBlingProductToCatalogInput(input: {
   const externalId = String(input.product.id);
   const categoryId = input.product.categoria?.id;
   const categoryWasClear = Boolean(categoryId && input.categoryName);
-  const dimensions = input.product.dimensoes;
-  const unidadeMedida = dimensions?.unidadeMedida;
-  const width = toCentimeters(toNumber(dimensions?.largura), unidadeMedida);
-  const height = toCentimeters(toNumber(dimensions?.altura), unidadeMedida);
-  const depth = toCentimeters(toNumber(dimensions?.profundidade), unidadeMedida);
-  const weight = toNumber(input.product.pesoBruto ?? input.product.pesoLiquido);
+  const variations = Array.isArray(input.product.variacoes)
+    ? input.product.variacoes.filter((variation) => variation.id)
+    : [];
+  const mappedVariants =
+    variations.length > 0
+      ? variations.map((variation) =>
+          mapProductVariant({
+            product: variation,
+            fallbackProduct: input.product,
+            stockByProductId: input.stockByProductId,
+          })
+        )
+      : [
+          mapProductVariant({
+            product: input.product,
+            fallbackProduct: input.product,
+            stockByProductId: input.stockByProductId,
+          }),
+        ];
 
   return {
     storeId: input.storeId,
@@ -109,16 +167,9 @@ export function mapBlingProductToCatalogInput(input: {
     status: toStatus(input.product.situacao),
     requiresShipping: true,
     variant: {
-      externalId,
-      sku: input.product.codigo?.trim() || undefined,
-      price: toNonNegativeNumber(input.product.preco),
-      stock: toStock(input.product.estoque?.saldoVirtualTotal),
-      weight,
-      width,
-      height,
-      depth,
-      attributes: {},
+      ...mappedVariants[0],
     },
+    variants: mappedVariants,
     category:
       categoryWasClear && categoryId && input.categoryName
         ? {
@@ -128,6 +179,6 @@ export function mapBlingProductToCatalogInput(input: {
         : undefined,
     imageUrl: getImageUrl(input.product),
     categoryWasClear,
-    hasComplexVariations: input.product.formato === 'V',
+    hasComplexVariations: false,
   };
 }

@@ -48,6 +48,26 @@ export interface BlingProductDetail extends BlingProductListItem {
     };
   };
   imagemURL?: string;
+  variacoes?: BlingProductVariation[];
+}
+
+export interface BlingProductVariation extends BlingProductDetail {
+  variacao?: {
+    nome?: string;
+  };
+}
+
+export interface BlingStockBalanceResponse {
+  data?: BlingStockBalance[];
+}
+
+export interface BlingStockBalance {
+  produto?: {
+    id?: number;
+    codigo?: string;
+  };
+  saldoFisicoTotal?: number | string;
+  saldoVirtualTotal?: number | string;
 }
 
 export type MappedBlingProduct = UpsertIntegrationProductInput & {
@@ -70,6 +90,10 @@ export interface BlingProductSyncSummary {
   categoriesCreated: number;
   categoriesSkipped: number;
   errors: number;
+  variantsProcessed: number;
+  stockBalancesSynced: number;
+  syncMode: 'full' | 'incremental';
+  syncSince?: string;
   tokenRefreshed: boolean;
   errorCode?: string;
 }

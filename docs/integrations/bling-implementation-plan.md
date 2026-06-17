@@ -21,6 +21,9 @@ Bling. Pedidos e webhooks continuam fora do escopo desta etapa.
 - Sync server-side de produtos Bling para o catálogo Supabase.
 - Preservação de produtos nativos sem vínculo externo.
 - Origem do produto exibida no admin: Zalen ou Bling.
+- Sync incremental por `dataAlteracaoInicial` após o primeiro sync completo.
+- Mapeamento de variações Bling para múltiplas `product_variants`.
+- Consulta de saldos via endpoint oficial de estoque quando o escopo permitir.
 
 ## Rotas
 
@@ -173,6 +176,7 @@ Endpoints oficiais usados:
 GET https://api.bling.com.br/Api/v3/produtos
 GET https://api.bling.com.br/Api/v3/produtos/{idProduto}
 GET https://api.bling.com.br/Api/v3/categorias/produtos/{idCategoriaProduto}
+GET https://api.bling.com.br/Api/v3/estoques/saldos
 ```
 
 Regras implementadas:
@@ -189,19 +193,21 @@ Regras implementadas:
 - `sync_jobs` registra execução com resumo sanitizado e sem payload bruto.
 - `store_integrations.last_sync_at` e `settings_json.productSync` guardam o
   último resumo operacional.
+- Se `last_sync_at` existir, o próximo sync usa `dataAlteracaoInicial`.
+- Produtos com `variacoes` geram variantes separadas no catálogo Zalen.
+- Estoque usa `/estoques/saldos` por produto/variação quando disponível; se o
+  escopo de estoque falhar, o sync continua com o saldo do payload de produto.
 
 Limitações da v1:
 
-- Variações complexas do Bling ainda não viram múltiplas variantes Zalen.
-- Estoque por depósito ainda não usa `/estoques/saldos`.
+- Estoque por depósito específico ainda não usa `/estoques/saldos/{idDeposito}`.
 - Categorias só são vinculadas quando o `categoria.id` resolve para descrição
   clara no endpoint oficial de categorias.
 
 ## Próximas etapas
 
-1. Implementar sync incremental por `dataAlteracaoInicial`.
-2. Implementar estoque por depósito via `/estoques/saldos`.
-3. Mapear variações Bling para múltiplas `product_variants`.
-4. Implementar envio idempotente de pedidos.
-5. Implementar webhooks com validação de assinatura.
-6. Preparar Mercado Pago e Melhor Envio como conectores opcionais futuros.
+1. Implementar estoque por depósito específico via `/estoques/saldos/{idDeposito}`.
+2. Criar tela detalhada de histórico/reprocessamento de sync.
+3. Implementar envio idempotente de pedidos.
+4. Implementar webhooks com validação de assinatura.
+5. Preparar Mercado Pago e Melhor Envio como conectores opcionais futuros.

@@ -120,6 +120,7 @@ Endpoints oficiais usados:
 GET https://api.bling.com.br/Api/v3/produtos
 GET https://api.bling.com.br/Api/v3/produtos/{idProduto}
 GET https://api.bling.com.br/Api/v3/categorias/produtos/{idCategoriaProduto}
+GET https://api.bling.com.br/Api/v3/estoques/saldos
 ```
 
 Regras da v1:
@@ -129,13 +130,16 @@ Regras da v1:
 - produtos nativos sem vínculo externo não são sobrescritos;
 - storefront e admin continuam lendo do Supabase;
 - variante padrão é criada/atualizada com SKU, preço e estoque;
+- variações são mapeadas para múltiplas `product_variants`;
+- após o primeiro sync, `dataAlteracaoInicial` usa o último sync bem-sucedido;
 - categoria é vinculada quando `categoria.id` resolve para descrição clara;
-- variações complexas ficam como pendência documentada.
+- saldos usam `/estoques/saldos` quando o escopo de estoque está disponível.
 
 ## Estoque
 
 Estoque básico é sincronizado a partir de `estoque.saldoVirtualTotal` retornado
-no produto Bling.
+no produto Bling e, quando o escopo permite, reforçado pelo endpoint oficial de
+saldos.
 
 Endpoint oficial separado identificado para evolução futura:
 
@@ -144,8 +148,8 @@ GET https://api.bling.com.br/Api/v3/estoques/saldos
 GET https://api.bling.com.br/Api/v3/estoques/saldos/{idDeposito}
 ```
 
-Pendência: implementar estoque por depósito quando a operação precisar separar
-saldo físico, saldo virtual e centros de distribuição.
+Pendência: implementar seleção de depósito específico quando a operação precisar
+separar saldo físico, saldo virtual e centros de distribuição.
 
 ## Pedidos
 

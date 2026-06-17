@@ -89,6 +89,18 @@ export interface UpsertIntegrationProductInput {
     depth?: number;
     attributes?: Record<string, string>;
   };
+  variants?: Array<{
+    externalId: string;
+    sku?: string;
+    price: number;
+    promotionalPrice?: number;
+    stock: number;
+    weight?: number;
+    width?: number;
+    height?: number;
+    depth?: number;
+    attributes?: Record<string, string>;
+  }>;
   category?: UpsertIntegrationCategoryInput;
   imageUrl?: string;
 }
@@ -1396,52 +1408,101 @@ export async function upsertIntegrationProductInRepository(
     action = 'created';
   }
 
-  const { data: existingVariant, error: existingVariantError } = await supabase
-    .from('product_variants')
-    .select('id')
-    .eq('store_id', input.storeId)
-    .eq('product_id', productId)
-    .eq('external_id', input.variant.externalId)
-    .limit(1)
-    .maybeSingle();
+  const variants = input.variants?.length ? input.variants : [input.variant];
+  const variantExternalIds = variants.map((variant) => variant.externalId);
 
-  if (existingVariantError) {
-    throw new Error('Unable to query integration product variant.');
+  for (const variant of variants) {
+    const { data: existingVariant, error: existingVariantError } = await supabase
+      .from('product_variants')
+      .select('id')
+      .eq('store_id', input.storeId)
+      .eq('product_id', productId)
+      .eq('external_id', variant.externalId)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingVariantError) {
+      throw new Error('Unable to query integration product variant.');
+    }
+
+    const variantPayload = {
+      store_id: input.storeId,
+      product_id: productId,
+      external_id: variant.externalId,
+      sku: variant.sku ?? null,
+      price: variant.price,
+      promotional_price: variant.promotionalPrice ?? null,
+      stock: variant.stock,
+      weight: variant.weight ?? null,
+      width: variant.width ?? null,
+      height: variant.height ?? null,
+      depth: variant.depth ?? null,
+      attributes_json: variant.attributes ?? {},
+    };
+
+    if (existingVariant) {
+      const { error } = await supabase
+        .from('product_variants')
+        .update(variantPayload)
+        .eq('store_id', input.storeId)
+        .eq('id', existingVariant.id);
+
+      if (error) {
+        throw new Error('Unable to update integration product variant.');
+      }
+    } else {
+      const { error } = await supabase.from('product_variants').insert({
+        ...variantPayload,
+        created_at: now,
+      });
+
+      if (error) {
+        throw new Error('Unable to create integration product variant.');
+      }
+    }
   }
 
-  const variantPayload = {
-    store_id: input.storeId,
-    product_id: productId,
-    external_id: input.variant.externalId,
-    sku: input.variant.sku ?? null,
-    price: input.variant.price,
-    promotional_price: input.variant.promotionalPrice ?? null,
-    stock: input.variant.stock,
-    weight: input.variant.weight ?? null,
-    width: input.variant.width ?? null,
-    height: input.variant.height ?? null,
-    depth: input.variant.depth ?? null,
-    attributes_json: input.variant.attributes ?? {},
-  };
-
-  if (existingVariant) {
-    const { error } = await supabase
+  if (variantExternalIds.length > 0) {
+    const { data: syncedVariantRows, error: syncedVariantsError } = await supabase
       .from('product_variants')
-      .update(variantPayload)
+      .select('id, external_id')
       .eq('store_id', input.storeId)
-      .eq('id', existingVariant.id);
+      .eq('product_id', productId)
+      .not('external_id', 'is', null);
 
-    if (error) {
-      throw new Error('Unable to update integration product variant.');
+    if (syncedVariantsError) {
+      throw new Error('Unable to query stale integration product variants.');
+    }
+
+    const staleVariantIds = (syncedVariantRows as Array<{
+      id: string;
+      external_id: string | null;
+    }> | null ?? [])
+      .filter((row) => row.external_id && !variantExternalIds.includes(row.external_id))
+      .map((row) => row.id);
+
+    if (staleVariantIds.length > 0) {
+      const { error } = await supabase
+        .from('product_variants')
+        .delete()
+        .eq('store_id', input.storeId)
+        .eq('product_id', productId)
+        .in('id', staleVariantIds);
+
+      if (error) {
+        throw new Error('Unable to remove stale integration product variants.');
+      }
     }
   } else {
-    const { error } = await supabase.from('product_variants').insert({
-      ...variantPayload,
-      created_at: now,
-    });
+    const { error } = await supabase
+      .from('product_variants')
+      .delete()
+      .eq('store_id', input.storeId)
+      .eq('product_id', productId)
+      .not('external_id', 'is', null);
 
     if (error) {
-      throw new Error('Unable to create integration product variant.');
+      throw new Error('Unable to remove stale integration product variants.');
     }
   }
 

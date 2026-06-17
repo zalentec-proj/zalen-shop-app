@@ -106,14 +106,21 @@ export function BlingProductSyncPanel({
       <div className="mt-4 grid grid-cols-2 gap-2">
         <Metric label="Criados" value={summary?.productsCreated ?? 0} />
         <Metric label="Atualizados" value={summary?.productsUpdated ?? 0} />
-        <Metric label="Erros" value={summary?.errors ?? 0} />
+        <Metric label="Variantes" value={summary?.variantsProcessed ?? 0} />
+        <Metric label="Saldos" value={summary?.stockBalancesSynced ?? 0} />
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-2">
         <Metric label="Categorias" value={summary?.categoriesLinked ?? 0} />
+        <Metric label="Erros" value={summary?.errors ?? 0} />
       </div>
 
       <div className="mt-3 rounded-lg border border-white/6 bg-[#081225] px-3 py-2 text-xs text-slate-400">
         Último sync:{' '}
         <span className="font-semibold text-slate-200">
           {summary?.finishedAt ?? updatedAt ?? 'Não executado'}
+        </span>
+        <span className="ml-2 rounded-full border border-white/8 bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-slate-300">
+          {summary?.syncMode === 'incremental' ? 'incremental' : 'completo'}
         </span>
       </div>
 

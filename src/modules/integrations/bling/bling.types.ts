@@ -103,6 +103,10 @@ export interface BlingAdminState {
       categoriesCreated?: number;
       categoriesSkipped?: number;
       errors?: number;
+      variantsProcessed?: number;
+      stockBalancesSynced?: number;
+      syncMode?: 'full' | 'incremental';
+      syncSince?: string;
       tokenRefreshed?: boolean;
       errorCode?: string;
     };

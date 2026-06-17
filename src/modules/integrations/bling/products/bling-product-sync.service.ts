@@ -7,6 +7,7 @@ import type { BlingEnvironment } from '../bling.types';
 import {
   completeBlingProductSyncJobInRepository,
   createBlingProductSyncJobInRepository,
+  getBlingIntegrationFromRepository,
   hasRunningBlingProductSyncJobInRepository,
   recordBlingProductSyncEventInRepository,
 } from '../bling.repository';
@@ -16,6 +17,7 @@ import type {
   BlingProductDetail,
   BlingProductDetailResponse,
   BlingProductListResponse,
+  BlingStockBalanceResponse,
   BlingProductSyncResult,
   BlingProductSyncSummary,
 } from './bling-product.types';
@@ -56,8 +58,34 @@ function createInitialSummary(startedAt: string): BlingProductSyncSummary {
     categoriesCreated: 0,
     categoriesSkipped: 0,
     errors: 0,
+    variantsProcessed: 0,
+    stockBalancesSynced: 0,
+    syncMode: 'full',
     tokenRefreshed: false,
   };
+}
+
+function toStock(value: number | string | null | undefined) {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? Math.max(Math.floor(parsed), 0) : 0;
+}
+
+function getBlingProductIds(product: BlingProductDetail) {
+  const ids = new Set<number>();
+
+  if (product.id) {
+    ids.add(product.id);
+  }
+
+  if (Array.isArray(product.variacoes)) {
+    product.variacoes.forEach((variation) => {
+      if (variation.id) {
+        ids.add(variation.id);
+      }
+    });
+  }
+
+  return Array.from(ids);
 }
 
 function finishSummary(
@@ -121,6 +149,16 @@ export async function runBlingProductSync(
     client = clientContext.client;
     environment = clientContext.environment;
     const activeClient = clientContext.client;
+    const integration = await getBlingIntegrationFromRepository(storeId);
+    const syncSince = integration?.lastSyncAt;
+
+    if (syncSince) {
+      summary = {
+        ...summary,
+        syncMode: 'incremental',
+        syncSince,
+      };
+    }
 
     jobId = await createBlingProductSyncJobInRepository({
       storeId,
@@ -146,7 +184,7 @@ export async function runBlingProductSync(
 
     const request = async <T>(
       path: string,
-      query?: Record<string, string | number | undefined>
+      query?: Record<string, string | number | Array<string | number> | undefined>
     ) => {
       const elapsed = Date.now() - lastRequestAt;
 
@@ -177,10 +215,42 @@ export async function runBlingProductSync(
       }
     };
 
+    const getStockByProductId = async (product: BlingProductDetail) => {
+      const productIds = getBlingProductIds(product);
+      const stockByProductId = new Map<string, number>();
+
+      if (productIds.length === 0) {
+        return stockByProductId;
+      }
+
+      try {
+        const response = await request<BlingStockBalanceResponse>('/estoques/saldos', {
+          'idsProdutos[]': productIds,
+        });
+
+        for (const item of response.data ?? []) {
+          const productId = item.produto?.id;
+
+          if (!productId) {
+            continue;
+          }
+
+          stockByProductId.set(String(productId), toStock(item.saldoVirtualTotal));
+        }
+
+        summary.stockBalancesSynced += stockByProductId.size;
+      } catch {
+        // Keep product sync useful even when the store lacks stock scope.
+      }
+
+      return stockByProductId;
+    };
+
     while (true) {
       const listResponse = await request<BlingProductListResponse>('/produtos', {
         pagina: page,
         limite: pageLimit,
+        dataAlteracaoInicial: syncSince,
       });
       const products = Array.isArray(listResponse.data) ? listResponse.data : [];
 
@@ -206,14 +276,17 @@ export async function runBlingProductSync(
           const categoryName = categoryId
             ? await getCategoryName(categoryId)
             : undefined;
+          const stockByProductId = await getStockByProductId(product);
           const mappedProduct = mapBlingProductToCatalogInput({
             storeId,
             product,
             categoryName,
+            stockByProductId,
           });
           const result = await upsertIntegrationProductInRepository(mappedProduct);
 
           summary.productsProcessed += 1;
+          summary.variantsProcessed += mappedProduct.variants?.length ?? 1;
 
           if (result.action === 'created') {
             summary.productsCreated += 1;
@@ -231,9 +304,7 @@ export async function runBlingProductSync(
             summary.categoriesCreated += 1;
           }
 
-          if (mappedProduct.hasComplexVariations) {
-            summary.productsSkipped += 1;
-          }
+          // Complex Bling variations are mapped into product_variants in this sprint.
         } catch {
           summary.productsSkipped += 1;
           summary.errors += 1;
