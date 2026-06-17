@@ -20,7 +20,15 @@ export interface BlingProductListItem {
   nome?: string;
   codigo?: string;
   preco?: number;
-  situacao?: string;
+  situacao?: string | number | boolean;
+}
+
+export interface BlingProductImageItem {
+  link?: string;
+  linkMiniatura?: string;
+  url?: string;
+  imagemURL?: string;
+  imageUrl?: string;
 }
 
 export interface BlingProductDetail extends BlingProductListItem {
@@ -43,11 +51,17 @@ export interface BlingProductDetail extends BlingProductListItem {
   };
   midia?: {
     imagens?: {
-      externas?: Array<{ link?: string }>;
-      internas?: Array<{ link?: string; linkMiniatura?: string }>;
+      externas?: BlingProductImageItem[];
+      internas?: BlingProductImageItem[];
+      imagens?: BlingProductImageItem[];
     };
   };
   imagemURL?: string;
+  imagemUrl?: string;
+  imageUrl?: string;
+  urlImagem?: string;
+  imagem?: BlingProductImageItem;
+  imagens?: BlingProductImageItem[];
   variacoes?: BlingProductVariation[];
 }
 

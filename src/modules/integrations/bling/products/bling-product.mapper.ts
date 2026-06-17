@@ -1,6 +1,7 @@
 import type { ProductStatus } from '@/modules/catalog/product.types';
 import type {
   BlingProductDetail,
+  BlingProductImageItem,
   BlingProductVariation,
   MappedBlingProduct,
 } from './bling-product.types';
@@ -73,13 +74,63 @@ function toCentimeters(
   return value;
 }
 
+function normalizeImageUrl(value: string | undefined) {
+  const trimmed = value?.trim();
+
+  if (!trimmed) {
+    return undefined;
+  }
+
+  if (trimmed.startsWith('//')) {
+    return `https:${trimmed}`;
+  }
+
+  try {
+    const url = new URL(trimmed);
+
+    if (url.protocol === 'http:' || url.protocol === 'https:') {
+      return url.toString();
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
+}
+
+function getImageItemUrl(image: BlingProductImageItem | undefined) {
+  return (
+    normalizeImageUrl(image?.link) ??
+    normalizeImageUrl(image?.url) ??
+    normalizeImageUrl(image?.imagemURL) ??
+    normalizeImageUrl(image?.imageUrl) ??
+    normalizeImageUrl(image?.linkMiniatura)
+  );
+}
+
+function getFirstImageItemUrl(images: BlingProductImageItem[] | undefined) {
+  for (const image of images ?? []) {
+    const url = getImageItemUrl(image);
+
+    if (url) {
+      return url;
+    }
+  }
+
+  return undefined;
+}
+
 function getImageUrl(product: BlingProductDetail) {
   return (
-    product.imagemURL ||
-    product.midia?.imagens?.externas?.find((image) => image.link)?.link ||
-    product.midia?.imagens?.internas?.find((image) => image.link)?.link ||
-    product.midia?.imagens?.internas?.find((image) => image.linkMiniatura)
-      ?.linkMiniatura
+    normalizeImageUrl(product.imagemURL) ??
+    normalizeImageUrl(product.imagemUrl) ??
+    normalizeImageUrl(product.imageUrl) ??
+    normalizeImageUrl(product.urlImagem) ??
+    getImageItemUrl(product.imagem) ??
+    getFirstImageItemUrl(product.imagens) ??
+    getFirstImageItemUrl(product.midia?.imagens?.externas) ??
+    getFirstImageItemUrl(product.midia?.imagens?.internas) ??
+    getFirstImageItemUrl(product.midia?.imagens?.imagens)
   );
 }
 
@@ -161,6 +212,9 @@ export function mapBlingProductToCatalogInput(input: {
             stockByProductId: input.stockByProductId,
           }),
         ];
+  const imageUrl =
+    getImageUrl(input.product) ??
+    variations.map((variation) => getImageUrl(variation)).find(Boolean);
 
   return {
     storeId: input.storeId,
@@ -183,7 +237,7 @@ export function mapBlingProductToCatalogInput(input: {
             name: input.categoryName,
           }
         : undefined,
-    imageUrl: getImageUrl(input.product),
+    imageUrl,
     categoryWasClear,
     hasComplexVariations: false,
   };

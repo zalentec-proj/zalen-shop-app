@@ -28,6 +28,8 @@ Bling. Pedidos e webhooks continuam fora do escopo desta etapa.
   o provedor retorna formatos equivalentes a ativo/inativo.
 - Reconciliação conservadora de categorias Bling com categorias nativas Zalen
   por slug e aliases canônicos, evitando duplicidade simples.
+- Extração robusta de URL de imagem do produto/variação Bling para salvar em
+  `product_images`, sem baixar ou expor arquivos externos no frontend de admin.
 
 ## Rotas
 
@@ -204,6 +206,10 @@ Regras implementadas:
 - Produtos com `variacoes` geram variantes separadas no catálogo Zalen.
 - Estoque usa `/estoques/saldos` por produto/variação quando disponível; se o
   escopo de estoque falhar, o sync continua com o saldo do payload de produto.
+- Imagens são gravadas como URL em `product_images` quando o payload Bling traz
+  campos como `imagemURL`, `imageUrl`, `urlImagem`, `imagem`, `imagens` ou
+  `midia.imagens`. Quando o produto pai não tem imagem, o sync tenta a primeira
+  imagem disponível nas variações.
 - Status do produto é normalizado antes de gravar no catálogo. Valores ativos
   conhecidos (`A`, `Ativo`, `Active`, `S`, `Sim`, `true`, `1`) publicam o produto;
   valores inativos conhecidos (`I`, `Inativo`, `Inactive`, `N`, `Não`, `false`,
@@ -222,6 +228,8 @@ Limitações da v1:
 - Estoque por depósito específico ainda não usa `/estoques/saldos/{idDeposito}`.
 - Categorias ambíguas, fora dos aliases definidos, ainda podem gerar categoria
   nova para não perder classificação.
+- Upload/cópia da imagem para Supabase Storage ainda não foi implementado; a v1
+  usa a URL pública retornada pelo Bling.
 
 ## Próximas etapas
 
