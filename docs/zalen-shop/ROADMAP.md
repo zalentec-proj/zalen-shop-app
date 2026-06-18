@@ -23,11 +23,12 @@ Objetivo: deixar a primeira loja operável.
 - Admin protegido.
 - Produtos editáveis conforme fonte de dados.
 - Pedidos salvos no banco.
+- Clientes operacionais por loja.
 - Checkout/pedido.
 - Integração Bling pesquisada e implementada.
 - Sync de produtos.
 - Sync de estoque.
-- Envio de pedidos para Bling.
+- Envio de pedidos para Bling com scaffold server-side e retry.
 - Logs de integração.
 - Reprocessamento básico de erros.
 

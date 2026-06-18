@@ -18,6 +18,29 @@ export type FulfillmentStatus =
   | 'fulfilled'
   | 'returned';
 
+export type ExternalErpSyncStatus = 'pending' | 'synced' | 'error' | 'skipped';
+
+export interface OrderAddressSnapshot {
+  recipientName?: string;
+  phone?: string;
+  postalCode?: string;
+  street?: string;
+  number?: string;
+  complement?: string;
+  district?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+}
+
+export interface OrderCustomerSnapshot {
+  name?: string;
+  email?: string;
+  phone?: string;
+  document?: string;
+  shippingAddress?: OrderAddressSnapshot;
+}
+
 export interface OrderItem {
   id: string;
   storeId: string;
@@ -36,6 +59,7 @@ export interface Order {
   storeId: string;
   orderNumber: string;
   customerId?: string;
+  customer?: OrderCustomerSnapshot;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   fulfillmentStatus: FulfillmentStatus;
@@ -46,8 +70,12 @@ export interface Order {
   /** ID do pedido no ERP (Bling) — preenchido após sincronização */
   externalErpProvider?: string;
   externalErpId?: string;
+  externalErpSyncStatus: ExternalErpSyncStatus;
+  externalErpLastError?: string;
+  externalErpSyncedAt?: string;
   items: OrderItem[];
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface OrderListItem extends Order {
@@ -59,6 +87,7 @@ export interface OrderListItem extends Order {
 export interface CreateOrderInput {
   storeId: string;
   customerId?: string;
+  customer?: OrderCustomerSnapshot;
   items: Array<{
     productId: string;
     variantId: string;

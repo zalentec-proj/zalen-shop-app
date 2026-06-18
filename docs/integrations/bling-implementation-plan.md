@@ -2,9 +2,9 @@
 
 ## Status desta sprint
 
-Implementada a base segura para OAuth Bling da Brasil Drones e a primeira versão
-real de sincronização de produtos. O app Zalen Shop está aprovado/publicado no
-Bling. Pedidos e webhooks continuam fora do escopo desta etapa.
+Implementada a base segura para OAuth Bling da Brasil Drones, sincronização real
+de produtos/estoque e o scaffold seguro para envio de pedidos. O app Zalen Shop
+está aprovado/publicado no Bling. Webhooks continuam fora do escopo desta etapa.
 
 ## O que foi implementado
 
@@ -34,6 +34,12 @@ Bling. Pedidos e webhooks continuam fora do escopo desta etapa.
 - Reprocessamento unitário de produto Bling pelo `externalId` exibido no
   diagnóstico do admin.
 - Sync dedicado de estoque para variantes já vinculadas ao Bling.
+- Clientes nativos Zalen com snapshot no pedido.
+- Disparo automático server-side de envio de pedido após checkout.
+- Registro de `sync_jobs.job_type = order_send`.
+- Retry manual de pedido pelo admin.
+- Bloqueio seguro `bling_order_contract_pending` enquanto endpoint/payload
+  oficial de criação de pedido não estiver documentado.
 
 ## Rotas
 
@@ -43,6 +49,7 @@ GET /api/integrations/bling/callback
 POST /api/integrations/bling/homologation/run
 POST /api/integrations/bling/products/sync
 POST /api/integrations/bling/inventory/sync
+POST /api/integrations/bling/orders/send
 ```
 
 ## Domínios oficiais
@@ -170,7 +177,8 @@ sensíveis.
 ## O que não foi implementado
 
 - Sync de estoque por depósito específico.
-- Envio de pedidos para Bling.
+- POST real de pedidos para Bling, porque o endpoint/payload oficial ainda não
+  está registrado em `docs/integrations/bling-research.md`.
 - Sync real baseado no produto usado na homologação.
 - Webhooks reais.
 - Reprocessamento unitário por produto.
@@ -269,6 +277,23 @@ Limitações da v1:
   usa a URL pública retornada pelo Bling.
 - Reprocessamento unitário depende do produto aparecer no diagnóstico recente ou
   de futura busca por `externalId` manual.
+
+## Order Send Scaffold
+
+O pedido continua nascendo no Supabase/Zalen. Após `createOrder`, o backend tenta
+enviar ao Bling por service server-side. A chamada externa real está bloqueada
+até confirmação oficial de endpoint/payload.
+
+Regras implementadas:
+
+- checkout coleta dados mínimos do comprador;
+- `customers` e `customer_addresses` armazenam cadastro por `store_id`;
+- `orders` guarda snapshot do comprador;
+- service de envio valida idempotência por `external_erp_provider/external_erp_id`;
+- rota interna `POST /api/integrations/bling/orders/send` permite retry manual;
+- erros são códigos seguros, sem token ou payload bruto;
+- enquanto o contrato oficial estiver pendente, o erro esperado é
+  `bling_order_contract_pending`.
 
 ## Próximas etapas
 

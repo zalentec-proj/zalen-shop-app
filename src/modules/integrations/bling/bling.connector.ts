@@ -7,6 +7,7 @@
  */
 
 import { BlingOrder, BlingProduct } from './bling.types';
+import { sendOrderToBling } from './orders/bling-order-send.service';
 
 const NOT_IMPLEMENTED = 'Bling connector not implemented yet';
 
@@ -19,8 +20,16 @@ export async function syncOrders(_storeId: string): Promise<BlingOrder[]> {
 }
 
 export async function pushOrder(
-  _storeId: string,
-  _orderId: string
+  storeId: string,
+  orderId: string
 ): Promise<void> {
-  throw new Error(NOT_IMPLEMENTED);
+  const result = await sendOrderToBling({
+    storeId,
+    orderId,
+    trigger: 'admin_retry',
+  });
+
+  if (result.status === 'error') {
+    throw new Error(result.errorCode ?? 'bling_order_send_failed');
+  }
 }

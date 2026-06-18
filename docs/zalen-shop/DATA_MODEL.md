@@ -151,6 +151,49 @@ product_categories (
 )
 ```
 
+## 4.1 Clientes
+
+```sql
+customers (
+  id uuid primary key,
+  store_id uuid references stores(id),
+  name text not null,
+  email text,
+  phone text,
+  document text,
+  source text,
+  accepts_marketing boolean,
+  notes text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+)
+```
+
+```sql
+customer_addresses (
+  id uuid primary key,
+  store_id uuid references stores(id),
+  customer_id uuid references customers(id),
+  label text,
+  recipient_name text,
+  phone text,
+  postal_code text,
+  street text,
+  number text,
+  complement text,
+  district text,
+  city text,
+  state text,
+  country text,
+  is_default boolean,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+)
+```
+
+Clientes são dados privados por loja. O storefront público não deve ler
+`customers` nem `customer_addresses`.
+
 ## 5. Pedidos
 
 ```sql
@@ -158,7 +201,12 @@ orders (
   id uuid primary key,
   store_id uuid references stores(id),
   order_number text not null,
-  customer_id uuid,
+  customer_id uuid references customers(id),
+  customer_name text,
+  customer_email text,
+  customer_phone text,
+  customer_document text,
+  shipping_address_json jsonb,
   status text not null,
   payment_status text,
   fulfillment_status text,
@@ -168,10 +216,16 @@ orders (
   total numeric(12,2),
   external_erp_provider text,
   external_erp_id text,
+  external_erp_sync_status text,
+  external_erp_last_error text,
+  external_erp_synced_at timestamptz,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 )
 ```
+
+Pedidos mantêm snapshot do comprador para preservar o estado da compra mesmo se
+o cadastro de cliente for alterado depois.
 
 ```sql
 order_items (

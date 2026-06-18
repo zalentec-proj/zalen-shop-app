@@ -15,6 +15,7 @@ import type {
   OrderStatus,
   PaymentStatus,
 } from '@/modules/orders/order.types';
+import type { CustomerListItem } from '@/modules/customers/customer.types';
 import type { PlatformRole, StoreRole } from '@/modules/auth/auth.types';
 import type {
   IntegrationProviderCategory,
@@ -29,6 +30,7 @@ import {
   updateProductStatusAction,
   updateProductStockAction,
 } from '@/app/admin/products/actions';
+import { createAdminCustomerAction } from '@/app/admin/customers/actions';
 import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import { platformBrand } from '@/lib/branding/platform-brand';
 import {
@@ -57,12 +59,20 @@ import {
   Store,
   Truck,
   UserRound,
+  UsersRound,
   Waypoints,
   Wifi,
 } from 'lucide-react';
 
-type AdminView = 'dashboard' | 'products' | 'orders' | 'integrations' | 'settings';
+type AdminView =
+  | 'dashboard'
+  | 'products'
+  | 'orders'
+  | 'customers'
+  | 'integrations'
+  | 'settings';
 type SettingsSection = 'profile' | 'operations' | 'notifications';
+type CustomerSection = 'list' | 'messages';
 type ProductFilter = 'all' | ProductStatus;
 type ProductSourceFilter = 'all' | 'zalen' | 'bling';
 type OrderFilter = 'all' | OrderStatus;
@@ -73,11 +83,13 @@ interface AdminDashboardProps {
   products: ProductSummary[];
   categories: Category[];
   orders: OrderListItem[];
+  customers: CustomerListItem[];
   integrations: StoreIntegrationListItem[];
   dataSources: {
     products: AdminDataSource;
     categories: AdminDataSource;
     orders: AdminDataSource;
+    customers: AdminDataSource;
     integrations: AdminDataSource;
   };
   adminUser: {
@@ -131,6 +143,12 @@ const viewMeta: Record<
     title: 'Pedidos e expedição',
     description:
       'Fluxo do pagamento até a separação.',
+  },
+  customers: {
+    eyebrow: 'Relacionamento operacional',
+    title: 'Clientes',
+    description:
+      'Base de compradores, contato e histórico para pedidos e ERP.',
   },
   integrations: {
     eyebrow: 'Integrações desacopladas',
@@ -332,6 +350,7 @@ function isAdminView(value: string | null): value is AdminView {
     value === 'dashboard' ||
     value === 'products' ||
     value === 'orders' ||
+    value === 'customers' ||
     value === 'integrations' ||
     value === 'settings'
   );
@@ -512,6 +531,76 @@ function ProductStockForm({ product }: { product: ProductSummary }) {
   );
 }
 
+function CustomerCreateForm() {
+  return (
+    <form action={createAdminCustomerAction} className="grid gap-2 md:grid-cols-2">
+      <input
+        name="name"
+        required
+        placeholder="Nome do cliente"
+        className="h-9 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs text-white outline-none placeholder:text-slate-500 focus:border-[#1E3DFF]/35"
+      />
+      <input
+        name="email"
+        type="email"
+        placeholder="E-mail"
+        className="h-9 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs text-white outline-none placeholder:text-slate-500 focus:border-[#1E3DFF]/35"
+      />
+      <input
+        name="phone"
+        placeholder="WhatsApp"
+        className="h-9 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs text-white outline-none placeholder:text-slate-500 focus:border-[#1E3DFF]/35"
+      />
+      <input
+        name="document"
+        placeholder="CPF/CNPJ"
+        className="h-9 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs text-white outline-none placeholder:text-slate-500 focus:border-[#1E3DFF]/35"
+      />
+      <input
+        name="notes"
+        placeholder="Observação operacional"
+        className="h-9 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs text-white outline-none placeholder:text-slate-500 focus:border-[#1E3DFF]/35 md:col-span-2"
+      />
+      <div className="md:col-span-2">
+        <InlineSubmitButton idleLabel="Adicionar" />
+      </div>
+    </form>
+  );
+}
+
+function OrderBlingRetryButton({ orderId }: { orderId: string }) {
+  const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
+
+  async function handleRetry() {
+    setStatus('loading');
+
+    const response = await fetch('/api/integrations/bling/orders/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ orderId }),
+    });
+
+    setStatus(response.ok ? 'done' : 'error');
+
+    if (response.ok) {
+      window.location.reload();
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleRetry}
+      disabled={status === 'loading'}
+      className="rounded-md border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#A9C7FF] transition hover:border-[#1E3DFF]/45 hover:text-white disabled:cursor-wait disabled:opacity-70"
+    >
+      {status === 'loading' ? 'Enviando' : status === 'error' ? 'Erro' : 'Reprocessar'}
+    </button>
+  );
+}
+
 function GaugeCard({
   value,
   segments,
@@ -637,6 +726,7 @@ export default function AdminDashboard({
   products,
   categories,
   orders,
+  customers,
   integrations,
   dataSources,
   adminUser,
@@ -648,6 +738,8 @@ export default function AdminDashboard({
   );
   const [settingsSection, setSettingsSection] =
     useState<SettingsSection>('profile');
+  const [customerSection, setCustomerSection] =
+    useState<CustomerSection>('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [productFilter, setProductFilter] = useState<ProductFilter>('all');
   const [productCategoryFilter, setProductCategoryFilter] = useState('all');
@@ -809,43 +901,127 @@ export default function AdminDashboard({
     return statusMatches && textMatches;
   });
 
-  const sidebarItems: Array<{
-    id: AdminView;
+  const filteredCustomers = customers.filter((customer) =>
+    matchesSearch(
+      [
+        customer.name,
+        customer.email,
+        customer.phone,
+        customer.document,
+        customer.lastOrderNumber,
+      ],
+      searchValue
+    )
+  );
+  const customersWithOrders = customers.filter((customer) => customer.ordersCount > 0);
+  const customerRevenue = customers.reduce(
+    (accumulator, customer) => accumulator + customer.totalSpent,
+    0
+  );
+  const customersSourceLabel = sourceLabel(dataSources.customers);
+
+  const sidebarGroups: Array<{
     label: string;
-    icon: ComponentType<{ className?: string }>;
-    count: string;
-    href?: string;
+    items: Array<{
+      id?: AdminView;
+      label: string;
+      icon: ComponentType<{ className?: string }>;
+      count?: string;
+      href?: string;
+      disabled?: boolean;
+    }>;
   }> = [
     {
-      id: 'dashboard',
-      label: 'Visão geral',
-      icon: LayoutGrid,
-      count: '01',
+      label: 'Operação',
+      items: [
+        {
+          id: 'dashboard',
+          label: 'Visão geral',
+          icon: LayoutGrid,
+          count: '01',
+        },
+        {
+          id: 'orders',
+          label: 'Pedidos',
+          icon: ShoppingCart,
+          count: String(orders.length).padStart(2, '0'),
+        },
+        {
+          id: 'products',
+          label: 'Produtos',
+          icon: Package2,
+          count: String(products.length).padStart(2, '0'),
+        },
+        {
+          id: 'customers',
+          label: 'Clientes',
+          icon: UsersRound,
+          count: String(customers.length).padStart(2, '0'),
+        },
+      ],
     },
     {
-      id: 'products',
-      label: 'Produtos',
-      icon: Package2,
-      count: String(products.length).padStart(2, '0'),
+      label: 'Canais',
+      items: [
+        {
+          label: 'Loja online',
+          icon: Store,
+          count: 'ON',
+          href: '/',
+        },
+        {
+          label: 'Marketplaces',
+          icon: Boxes,
+          count: 'Fut',
+          disabled: true,
+        },
+      ],
     },
     {
-      id: 'orders',
-      label: 'Pedidos',
-      icon: ShoppingCart,
-      count: String(orders.length).padStart(2, '0'),
+      label: 'Conectores',
+      items: [
+        {
+          id: 'integrations',
+          label: 'Integrações',
+          icon: Waypoints,
+          count: String(integrations.length).padStart(2, '0'),
+        },
+        {
+          label: 'Bling',
+          icon: Database,
+          count: primaryErpIntegration?.integration?.status === 'connected' ? 'ON' : 'ERP',
+          href: '/admin/integracoes/bling',
+        },
+      ],
     },
     {
-      id: 'integrations',
-      label: 'Integrações',
-      icon: Waypoints,
-      count: String(integrations.length).padStart(2, '0'),
-    },
-    {
-      id: 'settings',
-      label: 'Configurações',
-      icon: Settings2,
-      count: '02',
-      href: '/admin/configuracoes',
+      label: 'Configuração',
+      items: [
+        {
+          label: 'Pagamentos',
+          icon: CreditCard,
+          count: 'Cfg',
+          href: '/admin/configuracoes/pagamentos',
+        },
+        {
+          label: 'Envios',
+          icon: Truck,
+          count: 'Cfg',
+          href: '/admin/configuracoes/envios',
+        },
+        {
+          label: 'Domínios',
+          icon: Wifi,
+          count: 'Cfg',
+          href: '/admin/configuracoes/dominios',
+        },
+        {
+          id: 'settings',
+          label: 'Configurações',
+          icon: Settings2,
+          count: '02',
+        },
+      ],
     },
   ];
 
@@ -1705,17 +1881,18 @@ export default function AdminDashboard({
           }
         >
           <div className="overflow-hidden rounded-lg border border-white/6">
-            <div className="grid grid-cols-[1fr,1fr,0.7fr,0.8fr,0.75fr] gap-3 bg-[#081225] px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
+            <div className="grid grid-cols-[1fr,1fr,0.55fr,0.75fr,0.75fr,0.8fr] gap-3 bg-[#081225] px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
               <span>Pedido</span>
               <span>Cliente</span>
               <span>Itens</span>
               <span>Status</span>
+              <span>Bling</span>
               <span className="text-right">Total</span>
             </div>
             {filteredOrders.map((order) => (
               <div
                 key={order.id}
-                className="grid grid-cols-[1fr,1fr,0.7fr,0.8fr,0.75fr] gap-3 border-t border-white/6 px-3 py-2.5 text-xs"
+                className="grid grid-cols-[1fr,1fr,0.55fr,0.75fr,0.75fr,0.8fr] gap-3 border-t border-white/6 px-3 py-2.5 text-xs"
               >
                 <div>
                   <div className="font-semibold text-white">{order.orderNumber}</div>
@@ -1739,6 +1916,36 @@ export default function AdminDashboard({
                       {paymentStatusLabel[order.paymentStatus]}
                     </SmallBadge>
                   </div>
+                </div>
+                <div className="space-y-1">
+                  <SmallBadge
+                    className={
+                      order.externalErpSyncStatus === 'synced'
+                        ? 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200'
+                        : order.externalErpSyncStatus === 'error'
+                          ? 'border-rose-400/20 bg-rose-400/10 text-rose-200'
+                          : 'border-amber-400/20 bg-amber-400/10 text-amber-200'
+                    }
+                  >
+                    {order.externalErpSyncStatus === 'synced'
+                      ? 'Enviado'
+                      : order.externalErpSyncStatus === 'error'
+                        ? 'Erro'
+                        : 'Pendente'}
+                  </SmallBadge>
+                  {order.externalErpId ? (
+                    <div className="truncate text-[11px] text-slate-400">
+                      ID {order.externalErpId}
+                    </div>
+                  ) : null}
+                  {order.externalErpLastError ? (
+                    <div className="truncate text-[11px] text-rose-200">
+                      {order.externalErpLastError}
+                    </div>
+                  ) : null}
+                  {order.externalErpSyncStatus !== 'synced' ? (
+                    <OrderBlingRetryButton orderId={order.id} />
+                  ) : null}
                 </div>
                 <div className="text-right font-semibold text-white">
                   {formatCurrency(order.total)}
@@ -1821,6 +2028,169 @@ export default function AdminDashboard({
             </div>
           </Panel>
         </div>
+      </div>
+    </div>
+  );
+
+  const renderCustomers = () => (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+        <MetricCard
+          icon={UsersRound}
+          label="Clientes na base"
+          value={String(customers.length)}
+          helper={`Lista operacional via ${customersSourceLabel}.`}
+        />
+        <MetricCard
+          icon={ShoppingCart}
+          label="Com compras"
+          value={String(customersWithOrders.length)}
+          helper="Clientes vinculados a pedidos salvos."
+        />
+        <MetricCard
+          icon={CreditCard}
+          label="Total consumido"
+          value={formatCurrency(customerRevenue)}
+          helper="Soma de pedidos por cliente identificado."
+        />
+        <MetricCard
+          icon={Bell}
+          label="Mensagens"
+          value="0"
+          helper="Placeholder para comunicação futura."
+        />
+      </div>
+
+      <div className="grid gap-4 2xl:grid-cols-[220px,1fr]">
+        <Panel title="Clientes" description="Navegação interna do relacionamento.">
+          <div className="space-y-1.5">
+            {[
+              { id: 'list' as CustomerSection, label: 'Lista de clientes', icon: UsersRound },
+              { id: 'messages' as CustomerSection, label: 'Mensagens', icon: Bell },
+            ].map((section) => {
+              const Icon = section.icon;
+
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => setCustomerSection(section.id)}
+                  className={cn(
+                    'flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-xs transition',
+                    customerSection === section.id
+                      ? 'border-[#1E3DFF]/35 bg-[#101F43] text-white'
+                      : 'border-transparent bg-transparent text-slate-400 hover:border-white/6 hover:bg-[#081225] hover:text-slate-200'
+                  )}
+                >
+                  <span className="flex items-center gap-2">
+                    <Icon className="h-3.5 w-3.5" />
+                    {section.label}
+                  </span>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              );
+            })}
+          </div>
+        </Panel>
+
+        {customerSection === 'list' ? (
+          <div className="space-y-4">
+            <Panel
+              title="Adicionar cliente"
+              description="Cadastro manual simples para operação e pedidos assistidos."
+            >
+              <CustomerCreateForm />
+            </Panel>
+
+            <Panel
+              title="Lista de clientes"
+              description="Busca por nome, e-mail, telefone, CPF/CNPJ ou último pedido."
+              action={
+                <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
+                  Mostrando {filteredCustomers.length} de {customers.length}
+                </SmallBadge>
+              }
+            >
+              <div className="overflow-x-auto rounded-lg border border-white/6">
+                <div className="min-w-[900px]">
+                  <div className="grid grid-cols-[minmax(240px,1fr)_150px_140px_180px] gap-3 bg-[#081225] px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                    <span>Nome</span>
+                    <span>Última compra</span>
+                    <span>Total consumido</span>
+                    <span className="text-right">Contato</span>
+                  </div>
+                  {filteredCustomers.map((customer) => (
+                    <div
+                      key={customer.id}
+                      className="grid grid-cols-[minmax(240px,1fr)_150px_140px_180px] items-center gap-3 border-t border-white/6 px-3 py-2.5 text-xs"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate font-semibold text-white">
+                          {customer.name}
+                        </div>
+                        <div className="mt-1 truncate text-slate-400">
+                          {[customer.email, customer.document].filter(Boolean).join(' · ') ||
+                            'Sem documento/e-mail'}
+                        </div>
+                      </div>
+                      <div className="text-slate-300">
+                        {customer.lastPurchaseAt
+                          ? `${customer.lastOrderNumber ?? 'Pedido'} · ${formatDateTime(customer.lastPurchaseAt)}`
+                          : 'Sem compras'}
+                      </div>
+                      <div className="font-semibold text-white">
+                        {formatCurrency(customer.totalSpent)}
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        {customer.email ? (
+                          <a
+                            href={`mailto:${customer.email}`}
+                            className="rounded-lg border border-white/8 bg-white/5 px-2 py-1 text-[10px] font-semibold text-slate-300 transition hover:text-white"
+                          >
+                            E-mail
+                          </a>
+                        ) : null}
+                        {customer.phone ? (
+                          <a
+                            href={`https://wa.me/55${customer.phone}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded-lg border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-[10px] font-semibold text-emerald-200 transition hover:text-white"
+                          >
+                            WhatsApp
+                          </a>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                  {filteredCustomers.length === 0 ? (
+                    <div className="border-t border-white/6 px-3 py-8 text-center text-xs text-slate-400">
+                      Nenhum cliente encontrado na base atual.
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </Panel>
+          </div>
+        ) : null}
+
+        {customerSection === 'messages' ? (
+          <Panel
+            title="Mensagens"
+            description="Placeholder operacional. Chat, newsletter e automações ficam fora desta sprint."
+          >
+            <div className="rounded-lg border border-white/6 bg-[#081225] p-5">
+              <div className="text-sm font-semibold text-white">
+                Central de mensagens ainda não implementada
+              </div>
+              <p className="mt-2 max-w-2xl text-xs leading-5 text-slate-400">
+                Esta aba reserva a arquitetura de informação para mensagens de clientes,
+                consultas e newsletter, sem criar integração real de WhatsApp, e-mail marketing
+                ou CRM nesta etapa.
+              </p>
+            </div>
+          </Panel>
+        ) : null}
       </div>
     </div>
   );
@@ -2023,7 +2393,7 @@ export default function AdminDashboard({
               {
                 label: 'Pedidos com ERP ref.',
                 value: String(syncedOrders.length),
-                detail: 'Referência local, sem envio ao Bling.',
+                detail: 'Pedidos com vínculo externo registrado.',
               },
             ].map((item) => (
               <div
@@ -2048,9 +2418,9 @@ export default function AdminDashboard({
         >
           <div className="space-y-2">
             {[
-              'Nenhuma API externa é chamada pelo admin.',
+              'Nenhuma API externa é chamada diretamente pelo client.',
               'credentials_encrypted não é selecionado nem enviado ao client.',
-              'Bling aparece como ERP principal, mas ainda sem OAuth real.',
+              'Bling usa OAuth server-side e tokens criptografados.',
               'Mercos permanece global e não conectado na Brasil Drones.',
               'Mercado Pago e Melhor Envio ficam como planejados.',
             ].map((item) => (
@@ -2264,52 +2634,68 @@ export default function AdminDashboard({
             </div>
           </div>
 
-          <nav className="space-y-1">
-            {sidebarItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeView === item.id;
-              const itemClassName = cn(
-                'flex w-full items-center justify-between rounded-xl border px-2.5 py-2 text-left text-xs transition',
-                isActive
-                  ? 'border-[#1E3DFF]/35 bg-[linear-gradient(135deg,rgba(30,61,255,0.2),rgba(8,18,37,0.95))] text-white shadow-[0_14px_28px_rgba(30,61,255,0.18)]'
-                  : 'border-transparent bg-transparent text-slate-400 hover:border-white/6 hover:bg-[#081225] hover:text-slate-200'
-              );
-              const content = (
-                <>
-                  <span className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        'inline-flex h-7 w-7 items-center justify-center rounded-lg border',
-                        isActive
-                          ? 'border-[#1E3DFF]/30 bg-[#101F43] text-[#7EC3FF]'
-                          : 'border-white/6 bg-[#081225] text-slate-400'
-                      )}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                    </span>
-                    <span className="font-medium">{item.label}</span>
-                  </span>
-                  <span className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                    {item.count}
-                  </span>
-                </>
-              );
+          <nav className="space-y-4">
+            {sidebarGroups.map((group) => (
+              <div key={group.label} className="space-y-1">
+                <div className="px-2 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-600">
+                  {group.label}
+                </div>
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = item.id ? activeView === item.id : false;
+                  const itemClassName = cn(
+                    'flex w-full items-center justify-between rounded-xl border px-2.5 py-2 text-left text-xs transition',
+                    isActive
+                      ? 'border-[#1E3DFF]/35 bg-[linear-gradient(135deg,rgba(30,61,255,0.2),rgba(8,18,37,0.95))] text-white shadow-[0_14px_28px_rgba(30,61,255,0.18)]'
+                      : item.disabled
+                        ? 'cursor-not-allowed border-transparent bg-transparent text-slate-600'
+                        : 'border-transparent bg-transparent text-slate-400 hover:border-white/6 hover:bg-[#081225] hover:text-slate-200'
+                  );
+                  const content = (
+                    <>
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span
+                          className={cn(
+                            'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border',
+                            isActive
+                              ? 'border-[#1E3DFF]/30 bg-[#101F43] text-[#7EC3FF]'
+                              : 'border-white/6 bg-[#081225] text-slate-400'
+                          )}
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                        </span>
+                        <span className="truncate font-medium">{item.label}</span>
+                      </span>
+                      {item.count ? (
+                        <span className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                          {item.count}
+                        </span>
+                      ) : null}
+                    </>
+                  );
 
-              return item.href ? (
-                <Link key={item.id} href={item.href} className={itemClassName}>
-                  {content}
-                </Link>
-              ) : (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setActiveView(item.id)}
-                  className={itemClassName}
-                >
-                  {content}
-                </button>
-              );
-            })}
+                  if (item.href && !item.disabled) {
+                    return (
+                      <Link key={`${group.label}-${item.label}`} href={item.href} className={itemClassName}>
+                        {content}
+                      </Link>
+                    );
+                  }
+
+                  return (
+                    <button
+                      key={`${group.label}-${item.label}`}
+                      type="button"
+                      disabled={item.disabled}
+                      onClick={() => item.id && setActiveView(item.id)}
+                      className={itemClassName}
+                    >
+                      {content}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </nav>
 
           <div className="mt-auto space-y-2">
@@ -2403,6 +2789,9 @@ export default function AdminDashboard({
                 <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
                   {orders.length} pedidos · {ordersSourceLabel}
                 </SmallBadge>
+                <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
+                  {customers.length} clientes · {customersSourceLabel}
+                </SmallBadge>
                 <SmallBadge className="border-emerald-400/20 bg-emerald-400/10 text-emerald-200">
                   Admin {platformBrand.shortName}
                 </SmallBadge>
@@ -2413,6 +2802,7 @@ export default function AdminDashboard({
               {activeView === 'dashboard' ? renderDashboard() : null}
               {activeView === 'products' ? renderProducts() : null}
               {activeView === 'orders' ? renderOrders() : null}
+              {activeView === 'customers' ? renderCustomers() : null}
               {activeView === 'integrations' ? renderIntegrations() : null}
               {activeView === 'settings' ? renderSettings() : null}
             </div>

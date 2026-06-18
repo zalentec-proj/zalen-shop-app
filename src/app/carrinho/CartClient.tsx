@@ -62,6 +62,15 @@ interface Props {
 
 export default function CartClient({ products }: Props) {
   const [cart, setCart] = useState<Cart>(() => buildDemoCart(products));
+  const [customer, setCustomer] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    document: '',
+    postalCode: '',
+    city: '',
+    state: '',
+  });
   const [checkoutDone, setCheckoutDone] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
@@ -86,13 +95,24 @@ export default function CartClient({ products }: Props) {
     setCheckoutError(null);
     setIsSubmitting(true);
 
-    const result = await checkoutCartAction(
-      cart.items.map((item) => ({
+    const result = await checkoutCartAction({
+      customer: {
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        document: customer.document,
+        shippingAddress: {
+          postalCode: customer.postalCode,
+          city: customer.city,
+          state: customer.state,
+        },
+      },
+      items: cart.items.map((item) => ({
         productId: item.productId,
         variantId: item.variantId,
         quantity: item.quantity,
-      }))
-    );
+      })),
+    });
 
     setIsSubmitting(false);
 
@@ -252,6 +272,44 @@ export default function CartClient({ products }: Props) {
           <div className="lg:col-span-1 flex flex-col gap-4 lg:sticky lg:top-32">
             <div className="glass-panel rounded-2xl p-6 flex flex-col gap-4">
               <h2 className="text-base font-bold text-white">Resumo do pedido</h2>
+
+              <div className="rounded-2xl border border-brand-border-soft bg-white/[0.02] p-4">
+                <div className="mb-3">
+                  <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-white">
+                    Dados do comprador
+                  </h3>
+                  <p className="mt-1 text-[11px] text-brand-muted">
+                    Usado para registrar o pedido e preparar integração com ERP.
+                  </p>
+                </div>
+                <div className="grid gap-2">
+                  {[
+                    { id: 'name', label: 'Nome completo', value: customer.name, type: 'text' },
+                    { id: 'email', label: 'E-mail', value: customer.email, type: 'email' },
+                    { id: 'phone', label: 'WhatsApp', value: customer.phone, type: 'tel' },
+                    { id: 'document', label: 'CPF/CNPJ', value: customer.document, type: 'text' },
+                    { id: 'postalCode', label: 'CEP', value: customer.postalCode, type: 'text' },
+                    { id: 'city', label: 'Cidade', value: customer.city, type: 'text' },
+                    { id: 'state', label: 'UF', value: customer.state, type: 'text' },
+                  ].map((field) => (
+                    <label key={field.id} className="block">
+                      <span className="sr-only">{field.label}</span>
+                      <input
+                        value={field.value}
+                        type={field.type}
+                        onChange={(event) =>
+                          setCustomer((current) => ({
+                            ...current,
+                            [field.id]: event.target.value,
+                          }))
+                        }
+                        placeholder={field.label}
+                        className="h-10 w-full rounded-xl border border-brand-border-soft bg-[#050A14]/80 px-3 text-xs font-semibold text-white outline-none transition placeholder:text-brand-muted focus:border-blue-primary/60"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
 
               <div className="flex flex-col gap-2 text-sm">
                 <div className="flex justify-between text-brand-muted">

@@ -1,6 +1,6 @@
 # Pesquisa Técnica — Bling
 
-> Status: **App público / OAuth Ready / Product Sync v1 / Inventory Sync v1**
+> Status: **App público / OAuth Ready / Product Sync v1 / Inventory Sync v1 / Order Send Scaffold**
 > Fontes oficiais consultadas: https://developer.bling.com.br
 
 ## Fonte oficial
@@ -165,13 +165,34 @@ Implementado na v1 de estoque:
 
 ## Pedidos
 
-Não implementado nesta sprint.
+Implementado scaffold server-side seguro para envio de pedidos, sem chamada real
+ao Bling enquanto o endpoint/payload oficial de criação de pedido não estiver
+confirmado e registrado neste arquivo.
+
+Comportamento atual:
+
+- checkout cria pedido local no Supabase;
+- pedido salva cliente e snapshot do comprador;
+- service server-side tenta iniciar envio para Bling automaticamente;
+- se o pedido já tiver `external_erp_provider = bling` e `external_erp_id`, não
+  duplica envio;
+- `sync_jobs` registra `job_type = order_send`;
+- se Bling estiver desconectado, faltarem dados do cliente ou o contrato oficial
+  ainda estiver pendente, o pedido fica com `external_erp_sync_status = error`;
+- admin permite retry manual por rota server-side;
+- nenhum token, credential ou payload bruto é retornado ao frontend.
 
 Antes de implementar:
 
 - confirmar payload oficial de criação de pedido;
 - definir idempotência por `orders.id`/`order_number`;
 - registrar `external_erp_provider` e `external_erp_id`.
+
+Erro operacional atual esperado enquanto o contrato estiver pendente:
+
+```txt
+bling_order_contract_pending
+```
 
 ## Webhooks
 

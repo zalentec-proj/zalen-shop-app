@@ -10,7 +10,35 @@ const checkoutItemSchema = z.object({
   quantity: z.coerce.number().int().positive().max(99),
 });
 
-const checkoutSchema = z.array(checkoutItemSchema).min(1).max(50);
+const optionalCheckoutString = z
+  .string()
+  .trim()
+  .optional()
+  .or(z.literal(''))
+  .transform((value) => (value ? value : undefined));
+
+const checkoutCustomerSchema = z.object({
+  name: z.string().trim().min(2),
+  email: z.string().trim().email(),
+  phone: z.string().trim().min(8),
+  document: z.string().trim().min(11),
+  shippingAddress: z
+    .object({
+      postalCode: optionalCheckoutString,
+      street: optionalCheckoutString,
+      number: optionalCheckoutString,
+      complement: optionalCheckoutString,
+      district: optionalCheckoutString,
+      city: optionalCheckoutString,
+      state: optionalCheckoutString,
+    })
+    .optional(),
+});
+
+const checkoutSchema = z.object({
+  items: z.array(checkoutItemSchema).min(1).max(50),
+  customer: checkoutCustomerSchema,
+});
 
 export type CheckoutCartActionResult =
   | {
@@ -23,21 +51,22 @@ export type CheckoutCartActionResult =
     };
 
 export async function checkoutCartAction(
-  rawItems: unknown
+  rawInput: unknown
 ): Promise<CheckoutCartActionResult> {
-  const parsed = checkoutSchema.safeParse(rawItems);
+  const parsed = checkoutSchema.safeParse(rawInput);
 
   if (!parsed.success) {
     return {
       ok: false,
-      error: 'Carrinho inválido. Revise os itens e tente novamente.',
+      error: 'Revise os dados do cliente e os itens do carrinho.',
     };
   }
 
   try {
     const order = await createOrder({
       storeId: ACTIVE_STORE_ID,
-      items: parsed.data,
+      customer: parsed.data.customer,
+      items: parsed.data.items,
     });
 
     return {

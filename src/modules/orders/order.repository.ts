@@ -8,8 +8,10 @@ import {
 import { logDevOnce } from '@/lib/logging/dev';
 import { getMockProductBySlug } from '../catalog/product.mock';
 import type {
+  ExternalErpSyncStatus,
   FulfillmentStatus,
   Order,
+  OrderAddressSnapshot,
   OrderItem,
   OrderListItem,
   OrderStatus,
@@ -32,6 +34,11 @@ type OrderRow = {
   store_id: string | null;
   order_number: string;
   customer_id: string | null;
+  customer_name: string | null;
+  customer_email: string | null;
+  customer_phone: string | null;
+  customer_document: string | null;
+  shipping_address_json: Record<string, unknown> | null;
   status: string | null;
   payment_status: string | null;
   fulfillment_status: string | null;
@@ -41,7 +48,11 @@ type OrderRow = {
   total: number | string | null;
   external_erp_provider: string | null;
   external_erp_id: string | null;
+  external_erp_sync_status: string | null;
+  external_erp_last_error: string | null;
+  external_erp_synced_at: string | null;
   created_at: string | null;
+  updated_at?: string | null;
 };
 
 type OrderItemRow = {
@@ -127,6 +138,62 @@ function toFulfillmentStatus(
     : 'unfulfilled';
 }
 
+function toExternalErpSyncStatus(
+  value: string | null | undefined
+): ExternalErpSyncStatus {
+  const allowed: ExternalErpSyncStatus[] = [
+    'pending',
+    'synced',
+    'error',
+    'skipped',
+  ];
+
+  return allowed.includes(value as ExternalErpSyncStatus)
+    ? (value as ExternalErpSyncStatus)
+    : 'pending';
+}
+
+function toAddressSnapshot(
+  value: Record<string, unknown> | null | undefined
+): OrderAddressSnapshot | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+
+  const snapshot: OrderAddressSnapshot = {};
+
+  for (const key of [
+    'recipientName',
+    'phone',
+    'postalCode',
+    'street',
+    'number',
+    'complement',
+    'district',
+    'city',
+    'state',
+    'country',
+  ] as const) {
+    const rawValue = value[key];
+
+    if (typeof rawValue === 'string' && rawValue.trim()) {
+      snapshot[key] = rawValue;
+    }
+  }
+
+  return Object.keys(snapshot).length > 0 ? snapshot : undefined;
+}
+
+function toShippingAddressJson(value: OrderAddressSnapshot | undefined) {
+  if (!value) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entryValue]) => Boolean(entryValue))
+  );
+}
+
 function buildMockOrderItem(
   orderId: string,
   productSlug: string,
@@ -160,7 +227,19 @@ function buildMockOrderItem(
 }
 
 function buildMockOrder(
-  input: Omit<OrderListItem, 'storeId' | 'subtotal' | 'total' | 'items'> & {
+  input: Omit<
+    OrderListItem,
+    | 'storeId'
+    | 'subtotal'
+    | 'total'
+    | 'items'
+    | 'externalErpSyncStatus'
+    | 'externalErpLastError'
+    | 'externalErpSyncedAt'
+  > & {
+    externalErpSyncStatus?: ExternalErpSyncStatus;
+    externalErpLastError?: string;
+    externalErpSyncedAt?: string;
     itemBlueprints: Array<{ productSlug: string; quantity: number }>;
     shippingTotal: number;
     discountTotal: number;
@@ -183,6 +262,7 @@ function buildMockOrder(
     storeId,
     orderNumber: input.orderNumber,
     customerId: input.customerId,
+    customer: input.customer,
     customerName: input.customerName,
     customerEmail: input.customerEmail,
     salesChannel: input.salesChannel,
@@ -195,6 +275,9 @@ function buildMockOrder(
     total,
     externalErpProvider: input.externalErpProvider,
     externalErpId: input.externalErpId,
+    externalErpSyncStatus: input.externalErpSyncStatus ?? 'pending',
+    externalErpLastError: input.externalErpLastError,
+    externalErpSyncedAt: input.externalErpSyncedAt,
     items,
     createdAt: input.createdAt,
   };
@@ -225,6 +308,13 @@ function mapOrder(
     storeId: row.store_id ?? fallbackStoreId,
     orderNumber: row.order_number,
     customerId: row.customer_id ?? undefined,
+    customer: {
+      name: row.customer_name ?? undefined,
+      email: row.customer_email ?? undefined,
+      phone: row.customer_phone ?? undefined,
+      document: row.customer_document ?? undefined,
+      shippingAddress: toAddressSnapshot(row.shipping_address_json),
+    },
     status: toOrderStatus(row.status),
     paymentStatus: toPaymentStatus(row.payment_status),
     fulfillmentStatus: toFulfillmentStatus(row.fulfillment_status),
@@ -234,9 +324,15 @@ function mapOrder(
     total: toNumber(row.total),
     externalErpProvider: row.external_erp_provider ?? undefined,
     externalErpId: row.external_erp_id ?? undefined,
+    externalErpSyncStatus: toExternalErpSyncStatus(row.external_erp_sync_status),
+    externalErpLastError: row.external_erp_last_error ?? undefined,
+    externalErpSyncedAt: row.external_erp_synced_at ?? undefined,
+    customerName: row.customer_name ?? undefined,
+    customerEmail: row.customer_email ?? undefined,
     salesChannel: 'Loja online',
     items,
     createdAt: row.created_at ?? new Date(0).toISOString(),
+    updatedAt: row.updated_at ?? row.created_at ?? undefined,
   };
 }
 
@@ -356,6 +452,108 @@ export async function listOrdersFromRepository(
   storeId: string
 ): Promise<OrderListItem[]> {
   return (await listOrdersWithSourceFromRepository(storeId)).data;
+}
+
+async function getOrderItemsFromRepository(
+  supabase: SupabaseOrderClient,
+  storeId: string,
+  orderIds: string[]
+) {
+  if (orderIds.length === 0) {
+    return new Map<string, OrderItem[]>();
+  }
+
+  const { data: itemRows, error: itemsError } = await supabase
+    .from('order_items')
+    .select('*')
+    .eq('store_id', storeId)
+    .in('order_id', orderIds);
+
+  if (itemsError || !itemRows) {
+    throw new Error('Unable to load order items.');
+  }
+
+  return (itemRows as OrderItemRow[]).reduce((accumulator, row) => {
+    const items = accumulator.get(row.order_id) ?? [];
+    items.push(mapOrderItem(row, storeId));
+    accumulator.set(row.order_id, items);
+    return accumulator;
+  }, new Map<string, OrderItem[]>());
+}
+
+export async function getOrderByIdFromRepository(
+  storeId: string,
+  orderId: string
+): Promise<OrderListItem | null> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return null;
+  }
+
+  const { data: orderRow, error: orderError } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('store_id', storeId)
+    .eq('id', orderId)
+    .maybeSingle();
+
+  if (orderError || !orderRow) {
+    return null;
+  }
+
+  const itemsByOrderId = await getOrderItemsFromRepository(
+    supabase,
+    storeId,
+    [orderId]
+  );
+
+  return mapOrder(
+    orderRow as OrderRow,
+    itemsByOrderId.get(orderId) ?? [],
+    storeId
+  );
+}
+
+export async function updateOrderExternalErpStateInRepository(input: {
+  storeId: string;
+  orderId: string;
+  provider?: string;
+  externalId?: string;
+  status: ExternalErpSyncStatus;
+  lastError?: string;
+  syncedAt?: string;
+}) {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return;
+  }
+
+  const payload: Record<string, unknown> = {
+    external_erp_sync_status: input.status,
+    external_erp_last_error: input.lastError ?? null,
+    external_erp_synced_at: input.syncedAt ?? null,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (input.provider) {
+    payload.external_erp_provider = input.provider;
+  }
+
+  if (input.externalId) {
+    payload.external_erp_id = input.externalId;
+  }
+
+  const { error } = await supabase
+    .from('orders')
+    .update(payload)
+    .eq('id', input.orderId)
+    .eq('store_id', input.storeId);
+
+  if (error) {
+    throw new Error('Unable to update order ERP sync state.');
+  }
 }
 
 export async function listOrdersWithSourceFromRepository(
@@ -479,6 +677,11 @@ export async function saveOrderToRepository(order: Order): Promise<Order> {
     store_id: storeId,
     order_number: order.orderNumber,
     customer_id: toNullableUuid(order.customerId),
+    customer_name: order.customer?.name,
+    customer_email: order.customer?.email,
+    customer_phone: order.customer?.phone,
+    customer_document: order.customer?.document,
+    shipping_address_json: toShippingAddressJson(order.customer?.shippingAddress),
     status: order.status,
     payment_status: order.paymentStatus,
     fulfillment_status: order.fulfillmentStatus,
@@ -488,7 +691,11 @@ export async function saveOrderToRepository(order: Order): Promise<Order> {
     total: order.total,
     external_erp_provider: order.externalErpProvider,
     external_erp_id: order.externalErpId,
+    external_erp_sync_status: order.externalErpSyncStatus,
+    external_erp_last_error: order.externalErpLastError,
+    external_erp_synced_at: order.externalErpSyncedAt,
     created_at: order.createdAt,
+    updated_at: order.updatedAt ?? order.createdAt,
   });
 
   if (orderError) {

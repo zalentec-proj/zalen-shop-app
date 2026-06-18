@@ -68,6 +68,8 @@ Ativar RLS em tabelas sensíveis:
 - `product_variants`
 - `product_images`
 - `categories`
+- `customers`
+- `customer_addresses`
 - `orders`
 - `order_items`
 - `integration_providers`

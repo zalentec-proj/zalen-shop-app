@@ -10,7 +10,9 @@ Status atual:
 - Tokens só são salvos se `INTEGRATION_TOKEN_ENCRYPTION_KEY` estiver configurada.
 - Sync real de produtos implementado.
 - Sync dedicado de estoque implementado para variantes já vinculadas.
-- Pedidos e webhooks reais ainda não implementados.
+- Scaffold seguro de envio de pedidos implementado com retry admin.
+- POST real de pedidos segue bloqueado até endpoint/payload oficial ser documentado.
+- Webhooks reais ainda não implementados.
 
 Arquivos principais:
 
@@ -20,7 +22,8 @@ Arquivos principais:
 - `bling.service.ts`: orquestração server-side.
 - `products/`: sync de catálogo Bling para Supabase.
 - `inventory/`: sync de estoque Bling para variantes Supabase.
-- `bling.connector.ts`: placeholder do conector operacional futuro.
+- `orders/`: envio server-side de pedido com idempotência e bloqueio seguro.
+- `bling.connector.ts`: fachada do conector operacional.
 
 Env necessária:
 

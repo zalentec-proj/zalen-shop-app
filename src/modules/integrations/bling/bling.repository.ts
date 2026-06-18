@@ -19,7 +19,7 @@ type BlingIntegrationRow = {
 };
 
 type BlingSyncJobStatus = 'running' | 'success' | 'error';
-type BlingSyncJobType = 'product_sync' | 'inventory_sync';
+type BlingSyncJobType = 'product_sync' | 'inventory_sync' | 'order_send';
 
 const fallbackDate = new Date(0).toISOString();
 
@@ -253,7 +253,8 @@ export async function recordBlingHomologationEventInRepository(input: {
 
 async function hasRunningBlingSyncJobInRepository(
   storeId: string,
-  jobType: BlingSyncJobType
+  jobType: BlingSyncJobType,
+  orderId?: string
 ) {
   const supabase = createOptionalAdminClient();
 
@@ -261,16 +262,20 @@ async function hasRunningBlingSyncJobInRepository(
     return false;
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('sync_jobs')
     .select('id')
     .eq('store_id', storeId)
     .eq('provider', BLING_PROVIDER_KEY)
     .eq('job_type', jobType)
     .eq('status', 'running')
-    .is('processed_at', null)
-    .limit(1)
-    .maybeSingle();
+    .is('processed_at', null);
+
+  if (orderId) {
+    query = query.contains('payload', { orderId });
+  }
+
+  const { data, error } = await query.limit(1).maybeSingle();
 
   return Boolean(!error && data);
 }
@@ -333,7 +338,7 @@ async function completeBlingSyncJobInRepository(input: {
 async function recordBlingSyncEventInRepository(input: {
   storeId: string;
   environment: BlingEnvironment;
-  settingsKey: 'productSync' | 'inventorySync';
+  settingsKey: 'productSync' | 'inventorySync' | 'orderSend';
   status: BlingSyncJobStatus;
   summary?: Record<string, unknown>;
   updateLastSyncAt?: boolean;
@@ -447,5 +452,57 @@ export async function recordBlingInventorySyncEventInRepository(input: {
   return recordBlingSyncEventInRepository({
     ...input,
     settingsKey: 'inventorySync',
+  });
+}
+
+export async function hasRunningBlingOrderSendJobInRepository(input: {
+  storeId: string;
+  orderId: string;
+}) {
+  return hasRunningBlingSyncJobInRepository(
+    input.storeId,
+    'order_send',
+    input.orderId
+  );
+}
+
+export async function createBlingOrderSendJobInRepository(input: {
+  storeId: string;
+  orderId: string;
+  orderNumber?: string;
+}) {
+  return createBlingSyncJobInRepository({
+    storeId: input.storeId,
+    jobType: 'order_send',
+    summary: {
+      orderId: input.orderId,
+      orderNumber: input.orderNumber,
+      startedAt: new Date().toISOString(),
+    },
+  });
+}
+
+export async function completeBlingOrderSendJobInRepository(input: {
+  jobId: string;
+  storeId: string;
+  status: Exclude<BlingSyncJobStatus, 'running'>;
+  summary: Record<string, unknown>;
+  lastError?: string;
+}) {
+  return completeBlingSyncJobInRepository({
+    ...input,
+    jobType: 'order_send',
+  });
+}
+
+export async function recordBlingOrderSendEventInRepository(input: {
+  storeId: string;
+  environment: BlingEnvironment;
+  status: BlingSyncJobStatus;
+  summary?: Record<string, unknown>;
+}) {
+  return recordBlingSyncEventInRepository({
+    ...input,
+    settingsKey: 'orderSend',
   });
 }

@@ -8,6 +8,7 @@ import {
   listAdminProductsWithSource,
   listCategoriesWithSource,
 } from '@/modules/catalog/product.service';
+import { listCustomers } from '@/modules/customers/customer.service';
 import { listOrdersWithSource } from '@/modules/orders/order.service';
 import { listStoreIntegrationsWithSource } from '@/modules/integrations/core/store-integration.service';
 import {
@@ -80,11 +81,13 @@ export default async function AdminPage() {
     categoriesResult,
     ordersResult,
     integrationsResult,
+    customers,
   ] = await Promise.all([
     listAdminProductsWithSource(ACTIVE_STORE_ID),
     listCategoriesWithSource(ACTIVE_STORE_ID),
     listOrdersWithSource(ACTIVE_STORE_ID),
     listStoreIntegrationsWithSource(ACTIVE_STORE_ID),
+    listCustomers(ACTIVE_STORE_ID),
   ]);
 
   return (
@@ -92,11 +95,13 @@ export default async function AdminPage() {
       products={productsResult.data}
       categories={categoriesResult.data}
       orders={ordersResult.data}
+      customers={customers}
       integrations={integrationsResult.data}
       dataSources={{
         products: productsResult.source,
         categories: categoriesResult.source,
         orders: ordersResult.source,
+        customers: 'supabase',
         integrations: integrationsResult.source,
       }}
       adminUser={{

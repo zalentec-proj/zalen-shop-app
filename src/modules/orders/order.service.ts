@@ -14,15 +14,41 @@ import type {
 import {
   type OrderDataSource,
   type OrderRepositoryResult,
+  getOrderByIdFromRepository,
   listMockOrdersFromRepository,
   listOrdersFromRepository,
   listOrdersWithSourceFromRepository,
   saveOrderToRepository,
+  updateOrderExternalErpStateInRepository,
 } from './order.repository';
+import { upsertCheckoutCustomer } from '../customers/customer.service';
+import { tryAutoSendOrderToBling } from '../integrations/bling/orders/bling-order-send.service';
 
 const createOrderInputSchema = z.object({
   storeId: z.string().trim().min(1),
   customerId: z.string().trim().min(1).optional(),
+  customer: z
+    .object({
+      name: z.string().trim().min(2).optional(),
+      email: z.string().trim().email().optional(),
+      phone: z.string().trim().min(8).optional(),
+      document: z.string().trim().min(11).optional(),
+      shippingAddress: z
+        .object({
+          recipientName: z.string().trim().min(1).optional(),
+          phone: z.string().trim().min(8).optional(),
+          postalCode: z.string().trim().min(5).optional(),
+          street: z.string().trim().min(1).optional(),
+          number: z.string().trim().min(1).optional(),
+          complement: z.string().trim().min(1).optional(),
+          district: z.string().trim().min(1).optional(),
+          city: z.string().trim().min(1).optional(),
+          state: z.string().trim().min(2).optional(),
+          country: z.string().trim().min(2).optional(),
+        })
+        .optional(),
+    })
+    .optional(),
   items: z
     .array(
       z.object({
@@ -103,6 +129,31 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
     throw new Error('Order contains products from different stores.');
   }
 
+  const customer = parsed.customer
+    ? await upsertCheckoutCustomer({
+        storeId,
+        name: parsed.customer.name ?? 'Cliente sem nome',
+        email: parsed.customer.email,
+        phone: parsed.customer.phone,
+        document: parsed.customer.document,
+        source: 'checkout',
+        address: parsed.customer.shippingAddress
+          ? {
+              recipientName: parsed.customer.shippingAddress.recipientName,
+              phone: parsed.customer.shippingAddress.phone,
+              postalCode: parsed.customer.shippingAddress.postalCode,
+              street: parsed.customer.shippingAddress.street,
+              number: parsed.customer.shippingAddress.number,
+              complement: parsed.customer.shippingAddress.complement,
+              district: parsed.customer.shippingAddress.district,
+              city: parsed.customer.shippingAddress.city,
+              state: parsed.customer.shippingAddress.state,
+              country: parsed.customer.shippingAddress.country,
+            }
+          : undefined,
+      })
+    : null;
+
   const items = resolvedItems.map((item) => ({ ...item, storeId }));
   const subtotal = items.reduce((acc, item) => acc + item.total, 0);
   const shippingTotal = 0;
@@ -112,7 +163,28 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
     id: orderId,
     storeId,
     orderNumber: generateOrderNumber(),
-    customerId: parsed.customerId,
+    customerId: customer?.id ?? parsed.customerId,
+    customer: {
+      name: customer?.name ?? parsed.customer?.name,
+      email: customer?.email ?? parsed.customer?.email,
+      phone: customer?.phone ?? parsed.customer?.phone,
+      document: customer?.document ?? parsed.customer?.document,
+      shippingAddress:
+        customer?.defaultAddress
+          ? {
+              recipientName: customer.defaultAddress.recipientName,
+              phone: customer.defaultAddress.phone,
+              postalCode: customer.defaultAddress.postalCode,
+              street: customer.defaultAddress.street,
+              number: customer.defaultAddress.number,
+              complement: customer.defaultAddress.complement,
+              district: customer.defaultAddress.district,
+              city: customer.defaultAddress.city,
+              state: customer.defaultAddress.state,
+              country: customer.defaultAddress.country,
+            }
+          : parsed.customer?.shippingAddress,
+    },
     status: 'pending',
     paymentStatus: 'pending',
     fulfillmentStatus: 'unfulfilled',
@@ -120,13 +192,42 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
     shippingTotal,
     discountTotal,
     total: subtotal + shippingTotal - discountTotal,
+    externalErpSyncStatus: 'pending',
     items,
     createdAt: now,
+    updatedAt: now,
   };
 
-  return saveOrderToRepository(order);
+  const savedOrder = await saveOrderToRepository(order);
+
+  await tryAutoSendOrderToBling({
+    storeId: savedOrder.storeId,
+    orderId: savedOrder.id,
+  });
+
+  return savedOrder;
 }
 
 export async function createMockOrder(input: CreateOrderInput): Promise<Order> {
   return createOrder(input);
+}
+
+export async function getOrderById(
+  storeId: string,
+  orderId: string
+): Promise<OrderListItem | null> {
+  return getOrderByIdFromRepository(storeId, orderId);
+}
+
+export async function markOrderErpSyncError(input: {
+  storeId: string;
+  orderId: string;
+  errorCode: string;
+}) {
+  return updateOrderExternalErpStateInRepository({
+    storeId: input.storeId,
+    orderId: input.orderId,
+    status: 'error',
+    lastError: input.errorCode,
+  });
 }

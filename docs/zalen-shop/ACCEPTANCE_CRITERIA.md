@@ -34,6 +34,7 @@
 - Admin mostra contexto da loja ativa.
 - Produtos são visíveis.
 - Pedidos são visíveis.
+- Clientes são visíveis quando autorizado.
 - Integrações mostram status.
 - Erros aparecem de forma compreensível.
 - Admin não expõe segredos.
@@ -53,7 +54,16 @@
 - Total é calculado no backend quando checkout real for implementado.
 - Pedido é criado com número amigável.
 - Pedido é salvo no banco.
-- Pedido pode ser preparado para envio ao ERP.
+- Pedido salva snapshot do comprador quando informado.
+- Pedido dispara envio ERP server-side e registra erro seguro quando integração
+  estiver pendente/incompleta.
+
+## 6.1 Clientes
+
+- Clientes usam `store_id`.
+- Clientes não são públicos para `anon`.
+- Admin autorizado pode listar e cadastrar clientes.
+- Lista mostra última compra e total consumido quando houver pedidos vinculados.
 
 ## 7. Conectores
 

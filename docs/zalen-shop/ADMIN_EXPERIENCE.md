@@ -37,22 +37,22 @@ Evitar:
 
 ## 4. Estrutura de navegação
 
-MVP:
+A navegação evoluiu do MVP enxuto para uma estrutura SaaS operacional em grupos.
+Ela deve continuar compacta, mas já preparada para crescimento da plataforma.
 
-- Visão geral
-- Produtos
-- Pedidos
-- Integrações
-- Configurações
+Grupos atuais:
+
+- Operação: Visão geral, Pedidos, Produtos, Clientes.
+- Canais: Loja online e canais futuros.
+- Conectores: Integrações e ERP principal.
+- Configuração: Pagamentos, Envios, Domínios e Configurações.
 
 Futuro:
 
-- Clientes
-- Usuários
-- Logs
-- Temas
-- Domínios
-- Relatórios
+- Usuários.
+- Logs.
+- Temas.
+- Relatórios.
 
 ## 5. Dashboard
 
@@ -85,13 +85,31 @@ Com ERP conectado, definir cuidadosamente quais campos são editáveis no Zalen 
 
 O admin deve listar pedidos e seus status.
 
+Atual:
+
+- listar pedidos com cliente, pagamento, status e total;
+- mostrar estado de envio para ERP;
+- permitir reprocessamento manual do envio Bling quando houver erro/pendência.
+
 Futuro:
 
-- ver detalhe do pedido;
-- enviar para ERP;
-- reprocessar envio;
-- acompanhar pagamento;
-- acompanhar envio/rastreio.
+- ver detalhe completo do pedido;
+- acompanhar pagamento real;
+- acompanhar envio/rastreio;
+- receber status por webhook validado.
+
+## 7.1 Clientes
+
+Clientes são um módulo operacional próprio porque pedidos e ERPs exigem comprador
+identificável.
+
+Atual:
+
+- listar clientes por loja;
+- buscar por nome, e-mail, telefone, documento ou último pedido;
+- cadastrar cliente manualmente;
+- calcular última compra e total consumido a partir dos pedidos;
+- reservar aba Mensagens como placeholder sem chat/newsletter real.
 
 ## 8. Integrações
 
