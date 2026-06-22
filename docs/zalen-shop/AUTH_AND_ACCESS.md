@@ -24,9 +24,13 @@ Rotas públicas do storefront:
 - `/produto/[slug]`
 - `/categoria/[slug]`
 - `/carrinho`
+- `/conta/entrar`
+- `/conta/cadastro`
 - futuras páginas públicas da loja
 
-Essas rotas não exigem login.
+Navegação, catálogo, carrinho e checkout convidado são públicos. A compra não
+exige conta. O comprador informa e-mail, entrega e CPF/CNPJ no checkout; a conta
+de comprador é opcional para compras futuras e acompanhamento.
 
 ## 4. Rotas protegidas
 
@@ -119,7 +123,6 @@ Regras:
 
 ## 11. O que não implementar agora
 
-- cadastro público;
 - login social;
 - `/platform` completo;
 - permissões granulares por recurso;

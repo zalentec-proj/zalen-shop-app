@@ -50,7 +50,7 @@ export default function CategoryClient({ category, products, categories }: Props
             href="/carrinho"
             className="text-sm font-medium text-brand-muted hover:text-white transition-colors"
           >
-            Carrinho demo
+            Carrinho
           </Link>
         </nav>
       </header>

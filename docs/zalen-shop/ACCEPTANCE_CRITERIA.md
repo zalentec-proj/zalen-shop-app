@@ -24,6 +24,13 @@
 - Categoria carrega produtos da store ativa.
 - Produto abre com dados corretos.
 - Carrinho funciona.
+- Carrinho persiste itens reais adicionados pelo comprador.
+- Checkout permite compra convidada com e-mail, entrega e CPF/CNPJ.
+- CPF/CNPJ é validado no servidor antes de criar pedido.
+- Checkout identifica PF por CPF e PJ por CNPJ.
+- Checkout aplica tabela de preço PF/PJ server-side.
+- Frontend não define preço cobrado, frete ou total final.
+- Compra PJ coleta razão social e inscrição estadual ou isenção.
 - Layout responsivo.
 - Performance aceitável.
 - Storefront Brasil Drones mantém identidade Brasil Drones.
@@ -55,15 +62,21 @@
 - Pedido é criado com número amigável.
 - Pedido é salvo no banco.
 - Pedido salva snapshot do comprador quando informado.
+- Pedido salva snapshot fiscal PF/PJ e tabela de preço aplicada.
+- `order_items` salva preço unitário final calculado no servidor.
+- Pedido criado pelo storefront salva cliente e snapshot do comprador mesmo sem login.
+- Pedido criado pelo storefront fica vinculado ao cliente autenticado quando houver conta.
 - Pedido dispara envio ERP server-side e registra erro seguro quando integração
   estiver pendente/incompleta.
 
 ## 6.1 Clientes
 
 - Clientes usam `store_id`.
+- Clientes podem ser vinculados a Supabase Auth por `auth_user_id`.
 - Clientes não são públicos para `anon`.
 - Admin autorizado pode listar e cadastrar clientes.
 - Lista mostra última compra e total consumido quando houver pedidos vinculados.
+- Lista mostra tipo PF/PJ e documento quando disponível.
 
 ## 7. Conectores
 

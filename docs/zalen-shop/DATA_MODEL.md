@@ -119,6 +119,50 @@ product_variants (
 )
 ```
 
+Preço público/default fica em `product_variants.price` e
+`product_variants.promotional_price`. Para regras por perfil de comprador, a
+Zalen usa tabelas de preço nativas por loja:
+
+```sql
+price_lists (
+  id uuid primary key,
+  store_id uuid references stores(id),
+  name text not null,
+  code text not null,
+  customer_type text not null, -- pf | pj
+  status text not null,
+  currency text,
+  priority integer,
+  is_default boolean,
+  external_provider text,
+  external_id text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+)
+```
+
+```sql
+product_variant_prices (
+  id uuid primary key,
+  store_id uuid references stores(id),
+  variant_id uuid references product_variants(id),
+  price_list_id uuid references price_lists(id),
+  price numeric(12,2),
+  promotional_price numeric(12,2),
+  source text,
+  external_provider text,
+  external_id text,
+  last_synced_at timestamptz,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+)
+```
+
+O checkout resolve `customer_type` por CPF/CNPJ, escolhe a lista aplicável e
+recalcula os itens no servidor. Integrações como Bling podem atualizar preço
+base/default, mas não devem sobrescrever preços PJ manuais da Zalen sem vínculo
+explícito de lista externa.
+
 ```sql
 product_images (
   id uuid primary key,
@@ -157,10 +201,15 @@ product_categories (
 customers (
   id uuid primary key,
   store_id uuid references stores(id),
+  auth_user_id uuid references auth.users(id),
   name text not null,
   email text,
   phone text,
   document text,
+  customer_type text,
+  legal_name text,
+  state_registration text,
+  state_registration_exempt boolean,
   source text,
   accepts_marketing boolean,
   notes text,
@@ -192,7 +241,8 @@ customer_addresses (
 ```
 
 Clientes são dados privados por loja. O storefront público não deve ler
-`customers` nem `customer_addresses`.
+`customers` nem `customer_addresses`. Quando o cliente cria login no storefront,
+`auth_user_id` vincula a conta Supabase Auth ao cadastro privado daquela store.
 
 ## 5. Pedidos
 
@@ -206,7 +256,12 @@ orders (
   customer_email text,
   customer_phone text,
   customer_document text,
+  customer_type text,
+  customer_legal_name text,
+  customer_state_registration text,
+  customer_state_registration_exempt boolean,
   shipping_address_json jsonb,
+  fiscal_info_json jsonb,
   status text not null,
   payment_status text,
   fulfillment_status text,
@@ -214,6 +269,8 @@ orders (
   shipping_total numeric(12,2),
   discount_total numeric(12,2),
   total numeric(12,2),
+  price_list_id uuid references price_lists(id),
+  price_list_name text,
   external_erp_provider text,
   external_erp_id text,
   external_erp_sync_status text,
@@ -238,7 +295,10 @@ order_items (
   name text,
   quantity integer,
   unit_price numeric(12,2),
-  total numeric(12,2)
+  total numeric(12,2),
+  customer_type text,
+  price_list_id uuid references price_lists(id),
+  price_list_name text
 )
 ```
 

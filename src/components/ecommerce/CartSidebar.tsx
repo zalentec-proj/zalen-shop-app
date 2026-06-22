@@ -1,29 +1,30 @@
 import React from 'react';
 import { X, Trash2, ShieldCheck, ShoppingBag, ArrowRight } from 'lucide-react';
-import { CartItem } from '../../types';
+import type { Cart } from '@/modules/cart/cart.types';
+import { getItemCount } from '@/modules/cart/cart.utils';
 
 interface CartSidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  cartItems: CartItem[];
-  onUpdateQuantity: (productId: string, qty: number) => void;
-  onRemoveItem: (productId: string) => void;
+  cart: Cart;
+  onUpdateQuantity: (productId: string, variantId: string, qty: number) => void;
+  onRemoveItem: (productId: string, variantId: string) => void;
   onCheckout: () => void;
 }
 
 export default function CartSidebar({
   isOpen,
   onClose,
-  cartItems,
+  cart,
   onUpdateQuantity,
   onRemoveItem,
   onCheckout,
 }: CartSidebarProps) {
   if (!isOpen) return null;
 
-  // Compute subtotal
-  const subtotal = cartItems.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
-  const total = subtotal; // Frete is free
+  const itemCount = getItemCount(cart);
+  const subtotal = cart.subtotal;
+  const total = subtotal;
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden flex justify-end animate-in fade-in duration-300">
@@ -45,7 +46,7 @@ export default function CartSidebar({
               Seu carrinho
             </h2>
             <span className="text-[11px] font-mono text-brand-muted mt-0.5">
-              {cartItems.length} {cartItems.length === 1 ? 'item adicionado' : 'itens adicionados'}
+              {itemCount} {itemCount === 1 ? 'item adicionado' : 'itens adicionados'}
             </span>
           </div>
 
@@ -59,30 +60,34 @@ export default function CartSidebar({
 
         {/* Content list stage scrollbar */}
         <div className="flex-1 overflow-y-auto py-6 flex flex-col gap-4">
-          {cartItems.length > 0 ? (
-            cartItems.map((item) => (
+          {cart.items.length > 0 ? (
+            cart.items.map((item) => (
               <div
-                key={item.product.id}
+                key={`${item.productId}-${item.variantId}`}
                 className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex gap-4 hover:border-white/10 transition-colors relative"
               >
                 {/* Product thumbnail */}
                 <div className="w-16 h-16 rounded-xl bg-white/[0.02] border border-white/5 p-1 flex items-center justify-center shrink-0">
-                  <img
-                    src={item.product.image}
-                    alt={item.product.name}
-                    className="max-h-full max-w-full object-contain drop-shadow"
-                    referrerPolicy="no-referrer"
-                  />
+                  {item.imageUrl ? (
+                    <img
+                      src={item.imageUrl}
+                      alt={item.name}
+                      className="max-h-full max-w-full object-contain drop-shadow"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <ShoppingBag className="h-7 w-7 text-brand-muted" />
+                  )}
                 </div>
 
                 {/* Text attributes, counts and prices */}
                 <div className="flex-1 flex flex-col text-left justify-between">
                   <div className="flex flex-col gap-0.5">
                     <span className="text-xs font-semibold text-white tracking-tight line-clamp-1">
-                      {item.product.name}
+                      {item.name}
                     </span>
                     <span className="text-[10px] uppercase font-mono tracking-wider text-brand-muted">
-                      {item.product.category}
+                      {item.sku ? `SKU: ${item.sku}` : 'Produto Brasil Drones'}
                     </span>
                   </div>
 
@@ -93,7 +98,7 @@ export default function CartSidebar({
                     <div className="h-8 bg-white/[0.03] border border-white/10 rounded-lg flex items-center px-1">
                       <button
                         disabled={item.quantity <= 1}
-                        onClick={() => onUpdateQuantity(item.product.id, item.quantity - 1)}
+                        onClick={() => onUpdateQuantity(item.productId, item.variantId, item.quantity - 1)}
                         className="w-6 h-6 flex items-center justify-center text-[#8A93A3] hover:text-white transition-colors disabled:opacity-30"
                       >
                         -
@@ -102,7 +107,7 @@ export default function CartSidebar({
                         {item.quantity}
                       </span>
                       <button
-                        onClick={() => onUpdateQuantity(item.product.id, item.quantity + 1)}
+                        onClick={() => onUpdateQuantity(item.productId, item.variantId, item.quantity + 1)}
                         className="w-6 h-6 flex items-center justify-center text-[#8A93A3] hover:text-white transition-colors"
                       >
                         +
@@ -111,7 +116,7 @@ export default function CartSidebar({
 
                     {/* Green aligned Price */}
                     <span className="text-[13px] font-bold text-green-accent font-sans">
-                      R$ {(item.product.price * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {(item.unitPrice * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </span>
 
                   </div>
@@ -119,7 +124,7 @@ export default function CartSidebar({
 
                 {/* Trash delete button */}
                 <button
-                  onClick={() => onRemoveItem(item.product.id)}
+                  onClick={() => onRemoveItem(item.productId, item.variantId)}
                   className="absolute top-4 right-4 text-brand-muted hover:text-red-500 transition-colors cursor-pointer"
                   title="Remover item"
                 >
@@ -146,7 +151,7 @@ export default function CartSidebar({
         </div>
 
         {/* Bottom checkout blocks */}
-        {cartItems.length > 0 && (
+        {cart.items.length > 0 && (
           <div className="border-t border-brand-border-soft pt-6 flex flex-col gap-4">
             
             {/* Value computations layout */}

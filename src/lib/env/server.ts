@@ -20,7 +20,10 @@ const serverEnvSchema = z.object({
   BLING_SCOPES: optionalSecretString,
   BLING_ENV: optionalSecretString,
   INTEGRATION_TOKEN_ENCRYPTION_KEY: optionalSecretString,
+  MERCADO_PAGO_ENV: z.enum(['test', 'production']).optional(),
   MERCADO_PAGO_ACCESS_TOKEN: optionalSecretString,
+  MERCADO_PAGO_PUBLIC_KEY: optionalSecretString,
+  MERCADO_PAGO_WEBHOOK_SECRET: optionalSecretString,
   MELHOR_ENVIO_TOKEN: optionalSecretString,
   GEMINI_API_KEY: optionalSecretString,
 });
@@ -50,6 +53,16 @@ function normalizeEnvValue(value: string | undefined): string | undefined {
   return normalized;
 }
 
+function normalizeMercadoPagoEnv(value: string | undefined) {
+  const normalized = normalizeEnvValue(value)?.toLowerCase();
+
+  if (normalized === 'test' || normalized === 'production') {
+    return normalized;
+  }
+
+  return undefined;
+}
+
 function parseServerEnv(): ServerEnv {
   const result = serverEnvSchema.safeParse({
     NEXT_PUBLIC_SUPABASE_URL: normalizeEnvValue(
@@ -71,8 +84,15 @@ function parseServerEnv(): ServerEnv {
     INTEGRATION_TOKEN_ENCRYPTION_KEY: normalizeEnvValue(
       process.env.INTEGRATION_TOKEN_ENCRYPTION_KEY
     ),
+    MERCADO_PAGO_ENV: normalizeMercadoPagoEnv(process.env.MERCADO_PAGO_ENV),
     MERCADO_PAGO_ACCESS_TOKEN: normalizeEnvValue(
       process.env.MERCADO_PAGO_ACCESS_TOKEN
+    ),
+    MERCADO_PAGO_PUBLIC_KEY: normalizeEnvValue(
+      process.env.MERCADO_PAGO_PUBLIC_KEY
+    ),
+    MERCADO_PAGO_WEBHOOK_SECRET: normalizeEnvValue(
+      process.env.MERCADO_PAGO_WEBHOOK_SECRET
     ),
     MELHOR_ENVIO_TOKEN: normalizeEnvValue(process.env.MELHOR_ENVIO_TOKEN),
     GEMINI_API_KEY: normalizeEnvValue(process.env.GEMINI_API_KEY),

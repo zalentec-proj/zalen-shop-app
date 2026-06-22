@@ -38,6 +38,13 @@ type OrderRow = {
   customer_email: string | null;
   customer_phone: string | null;
   customer_document: string | null;
+  customer_type: string | null;
+  customer_legal_name: string | null;
+  customer_state_registration: string | null;
+  customer_state_registration_exempt: boolean | null;
+  price_list_id: string | null;
+  price_list_name: string | null;
+  fiscal_info_json: Record<string, unknown> | null;
   shipping_address_json: Record<string, unknown> | null;
   status: string | null;
   payment_status: string | null;
@@ -66,6 +73,9 @@ type OrderItemRow = {
   quantity: number;
   unit_price: number | string | null;
   total: number | string | null;
+  customer_type: string | null;
+  price_list_id: string | null;
+  price_list_name: string | null;
 };
 
 type RepositoryError = {
@@ -153,6 +163,22 @@ function toExternalErpSyncStatus(
     : 'pending';
 }
 
+function toCustomerType(value: string | null | undefined) {
+  return value === 'pj' ? 'pj' : value === 'pf' ? 'pf' : undefined;
+}
+
+function toFiscalInfoJson(
+  value: OrderListItem['fiscalInfo'] | undefined
+): Record<string, unknown> {
+  if (!value) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entryValue]) => entryValue !== undefined)
+  );
+}
+
 function toAddressSnapshot(
   value: Record<string, unknown> | null | undefined
 ): OrderAddressSnapshot | undefined {
@@ -223,6 +249,9 @@ function buildMockOrderItem(
     quantity,
     unitPrice: variant.price,
     total: variant.price * quantity,
+    customerType: undefined,
+    priceListId: undefined,
+    priceListName: undefined,
   };
 }
 
@@ -295,6 +324,9 @@ function mapOrderItem(row: OrderItemRow, fallbackStoreId: string): OrderItem {
     quantity: row.quantity,
     unitPrice: toNumber(row.unit_price),
     total: toNumber(row.total),
+    customerType: toCustomerType(row.customer_type),
+    priceListId: row.price_list_id ?? undefined,
+    priceListName: row.price_list_name ?? undefined,
   };
 }
 
@@ -313,6 +345,11 @@ function mapOrder(
       email: row.customer_email ?? undefined,
       phone: row.customer_phone ?? undefined,
       document: row.customer_document ?? undefined,
+      customerType: toCustomerType(row.customer_type),
+      legalName: row.customer_legal_name ?? undefined,
+      stateRegistration: row.customer_state_registration ?? undefined,
+      stateRegistrationExempt:
+        row.customer_state_registration_exempt ?? undefined,
       shippingAddress: toAddressSnapshot(row.shipping_address_json),
     },
     status: toOrderStatus(row.status),
@@ -322,6 +359,16 @@ function mapOrder(
     shippingTotal: toNumber(row.shipping_total),
     discountTotal: toNumber(row.discount_total),
     total: toNumber(row.total),
+    customerType: toCustomerType(row.customer_type),
+    customerLegalName: row.customer_legal_name ?? undefined,
+    customerStateRegistration: row.customer_state_registration ?? undefined,
+    customerStateRegistrationExempt:
+      row.customer_state_registration_exempt ?? undefined,
+    priceListId: row.price_list_id ?? undefined,
+    priceListName: row.price_list_name ?? undefined,
+    fiscalInfo: row.fiscal_info_json as
+      | Record<string, string | boolean | undefined>
+      | undefined,
     externalErpProvider: row.external_erp_provider ?? undefined,
     externalErpId: row.external_erp_id ?? undefined,
     externalErpSyncStatus: toExternalErpSyncStatus(row.external_erp_sync_status),
@@ -556,6 +603,38 @@ export async function updateOrderExternalErpStateInRepository(input: {
   }
 }
 
+export async function updateOrderPaymentStateInRepository(input: {
+  storeId: string;
+  orderId: string;
+  paymentStatus: PaymentStatus;
+  status?: OrderStatus;
+}) {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return;
+  }
+
+  const payload: Record<string, unknown> = {
+    payment_status: input.paymentStatus,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (input.status) {
+    payload.status = input.status;
+  }
+
+  const { error } = await supabase
+    .from('orders')
+    .update(payload)
+    .eq('id', input.orderId)
+    .eq('store_id', input.storeId);
+
+  if (error) {
+    throw new Error('Unable to update order payment state.');
+  }
+}
+
 export async function listOrdersWithSourceFromRepository(
   storeId: string
 ): Promise<
@@ -681,6 +760,20 @@ export async function saveOrderToRepository(order: Order): Promise<Order> {
     customer_email: order.customer?.email,
     customer_phone: order.customer?.phone,
     customer_document: order.customer?.document,
+    customer_type: order.customerType ?? order.customer?.customerType,
+    customer_legal_name:
+      order.customerLegalName ?? order.customer?.legalName ?? null,
+    customer_state_registration:
+      order.customerStateRegistration ??
+      order.customer?.stateRegistration ??
+      null,
+    customer_state_registration_exempt:
+      order.customerStateRegistrationExempt ??
+      order.customer?.stateRegistrationExempt ??
+      false,
+    price_list_id: toNullableUuid(order.priceListId),
+    price_list_name: order.priceListName,
+    fiscal_info_json: toFiscalInfoJson(order.fiscalInfo),
     shipping_address_json: toShippingAddressJson(order.customer?.shippingAddress),
     status: order.status,
     payment_status: order.paymentStatus,
@@ -718,6 +811,9 @@ export async function saveOrderToRepository(order: Order): Promise<Order> {
       quantity: item.quantity,
       unit_price: item.unitPrice,
       total: item.total,
+      customer_type: item.customerType,
+      price_list_id: toNullableUuid(item.priceListId),
+      price_list_name: item.priceListName,
     }))
   );
 

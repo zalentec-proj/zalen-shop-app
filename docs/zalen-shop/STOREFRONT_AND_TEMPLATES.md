@@ -53,8 +53,28 @@ Storefront chama services internos da Zalen Shop.
 - `/produto/[slug]`
 - `/categoria/[slug]`
 - `/carrinho`
+- `/conta/entrar`
+- `/conta/cadastro`
 - `/checkout`
 - `/pedido-confirmado`
+
+O catálogo continua público. Para finalizar uma compra, o comprador pode seguir
+como convidado, informando e-mail, endereço de entrega e CPF/CNPJ para nota
+fiscal. O carrinho é persistido no navegador e o pedido é criado server-side no
+core da Zalen Shop. A criação de conta fica como etapa opcional após a compra.
+
+O fluxo de checkout operacional é:
+
+1. Identificação por e-mail, CPF ou CNPJ.
+2. Cadastro rápido PF ou PJ, sem exigir login.
+3. Endereço de entrega e dados fiscais.
+4. Envio operacional inicial.
+5. Pagamento via Mercado Pago Checkout Pro.
+
+CPF aplica `customer_type = pf`; CNPJ aplica `customer_type = pj`. O preço
+mostrado no storefront é público/default PF, mas o total cobrado é sempre
+recalculado no servidor conforme a tabela de preço aplicável. O frontend nunca
+define preço, frete ou total.
 
 ## 7. Páginas futuras
 

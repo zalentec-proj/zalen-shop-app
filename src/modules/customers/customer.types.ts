@@ -1,3 +1,5 @@
+import type { CustomerType } from '@/modules/pricing/pricing.types';
+
 export type CustomerSource = 'manual' | 'checkout' | 'integration';
 
 export interface CustomerAddress {
@@ -23,10 +25,15 @@ export interface CustomerAddress {
 export interface Customer {
   id: string;
   storeId: string;
+  authUserId?: string;
   name: string;
   email?: string;
   phone?: string;
   document?: string;
+  customerType: CustomerType;
+  legalName?: string;
+  stateRegistration?: string;
+  stateRegistrationExempt: boolean;
   source: CustomerSource;
   acceptsMarketing: boolean;
   notes?: string;
@@ -57,10 +64,15 @@ export interface CustomerAddressInput {
 
 export interface CustomerInput {
   storeId: string;
+  authUserId?: string;
   name: string;
   email?: string;
   phone?: string;
   document?: string;
+  customerType?: CustomerType;
+  legalName?: string;
+  stateRegistration?: string;
+  stateRegistrationExempt?: boolean;
   source?: CustomerSource;
   acceptsMarketing?: boolean;
   notes?: string;

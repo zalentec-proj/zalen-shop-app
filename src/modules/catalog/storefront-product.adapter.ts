@@ -27,6 +27,9 @@ export function toStorefrontProduct(product: CatalogProduct): StorefrontProduct 
 
   return {
     id: product.slug,
+    catalogProductId: product.id,
+    variantId: variant?.id,
+    sku: variant?.sku,
     name: product.name,
     subtitle: product.seoDescription ?? product.brand,
     price: variant?.promotionalPrice ?? variant?.price ?? 0,

@@ -14,7 +14,8 @@ A Zalen processa pagamento via conector, inicialmente Mercado Pago.
 
 ## 2. Mercado Pago
 
-Será o primeiro conector de pagamento previsto, porque o cliente já possui conta.
+É o primeiro conector de pagamento em implementação, porque o cliente já possui
+conta e a primeira versão pode usar Checkout Pro com menor exposição PCI.
 
 ## 3. Autenticação
 
@@ -41,10 +42,25 @@ Zalen envia pedido ao Bling
 
 ## 5. Checkout
 
-Fase recomendada:
+Fase atual:
 
-- Inicial: sem checkout próprio complexo, se o Bling centralizar operação.
-- Futuro: Checkout Pro ou Checkout Transparente.
+- Checkout convidado na Zalen coleta e-mail, entrega e CPF/CNPJ.
+- Backend cria pedido local no Supabase.
+- Backend cria preferência Checkout Pro no Mercado Pago.
+- Frontend recebe apenas a URL pública de checkout e redireciona o comprador.
+
+Fase atual de conciliação:
+
+- rotas de retorno do Mercado Pago leem `payment_id`/`collection_id` e consultam
+  o pagamento server-side;
+- webhook validado salva `webhook_events` e usa o mesmo service de conciliação;
+- `payment_transactions` registra preferência, pagamento externo, status bruto e
+  status normalizado;
+- `approved` marca o pedido como `payment_status = paid` e `status = confirmed`;
+- somente após pagamento aprovado a Zalen tenta enviar o pedido ao Bling;
+- falhas no envio ao Bling não cancelam o pedido pago: ficam como erro
+  operacional para retry no admin;
+- Checkout Transparente/Bricks fica reservado para uma fase posterior.
 
 ## 6. Regras de segurança
 
@@ -61,6 +77,10 @@ payment_connections
 payment_transactions
 payment_webhook_events
 ```
+
+`payment_transactions` registra provider, preferência, pagamento externo, URL de
+checkout, status normalizado, status bruto e timestamps de processamento.
+Webhooks continuam usando `webhook_events` até a criação de uma tabela dedicada.
 
 ## 8. Fora do MVP
 

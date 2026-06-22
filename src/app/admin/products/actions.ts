@@ -9,6 +9,7 @@ import {
   updateProductStatus,
   updateProductStock,
 } from '@/modules/catalog/product.service';
+import { updateVariantBusinessPrice } from '@/modules/pricing/pricing.service';
 
 const writableStoreRoles: StoreRole[] = [
   'store_owner',
@@ -24,6 +25,11 @@ const statusSchema = z.object({
 const stockSchema = z.object({
   productId: z.string().uuid(),
   stock: z.coerce.number().int().min(0).max(999_999),
+});
+
+const businessPriceSchema = z.object({
+  variantId: z.string().uuid(),
+  price: z.coerce.number().min(0).max(9_999_999),
 });
 
 async function canManageProducts(): Promise<boolean> {
@@ -87,6 +93,35 @@ export async function updateProductStockAction(
   });
 
   if (!result.ok) {
+    return;
+  }
+
+  revalidatePath('/admin');
+}
+
+export async function updateProductBusinessPriceAction(
+  formData: FormData
+): Promise<void> {
+  if (!(await canManageProducts())) {
+    return;
+  }
+
+  const parsed = businessPriceSchema.safeParse({
+    variantId: formData.get('variantId'),
+    price: formData.get('price'),
+  });
+
+  if (!parsed.success) {
+    return;
+  }
+
+  const result = await updateVariantBusinessPrice({
+    storeId: ACTIVE_STORE_ID,
+    variantId: parsed.data.variantId,
+    price: parsed.data.price,
+  });
+
+  if (!result) {
     return;
   }
 

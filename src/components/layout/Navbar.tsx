@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Search, User, ShoppingCart, Menu, X } from 'lucide-react';
 import Logo from '../ui/Logo';
 
@@ -109,9 +110,9 @@ export default function Navbar({
           </div>
 
           {/* User Button */}
-          <button className="hidden sm:flex p-2 text-brand-white hover:text-blue-primary transition-colors cursor-pointer rounded-full hover:bg-white/5" id="user-btn">
+          <Link href="/conta/entrar" className="hidden sm:flex p-2 text-brand-white hover:text-blue-primary transition-colors cursor-pointer rounded-full hover:bg-white/5" id="user-btn">
             <User className="w-5 h-5" />
-          </button>
+          </Link>
 
           {/* Cart Trigger with green accent badge */}
           <button
@@ -165,9 +166,9 @@ export default function Navbar({
 
           <div className="flex items-center justify-between px-3 py-1">
             <span className="text-sm text-brand-muted">Acessar minha conta</span>
-            <button className="p-2 bg-brand-surface rounded-full border border-brand-border text-brand-white">
+            <Link href="/conta/entrar" className="p-2 bg-brand-surface rounded-full border border-brand-border text-brand-white">
               <User className="w-4 h-4" />
-            </button>
+            </Link>
           </div>
         </div>
       )}

@@ -27,10 +27,12 @@ import type {
 } from '@/modules/integrations/core/store-integration.types';
 import { logoutAction } from '@/app/login/actions';
 import {
+  updateProductBusinessPriceAction,
   updateProductStatusAction,
   updateProductStockAction,
 } from '@/app/admin/products/actions';
 import { createAdminCustomerAction } from '@/app/admin/customers/actions';
+import type { AdminVariantPriceSummary } from '@/modules/pricing/pricing.types';
 import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import { platformBrand } from '@/lib/branding/platform-brand';
 import {
@@ -84,6 +86,7 @@ interface AdminDashboardProps {
   categories: Category[];
   orders: OrderListItem[];
   customers: CustomerListItem[];
+  variantPrices: AdminVariantPriceSummary[];
   integrations: StoreIntegrationListItem[];
   dataSources: {
     products: AdminDataSource;
@@ -531,6 +534,49 @@ function ProductStockForm({ product }: { product: ProductSummary }) {
   );
 }
 
+function ProductBusinessPriceForm({
+  product,
+  businessPrice,
+}: {
+  product: ProductSummary;
+  businessPrice?: AdminVariantPriceSummary;
+}) {
+  if (!product.variantId) {
+    return (
+      <div className="mt-2 text-[10px] font-medium text-slate-500">
+        PJ indisponível
+      </div>
+    );
+  }
+
+  return (
+    <form
+      action={updateProductBusinessPriceAction}
+      className="mt-2 flex items-center gap-2"
+    >
+      <input type="hidden" name="variantId" value={product.variantId} />
+      <label className="sr-only" htmlFor={`business-price-${product.variantId}`}>
+        Preço PJ de {product.name}
+      </label>
+      <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+        PJ
+      </span>
+      <input
+        id={`business-price-${product.variantId}`}
+        type="number"
+        name="price"
+        min={0}
+        step="0.01"
+        defaultValue={businessPrice?.promotionalPrice ?? businessPrice?.price ?? ''}
+        placeholder={formatCurrency(product.promotionalPrice ?? product.price)}
+        aria-label={`Preço PJ de ${product.name}`}
+        className="h-8 w-24 rounded-md border border-white/8 bg-[#081225] px-2.5 text-[11px] font-semibold text-white outline-none transition [appearance:textfield] placeholder:text-slate-600 focus:border-[#1E3DFF]/35 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+      />
+      <InlineSubmitButton idleLabel="PJ" />
+    </form>
+  );
+}
+
 function CustomerCreateForm() {
   return (
     <form action={createAdminCustomerAction} className="grid gap-2 md:grid-cols-2">
@@ -727,6 +773,7 @@ export default function AdminDashboard({
   categories,
   orders,
   customers,
+  variantPrices,
   integrations,
   dataSources,
   adminUser,
@@ -801,6 +848,11 @@ export default function AdminDashboard({
   const blingLastSyncAt = integrations.find(
     (item) => item.provider.key === 'bling'
   )?.integration?.lastSyncAt;
+  const businessPricesByVariantId = new Map(
+    variantPrices
+      .filter((price) => price.customerType === 'pj')
+      .map((price) => [price.variantId, price])
+  );
 
   const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
   const averageTicket = orders.length > 0 ? totalRevenue / orders.length : 0;
@@ -894,6 +946,8 @@ export default function AdminDashboard({
         order.customerName,
         order.customerEmail,
         order.salesChannel,
+        order.customerType,
+        order.priceListName,
       ],
       searchValue
     );
@@ -908,6 +962,8 @@ export default function AdminDashboard({
         customer.email,
         customer.phone,
         customer.document,
+        customer.customerType,
+        customer.legalName,
         customer.lastOrderNumber,
       ],
       searchValue
@@ -1205,7 +1261,18 @@ export default function AdminDashboard({
                   <div className="font-medium text-slate-100">
                     {order.customerName ?? 'Cliente não identificado'}
                   </div>
-                  <div className="mt-1 text-slate-400">{order.salesChannel}</div>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <span className="text-slate-400">{order.salesChannel}</span>
+                    <SmallBadge
+                      className={cn(
+                        order.customerType === 'pj'
+                          ? 'border-sky-400/20 bg-sky-400/10 text-sky-200'
+                          : 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200'
+                      )}
+                    >
+                      {order.customerType?.toUpperCase() ?? 'PF'}
+                    </SmallBadge>
+                  </div>
                 </div>
                 <div className="flex items-start">
                   <SmallBadge className={orderStatusClass[order.status]}>
@@ -1508,8 +1575,8 @@ export default function AdminDashboard({
               </div>
 
               <div className="overflow-x-auto rounded-lg border border-white/6">
-                <div className="min-w-[1120px]">
-                  <div className="grid grid-cols-[minmax(300px,1.5fr)_160px_150px_190px_210px_92px] gap-3 bg-[#081225] px-4 py-2.5 text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                <div className="min-w-[1160px]">
+                  <div className="grid grid-cols-[minmax(300px,1.5fr)_150px_190px_180px_200px_92px] gap-3 bg-[#081225] px-4 py-2.5 text-[10px] uppercase tracking-[0.16em] text-slate-500">
                     <span>Produto</span>
                     <span>Categoria</span>
                     <span>Preço</span>
@@ -1530,11 +1597,14 @@ export default function AdminDashboard({
                     const priceValue = product.promotionalPrice ?? product.price;
                     const hasPotentialDuplicate =
                       potentialDuplicateProductIds.has(product.id);
+                    const businessPrice = product.variantId
+                      ? businessPricesByVariantId.get(product.variantId)
+                      : undefined;
 
                     return (
                       <div
                         key={product.id}
-                        className="grid grid-cols-[minmax(300px,1.5fr)_160px_150px_190px_210px_92px] items-center gap-3 border-t border-white/6 px-4 py-3 text-xs transition hover:bg-white/[0.015]"
+                        className="grid grid-cols-[minmax(300px,1.5fr)_150px_190px_180px_200px_92px] items-center gap-3 border-t border-white/6 px-4 py-3 text-xs transition hover:bg-white/[0.015]"
                       >
                         <div className="flex min-w-0 items-center gap-3">
                           {product.imageUrl ? (
@@ -1588,7 +1658,10 @@ export default function AdminDashboard({
                         </div>
 
                         <div>
-                          <div className="font-semibold text-slate-100">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                            PF
+                          </div>
+                          <div className="mt-0.5 font-semibold text-slate-100">
                             {formatCurrency(priceValue)}
                           </div>
                           {product.promotionalPrice ? (
@@ -1598,6 +1671,10 @@ export default function AdminDashboard({
                           ) : (
                             <div className="mt-1 text-[11px] text-slate-500">Preço base</div>
                           )}
+                          <ProductBusinessPriceForm
+                            product={product}
+                            businessPrice={businessPrice}
+                          />
                         </div>
 
                         <ProductStockForm product={product} />
@@ -1902,8 +1979,32 @@ export default function AdminDashboard({
                   <div className="font-medium text-slate-100">
                     {order.customerName ?? 'Cliente não identificado'}
                   </div>
-                  <div className="mt-1 text-slate-400">
-                    {order.salesChannel ?? 'Canal local'}
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <span className="text-slate-400">
+                      {order.salesChannel ?? 'Canal local'}
+                    </span>
+                    <SmallBadge
+                      className={cn(
+                        order.customerType === 'pj'
+                          ? 'border-sky-400/20 bg-sky-400/10 text-sky-200'
+                          : 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200'
+                      )}
+                    >
+                      {order.customerType?.toUpperCase() ?? 'PF'}
+                    </SmallBadge>
+                    {order.priceListName ? (
+                      <span className="text-[11px] text-slate-500">
+                        {order.priceListName}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="mt-1 space-y-0.5 text-[11px] text-slate-500">
+                    {order.customer?.document ? (
+                      <div>Doc.: {order.customer.document}</div>
+                    ) : null}
+                    {order.customerLegalName ? (
+                      <div className="truncate">{order.customerLegalName}</div>
+                    ) : null}
                   </div>
                 </div>
                 <div className="text-slate-200">{order.items.length} item(ns)</div>
@@ -2112,9 +2213,10 @@ export default function AdminDashboard({
               }
             >
               <div className="overflow-x-auto rounded-lg border border-white/6">
-                <div className="min-w-[900px]">
-                  <div className="grid grid-cols-[minmax(240px,1fr)_150px_140px_180px] gap-3 bg-[#081225] px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                <div className="min-w-[980px]">
+                  <div className="grid grid-cols-[minmax(240px,1fr)_80px_150px_140px_180px] gap-3 bg-[#081225] px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
                     <span>Nome</span>
+                    <span>Tipo</span>
                     <span>Última compra</span>
                     <span>Total consumido</span>
                     <span className="text-right">Contato</span>
@@ -2122,7 +2224,7 @@ export default function AdminDashboard({
                   {filteredCustomers.map((customer) => (
                     <div
                       key={customer.id}
-                      className="grid grid-cols-[minmax(240px,1fr)_150px_140px_180px] items-center gap-3 border-t border-white/6 px-3 py-2.5 text-xs"
+                      className="grid grid-cols-[minmax(240px,1fr)_80px_150px_140px_180px] items-center gap-3 border-t border-white/6 px-3 py-2.5 text-xs"
                     >
                       <div className="min-w-0">
                         <div className="truncate font-semibold text-white">
@@ -2132,6 +2234,17 @@ export default function AdminDashboard({
                           {[customer.email, customer.document].filter(Boolean).join(' · ') ||
                             'Sem documento/e-mail'}
                         </div>
+                      </div>
+                      <div>
+                        <SmallBadge
+                          className={cn(
+                            customer.customerType === 'pj'
+                              ? 'border-sky-400/20 bg-sky-400/10 text-sky-200'
+                              : 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200'
+                          )}
+                        >
+                          {customer.customerType.toUpperCase()}
+                        </SmallBadge>
                       </div>
                       <div className="text-slate-300">
                         {customer.lastPurchaseAt

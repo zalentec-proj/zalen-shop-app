@@ -163,6 +163,22 @@ Implementado na v1 de estoque:
 - registro de job `inventory_sync`;
 - diagnóstico sanitizado por variante processada.
 
+## Listas de preço
+
+O Bling possui área operacional de "Lista de preços" na UI, observada em
+`/lista.preco.php`, mas a Zalen não deve depender dessa tela para calcular o
+checkout. Nesta fase:
+
+- `product_variants.price` e `promotional_price` continuam sendo preço
+  base/default sincronizado do Bling;
+- preços PF/PJ são nativos da Zalen em `price_lists` e
+  `product_variant_prices`;
+- produto sincronizado do Bling não sobrescreve preço PJ manual da Zalen;
+- pedido enviado futuramente ao Bling deve usar o preço final salvo em
+  `order_items`, sem recalcular no ERP;
+- sync de listas de preço do Bling fica pendente até confirmação oficial de
+  endpoint, payload, escopos e regra de vínculo por lista.
+
 ## Pedidos
 
 Implementado scaffold server-side seguro para envio de pedidos, sem chamada real

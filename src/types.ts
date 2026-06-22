@@ -1,5 +1,8 @@
 export interface Product {
   id: string;
+  catalogProductId?: string;
+  variantId?: string;
+  sku?: string;
   name: string;
   subtitle?: string;
   price: number;

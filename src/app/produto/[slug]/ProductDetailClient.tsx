@@ -13,6 +13,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import Footer from '@/components/layout/Footer';
+import { addStoredCartItem } from '@/modules/cart/cart.storage';
 import type { Product, ProductSummary } from '@/modules/catalog/product.types';
 
 interface Props {
@@ -31,6 +32,19 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
   const monthly = (price / 12).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 
   function handleAddToCart() {
+    if (!variant) {
+      return;
+    }
+
+    addStoredCartItem({
+      productId: product.id,
+      variantId: variant.id,
+      sku: variant.sku,
+      name: product.name,
+      imageUrl: product.images[0]?.url,
+      unitPrice: price,
+      quantity,
+    });
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 2000);
   }
@@ -245,7 +259,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
                 className="h-11 px-5 rounded-xl glass-panel-soft border border-brand-border text-sm font-semibold text-white hover:border-white/20 transition-colors flex items-center gap-2"
               >
                 <ShoppingCart className="w-4 h-4 text-blue-primary" />
-                Ver carrinho demo
+                Ver carrinho
               </Link>
               {product.categories[0] && (
                 <Link

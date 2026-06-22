@@ -9,14 +9,20 @@ import type {
   CustomerListItem,
   CustomerSource,
 } from './customer.types';
+import type { CustomerType } from '@/modules/pricing/pricing.types';
 
 type CustomerRow = {
   id: string;
   store_id: string;
+  auth_user_id: string | null;
   name: string;
   email: string | null;
   phone: string | null;
   document: string | null;
+  customer_type: string | null;
+  legal_name: string | null;
+  state_registration: string | null;
+  state_registration_exempt: boolean | null;
   source: string | null;
   accepts_marketing: boolean | null;
   notes: string | null;
@@ -51,8 +57,27 @@ type OrderMetricRow = {
   created_at: string | null;
 };
 
+type RepositoryError = {
+  code?: string;
+  details?: string;
+  hint?: string;
+  message?: string;
+};
+
+export class CustomerPersistenceError extends Error {
+  readonly safeReason: string;
+
+  constructor(reason: string, error?: RepositoryError | null) {
+    super('customer_persistence_failed');
+    this.name = 'CustomerPersistenceError';
+    const signal = getSafeRepositoryErrorSignal(error);
+    this.safeReason = signal ? `${reason}:${signal}` : reason;
+  }
+}
+
 const fallbackDate = new Date(0).toISOString();
 const customerSources: CustomerSource[] = ['manual', 'checkout', 'integration'];
+const customerTypes: CustomerType[] = ['pf', 'pj'];
 
 function cleanText(value: string | undefined) {
   const trimmed = value?.trim();
@@ -74,9 +99,66 @@ function toSource(value: string | null | undefined): CustomerSource {
     : 'manual';
 }
 
+function toCustomerType(value: string | null | undefined): CustomerType {
+  return customerTypes.includes(value as CustomerType)
+    ? (value as CustomerType)
+    : 'pf';
+}
+
 function toNumber(value: number | string | null | undefined): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function getSafeRepositoryErrorSignal(error: RepositoryError | null | undefined) {
+  if (error?.code) {
+    return error.code;
+  }
+
+  const text = [error?.message, error?.details, error?.hint]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  if (text.includes('fetch failed') || text.includes('enotfound')) {
+    return 'fetch_failed';
+  }
+
+  if (text.includes('permission denied')) {
+    return 'permission_denied';
+  }
+
+  if (text.includes('does not exist')) {
+    return 'schema_mismatch';
+  }
+
+  return undefined;
+}
+
+function logCustomerRepositoryError(
+  stage: string,
+  error: RepositoryError | null | undefined
+) {
+  if (process.env.NODE_ENV === 'production') {
+    return;
+  }
+
+  const safeSignal = getSafeRepositoryErrorSignal(error) ?? 'unknown';
+
+  console.warn('[customers] repository query failed', {
+    stage,
+    signal: safeSignal,
+    code: error?.code || undefined,
+    message: error?.message
+      ? error.message.replace(/\s+/g, ' ').slice(0, 180)
+      : undefined,
+    details: error?.details
+      ? error.details.replace(/\s+/g, ' ').slice(0, 180)
+      : undefined,
+    hint: error?.hint
+      ? error.hint.replace(/\s+/g, ' ').slice(0, 180)
+      : undefined,
+  });
 }
 
 function mapAddress(row: CustomerAddressRow): CustomerAddress {
@@ -108,10 +190,15 @@ function mapCustomer(
   return {
     id: row.id,
     storeId: row.store_id,
+    authUserId: row.auth_user_id ?? undefined,
     name: row.name,
     email: row.email ?? undefined,
     phone: row.phone ?? undefined,
     document: row.document ?? undefined,
+    customerType: toCustomerType(row.customer_type),
+    legalName: row.legal_name ?? undefined,
+    stateRegistration: row.state_registration ?? undefined,
+    stateRegistrationExempt: row.state_registration_exempt ?? false,
     source: toSource(row.source),
     acceptsMarketing: row.accepts_marketing ?? false,
     notes: row.notes ?? undefined,
@@ -124,15 +211,47 @@ function mapCustomer(
 function buildCustomerPayload(input: CustomerInput) {
   return {
     store_id: input.storeId,
+    auth_user_id: cleanText(input.authUserId) ?? null,
     name: cleanText(input.name) ?? 'Cliente sem nome',
     email: cleanEmail(input.email) ?? null,
     phone: cleanDigits(input.phone) ?? null,
     document: cleanDigits(input.document) ?? null,
+    customer_type: input.customerType ?? 'pf',
+    legal_name: cleanText(input.legalName) ?? null,
+    state_registration: cleanText(input.stateRegistration) ?? null,
+    state_registration_exempt: input.stateRegistrationExempt ?? false,
     source: input.source ?? 'manual',
     accepts_marketing: input.acceptsMarketing ?? false,
     notes: cleanText(input.notes) ?? null,
     updated_at: new Date().toISOString(),
   };
+}
+
+function getSafeCustomerUpdatePayload(input: {
+  payload: ReturnType<typeof buildCustomerPayload>;
+  existing: CustomerRow;
+  emailOwner?: CustomerRow | null;
+  documentOwner?: CustomerRow | null;
+}) {
+  const nextPayload = { ...input.payload };
+
+  if (
+    input.emailOwner &&
+    input.emailOwner.id !== input.existing.id &&
+    nextPayload.email
+  ) {
+    nextPayload.email = input.existing.email;
+  }
+
+  if (
+    input.documentOwner &&
+    input.documentOwner.id !== input.existing.id &&
+    nextPayload.document
+  ) {
+    nextPayload.document = input.existing.document;
+  }
+
+  return nextPayload;
 }
 
 function buildAddressPayload(input: {
@@ -282,6 +401,50 @@ export async function listCustomersFromRepository(
   });
 }
 
+export async function findCustomerByCheckoutIdentifierFromRepository(input: {
+  storeId: string;
+  identifier: string;
+}): Promise<Customer | null> {
+  const supabase = createOptionalAdminClient();
+  const email = cleanEmail(input.identifier);
+  const document = cleanDigits(input.identifier);
+
+  if (!supabase || (!email && !document)) {
+    return null;
+  }
+
+  let query = supabase
+    .from('customers')
+    .select('*')
+    .eq('store_id', input.storeId)
+    .limit(1);
+
+  if (document && document.length >= 11) {
+    query = query.eq('document', document);
+  } else if (email) {
+    query = query.eq('email', email);
+  } else {
+    return null;
+  }
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error || !data) {
+    if (error) {
+      logCustomerRepositoryError('checkout_identifier_lookup', error);
+    }
+
+    return null;
+  }
+
+  const customerRow = data as CustomerRow;
+  const defaultAddress = (await getDefaultAddressesByCustomerId(input.storeId, [
+    customerRow.id,
+  ])).get(customerRow.id);
+
+  return mapCustomer(customerRow, defaultAddress);
+}
+
 export async function upsertCustomerInRepository(
   input: CustomerInput
 ): Promise<Customer> {
@@ -292,10 +455,15 @@ export async function upsertCustomerInRepository(
     return {
       id: crypto.randomUUID(),
       storeId: input.storeId,
+      authUserId: payload.auth_user_id ?? undefined,
       name: payload.name,
       email: payload.email ?? undefined,
       phone: payload.phone ?? undefined,
       document: payload.document ?? undefined,
+      customerType: payload.customer_type,
+      legalName: payload.legal_name ?? undefined,
+      stateRegistration: payload.state_registration ?? undefined,
+      stateRegistrationExempt: payload.state_registration_exempt,
       source: input.source ?? 'manual',
       acceptsMarketing: input.acceptsMarketing ?? false,
       notes: input.notes,
@@ -305,33 +473,72 @@ export async function upsertCustomerInRepository(
   }
 
   let existing: CustomerRow | null = null;
+  let emailOwner: CustomerRow | null = null;
+  let documentOwner: CustomerRow | null = null;
+
+  if (payload.auth_user_id) {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('store_id', input.storeId)
+      .eq('auth_user_id', payload.auth_user_id)
+      .maybeSingle();
+
+    if (error) {
+      logCustomerRepositoryError('lookup_auth_user', error);
+      throw new CustomerPersistenceError('lookup_auth_user', error);
+    }
+
+    existing = (data as CustomerRow | null) ?? null;
+  }
 
   if (payload.document) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('customers')
       .select('*')
       .eq('store_id', input.storeId)
       .eq('document', payload.document)
       .maybeSingle();
 
-    existing = (data as CustomerRow | null) ?? null;
+    if (error) {
+      logCustomerRepositoryError('lookup_document', error);
+      throw new CustomerPersistenceError('lookup_document', error);
+    }
+
+    documentOwner = (data as CustomerRow | null) ?? null;
+    existing = existing ?? documentOwner;
   }
 
-  if (!existing && payload.email) {
-    const { data } = await supabase
+  if (payload.email) {
+    const { data, error } = await supabase
       .from('customers')
       .select('*')
       .eq('store_id', input.storeId)
       .eq('email', payload.email)
       .maybeSingle();
 
-    existing = (data as CustomerRow | null) ?? null;
+    if (error) {
+      logCustomerRepositoryError('lookup_email', error);
+      throw new CustomerPersistenceError('lookup_email', error);
+    }
+
+    emailOwner = (data as CustomerRow | null) ?? null;
+    existing = existing ?? emailOwner;
   }
+
+  const updatePayload = existing
+    ? getSafeCustomerUpdatePayload({
+        payload,
+        existing,
+        emailOwner,
+        documentOwner,
+      })
+    : payload;
 
   const result = existing
     ? await supabase
         .from('customers')
-        .update(payload)
+        .update(updatePayload)
         .eq('id', existing.id)
         .eq('store_id', input.storeId)
         .select('*')
@@ -343,7 +550,8 @@ export async function upsertCustomerInRepository(
         .single();
 
   if (result.error || !result.data) {
-    throw new Error('Unable to persist customer.');
+    logCustomerRepositoryError('persist_customer', result.error);
+    throw new CustomerPersistenceError('persist_customer', result.error);
   }
 
   const customerRow = result.data as CustomerRow;
@@ -358,7 +566,7 @@ export async function upsertCustomerInRepository(
       address: input.address!,
     });
 
-    const { data: existingAddress } = await supabase
+    const { data: existingAddress, error: existingAddressError } = await supabase
       .from('customer_addresses')
       .select('id')
       .eq('store_id', input.storeId)
@@ -366,6 +574,17 @@ export async function upsertCustomerInRepository(
       .eq('is_default', true)
       .limit(1)
       .maybeSingle();
+
+    if (existingAddressError) {
+      logCustomerRepositoryError(
+        'lookup_customer_address',
+        existingAddressError
+      );
+      throw new CustomerPersistenceError(
+        'lookup_customer_address',
+        existingAddressError
+      );
+    }
 
     const addressResult = existingAddress
       ? await supabase
@@ -381,9 +600,18 @@ export async function upsertCustomerInRepository(
           .select('*')
           .single();
 
-    if (!addressResult.error && addressResult.data) {
-      defaultAddress = mapAddress(addressResult.data as CustomerAddressRow);
+    if (addressResult.error || !addressResult.data) {
+      logCustomerRepositoryError(
+        'persist_customer_address',
+        addressResult.error
+      );
+      throw new CustomerPersistenceError(
+        'persist_customer_address',
+        addressResult.error
+      );
     }
+
+    defaultAddress = mapAddress(addressResult.data as CustomerAddressRow);
   } else {
     defaultAddress = (await getDefaultAddressesByCustomerId(
       input.storeId,

@@ -2,6 +2,8 @@
  * Tipos do módulo de pedidos.
  */
 
+import type { CustomerType } from '@/modules/pricing/pricing.types';
+
 export type OrderStatus =
   | 'pending'
   | 'confirmed'
@@ -34,10 +36,15 @@ export interface OrderAddressSnapshot {
 }
 
 export interface OrderCustomerSnapshot {
+  authUserId?: string;
   name?: string;
   email?: string;
   phone?: string;
   document?: string;
+  customerType?: CustomerType;
+  legalName?: string;
+  stateRegistration?: string;
+  stateRegistrationExempt?: boolean;
   shippingAddress?: OrderAddressSnapshot;
 }
 
@@ -52,6 +59,9 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   total: number;
+  customerType?: CustomerType;
+  priceListId?: string;
+  priceListName?: string;
 }
 
 export interface Order {
@@ -67,6 +77,13 @@ export interface Order {
   shippingTotal: number;
   discountTotal: number;
   total: number;
+  customerType?: CustomerType;
+  customerLegalName?: string;
+  customerStateRegistration?: string;
+  customerStateRegistrationExempt?: boolean;
+  priceListId?: string;
+  priceListName?: string;
+  fiscalInfo?: Record<string, string | boolean | undefined>;
   /** ID do pedido no ERP (Bling) — preenchido após sincronização */
   externalErpProvider?: string;
   externalErpId?: string;
@@ -88,6 +105,7 @@ export interface CreateOrderInput {
   storeId: string;
   customerId?: string;
   customer?: OrderCustomerSnapshot;
+  sendToErp?: boolean;
   items: Array<{
     productId: string;
     variantId: string;

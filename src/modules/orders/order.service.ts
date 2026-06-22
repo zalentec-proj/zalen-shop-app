@@ -4,7 +4,6 @@
  */
 
 import { z } from 'zod';
-import { getProductById } from '../catalog/product.service';
 import type {
   CreateOrderInput,
   Order,
@@ -23,16 +22,26 @@ import {
 } from './order.repository';
 import { upsertCheckoutCustomer } from '../customers/customer.service';
 import { tryAutoSendOrderToBling } from '../integrations/bling/orders/bling-order-send.service';
+import {
+  getCustomerTypeFromDocument,
+  resolveCheckoutPricing,
+} from '../pricing/pricing.service';
 
 const createOrderInputSchema = z.object({
   storeId: z.string().trim().min(1),
   customerId: z.string().trim().min(1).optional(),
+  sendToErp: z.boolean().optional(),
   customer: z
     .object({
+      authUserId: z.string().trim().min(1).optional(),
       name: z.string().trim().min(2).optional(),
       email: z.string().trim().email().optional(),
       phone: z.string().trim().min(8).optional(),
       document: z.string().trim().min(11).optional(),
+      customerType: z.enum(['pf', 'pj']).optional(),
+      legalName: z.string().trim().min(1).optional(),
+      stateRegistration: z.string().trim().min(1).optional(),
+      stateRegistrationExempt: z.boolean().optional(),
       shippingAddress: z
         .object({
           recipientName: z.string().trim().min(1).optional(),
@@ -89,39 +98,34 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
   const parsed = createOrderInputSchema.parse(input);
   const now = new Date().toISOString();
   const orderId = crypto.randomUUID();
+  const customerType =
+    parsed.customer?.customerType ??
+    getCustomerTypeFromDocument(parsed.customer?.document);
+  const pricing = await resolveCheckoutPricing({
+    storeId: parsed.storeId,
+    customerType,
+    items: parsed.items.map((item) => ({
+      productId: item.productId,
+      variantId: item.variantId,
+      quantity: item.quantity,
+    })),
+  });
 
-  const resolvedItems = await Promise.all(
-    parsed.items.map(async (item) => {
-      const product = await getProductById(parsed.storeId, item.productId);
-
-      if (!product) {
-        throw new Error('Product not found for order item.');
-      }
-
-      const variant = product.variants.find(
-        (candidate) => candidate.id === item.variantId
-      );
-
-      if (!variant) {
-        throw new Error('Product variant not found for order item.');
-      }
-
-      const unitPrice = variant.promotionalPrice ?? variant.price;
-
-      return {
-        id: crypto.randomUUID(),
-        storeId: product.storeId,
-        orderId,
-        productId: product.id,
-        variantId: variant.id,
-        sku: variant.sku,
-        name: product.name,
-        quantity: item.quantity,
-        unitPrice,
-        total: unitPrice * item.quantity,
-      } satisfies OrderItem;
-    })
-  );
+  const resolvedItems = pricing.items.map((item) => ({
+    id: crypto.randomUUID(),
+    storeId: item.storeId,
+    orderId,
+    productId: item.productId,
+    variantId: item.variantId,
+    sku: item.sku,
+    name: item.name,
+    quantity: item.quantity,
+    unitPrice: item.unitPrice,
+    total: item.total,
+    customerType: item.customerType,
+    priceListId: item.priceListId,
+    priceListName: item.priceListName,
+  })) satisfies OrderItem[];
 
   const storeId = resolvedItems[0]?.storeId ?? parsed.storeId;
 
@@ -132,10 +136,15 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
   const customer = parsed.customer
     ? await upsertCheckoutCustomer({
         storeId,
+        authUserId: parsed.customer.authUserId,
         name: parsed.customer.name ?? 'Cliente sem nome',
         email: parsed.customer.email,
         phone: parsed.customer.phone,
         document: parsed.customer.document,
+        customerType,
+        legalName: parsed.customer.legalName,
+        stateRegistration: parsed.customer.stateRegistration,
+        stateRegistrationExempt: parsed.customer.stateRegistrationExempt,
         source: 'checkout',
         address: parsed.customer.shippingAddress
           ? {
@@ -155,9 +164,6 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
     : null;
 
   const items = resolvedItems.map((item) => ({ ...item, storeId }));
-  const subtotal = items.reduce((acc, item) => acc + item.total, 0);
-  const shippingTotal = 0;
-  const discountTotal = 0;
 
   const order: Order = {
     id: orderId,
@@ -169,6 +175,16 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
       email: customer?.email ?? parsed.customer?.email,
       phone: customer?.phone ?? parsed.customer?.phone,
       document: customer?.document ?? parsed.customer?.document,
+      customerType,
+      legalName:
+        customer?.legalName ??
+        parsed.customer?.legalName,
+      stateRegistration:
+        customer?.stateRegistration ??
+        parsed.customer?.stateRegistration,
+      stateRegistrationExempt:
+        customer?.stateRegistrationExempt ??
+        parsed.customer?.stateRegistrationExempt,
       shippingAddress:
         customer?.defaultAddress
           ? {
@@ -188,10 +204,35 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
     status: 'pending',
     paymentStatus: 'pending',
     fulfillmentStatus: 'unfulfilled',
-    subtotal,
-    shippingTotal,
-    discountTotal,
-    total: subtotal + shippingTotal - discountTotal,
+    subtotal: pricing.subtotal,
+    shippingTotal: pricing.shippingTotal,
+    discountTotal: pricing.discountTotal,
+    total: pricing.total,
+    customerType,
+    customerLegalName:
+      customer?.legalName ??
+      parsed.customer?.legalName,
+    customerStateRegistration:
+      customer?.stateRegistration ??
+      parsed.customer?.stateRegistration,
+    customerStateRegistrationExempt:
+      customer?.stateRegistrationExempt ??
+      parsed.customer?.stateRegistrationExempt,
+    priceListId: pricing.priceListId,
+    priceListName: pricing.priceListName,
+    fiscalInfo: {
+      customerType,
+      legalName:
+        customer?.legalName ??
+        parsed.customer?.legalName,
+      stateRegistration:
+        customer?.stateRegistration ??
+        parsed.customer?.stateRegistration,
+      stateRegistrationExempt:
+        customer?.stateRegistrationExempt ??
+        parsed.customer?.stateRegistrationExempt,
+      document: customer?.document ?? parsed.customer?.document,
+    },
     externalErpSyncStatus: 'pending',
     items,
     createdAt: now,
@@ -200,10 +241,12 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
 
   const savedOrder = await saveOrderToRepository(order);
 
-  await tryAutoSendOrderToBling({
-    storeId: savedOrder.storeId,
-    orderId: savedOrder.id,
-  });
+  if (parsed.sendToErp !== false) {
+    await tryAutoSendOrderToBling({
+      storeId: savedOrder.storeId,
+      orderId: savedOrder.id,
+    });
+  }
 
   return savedOrder;
 }
