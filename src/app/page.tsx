@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import App from '@/App';
+import { getServerEnv } from '@/lib/env/server';
 import { listStorefrontProducts } from '@/modules/catalog/product.service';
 import { toStorefrontProducts } from '@/modules/catalog/storefront-product.adapter';
 import {
@@ -10,6 +12,19 @@ import {
 
 export async function generateMetadata(): Promise<Metadata> {
   const resolution = await resolveStoreFromHeaders();
+  const rootDomain = getServerEnv().PLATFORM_ROOT_DOMAIN ?? 'zalenshop.com.br';
+
+  if (
+    resolution.kind === 'reserved' ||
+    (resolution.kind === 'fallback' && resolution.host === rootDomain)
+  ) {
+    return {
+      title: 'Zalen Shop',
+      description:
+        'Plataforma Zalen Shop para lojas, produtos, pedidos e integrações.',
+    };
+  }
+
   const store = getOptionalStoreFromResolution(resolution);
 
   if (!store) {
@@ -65,6 +80,15 @@ function StoreNotFound() {
 
 export default async function HomePage() {
   const resolution = await resolveStoreFromHeaders();
+  const rootDomain = getServerEnv().PLATFORM_ROOT_DOMAIN ?? 'zalenshop.com.br';
+
+  if (
+    resolution.kind === 'reserved' ||
+    (resolution.kind === 'fallback' && resolution.host === rootDomain)
+  ) {
+    redirect('/login');
+  }
+
   const store = getOptionalStoreFromResolution(resolution);
 
   if (!store) {
