@@ -30,7 +30,7 @@ Exemplos:
 |---|---|---|---|
 | bling | Bling | erp | planned/available |
 | mercos | Mercos | erp | planned |
-| mercado_pago | Mercado Pago | payment | planned |
+| mercado_pago | Mercado Pago | payment | beta |
 | melhor_envio | Melhor Envio | shipping | planned |
 
 Categorias possíveis:
@@ -89,9 +89,12 @@ Características:
 
 ## 6. Payment connectors
 
+Beta:
+
+- Mercado Pago — Checkout Pro, retorno, webhook assinado e conciliação inicial.
+
 Planejados:
 
-- Mercado Pago;
 - Asaas;
 - Pagar.me;
 - Stripe.

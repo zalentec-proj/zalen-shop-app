@@ -16,8 +16,8 @@ Nenhuma integração pode ser implementada com endpoints, payloads, headers, esc
 
 | Provedor | Finalidade | Status |
 |---|---|---|
-| **Bling** | ERP operacional — produtos, estoque, pedidos, notas | Planejado |
-| **Mercado Pago** | Pagamentos — Pix, cartão, boleto via Checkout Pro | Em implementação |
+| **Bling** | ERP operacional — produtos, estoque, pedidos, notas | Beta operacional |
+| **Mercado Pago** | Pagamentos — Pix, cartão, boleto via Checkout Pro | Beta Checkout Pro |
 | **Melhor Envio** | Cotação e geração de etiquetas de frete | Planejado |
 | **Asaas** | Pagamentos alternativos (futuro) | Futuro |
 | **Pagar.me** | Pagamentos alternativos (futuro) | Futuro |

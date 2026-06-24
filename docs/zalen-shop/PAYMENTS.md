@@ -14,14 +14,15 @@ A Zalen processa pagamento via conector, inicialmente Mercado Pago.
 
 ## 2. Mercado Pago
 
-É o primeiro conector de pagamento em implementação, porque o cliente já possui
-conta e a primeira versão pode usar Checkout Pro com menor exposição PCI.
+É o primeiro conector de pagamento em beta, porque o cliente já possui conta e a
+primeira versão usa Checkout Pro com menor exposição PCI.
 
 ## 3. Autenticação
 
-- Preferencialmente OAuth.
-- Cada lojista conecta sua própria conta.
-- Tokens armazenados criptografados.
+- Beta atual usa `MERCADO_PAGO_ACCESS_TOKEN` e `MERCADO_PAGO_WEBHOOK_SECRET`
+  server-side por ambiente.
+- A ativação operacional por loja fica em `store_integrations`.
+- OAuth e credenciais criptografadas por loja ficam para uma evolução posterior.
 - Nenhum token no frontend.
 
 ## 4. Fluxo futuro com Mercado Pago
@@ -45,6 +46,7 @@ Zalen envia pedido ao Bling
 Fase atual:
 
 - Checkout convidado na Zalen coleta e-mail, entrega e CPF/CNPJ.
+- Backend valida se Mercado Pago está ativo/configurado antes de criar pedido.
 - Backend cria pedido local no Supabase.
 - Backend cria preferência Checkout Pro no Mercado Pago.
 - Frontend recebe apenas a URL pública de checkout e redireciona o comprador.
@@ -54,10 +56,12 @@ Fase atual de conciliação:
 - rotas de retorno do Mercado Pago leem `payment_id`/`collection_id` e consultam
   o pagamento server-side;
 - webhook validado salva `webhook_events` e usa o mesmo service de conciliação;
+- webhooks são deduplicados antes de processar a conciliação;
 - `payment_transactions` registra preferência, pagamento externo, status bruto e
   status normalizado;
 - `approved` marca o pedido como `payment_status = paid` e `status = confirmed`;
 - somente após pagamento aprovado a Zalen tenta enviar o pedido ao Bling;
+- o envio ao Bling só dispara na transição real de não pago para pago;
 - falhas no envio ao Bling não cancelam o pedido pago: ficam como erro
   operacional para retry no admin;
 - Checkout Transparente/Bricks fica reservado para uma fase posterior.

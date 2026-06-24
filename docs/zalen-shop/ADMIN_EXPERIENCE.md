@@ -89,12 +89,12 @@ Atual:
 
 - listar pedidos com cliente, pagamento, status e total;
 - mostrar estado de envio para ERP;
+- acompanhar status de pagamento Mercado Pago em beta;
 - permitir reprocessamento manual do envio Bling quando houver erro/pendência.
 
 Futuro:
 
 - ver detalhe completo do pedido;
-- acompanhar pagamento real;
 - acompanhar envio/rastreio;
 - receber status por webhook validado.
 

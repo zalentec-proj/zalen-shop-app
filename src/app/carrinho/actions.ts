@@ -11,6 +11,7 @@ import { getServerEnv } from '@/lib/env/server';
 import {
   MercadoPagoPreferenceError,
   createCheckoutPreference,
+  ensureMercadoPagoCheckoutReady,
 } from '@/modules/integrations/mercado-pago/mercado-pago.connector';
 import {
   getCustomerTypeFromDocument,
@@ -184,6 +185,13 @@ function getSafeCheckoutError(error: unknown) {
   }
 
   if (
+    error instanceof Error &&
+    error.message === 'mercado_pago_disabled'
+  ) {
+    return 'Mercado Pago está desativado para esta loja.';
+  }
+
+  if (
     error instanceof MercadoPagoPreferenceError ||
     (error instanceof Error &&
       error.message === 'mercado_pago_preference_create_failed' &&
@@ -239,6 +247,9 @@ export async function checkoutCartAction(
       requestHeaders.get('origin') ??
       getServerEnv().APP_URL ??
       'http://localhost:3000';
+
+    await ensureMercadoPagoCheckoutReady(ACTIVE_STORE_ID);
+
     const order = await createOrder({
       storeId: ACTIVE_STORE_ID,
       customer: parsed.data.customer,

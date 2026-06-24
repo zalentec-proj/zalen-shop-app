@@ -28,7 +28,7 @@ Objetivo: deixar a primeira loja operável.
 - Integração Bling pesquisada e implementada.
 - Sync de produtos.
 - Sync de estoque.
-- Envio de pedidos para Bling com scaffold server-side e retry.
+- Envio de pedidos para Bling em beta, com trava por loja e retry.
 - Logs de integração.
 - Reprocessamento básico de erros.
 
@@ -40,10 +40,10 @@ Objetivo: transformar integrações em catálogo de conectores reutilizáveis.
 - `store_integrations`.
 - Bling como ERP disponível para Brasil Drones.
 - Mercos documentado para LB London.
-- Mercado Pago planejado.
+- Mercado Pago em beta com Checkout Pro, retorno e webhook validados.
 - Melhor Envio planejado.
 - Interfaces comuns de ERP, payment e shipping.
-- Webhooks server-side.
+- Webhooks server-side validados e enfileirados.
 - Idempotência.
 
 ## Fase 4 — Segunda loja/case: LB London

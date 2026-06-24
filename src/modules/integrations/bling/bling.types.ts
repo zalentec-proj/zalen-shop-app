@@ -151,4 +151,33 @@ export interface BlingAdminState {
       }>;
     };
   };
+  orderSend: {
+    enabled: boolean;
+    status?: 'running' | 'success' | 'error';
+    updatedAt?: string;
+    summary?: {
+      status?: 'success' | 'error' | 'skipped';
+      jobId?: string;
+      orderId?: string;
+      orderNumber?: string;
+      externalId?: string;
+      errorCode?: string;
+      tokenRefreshed?: boolean;
+      durationMs?: number;
+      draft?: {
+        customerPresent?: boolean;
+        documentPresent?: boolean;
+        phonePresent?: boolean;
+        addressPresent?: boolean;
+        itemCount?: number;
+        total?: number;
+      };
+    };
+  };
+  webhooks: {
+    received: number;
+    pending: number;
+    error: number;
+    lastReceivedAt?: string;
+  };
 }

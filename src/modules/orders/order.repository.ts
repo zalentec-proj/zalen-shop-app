@@ -635,6 +635,36 @@ export async function updateOrderPaymentStateInRepository(input: {
   }
 }
 
+export async function markOrderPaymentApprovedIfPendingInRepository(input: {
+  storeId: string;
+  orderId: string;
+}): Promise<boolean> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return false;
+  }
+
+  const { data, error } = await supabase
+    .from('orders')
+    .update({
+      payment_status: 'paid',
+      status: 'confirmed',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', input.orderId)
+    .eq('store_id', input.storeId)
+    .neq('payment_status', 'paid')
+    .select('id')
+    .maybeSingle();
+
+  if (error) {
+    throw new Error('Unable to approve order payment state.');
+  }
+
+  return Boolean(data);
+}
+
 export async function listOrdersWithSourceFromRepository(
   storeId: string
 ): Promise<

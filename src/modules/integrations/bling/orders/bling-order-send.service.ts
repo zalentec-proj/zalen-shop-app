@@ -9,13 +9,18 @@ import { BlingApiClientError, createBlingApiClientForStore } from '../bling.api-
 import {
   completeBlingOrderSendJobInRepository,
   createBlingOrderSendJobInRepository,
+  getBlingOrderSendSettingsFromRepository,
   hasRunningBlingOrderSendJobInRepository,
+  recordBlingOrderSendEventInRepository,
 } from '../bling.repository';
 import {
   mapOrderToBlingDraft,
   summarizeBlingOrderDraft,
 } from './bling-order.mapper';
-import type { BlingOrderSendResult } from './bling-order.types';
+import type {
+  BlingCreateSalesOrderResponse,
+  BlingOrderSendResult,
+} from './bling-order.types';
 
 type SendOrderInput = {
   storeId: string;
@@ -25,18 +30,20 @@ type SendOrderInput = {
 
 function getSafeErrorCode(error: unknown) {
   if (error instanceof BlingApiClientError) {
-    return error.code;
+    return error.status ? `${error.code}_${error.status}` : error.code;
   }
 
-  if (error instanceof Error && error.message === 'order_missing_customer_data') {
-    return error.message;
-  }
+  if (error instanceof Error) {
+    const safeErrorMessages = [
+      'order_missing_customer_data',
+      'order_missing_items',
+      'bling_order_response_missing_id',
+      'bling_order_send_disabled',
+    ];
 
-  if (
-    error instanceof Error &&
-    error.message === 'bling_order_contract_pending'
-  ) {
-    return error.message;
+    if (safeErrorMessages.includes(error.message)) {
+      return error.message;
+    }
   }
 
   return 'bling_order_send_failed';
@@ -54,6 +61,24 @@ async function markOrderSendError(input: {
     status: 'error',
     lastError: input.errorCode,
   });
+}
+
+function extractCreatedBlingOrderId(response: BlingCreateSalesOrderResponse) {
+  const id = response.data?.id;
+
+  if (typeof id === 'number' && Number.isFinite(id)) {
+    return String(id);
+  }
+
+  if (typeof id === 'string' && id.trim()) {
+    return id.trim();
+  }
+
+  return undefined;
+}
+
+function toDurationMs(startedAt: string) {
+  return Date.now() - new Date(startedAt).getTime();
 }
 
 export async function sendOrderToBling(
@@ -84,6 +109,28 @@ export async function sendOrderToBling(
       orderId: order.id,
       orderNumber: order.orderNumber,
       externalId: order.externalErpId,
+      errorCode: 'order_already_synced',
+    };
+  }
+
+  const orderSendSettings = await getBlingOrderSendSettingsFromRepository(
+    input.storeId
+  );
+
+  if (!orderSendSettings.enabled) {
+    await updateOrderExternalErpStateInRepository({
+      storeId: input.storeId,
+      orderId: input.orderId,
+      provider: BLING_PROVIDER_KEY,
+      status: 'skipped',
+      lastError: 'bling_order_send_disabled',
+    });
+
+    return {
+      status: 'skipped',
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      errorCode: 'bling_order_send_disabled',
     };
   }
 
@@ -110,26 +157,95 @@ export async function sendOrderToBling(
   let draftSummary: Record<string, unknown> | undefined;
 
   try {
-    const draft = mapOrderToBlingDraft(order);
+    const draft = mapOrderToBlingDraft(order, {
+      paymentMethodId: orderSendSettings.paymentMethodId,
+    });
     draftSummary = summarizeBlingOrderDraft(draft);
 
-    if (
-      !draft.customer.name ||
-      !draft.customer.email ||
-      !draft.customer.phone ||
-      !draft.customer.document
-    ) {
+    if (!draft.customer.name || !draft.customer.document) {
       throw new Error('order_missing_customer_data');
     }
 
-    await createBlingApiClientForStore(input.storeId);
+    if (draft.items.length === 0 || draft.payload.itens.length === 0) {
+      throw new Error('order_missing_items');
+    }
 
-    // The official order creation endpoint/payload is still not documented in
-    // docs/integrations/bling-research.md. Do not perform a real external POST
-    // until that contract is confirmed from Bling official docs.
-    throw new Error('bling_order_contract_pending');
+    const { client, environment } = await createBlingApiClientForStore(
+      input.storeId
+    );
+    const response = await client.request<BlingCreateSalesOrderResponse>(
+      '/pedidos/vendas',
+      {
+        method: 'POST',
+        body: draft.payload,
+      }
+    );
+    const externalId = extractCreatedBlingOrderId(response);
+
+    if (!externalId) {
+      throw new Error('bling_order_response_missing_id');
+    }
+
+    const processedAt = new Date().toISOString();
+    const summary = {
+      jobId,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      trigger: input.trigger,
+      status: 'success',
+      externalId,
+      tokenRefreshed: client.hasRefreshedToken(),
+      draft: draftSummary,
+      startedAt,
+      processedAt,
+      durationMs: toDurationMs(startedAt),
+    };
+
+    await updateOrderExternalErpStateInRepository({
+      storeId: input.storeId,
+      orderId: order.id,
+      provider: BLING_PROVIDER_KEY,
+      externalId,
+      status: 'synced',
+      syncedAt: processedAt,
+    });
+
+    await completeBlingOrderSendJobInRepository({
+      jobId,
+      storeId: input.storeId,
+      status: 'success',
+      summary,
+    });
+
+    await recordBlingOrderSendEventInRepository({
+      storeId: input.storeId,
+      environment,
+      status: 'success',
+      summary,
+    }).catch(() => undefined);
+
+    return {
+      status: 'success',
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      externalId,
+      tokenRefreshed: client.hasRefreshedToken(),
+    };
   } catch (error) {
     const errorCode = getSafeErrorCode(error);
+    const processedAt = new Date().toISOString();
+    const summary = {
+      jobId,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      trigger: input.trigger,
+      status: 'error',
+      errorCode,
+      draft: draftSummary,
+      startedAt,
+      processedAt,
+      durationMs: toDurationMs(startedAt),
+    };
 
     await markOrderSendError({
       storeId: input.storeId,
@@ -142,17 +258,17 @@ export async function sendOrderToBling(
       storeId: input.storeId,
       status: 'error',
       lastError: errorCode,
-      summary: {
-        ...(draftSummary ?? {}),
-        orderId: order.id,
-        orderNumber: order.orderNumber,
-        trigger: input.trigger,
-        status: 'error',
-        errorCode,
-        startedAt,
-        processedAt: new Date().toISOString(),
-      },
+      summary,
     });
+
+    if (orderSendSettings.environment) {
+      await recordBlingOrderSendEventInRepository({
+        storeId: input.storeId,
+        environment: orderSendSettings.environment as 'sandbox' | 'production',
+        status: 'error',
+        summary,
+      }).catch(() => undefined);
+    }
 
     return {
       status: 'error',

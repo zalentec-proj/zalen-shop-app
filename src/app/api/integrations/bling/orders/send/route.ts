@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
   });
 
   revalidatePath('/admin');
+  revalidatePath('/admin/integracoes/bling');
 
   return NextResponse.json(result, {
     status: result.status === 'error' ? 400 : 200,

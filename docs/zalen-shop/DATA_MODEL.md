@@ -341,7 +341,7 @@ Exemplos iniciais:
 
 - `bling` — ERP — available/planned conforme estágio;
 - `mercos` — ERP — planned;
-- `mercado_pago` — payment — planned;
+- `mercado_pago` — payment — beta;
 - `melhor_envio` — shipping — planned.
 
 ## 7. Conectores por loja

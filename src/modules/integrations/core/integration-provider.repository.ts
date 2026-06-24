@@ -51,8 +51,9 @@ export const mockIntegrationProviders: IntegrationProvider[] = [
     key: 'bling',
     name: 'Bling',
     category: 'erp',
-    status: 'planned',
-    description: 'ERP planejado como conector principal da Brasil Drones.',
+    status: 'beta',
+    description:
+      'ERP em beta para Brasil Drones: OAuth, catálogo, estoque, pedidos e webhook enfileirado.',
     createdAt: fallbackDate,
     updatedAt: fallbackDate,
   },
@@ -71,8 +72,9 @@ export const mockIntegrationProviders: IntegrationProvider[] = [
     key: 'mercado_pago',
     name: 'Mercado Pago',
     category: 'payment',
-    status: 'planned',
-    description: 'Gateway de pagamento planejado para checkout futuro.',
+    status: 'beta',
+    description:
+      'Gateway de pagamento em beta: Checkout Pro, retorno, webhook assinado e conciliação inicial.',
     createdAt: fallbackDate,
     updatedAt: fallbackDate,
   },

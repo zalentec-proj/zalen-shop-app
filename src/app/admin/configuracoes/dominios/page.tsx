@@ -64,7 +64,7 @@ export default function DomainsSettingsPage() {
           {domainRows.map((row) => (
             <div
               key={row.label}
-              className="grid gap-3 rounded-lg border border-white/6 bg-[#081225] px-3 py-3 lg:grid-cols-[180px,1fr,140px] lg:items-center"
+              className="grid gap-3 rounded-lg border border-white/6 bg-[#081225] px-3 py-3 lg:grid-cols-[180px_1fr_140px] lg:items-center"
             >
               <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
                 {row.label}
@@ -81,7 +81,7 @@ export default function DomainsSettingsPage() {
         </div>
       </SettingsPanel>
 
-      <div className="grid gap-4 xl:grid-cols-[1fr,320px]">
+      <div className="grid gap-4 xl:grid-cols-[1fr_320px] xl:items-start">
         <SettingsPanel
           title="Orientação visual de DNS"
           description="Passos previstos para quando domínio próprio entrar no escopo técnico."

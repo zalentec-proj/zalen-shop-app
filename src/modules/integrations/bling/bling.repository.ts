@@ -18,8 +18,17 @@ type BlingIntegrationRow = {
   updated_at: string | null;
 };
 
-type BlingSyncJobStatus = 'running' | 'success' | 'error';
-type BlingSyncJobType = 'product_sync' | 'inventory_sync' | 'order_send';
+type BlingSyncJobStatus = 'pending' | 'running' | 'success' | 'error';
+type BlingSyncJobType =
+  | 'product_sync'
+  | 'inventory_sync'
+  | 'order_send'
+  | 'webhook_process';
+
+type SupabaseRepositoryError = {
+  code?: string;
+  message?: string;
+};
 
 const fallbackDate = new Date(0).toISOString();
 
@@ -54,6 +63,30 @@ function requireAdminClient() {
   }
 
   return supabase;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function isUniqueViolation(error: SupabaseRepositoryError | null | undefined) {
+  return error?.code === '23505';
+}
+
+function toOptionalNumber(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return undefined;
 }
 
 export async function getBlingIntegrationFromRepository(
@@ -117,6 +150,30 @@ export async function getBlingEncryptedCredentialsFromRepository(
         ? data.environment
         : 'sandbox',
     settings: data.settings_json ?? {},
+  };
+}
+
+export async function getBlingOrderSendSettingsFromRepository(
+  storeId: string
+): Promise<{
+  enabled: boolean;
+  status?: StoreIntegration['status'];
+  environment?: string;
+  paymentMethodId?: number;
+}> {
+  const integration = await getBlingIntegrationFromRepository(storeId);
+  const orderSend = isRecord(integration?.settings.orderSend)
+    ? integration.settings.orderSend
+    : {};
+  const paymentMethodId = toOptionalNumber(
+    orderSend.paymentMethodId ?? orderSend.formaPagamentoId
+  );
+
+  return {
+    enabled: orderSend.enabled === true,
+    status: integration?.status,
+    environment: integration?.environment,
+    paymentMethodId,
   };
 }
 
@@ -311,7 +368,7 @@ async function completeBlingSyncJobInRepository(input: {
   jobId: string;
   storeId: string;
   jobType: BlingSyncJobType;
-  status: Exclude<BlingSyncJobStatus, 'running'>;
+  status: Exclude<BlingSyncJobStatus, 'pending' | 'running'>;
   summary: Record<string, unknown>;
   lastError?: string;
 }) {
@@ -339,7 +396,7 @@ async function recordBlingSyncEventInRepository(input: {
   storeId: string;
   environment: BlingEnvironment;
   settingsKey: 'productSync' | 'inventorySync' | 'orderSend';
-  status: BlingSyncJobStatus;
+  status: Exclude<BlingSyncJobStatus, 'pending'>;
   summary?: Record<string, unknown>;
   updateLastSyncAt?: boolean;
 }) {
@@ -347,11 +404,14 @@ async function recordBlingSyncEventInRepository(input: {
 
   const current = await getBlingEncryptedCredentialsFromRepository(input.storeId);
   const previousSettings = current?.settings ?? {};
+  const previousSetting = previousSettings[input.settingsKey];
+  const previousSettingRecord = isRecord(previousSetting) ? previousSetting : {};
   const updatedAt = new Date().toISOString();
   const updatePayload: Record<string, unknown> = {
     settings_json: {
       ...previousSettings,
       [input.settingsKey]: {
+        ...previousSettingRecord,
         status: input.status,
         summary: input.summary ?? null,
         updatedAt,
@@ -393,7 +453,7 @@ export async function createBlingProductSyncJobInRepository(input: {
 export async function completeBlingProductSyncJobInRepository(input: {
   jobId: string;
   storeId: string;
-  status: Exclude<BlingSyncJobStatus, 'running'>;
+  status: Exclude<BlingSyncJobStatus, 'pending' | 'running'>;
   summary: Record<string, unknown>;
   lastError?: string;
 }) {
@@ -406,7 +466,7 @@ export async function completeBlingProductSyncJobInRepository(input: {
 export async function recordBlingProductSyncEventInRepository(input: {
   storeId: string;
   environment: BlingEnvironment;
-  status: BlingSyncJobStatus;
+  status: Exclude<BlingSyncJobStatus, 'pending'>;
   summary?: Record<string, unknown>;
 }) {
   return recordBlingSyncEventInRepository({
@@ -433,7 +493,7 @@ export async function createBlingInventorySyncJobInRepository(input: {
 export async function completeBlingInventorySyncJobInRepository(input: {
   jobId: string;
   storeId: string;
-  status: Exclude<BlingSyncJobStatus, 'running'>;
+  status: Exclude<BlingSyncJobStatus, 'pending' | 'running'>;
   summary: Record<string, unknown>;
   lastError?: string;
 }) {
@@ -446,7 +506,7 @@ export async function completeBlingInventorySyncJobInRepository(input: {
 export async function recordBlingInventorySyncEventInRepository(input: {
   storeId: string;
   environment: BlingEnvironment;
-  status: BlingSyncJobStatus;
+  status: Exclude<BlingSyncJobStatus, 'pending'>;
   summary?: Record<string, unknown>;
 }) {
   return recordBlingSyncEventInRepository({
@@ -485,7 +545,7 @@ export async function createBlingOrderSendJobInRepository(input: {
 export async function completeBlingOrderSendJobInRepository(input: {
   jobId: string;
   storeId: string;
-  status: Exclude<BlingSyncJobStatus, 'running'>;
+  status: Exclude<BlingSyncJobStatus, 'pending' | 'running'>;
   summary: Record<string, unknown>;
   lastError?: string;
 }) {
@@ -498,11 +558,201 @@ export async function completeBlingOrderSendJobInRepository(input: {
 export async function recordBlingOrderSendEventInRepository(input: {
   storeId: string;
   environment: BlingEnvironment;
-  status: BlingSyncJobStatus;
+  status: Exclude<BlingSyncJobStatus, 'pending'>;
   summary?: Record<string, unknown>;
 }) {
   return recordBlingSyncEventInRepository({
     ...input,
     settingsKey: 'orderSend',
   });
+}
+
+export async function createBlingWebhookEventInRepository(input: {
+  storeId: string;
+  eventId: string;
+  eventType: string;
+  payload: Record<string, unknown>;
+}) {
+  const supabase = requireAdminClient();
+
+  const existing = await supabase
+    .from('webhook_events')
+    .select('id')
+    .eq('store_id', input.storeId)
+    .eq('provider', BLING_PROVIDER_KEY)
+    .eq('external_id', input.eventId)
+    .limit(1)
+    .maybeSingle();
+
+  if (existing.data?.id) {
+    return { webhookEventId: existing.data.id as string, duplicate: true };
+  }
+
+  const { data, error } = await supabase
+    .from('webhook_events')
+    .insert({
+      store_id: input.storeId,
+      provider: BLING_PROVIDER_KEY,
+      event_type: input.eventType,
+      external_id: input.eventId,
+      signature_valid: true,
+      payload: input.payload,
+      status: 'received',
+    })
+    .select('id')
+    .single();
+
+  if (isUniqueViolation(error)) {
+    const duplicate = await supabase
+      .from('webhook_events')
+      .select('id')
+      .eq('store_id', input.storeId)
+      .eq('provider', BLING_PROVIDER_KEY)
+      .eq('external_id', input.eventId)
+      .limit(1)
+      .maybeSingle();
+
+    return {
+      webhookEventId: duplicate.data?.id as string | undefined,
+      duplicate: true,
+    };
+  }
+
+  if (error || !data?.id) {
+    throw new Error('Unable to create Bling webhook event.');
+  }
+
+  return { webhookEventId: data.id as string, duplicate: false };
+}
+
+export async function createBlingWebhookProcessJobInRepository(input: {
+  storeId: string;
+  webhookEventId: string;
+  eventId: string;
+  eventType: string;
+  externalIds?: Record<string, string | number>;
+}) {
+  const supabase = requireAdminClient();
+
+  const existing = await supabase
+    .from('sync_jobs')
+    .select('id')
+    .eq('store_id', input.storeId)
+    .eq('provider', BLING_PROVIDER_KEY)
+    .eq('job_type', 'webhook_process')
+    .contains('payload', { eventId: input.eventId })
+    .limit(1)
+    .maybeSingle();
+
+  if (existing.data?.id) {
+    return { jobId: existing.data.id as string, duplicate: true };
+  }
+
+  const payload: Record<string, unknown> = {
+    webhookEventId: input.webhookEventId,
+    eventId: input.eventId,
+    event: input.eventType,
+  };
+
+  if (input.externalIds && Object.keys(input.externalIds).length > 0) {
+    payload.externalIds = input.externalIds;
+  }
+
+  const { data, error } = await supabase
+    .from('sync_jobs')
+    .insert({
+      store_id: input.storeId,
+      provider: BLING_PROVIDER_KEY,
+      job_type: 'webhook_process',
+      status: 'pending',
+      attempts: 0,
+      payload,
+    })
+    .select('id')
+    .single();
+
+  if (isUniqueViolation(error)) {
+    const duplicate = await supabase
+      .from('sync_jobs')
+      .select('id')
+      .eq('store_id', input.storeId)
+      .eq('provider', BLING_PROVIDER_KEY)
+      .eq('job_type', 'webhook_process')
+      .contains('payload', { eventId: input.eventId })
+      .limit(1)
+      .maybeSingle();
+
+    return {
+      jobId: duplicate.data?.id as string | undefined,
+      duplicate: true,
+    };
+  }
+
+  if (error || !data?.id) {
+    throw new Error('Unable to create Bling webhook process job.');
+  }
+
+  return { jobId: data.id as string, duplicate: false };
+}
+
+export async function getBlingWebhookOperationalSummaryFromRepository(
+  storeId: string
+) {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return {
+      received: 0,
+      pending: 0,
+      error: 0,
+      lastReceivedAt: undefined as string | undefined,
+    };
+  }
+
+  const [received, pendingJobs, erroredJobs, erroredEvents, lastReceived] =
+    await Promise.all([
+      supabase
+        .from('webhook_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('store_id', storeId)
+        .eq('provider', BLING_PROVIDER_KEY),
+      supabase
+        .from('sync_jobs')
+        .select('id', { count: 'exact', head: true })
+        .eq('store_id', storeId)
+        .eq('provider', BLING_PROVIDER_KEY)
+        .eq('job_type', 'webhook_process')
+        .eq('status', 'pending'),
+      supabase
+        .from('sync_jobs')
+        .select('id', { count: 'exact', head: true })
+        .eq('store_id', storeId)
+        .eq('provider', BLING_PROVIDER_KEY)
+        .eq('job_type', 'webhook_process')
+        .eq('status', 'error'),
+      supabase
+        .from('webhook_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('store_id', storeId)
+        .eq('provider', BLING_PROVIDER_KEY)
+        .eq('status', 'error'),
+      supabase
+        .from('webhook_events')
+        .select('created_at')
+        .eq('store_id', storeId)
+        .eq('provider', BLING_PROVIDER_KEY)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+  return {
+    received: received.count ?? 0,
+    pending: pendingJobs.count ?? 0,
+    error: (erroredJobs.count ?? 0) + (erroredEvents.count ?? 0),
+    lastReceivedAt:
+      typeof lastReceived.data?.created_at === 'string'
+        ? lastReceived.data.created_at
+        : undefined,
+  };
 }

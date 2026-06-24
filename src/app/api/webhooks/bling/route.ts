@@ -1,26 +1,88 @@
-/**
- * Webhook Bling — Route Handler (server-side only).
- * Placeholder seguro — NÃO processa nada ainda.
- *
- * Quando implementado deve:
- * 1. Validar assinatura HMAC do Bling
- * 2. Salvar payload bruto em webhook_events
- * 3. Responder 200 imediatamente
- * 4. Processar em background (queue/job)
- * 5. Garantir idempotência via external_id
- */
-
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerEnv } from '@/lib/env/server';
+import {
+  createBlingWebhookEventInRepository,
+  createBlingWebhookProcessJobInRepository,
+} from '@/modules/integrations/bling/bling.repository';
+import {
+  isValidBlingWebhookSignature,
+  parseBlingWebhookPayload,
+} from '@/modules/integrations/bling/webhooks/bling-webhook.service';
+import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
-  // TODO: validar assinatura Bling antes de qualquer processamento
-  // TODO: salvar payload em webhook_events com status 'received'
-  // TODO: enfileirar processamento assíncrono
+  const clientSecret = getServerEnv().BLING_CLIENT_SECRET;
 
-  const _body = await request.text(); // consumir body sem processar
+  if (!clientSecret) {
+    return NextResponse.json(
+      { ok: false, error: 'webhook_secret_not_configured' },
+      { status: 501 }
+    );
+  }
 
-  return NextResponse.json(
-    { received: true, status: 'not_implemented' },
-    { status: 200 }
-  );
+  const rawBody = await request.text();
+  const signature = request.headers.get('x-bling-signature-256');
+
+  if (
+    !isValidBlingWebhookSignature({
+      rawBody,
+      signature,
+      clientSecret,
+    })
+  ) {
+    return NextResponse.json(
+      { ok: false, error: 'invalid_webhook_signature' },
+      { status: 401 }
+    );
+  }
+
+  const parsed = parseBlingWebhookPayload(rawBody);
+
+  if (!parsed.ok) {
+    return NextResponse.json(
+      { ok: false, error: parsed.errorCode },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const eventResult = await createBlingWebhookEventInRepository({
+      storeId: ACTIVE_STORE_ID,
+      eventId: parsed.eventId,
+      eventType: parsed.event,
+      payload: parsed.payload,
+    });
+
+    if (eventResult.duplicate) {
+      return NextResponse.json({ ok: true, status: 'duplicate' });
+    }
+
+    if (!eventResult.webhookEventId) {
+      return NextResponse.json(
+        { ok: false, error: 'webhook_persistence_failed' },
+        { status: 500 }
+      );
+    }
+
+    const jobResult = await createBlingWebhookProcessJobInRepository({
+      storeId: ACTIVE_STORE_ID,
+      webhookEventId: eventResult.webhookEventId,
+      eventId: parsed.eventId,
+      eventType: parsed.event,
+      externalIds: parsed.externalIds,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      status: jobResult.duplicate ? 'duplicate' : 'queued',
+    });
+  } catch {
+    return NextResponse.json(
+      { ok: false, error: 'webhook_persistence_failed' },
+      { status: 500 }
+    );
+  }
 }

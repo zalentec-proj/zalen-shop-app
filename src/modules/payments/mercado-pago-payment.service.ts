@@ -7,6 +7,7 @@ import {
 import { tryAutoSendOrderToBling } from '@/modules/integrations/bling/orders/bling-order-send.service';
 import {
   getOrderByIdFromRepository,
+  markOrderPaymentApprovedIfPendingInRepository,
   updateOrderPaymentStateInRepository,
 } from '@/modules/orders/order.repository';
 import type {
@@ -235,7 +236,14 @@ export async function processMercadoPagoPaymentUpdate(input: {
     lastError: mapping.lastError,
   });
 
-  if (mapping.orderPaymentStatus) {
+  let transitionedToPaid = false;
+
+  if (mapping.transactionStatus === 'approved') {
+    transitionedToPaid = await markOrderPaymentApprovedIfPendingInRepository({
+      storeId: input.storeId,
+      orderId: order.id,
+    });
+  } else if (mapping.orderPaymentStatus) {
     await updateOrderPaymentStateInRepository({
       storeId: input.storeId,
       orderId: order.id,
@@ -247,7 +255,7 @@ export async function processMercadoPagoPaymentUpdate(input: {
   const wasAlreadyPaid = order.paymentStatus === 'paid';
   let blingTriggered = false;
 
-  if (mapping.transactionStatus === 'approved' && !wasAlreadyPaid) {
+  if (mapping.transactionStatus === 'approved' && transitionedToPaid) {
     blingTriggered = true;
     await tryAutoSendOrderToBling({
       storeId: input.storeId,

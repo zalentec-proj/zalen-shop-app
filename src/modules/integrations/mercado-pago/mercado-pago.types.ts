@@ -1,6 +1,14 @@
 import type { Order } from '@/modules/orders/order.types';
+import type { StoreIntegrationStatus } from '@/modules/integrations/core/store-integration.types';
 
 export type PaymentMethod = 'mercado_pago_checkout_pro';
+
+export type MercadoPagoRuntimeStatus =
+  | 'connected'
+  | 'pending_credentials'
+  | 'disabled';
+
+export type MercadoPagoEnvironment = 'test' | 'production';
 
 export interface PaymentIntent {
   orderId: string;
@@ -17,6 +25,19 @@ export interface PaymentResult {
 export interface MercadoPagoCheckoutPreferenceInput {
   order: Order;
   baseUrl: string;
+}
+
+export interface MercadoPagoRuntimeState {
+  provider: 'mercado_pago';
+  checkoutMode: 'checkout_pro';
+  credentialsSource: 'env';
+  status: MercadoPagoRuntimeStatus;
+  enabled: boolean;
+  configured: boolean;
+  environment: MercadoPagoEnvironment;
+  missingEnv: string[];
+  integrationStatus?: StoreIntegrationStatus;
+  warnings: string[];
 }
 
 export interface MercadoPagoCheckoutPreferenceResult {

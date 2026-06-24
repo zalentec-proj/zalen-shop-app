@@ -87,6 +87,15 @@
 - Nenhuma API externa é chamada pelo frontend.
 - Credenciais não aparecem no frontend.
 
+## 7.1 Mercado Pago
+
+- Checkout valida configuração server-side antes de criar pedido.
+- Preferência Checkout Pro é criada apenas server-side.
+- Webhook valida assinatura antes de salvar/processar.
+- Webhook é idempotente.
+- Pagamento aprovado marca pedido como pago/confirmado.
+- Envio ao Bling só dispara após transição real para pago.
+
 ## 8. Bling
 
 Antes de implementação real:

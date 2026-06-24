@@ -32,6 +32,43 @@ function getWebhookDataId(request: NextRequest, body: unknown) {
   return undefined;
 }
 
+function toWebhookRecord(body: unknown): Record<string, unknown> | undefined {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return undefined;
+  }
+
+  return body as Record<string, unknown>;
+}
+
+function getWebhookNotificationId(
+  request: NextRequest,
+  body: unknown,
+  dataId: string | undefined
+) {
+  const record = toWebhookRecord(body);
+  const bodyId = record?.id;
+  const requestId = request.headers.get('x-request-id');
+  const eventType = getWebhookEventType(body);
+
+  if (typeof bodyId === 'string' && bodyId.trim()) {
+    return `notification:${bodyId.trim()}`;
+  }
+
+  if (typeof bodyId === 'number') {
+    return `notification:${bodyId}`;
+  }
+
+  if (requestId) {
+    return `request:${requestId}`;
+  }
+
+  if (dataId && eventType) {
+    return `payment:${dataId}:${eventType}`;
+  }
+
+  return undefined;
+}
+
 function getWebhookEventType(body: unknown) {
   if (!body || typeof body !== 'object') {
     return undefined;
@@ -88,6 +125,13 @@ export async function POST(request: NextRequest) {
 
   const dataId = getWebhookDataId(request, body);
 
+  if (!dataId) {
+    return NextResponse.json(
+      { ok: false, error: 'missing_payment_id' },
+      { status: 400 }
+    );
+  }
+
   try {
     WebhookSignatureValidator.validate({
       xSignature: request.headers.get('x-signature'),
@@ -108,23 +152,37 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createOptionalAdminClient();
+  const eventType = getWebhookEventType(body);
+  const notificationId = getWebhookNotificationId(request, body, dataId);
 
   let webhookEventId: string | undefined;
 
   if (supabase) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('webhook_events')
       .insert({
         store_id: ACTIVE_STORE_ID,
         provider: 'mercado_pago',
-        event_type: getWebhookEventType(body),
-        external_id: dataId,
+        event_type: eventType,
+        external_id: notificationId,
         signature_valid: true,
-        payload: body,
+        payload: {
+          notification: body,
+          paymentId: dataId,
+          requestId: request.headers.get('x-request-id'),
+        },
         status: 'received',
       })
       .select('id')
       .single();
+
+    if (error?.code === '23505') {
+      return NextResponse.json({ ok: true, duplicate: true });
+    }
+
+    if (error) {
+      throw new Error('Unable to save Mercado Pago webhook event.');
+    }
 
     webhookEventId = data?.id;
   }

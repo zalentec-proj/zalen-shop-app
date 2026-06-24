@@ -1,6 +1,6 @@
 # Pesquisa Técnica — Bling
 
-> Status: **App público / OAuth Ready / Product Sync v1 / Inventory Sync v1 / Order Send Scaffold**
+> Status: **App público / OAuth Ready / Product Sync v1 / Inventory Sync v1 / Order Send beta / Webhook v1 enfileirado**
 > Fontes oficiais consultadas: https://developer.bling.com.br
 
 ## Fonte oficial
@@ -12,7 +12,7 @@ Links consultados durante a pesquisa:
 - [x] https://developer.bling.com.br/migracao-jwt
 - [x] https://developer.bling.com.br/aplicativos
 - [x] https://developer.bling.com.br/limites
-- [ ] https://developer.bling.com.br/webhooks
+- [x] https://developer.bling.com.br/webhooks
 
 ## Objetivo da integração
 
@@ -181,45 +181,119 @@ checkout. Nesta fase:
 
 ## Pedidos
 
-Implementado scaffold server-side seguro para envio de pedidos, sem chamada real
-ao Bling enquanto o endpoint/payload oficial de criação de pedido não estiver
-confirmado e registrado neste arquivo.
+Implementado envio server-side beta para criação de pedido de venda no Bling,
+atrás da trava explícita por loja `settings_json.orderSend.enabled === true`.
+
+Fonte oficial: página [Referência da API](https://developer.bling.com.br/referencia),
+que carrega o OpenAPI oficial do Bling. Consulta realizada em 2026-06-23.
+
+Endpoint oficial confirmado:
+
+```txt
+POST https://api.bling.com.br/Api/v3/pedidos/vendas
+Authorization: Bearer {access_token}
+Content-Type: application/json
+```
+
+Resumo oficial: `Cria um pedido de venda`.
+
+Request body oficial:
+
+- `application/json`;
+- schema composto por `VendasDadosBaseDTO` + `VendasDadosDTO`;
+- campos usados no MVP:
+  - `numeroLoja`;
+  - `data`, `dataSaida`, `dataPrevista`;
+  - `contato.nome`, `contato.tipoPessoa`, `contato.numeroDocumento`;
+  - `itens[].codigo`, `itens[].unidade`, `itens[].quantidade`,
+    `itens[].valor`, `itens[].descricao`;
+  - `parcelas[].dataVencimento`, `parcelas[].valor` e, se configurado,
+    `parcelas[].formaPagamento.id`;
+  - `desconto.valor`, `desconto.unidade = REAL`;
+  - `transporte.fretePorConta`, `transporte.frete`, `transporte.etiqueta.*`;
+  - `observacoesInternas`.
+
+Resposta oficial esperada:
+
+```txt
+201
+{
+  "data": {
+    "id": 12345678,
+    "alertas": [],
+    "rastreamento": {}
+  }
+}
+```
+
+Erro oficial esperado:
+
+```txt
+400
+ErrorResponse
+```
+
+O client também trata `401` com uma tentativa única de refresh de token e não
+salva payload bruto nem credenciais em logs/UI.
 
 Comportamento atual:
 
 - checkout cria pedido local no Supabase;
 - pedido salva cliente e snapshot do comprador;
-- service server-side tenta iniciar envio para Bling automaticamente;
+- service server-side só envia para Bling quando a trava `orderSend.enabled`
+  está ligada na integração da loja;
 - se o pedido já tiver `external_erp_provider = bling` e `external_erp_id`, não
   duplica envio;
 - `sync_jobs` registra `job_type = order_send`;
-- se Bling estiver desconectado, faltarem dados do cliente ou o contrato oficial
-  ainda estiver pendente, o pedido fica com `external_erp_sync_status = error`;
+- mapper usa apenas snapshots salvos no pedido: cliente, documento, endereço,
+  itens, preços finais, frete, desconto e total;
+- em sucesso, grava `orders.external_erp_provider = bling`,
+  `external_erp_id`, `external_erp_sync_status = synced` e
+  `external_erp_synced_at`;
+- em falha, grava `external_erp_sync_status = error`,
+  `external_erp_last_error` sanitizado e conclui o `sync_jobs` com erro;
+- se a trava estiver desligada, não chama o Bling e marca o pedido como
+  `skipped` com erro seguro `bling_order_send_disabled`;
 - admin permite retry manual por rota server-side;
 - nenhum token, credential ou payload bruto é retornado ao frontend.
 
-Antes de implementar:
+Idempotência:
 
-- confirmar payload oficial de criação de pedido;
-- definir idempotência por `orders.id`/`order_number`;
-- registrar `external_erp_provider` e `external_erp_id`.
-
-Erro operacional atual esperado enquanto o contrato estiver pendente:
-
-```txt
-bling_order_contract_pending
-```
+- o reenvio manual retorna `skipped` quando o pedido já possui `external_erp_id`;
+- job concorrente do mesmo pedido é bloqueado enquanto `order_send` estiver
+  `running`;
+- `numeroLoja` recebe `order.orderNumber` para rastreio operacional no Bling.
 
 ## Webhooks
 
-Não implementado nesta sprint.
+Implementado recebimento Bling v1 como validação + deduplicação + fila.
 
-Antes de implementar:
+Fonte oficial: https://developer.bling.com.br/webhooks
 
-- consultar https://developer.bling.com.br/webhooks;
-- confirmar eventos disponíveis;
-- confirmar validação de assinatura;
-- definir idempotência em `webhook_events`.
+Contrato oficial confirmado:
+
+- cabeçalho de assinatura: `X-Bling-Signature-256`;
+- algoritmo: HMAC-SHA256;
+- segredo: `BLING_CLIENT_SECRET`;
+- conteúdo assinado: corpo JSON bruto, em UTF-8;
+- formato esperado: `sha256={hash}`;
+- resposta `2xx` rápida para eventos aceitos;
+- `eventId` é identificador único para idempotência;
+- payload v1 possui `eventId`, `date`, `version`, `event`, `companyId` e
+  `data`.
+
+Comportamento implementado:
+
+- lê raw body;
+- valida assinatura com `timingSafeEqual`;
+- assinatura ausente/inválida retorna `401` sem salvar nem enfileirar;
+- JSON inválido, `eventId` ausente ou `event` ausente retorna `400`;
+- evento válido é salvo em `webhook_events` com `provider = bling`,
+  `external_id = eventId`, `signature_valid = true` e `status = received`;
+- duplicidade retorna `200` sem criar novo job;
+- cria `sync_jobs` com `job_type = webhook_process`, `status = pending` e
+  payload mínimo (`webhookEventId`, `eventId`, `event`, IDs externos);
+- não atualiza produto, estoque ou pedido a partir do webhook nesta entrega.
 
 ## Variáveis de ambiente necessárias
 
@@ -242,13 +316,13 @@ INTEGRATION_TOKEN_ENCRYPTION_KEY=
 - [x] Store filtrada por `storeId`.
 - [x] Sync de produtos usa somente rota server-side e resumo sanitizado.
 - [x] Sync de estoque usa somente rota server-side e resumo sanitizado.
-- [ ] Webhook validado por assinatura antes de processar.
-- [ ] Sync e envio de pedidos com idempotência.
+- [x] Webhook validado por assinatura antes de processar.
+- [x] Sync e envio de pedidos com idempotência operacional.
 
 ## Dúvidas pendentes
 
 - [ ] Confirmar escopos mínimos definitivos para produtos, estoque e pedidos.
 - [x] Confirmar endpoints e payloads de sync de produtos.
-- [ ] Confirmar endpoints e payloads de criação de pedidos.
-- [ ] Confirmar validação de assinatura de webhooks.
+- [x] Confirmar endpoints e payloads de criação de pedidos.
+- [x] Confirmar validação de assinatura de webhooks.
 - [ ] Confirmar rate limit operacional da API.

@@ -124,7 +124,7 @@ export default function ShippingSettingsPage() {
               key={method.name}
               className="rounded-lg border border-white/6 bg-[#0A1730]/95 p-4"
             >
-              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_220px]">
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_220px] xl:items-start">
                 <div>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex min-w-0 items-start gap-3">
@@ -143,7 +143,7 @@ export default function ShippingSettingsPage() {
                     </SettingsBadge>
                   </div>
 
-                  <div className="mt-4 grid gap-2 lg:grid-cols-[190px,1fr]">
+                  <div className="mt-4 grid gap-2 lg:grid-cols-[190px_1fr]">
                     <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5">
                       <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
                         Cobertura

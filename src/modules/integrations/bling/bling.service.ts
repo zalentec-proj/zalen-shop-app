@@ -7,6 +7,7 @@ import {
 import { BLING_CONNECT_PATH, getBlingOAuthConfig } from './bling.config';
 import {
   getBlingIntegrationFromRepository,
+  getBlingWebhookOperationalSummaryFromRepository,
   markBlingConnectionAttemptInRepository,
   markBlingConnectionErrorInRepository,
   saveBlingCredentialsInRepository,
@@ -16,6 +17,7 @@ import type { BlingAdminState, BlingTokenResponse } from './bling.types';
 type BlingHomologationAdminState = NonNullable<BlingAdminState['homologation']>;
 type BlingProductSyncAdminState = NonNullable<BlingAdminState['productSync']>;
 type BlingInventorySyncAdminState = NonNullable<BlingAdminState['inventorySync']>;
+type BlingOrderSendAdminState = BlingAdminState['orderSend'];
 
 function toBlingConnectionStatus(status: string | undefined) {
   if (
@@ -106,11 +108,41 @@ function toBlingInventorySyncState(settings: Record<string, unknown>) {
   } satisfies BlingInventorySyncAdminState;
 }
 
+function toBlingOrderSendState(
+  settings: Record<string, unknown>
+): BlingOrderSendAdminState {
+  const orderSend = settings.orderSend;
+
+  if (!orderSend || typeof orderSend !== 'object') {
+    return { enabled: false };
+  }
+
+  const record = orderSend as Record<string, unknown>;
+  const status = record.status;
+
+  return {
+    enabled: record.enabled === true,
+    status:
+      status === 'running' || status === 'success' || status === 'error'
+        ? status
+        : undefined,
+    updatedAt:
+      typeof record.updatedAt === 'string' ? record.updatedAt : undefined,
+    summary:
+      record.summary && typeof record.summary === 'object'
+        ? (record.summary as BlingOrderSendAdminState['summary'])
+        : undefined,
+  };
+}
+
 export async function getBlingAdminState(
   storeId: string
 ): Promise<BlingAdminState> {
   const config = getBlingOAuthConfig();
-  const integration = await getBlingIntegrationFromRepository(storeId);
+  const [integration, webhooks] = await Promise.all([
+    getBlingIntegrationFromRepository(storeId),
+    getBlingWebhookOperationalSummaryFromRepository(storeId),
+  ]);
   const warnings: string[] = [];
 
   if (!config.isConfigured) {
@@ -141,6 +173,10 @@ export async function getBlingAdminState(
     inventorySync: integration
       ? toBlingInventorySyncState(integration.settings)
       : undefined,
+    orderSend: integration
+      ? toBlingOrderSendState(integration.settings)
+      : { enabled: false },
+    webhooks,
   };
 }
 

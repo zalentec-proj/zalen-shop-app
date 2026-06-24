@@ -1,6 +1,6 @@
 # Pesquisa Técnica — Mercado Pago
 
-> Status: **PARCIAL — Checkout Pro + conciliação inicial**
+> Status: **Beta Checkout Pro — preferência, retorno, webhook e conciliação inicial**
 > Fonte de verdade: documentação oficial Mercado Pago Developers.
 
 ## Fontes oficiais consultadas
@@ -53,7 +53,14 @@ MERCADO_PAGO_PUBLIC_KEY=
 MERCADO_PAGO_WEBHOOK_SECRET=
 ```
 
-Nesta fase a Zalen usa `MERCADO_PAGO_ACCESS_TOKEN` server-side. `Public Key` fica reservado para Checkout Transparente/Bricks. O ambiente deve ser definido por `MERCADO_PAGO_ENV`, porque credenciais de teste podem não usar prefixo `TEST-`.
+Nesta fase beta, a Zalen usa `MERCADO_PAGO_ACCESS_TOKEN` e
+`MERCADO_PAGO_WEBHOOK_SECRET` server-side via env. `Public Key` fica reservado
+para Checkout Transparente/Bricks. O ambiente deve ser definido por
+`MERCADO_PAGO_ENV`, porque credenciais de teste podem não usar prefixo `TEST-`.
+
+A ativação por loja fica em `store_integrations.settings_json.checkoutPro`.
+Credenciais criptografadas por loja e OAuth Mercado Pago multi-loja ficam fora
+desta etapa.
 
 ## Checkout Pro
 
@@ -126,10 +133,12 @@ Estratégia Zalen implementada:
 
 - validar assinatura antes de processar;
 - salvar evento em `webhook_events`;
+- deduplicar notificação por identificador seguro salvo em `external_id`;
 - consultar o pagamento server-side por `GET /v1/payments/{payment_id}`;
 - atualizar `payment_transactions` e `orders` pelo `external_reference` do
   pagamento, que aponta para `orders.id`;
 - manter idempotência por `store_id + order_id + provider`;
+- disparar envio ao Bling apenas quando o pedido transita de não pago para pago;
 - não salvar token, credencial ou payload completo do pagamento em resposta
   pública.
 
@@ -187,6 +196,7 @@ A primeira versão usa estratégia híbrida:
   quando o Mercado Pago retorna com `payment_id` ou `collection_id`;
 - `/api/webhooks/mercado-pago` valida assinatura e processa eventos `payment`;
 - ambos usam o mesmo service server-side de conciliação;
+- checkout valida configuração do Mercado Pago antes de criar pedido local;
 - carrinho local só é limpo no retorno aprovado.
 
 ## Fora desta fase

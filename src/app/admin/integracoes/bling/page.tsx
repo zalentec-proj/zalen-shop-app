@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ArrowLeft, ExternalLink, ShieldCheck, Wifi } from 'lucide-react';
+import { AdminSidebar } from '@/app/admin/AdminSidebar';
 import { logoutAction } from '@/app/login/actions';
 import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import { platformBrand } from '@/lib/branding/platform-brand';
@@ -40,6 +41,40 @@ const errorLabel: Record<string, string> = {
   provider_denied: 'Autorização negada no Bling.',
 };
 
+const dateTimeFormatter = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+function formatOptionalDateTime(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  return dateTimeFormatter.format(new Date(value));
+}
+
+type OrderSendStatus = 'running' | 'success' | 'error' | undefined;
+
+function formatOrderSendStatus(status: OrderSendStatus) {
+  if (status === 'success') {
+    return 'Sucesso';
+  }
+
+  if (status === 'error') {
+    return 'Erro';
+  }
+
+  if (status === 'running') {
+    return 'Em execução';
+  }
+
+  return 'Sem execução';
+}
+
 function StatusBadge({ status }: { status: keyof typeof statusLabel }) {
   const className =
     status === 'connected'
@@ -72,162 +107,230 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
   const params = (await searchParams) ?? {};
   const error = typeof params.error === 'string' ? params.error : undefined;
   const status = state.status in statusLabel ? state.status : 'pending_credentials';
+  const canRunBlingJobs = status === 'connected' && state.isEncryptionConfigured;
+  const statusCards = [
+    { label: 'Ambiente', value: state.environment },
+    { label: 'Último sync', value: formatOptionalDateTime(state.lastSyncAt) ?? 'Sem sync' },
+    {
+      label: 'Envio pedidos',
+      value: state.orderSend.enabled ? 'Ligado' : 'Desligado',
+    },
+    {
+      label: 'Última atualização',
+      value: formatOptionalDateTime(state.lastUpdatedAt) ?? 'Não registrada',
+    },
+  ];
 
   return (
-    <main className="min-h-screen bg-[#05070B] px-5 py-5 text-white">
-      <section className="mx-auto max-w-5xl rounded-2xl border border-white/8 bg-[#07101F] shadow-[0_24px_90px_rgba(0,0,0,0.45)]">
-        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/8 px-5 py-4">
-          <div>
-            <Link
-              href="/admin"
-              className="inline-flex items-center gap-2 text-xs font-semibold text-[#8BB9FF] transition hover:text-white"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Voltar ao admin
-            </Link>
-            <p className="mt-4 font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-[#7EC3FF]">
-              ERP principal
-            </p>
-            <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">
-              Bling para {currentStoreBrand.shortName}
-            </h1>
-            <p className="mt-1 max-w-2xl text-sm text-slate-400">
-              Preparação OAuth server-side. Tokens nunca são exibidos no frontend.
-            </p>
-          </div>
+    <div className="min-h-screen bg-[#050A14] text-white">
+      <AdminSidebar
+        activeKey="bling"
+        footerLabel="Conectores"
+        footerTitle="ERP principal"
+        footerDescription={`Bling planejado para ${currentStoreBrand.shortName}.`}
+      />
 
-          <div className="flex items-center gap-2">
-            <div className="rounded-xl border border-white/8 bg-[#0A1730] px-3 py-2 text-xs text-slate-300">
-              {user.email}
-            </div>
-            <form action={logoutAction}>
-              <button
-                type="submit"
-                className="rounded-xl border border-white/8 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:text-white"
-              >
-                Sair
-              </button>
-            </form>
-          </div>
-        </header>
-
-        <div className="grid gap-4 p-5 lg:grid-cols-[1fr,320px]">
-          <section className="rounded-xl border border-white/8 bg-[#0A1730]/95">
-            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/8 px-4 py-4">
+      <main className="xl:pl-60">
+        <section className="w-full px-3 py-3 sm:px-4 lg:px-5">
+          <div className="rounded-lg border border-white/8 bg-[#07101F] shadow-[0_24px_90px_rgba(0,0,0,0.32)]">
+            <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/8 px-4 py-4">
               <div>
-                <h2 className="text-base font-semibold">Status da integração</h2>
-                <p className="mt-1 text-xs text-slate-400">
-                  Estado salvo por loja em `store_integrations`.
+                <Link
+                  href="/admin?view=integrations"
+                  className="inline-flex items-center gap-2 text-xs font-semibold text-[#8BB9FF] transition hover:text-white"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  Voltar para integrações
+                </Link>
+                <p className="mt-3 font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-[#7EC3FF]">
+                  ERP principal
+                </p>
+                <h1 className="mt-1 text-2xl font-semibold tracking-[-0.03em]">
+                  Bling
+                </h1>
+                <p className="mt-1 max-w-2xl text-sm text-slate-400">
+                  Operação server-side para {currentStoreBrand.shortName}; tokens nunca são exibidos no frontend.
                 </p>
               </div>
-              <StatusBadge status={status} />
-            </div>
 
-            <div className="grid gap-3 p-4 sm:grid-cols-3">
-              <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-3">
-                <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                  Ambiente
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="rounded-lg border border-white/8 bg-[#0A1730] px-3 py-2 text-xs text-slate-300">
+                  {user.email}
                 </div>
-                <div className="mt-1 text-sm font-semibold">{state.environment}</div>
-              </div>
-              <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-3">
-                <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                  Último sync
-                </div>
-                <div className="mt-1 text-sm font-semibold">
-                  {state.lastSyncAt ?? 'Sem sync'}
-                </div>
-              </div>
-              <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-3">
-                <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                  Última atualização
-                </div>
-                <div className="mt-1 text-sm font-semibold">
-                  {state.lastUpdatedAt ?? 'Não registrada'}
-                </div>
-              </div>
-            </div>
-
-            {error ? (
-              <div className="mx-4 mb-4 rounded-lg border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-xs text-rose-100">
-                {errorLabel[error] ?? 'Falha controlada na conexão Bling.'}
-              </div>
-            ) : null}
-
-            {state.warnings.length > 0 ? (
-              <div className="mx-4 mb-4 space-y-2">
-                {state.warnings.map((warning) => (
-                  <div
-                    key={warning}
-                    className="rounded-lg border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs text-amber-100"
+                <form action={logoutAction}>
+                  <button
+                    type="submit"
+                    className="rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:text-white"
                   >
-                    {warning}
-                  </div>
-                ))}
+                    Sair
+                  </button>
+                </form>
               </div>
-            ) : null}
+            </header>
 
-            <div className="border-t border-white/8 p-4">
-              {state.canStartOAuth ? (
-                <a
-                  href={state.connectPath}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110"
-                >
-                  Conectar Bling
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-white/8 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-500"
-                >
-                  Configuração pendente
-                  <ShieldCheck className="h-4 w-4" />
-                </button>
-              )}
+            <div className="space-y-4 p-4">
+              <section className="rounded-lg border border-white/8 bg-[#0A1730]/95">
+                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/8 px-4 py-4">
+                  <div>
+                    <h2 className="text-base font-semibold">Status da integração</h2>
+                    <p className="mt-1 text-xs text-slate-400">
+                      Estado salvo por loja em store_integrations.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge status={status} />
+                    {state.canStartOAuth ? (
+                      <a
+                        href={state.connectPath}
+                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-3 py-2 text-xs font-semibold text-white transition hover:brightness-110"
+                      >
+                        Conectar Bling
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-500"
+                      >
+                        Configuração pendente
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid gap-3 p-4 md:grid-cols-4">
+                  {statusCards.map((item) => (
+                    <div
+                      key={item.label}
+                      className="rounded-lg border border-white/6 bg-[#081225] px-3 py-3"
+                    >
+                      <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                        {item.label}
+                      </div>
+                      <div className="mt-1 text-sm font-semibold">{item.value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {error ? (
+                  <div className="mx-4 mb-4 rounded-lg border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-xs text-rose-100">
+                    {errorLabel[error] ?? 'Falha controlada na conexão Bling.'}
+                  </div>
+                ) : null}
+
+                {state.warnings.length > 0 ? (
+                  <div className="mx-4 mb-4 space-y-2">
+                    {state.warnings.map((warning) => (
+                      <div
+                        key={warning}
+                        className="rounded-lg border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs text-amber-100"
+                      >
+                        {warning}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </section>
+
+              <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_360px] 2xl:items-start">
+                <div className="space-y-4">
+                  <BlingProductSyncPanel
+                    canRun={canRunBlingJobs}
+                    initialStatus={state.productSync?.status}
+                    initialUpdatedAt={state.productSync?.updatedAt}
+                    initialSummary={state.productSync?.summary}
+                  />
+
+                  <BlingInventorySyncPanel
+                    canRun={canRunBlingJobs}
+                    initialStatus={state.inventorySync?.status}
+                    initialUpdatedAt={state.inventorySync?.updatedAt}
+                    initialSummary={state.inventorySync?.summary}
+                  />
+                </div>
+
+                <aside className="space-y-4">
+                  <section className="rounded-xl border border-white/8 bg-[#0A1730]/95 p-4">
+                    <ShieldCheck className="h-5 w-5 text-[#7EC3FF]" />
+                    <h2 className="mt-3 text-base font-semibold">
+                      Pedidos e webhooks
+                    </h2>
+                    <div className="mt-3 space-y-2 text-xs">
+                      {[
+                        {
+                          label: 'Trava de pedido',
+                          value: state.orderSend.enabled ? 'Ligada' : 'Desligada',
+                        },
+                        {
+                          label: 'Último envio',
+                          value:
+                            formatOptionalDateTime(state.orderSend.updatedAt) ??
+                            'Sem envio',
+                        },
+                        {
+                          label: 'Status do envio',
+                          value: formatOrderSendStatus(state.orderSend.status),
+                        },
+                        {
+                          label: 'Webhooks recebidos',
+                          value: String(state.webhooks.received),
+                        },
+                        {
+                          label: 'Jobs pendentes',
+                          value: String(state.webhooks.pending),
+                        },
+                        {
+                          label: 'Erros',
+                          value: String(state.webhooks.error),
+                        },
+                        {
+                          label: 'Último webhook',
+                          value:
+                            formatOptionalDateTime(state.webhooks.lastReceivedAt) ??
+                            'Sem webhook',
+                        },
+                      ].map((item) => (
+                        <div
+                          key={item.label}
+                          className="flex items-center justify-between gap-3 rounded-lg border border-white/6 bg-[#081225] px-3 py-2"
+                        >
+                          <span className="text-slate-400">{item.label}</span>
+                          <span className="font-semibold text-white">
+                            {item.value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="rounded-xl border border-white/8 bg-[#0A1730]/95 p-4">
+                    <Wifi className="h-5 w-5 text-[#7EC3FF]" />
+                    <h2 className="mt-3 text-base font-semibold">Teste de conexão</h2>
+                    <p className="mt-1 text-xs leading-5 text-slate-400">
+                      Ficará disponível depois que os tokens estiverem salvos e o client Bling operacional for implementado.
+                    </p>
+                    <button
+                      type="button"
+                      disabled
+                      className="mt-4 w-full cursor-not-allowed rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-500"
+                    >
+                      Testar conexão
+                    </button>
+                  </section>
+
+                  <BlingHomologationPanel
+                    canRun={canRunBlingJobs}
+                    initialStatus={state.homologation?.status}
+                    initialSummary={state.homologation?.summary}
+                  />
+                </aside>
+              </div>
             </div>
-          </section>
-
-          <aside className="space-y-4">
-            <section className="rounded-xl border border-white/8 bg-[#0A1730]/95 p-4">
-              <Wifi className="h-5 w-5 text-[#7EC3FF]" />
-              <h2 className="mt-3 text-base font-semibold">Teste de conexão</h2>
-              <p className="mt-1 text-xs leading-5 text-slate-400">
-                Ficará disponível depois que os tokens estiverem salvos e o client Bling
-                operacional for implementado.
-              </p>
-              <button
-                type="button"
-                disabled
-                className="mt-4 w-full cursor-not-allowed rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-500"
-              >
-                Testar conexão
-              </button>
-            </section>
-
-            <BlingHomologationPanel
-              canRun={status === 'connected' && state.isEncryptionConfigured}
-              initialStatus={state.homologation?.status}
-              initialSummary={state.homologation?.summary}
-            />
-
-            <BlingProductSyncPanel
-              canRun={status === 'connected' && state.isEncryptionConfigured}
-              initialStatus={state.productSync?.status}
-              initialUpdatedAt={state.productSync?.updatedAt}
-              initialSummary={state.productSync?.summary}
-            />
-
-            <BlingInventorySyncPanel
-              canRun={status === 'connected' && state.isEncryptionConfigured}
-              initialStatus={state.inventorySync?.status}
-              initialUpdatedAt={state.inventorySync?.updatedAt}
-              initialSummary={state.inventorySync?.summary}
-            />
-          </aside>
-        </div>
-      </section>
-    </main>
+          </div>
+        </section>
+      </main>
+    </div>
   );
 }

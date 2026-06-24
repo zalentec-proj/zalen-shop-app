@@ -2,10 +2,13 @@ import 'server-only';
 
 import { getServerEnv } from '@/lib/env/server';
 import { upsertPaymentTransaction } from '@/modules/payments/payment-transaction.repository';
+import { listStoreIntegrationsWithSourceFromRepository } from '@/modules/integrations/core/store-integration.repository';
 import type {
   MercadoPagoCheckoutPreferenceInput,
   MercadoPagoCheckoutPreferenceResult,
+  MercadoPagoEnvironment,
   MercadoPagoPaymentLookupResult,
+  MercadoPagoRuntimeState,
   PaymentIntent,
   PaymentResult,
 } from './mercado-pago.types';
@@ -51,6 +54,12 @@ function getAccessToken() {
   }
 
   return accessToken;
+}
+
+function toMercadoPagoEnvironment(
+  value: string | undefined
+): MercadoPagoEnvironment {
+  return value === 'production' ? 'production' : 'test';
 }
 
 function normalizeBaseUrl(baseUrl: string) {
@@ -122,6 +131,76 @@ function toRecord(value: unknown): Record<string, unknown> | undefined {
   return value as Record<string, unknown>;
 }
 
+function isCheckoutEnabled(settings: Record<string, unknown> | undefined) {
+  const checkoutPro = toRecord(settings?.checkoutPro);
+
+  return checkoutPro?.enabled !== false;
+}
+
+export async function getMercadoPagoRuntimeState(
+  storeId: string
+): Promise<MercadoPagoRuntimeState> {
+  const env = getServerEnv();
+  const integrations =
+    await listStoreIntegrationsWithSourceFromRepository(storeId);
+  const mercadoPagoIntegration = integrations.data.find(
+    (item) => item.provider.key === 'mercado_pago'
+  )?.integration;
+  const enabled =
+    mercadoPagoIntegration?.status !== 'disabled' &&
+    isCheckoutEnabled(mercadoPagoIntegration?.settings);
+  const missingEnv = [
+    env.MERCADO_PAGO_ACCESS_TOKEN ? undefined : 'MERCADO_PAGO_ACCESS_TOKEN',
+    env.MERCADO_PAGO_WEBHOOK_SECRET
+      ? undefined
+      : 'MERCADO_PAGO_WEBHOOK_SECRET',
+  ].filter((value): value is string => Boolean(value));
+  const configured = missingEnv.length === 0;
+  const status = !enabled
+    ? 'disabled'
+    : configured
+      ? 'connected'
+      : 'pending_credentials';
+  const warnings: string[] = [];
+
+  if (!enabled) {
+    warnings.push('Mercado Pago desativado para a loja ativa.');
+  }
+
+  if (missingEnv.length > 0) {
+    warnings.push('Configuração server-side do Mercado Pago pendente.');
+  }
+
+  return {
+    provider: 'mercado_pago',
+    checkoutMode: 'checkout_pro',
+    credentialsSource: 'env',
+    status,
+    enabled,
+    configured,
+    environment: toMercadoPagoEnvironment(
+      env.MERCADO_PAGO_ENV ?? mercadoPagoIntegration?.environment
+    ),
+    missingEnv,
+    integrationStatus: mercadoPagoIntegration?.status,
+    warnings,
+  };
+}
+
+export async function ensureMercadoPagoCheckoutReady(storeId: string) {
+  const state = await getMercadoPagoRuntimeState(storeId);
+
+  if (!state.enabled) {
+    throw new Error('mercado_pago_disabled');
+  }
+
+  if (!state.configured) {
+    throw new Error('mercado_pago_not_configured');
+  }
+
+  return state;
+}
+
 async function getMercadoPagoErrorReason(response: Response) {
   let reason = 'unknown';
 
@@ -176,6 +255,8 @@ async function createPreferenceOnMercadoPago(
 export async function createCheckoutPreference(
   input: MercadoPagoCheckoutPreferenceInput
 ): Promise<MercadoPagoCheckoutPreferenceResult> {
+  await ensureMercadoPagoCheckoutReady(input.order.storeId);
+
   const accessToken = getAccessToken();
   const baseUrl = normalizeBaseUrl(input.baseUrl);
   const { order } = input;

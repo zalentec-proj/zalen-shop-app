@@ -3,8 +3,8 @@
 ## Status desta sprint
 
 Implementada a base segura para OAuth Bling da Brasil Drones, sincronização real
-de produtos/estoque e o scaffold seguro para envio de pedidos. O app Zalen Shop
-está aprovado/publicado no Bling. Webhooks continuam fora do escopo desta etapa.
+de produtos/estoque, envio beta de pedidos e recebimento de webhook v1
+enfileirado. O app Zalen Shop está aprovado/publicado no Bling.
 
 ## O que foi implementado
 
@@ -38,8 +38,10 @@ está aprovado/publicado no Bling. Webhooks continuam fora do escopo desta etapa
 - Disparo automático server-side de envio de pedido após checkout.
 - Registro de `sync_jobs.job_type = order_send`.
 - Retry manual de pedido pelo admin.
-- Bloqueio seguro `bling_order_contract_pending` enquanto endpoint/payload
-  oficial de criação de pedido não estiver documentado.
+- Envio real beta para `POST /pedidos/vendas`, ligado somente por
+  `settings_json.orderSend.enabled === true`.
+- Webhook Bling v1 com assinatura HMAC-SHA256, deduplicação por `eventId`,
+  persistência em `webhook_events` e job `webhook_process` pendente.
 
 ## Rotas
 
@@ -50,6 +52,7 @@ POST /api/integrations/bling/homologation/run
 POST /api/integrations/bling/products/sync
 POST /api/integrations/bling/inventory/sync
 POST /api/integrations/bling/orders/send
+POST /api/webhooks/bling
 ```
 
 ## Domínios oficiais
@@ -177,11 +180,9 @@ sensíveis.
 ## O que não foi implementado
 
 - Sync de estoque por depósito específico.
-- POST real de pedidos para Bling, porque o endpoint/payload oficial ainda não
-  está registrado em `docs/integrations/bling-research.md`.
 - Sync real baseado no produto usado na homologação.
-- Webhooks reais.
-- Reprocessamento unitário por produto.
+- Processador/worker de webhook para aplicar eventos em produtos, estoque ou
+  pedidos.
 
 ## Product Sync v1
 
@@ -278,11 +279,10 @@ Limitações da v1:
 - Reprocessamento unitário depende do produto aparecer no diagnóstico recente ou
   de futura busca por `externalId` manual.
 
-## Order Send Scaffold
+## Order Send beta
 
 O pedido continua nascendo no Supabase/Zalen. Após `createOrder`, o backend tenta
-enviar ao Bling por service server-side. A chamada externa real está bloqueada
-até confirmação oficial de endpoint/payload.
+enviar ao Bling por service server-side quando a trava da loja está ligada.
 
 Regras implementadas:
 
@@ -290,14 +290,35 @@ Regras implementadas:
 - `customers` e `customer_addresses` armazenam cadastro por `store_id`;
 - `orders` guarda snapshot do comprador;
 - service de envio valida idempotência por `external_erp_provider/external_erp_id`;
+- mapper usa apenas snapshots salvos no pedido: cliente, documento, endereço,
+  itens, preço final, frete, desconto e total;
+- chamada real usa `POST /pedidos/vendas`, contrato registrado em
+  `docs/integrations/bling-research.md`;
+- sucesso grava `external_erp_provider`, `external_erp_id`,
+  `external_erp_sync_status = synced` e `external_erp_synced_at`;
+- falha grava `external_erp_sync_status = error` e erro seguro;
+- se `settings_json.orderSend.enabled !== true`, a chamada externa não acontece
+  e o pedido fica `skipped` com `bling_order_send_disabled`;
 - rota interna `POST /api/integrations/bling/orders/send` permite retry manual;
-- erros são códigos seguros, sem token ou payload bruto;
-- enquanto o contrato oficial estiver pendente, o erro esperado é
-  `bling_order_contract_pending`.
+- erros são códigos seguros, sem token ou payload bruto.
+
+## Webhook Bling v1 enfileirado
+
+Regras implementadas:
+
+- rota pública `POST /api/webhooks/bling`;
+- leitura do raw body;
+- validação de `X-Bling-Signature-256` com HMAC-SHA256 e `BLING_CLIENT_SECRET`;
+- assinatura inválida retorna `401` sem salvar nem enfileirar;
+- evento válido salva `webhook_events` com `signature_valid = true`;
+- duplicidade por `store_id + provider + eventId` retorna `200`;
+- cria `sync_jobs.job_type = webhook_process` com `status = pending`;
+- nenhum evento de negócio é aplicado nesta etapa.
 
 ## Próximas etapas
 
 1. Implementar estoque por depósito específico via `/estoques/saldos/{idDeposito}`.
-2. Implementar envio idempotente de pedidos.
-3. Implementar webhooks com validação de assinatura.
+2. Implementar processador/worker de webhook Bling.
+3. Refinar configuração operacional de forma de pagamento/filial quando a loja
+   ativar envio real em produção.
 4. Preparar Mercado Pago e Melhor Envio como conectores opcionais futuros.

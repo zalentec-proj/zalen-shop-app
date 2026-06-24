@@ -129,10 +129,13 @@ Primeiro conector real:
 
 - Bling para Brasil Drones.
 
+Conector de pagamento beta:
+
+- Mercado Pago;
+
 Conectores planejados:
 
 - Mercos para LB London;
-- Mercado Pago;
 - Melhor Envio;
 - Asaas/Pagar.me futuramente;
 - Meta/Instagram futuramente;

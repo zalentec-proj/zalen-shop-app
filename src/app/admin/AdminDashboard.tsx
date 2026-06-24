@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import type { ComponentType, ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import type {
   Category,
@@ -32,12 +32,11 @@ import {
   updateProductStockAction,
 } from '@/app/admin/products/actions';
 import { createAdminCustomerAction } from '@/app/admin/customers/actions';
+import { AdminSidebar } from '@/app/admin/AdminSidebar';
 import type { AdminVariantPriceSummary } from '@/modules/pricing/pricing.types';
 import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import { platformBrand } from '@/lib/branding/platform-brand';
 import {
-  Activity,
-  ArrowUpRight,
   Bell,
   Boxes,
   ChevronRight,
@@ -45,8 +44,6 @@ import {
   Database,
   Filter,
   Gauge,
-  LayoutGrid,
-  LifeBuoy,
   MoreHorizontal,
   Package2,
   Pencil,
@@ -54,7 +51,6 @@ import {
   RefreshCw,
   LogOut,
   Search,
-  Settings2,
   ShieldCheck,
   ShoppingCart,
   SlidersHorizontal,
@@ -62,7 +58,6 @@ import {
   Truck,
   UserRound,
   UsersRound,
-  Waypoints,
   Wifi,
 } from 'lucide-react';
 
@@ -105,11 +100,6 @@ const currencyFormatter = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
   currency: 'BRL',
   maximumFractionDigits: 2,
-});
-
-const compactNumberFormatter = new Intl.NumberFormat('pt-BR', {
-  notation: 'compact',
-  maximumFractionDigits: 1,
 });
 
 const shortDateFormatter = new Intl.DateTimeFormat('pt-BR', {
@@ -265,10 +255,6 @@ const accessRoleLabel: Record<AdminAccessRole, string> = {
 
 function formatCurrency(value: number) {
   return currencyFormatter.format(value);
-}
-
-function formatCompact(value: number) {
-  return compactNumberFormatter.format(value);
 }
 
 function formatShortDate(value: string) {
@@ -615,10 +601,53 @@ function CustomerCreateForm() {
 }
 
 function OrderBlingRetryButton({ orderId }: { orderId: string }) {
-  const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
+  const [status, setStatus] = useState<
+    'idle' | 'loading' | 'done' | 'skipped' | 'error'
+  >('idle');
+  const [message, setMessage] = useState<string | undefined>();
+
+  function getRetryMessage(result: unknown, responseOk: boolean) {
+    const record =
+      result && typeof result === 'object'
+        ? (result as Record<string, unknown>)
+        : {};
+    const errorCode =
+      typeof record.errorCode === 'string' ? record.errorCode : undefined;
+
+    if (errorCode === 'bling_order_send_disabled') {
+      return 'Envio real desligado na integração Bling.';
+    }
+
+    if (errorCode === 'order_already_synced') {
+      return 'Pedido já sincronizado no Bling.';
+    }
+
+    if (
+      errorCode === 'order_missing_customer_data' ||
+      errorCode === 'order_missing_items' ||
+      errorCode === 'bling_order_response_missing_id'
+    ) {
+      return 'Payload do pedido incompleto para o contrato Bling.';
+    }
+
+    if (errorCode?.startsWith('bling_not_connected')) {
+      return 'Bling ainda não conectado para esta loja.';
+    }
+
+    if (errorCode?.startsWith('bling_request_failed')) {
+      return 'Bling retornou erro seguro no envio.';
+    }
+
+    if (responseOk) {
+      return 'Pedido processado.';
+    }
+
+    return 'Não foi possível reprocessar agora.';
+  }
 
   async function handleRetry() {
     setStatus('loading');
+    setMessage(undefined);
 
     const response = await fetch('/api/integrations/bling/orders/send', {
       method: 'POST',
@@ -627,23 +656,44 @@ function OrderBlingRetryButton({ orderId }: { orderId: string }) {
       },
       body: JSON.stringify({ orderId }),
     });
+    const result = await response.json().catch(() => undefined);
+    const nextStatus =
+      response.ok && result?.status === 'skipped'
+        ? 'skipped'
+        : response.ok
+          ? 'done'
+          : 'error';
 
-    setStatus(response.ok ? 'done' : 'error');
+    setStatus(nextStatus);
+    setMessage(getRetryMessage(result, response.ok));
 
-    if (response.ok) {
-      window.location.reload();
+    if (nextStatus === 'done') {
+      window.setTimeout(() => window.location.reload(), 500);
     }
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleRetry}
-      disabled={status === 'loading'}
-      className="rounded-md border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#A9C7FF] transition hover:border-[#1E3DFF]/45 hover:text-white disabled:cursor-wait disabled:opacity-70"
-    >
-      {status === 'loading' ? 'Enviando' : status === 'error' ? 'Erro' : 'Reprocessar'}
-    </button>
+    <div className="space-y-1">
+      <button
+        type="button"
+        onClick={handleRetry}
+        disabled={status === 'loading'}
+        className="rounded-md border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#A9C7FF] transition hover:border-[#1E3DFF]/45 hover:text-white disabled:cursor-wait disabled:opacity-70"
+      >
+        {status === 'loading'
+          ? 'Enviando'
+          : status === 'error'
+            ? 'Erro'
+            : status === 'skipped'
+              ? 'Aviso'
+              : 'Reprocessar'}
+      </button>
+      {message ? (
+        <div className="max-w-[180px] text-[11px] leading-4 text-slate-400">
+          {message}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -672,7 +722,7 @@ function GaugeCard({
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[150px,1fr] xl:items-center">
+    <div className="grid gap-4 xl:grid-cols-[150px_1fr] xl:items-center">
       <div className="mx-auto flex h-36 w-36 items-center justify-center rounded-full border border-white/6 bg-[#071124]">
         <div
           className="relative flex h-28 w-28 items-center justify-center rounded-full"
@@ -719,8 +769,8 @@ function TrendBars({
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-5 gap-2">
-        {series.map((point) => (
-          <div key={point.label} className="flex h-32 flex-col justify-end gap-2">
+        {series.map((point, index) => (
+          <div key={`${point.label}-${index}`} className="flex h-32 flex-col justify-end gap-2">
             <div className="relative flex h-full items-end gap-1.5 rounded-lg border border-white/6 bg-[linear-gradient(180deg,rgba(7,17,36,0.25),rgba(7,17,36,0.8))] px-3 pb-3 pt-4">
               <div
                 className="w-1/2 rounded-full bg-[linear-gradient(180deg,#1E3DFF,#38BDF8)] shadow-[0_0_24px_rgba(30,61,255,0.28)]"
@@ -759,7 +809,7 @@ function SettingsField({
   value: string;
 }) {
   return (
-    <div className="grid gap-2 border-b border-white/6 py-2.5 last:border-b-0 md:grid-cols-[130px,1fr] md:items-center">
+    <div className="grid gap-2 border-b border-white/6 py-2.5 last:border-b-0 md:grid-cols-[130px_1fr] md:items-center">
       <span className="text-xs font-medium text-slate-300">{label}</span>
       <div className="rounded-lg border border-white/8 bg-[#081225] px-3 py-2 text-xs text-slate-200">
         {value}
@@ -794,6 +844,15 @@ export default function AdminDashboard({
     useState<ProductSourceFilter>('all');
   const [orderFilter, setOrderFilter] = useState<OrderFilter>('all');
 
+  useEffect(() => {
+    setActiveView(isAdminView(requestedView) ? requestedView : 'dashboard');
+  }, [requestedView]);
+
+  function handleSelectAdminView(view: AdminView) {
+    setActiveView(view);
+    window.history.pushState(null, '', `/admin?view=${view}`);
+  }
+
   const searchValue = searchQuery.trim().toLowerCase();
 
   const activeProducts = products.filter((product) => product.status === 'active');
@@ -820,12 +879,6 @@ export default function AdminDashboard({
       .filter((product) => potentialDuplicateKeys.has(productMatchKey(product)))
       .map((product) => product.id)
   );
-  const potentialDuplicateGroups = Array.from(potentialDuplicateKeys)
-    .map((key) => ({
-      key,
-      products: products.filter((product) => productMatchKey(product) === key),
-    }))
-    .filter((group) => group.products.length > 1);
   const pendingOrders = orders.filter((order) => order.status === 'pending');
   const processingOrders = orders.filter(
     (order) => order.status === 'confirmed' || order.status === 'processing'
@@ -860,11 +913,6 @@ export default function AdminDashboard({
     (sum, product) => sum + product.price,
     0
   );
-  const totalInventoryUnits = products.reduce(
-    (sum, product) => sum + product.stock,
-    0
-  );
-  const outOfStockProducts = products.filter((product) => product.stock === 0);
 
   const categoryLoad = categories
     .map((category) => ({
@@ -886,10 +934,6 @@ export default function AdminDashboard({
       ).length,
     }))
     .sort((left, right) => right.units - left.units || right.count - left.count);
-  const largestCategoryUnits = Math.max(
-    1,
-    ...categoryLoad.map((category) => category.units)
-  );
 
   const revenueSeriesBase = orders
     .slice()
@@ -976,111 +1020,6 @@ export default function AdminDashboard({
   );
   const customersSourceLabel = sourceLabel(dataSources.customers);
 
-  const sidebarGroups: Array<{
-    label: string;
-    items: Array<{
-      id?: AdminView;
-      label: string;
-      icon: ComponentType<{ className?: string }>;
-      count?: string;
-      href?: string;
-      disabled?: boolean;
-    }>;
-  }> = [
-    {
-      label: 'Operação',
-      items: [
-        {
-          id: 'dashboard',
-          label: 'Visão geral',
-          icon: LayoutGrid,
-          count: '01',
-        },
-        {
-          id: 'orders',
-          label: 'Pedidos',
-          icon: ShoppingCart,
-          count: String(orders.length).padStart(2, '0'),
-        },
-        {
-          id: 'products',
-          label: 'Produtos',
-          icon: Package2,
-          count: String(products.length).padStart(2, '0'),
-        },
-        {
-          id: 'customers',
-          label: 'Clientes',
-          icon: UsersRound,
-          count: String(customers.length).padStart(2, '0'),
-        },
-      ],
-    },
-    {
-      label: 'Canais',
-      items: [
-        {
-          label: 'Loja online',
-          icon: Store,
-          count: 'ON',
-          href: '/',
-        },
-        {
-          label: 'Marketplaces',
-          icon: Boxes,
-          count: 'Fut',
-          disabled: true,
-        },
-      ],
-    },
-    {
-      label: 'Conectores',
-      items: [
-        {
-          id: 'integrations',
-          label: 'Integrações',
-          icon: Waypoints,
-          count: String(integrations.length).padStart(2, '0'),
-        },
-        {
-          label: 'Bling',
-          icon: Database,
-          count: primaryErpIntegration?.integration?.status === 'connected' ? 'ON' : 'ERP',
-          href: '/admin/integracoes/bling',
-        },
-      ],
-    },
-    {
-      label: 'Configuração',
-      items: [
-        {
-          label: 'Pagamentos',
-          icon: CreditCard,
-          count: 'Cfg',
-          href: '/admin/configuracoes/pagamentos',
-        },
-        {
-          label: 'Envios',
-          icon: Truck,
-          count: 'Cfg',
-          href: '/admin/configuracoes/envios',
-        },
-        {
-          label: 'Domínios',
-          icon: Wifi,
-          count: 'Cfg',
-          href: '/admin/configuracoes/dominios',
-        },
-        {
-          id: 'settings',
-          label: 'Configurações',
-          icon: Settings2,
-          count: '02',
-        },
-      ],
-    },
-  ];
-
   const view = viewMeta[activeView];
   const adminInitials = initialsFromEmail(adminUser.email);
   const adminEmail = adminUser.email ?? 'admin autenticado';
@@ -1123,7 +1062,7 @@ export default function AdminDashboard({
         />
       </div>
 
-      <div className="grid gap-4 2xl:grid-cols-[1.45fr,0.95fr]">
+      <div className="grid gap-4 2xl:grid-cols-[1.45fr_0.95fr]">
         <Panel
           title="Receita por movimentação"
           description={`Leitura operacional da base de pedidos via ${ordersSourceLabel}.`}
@@ -1226,7 +1165,7 @@ export default function AdminDashboard({
         </div>
       </div>
 
-      <div className="grid gap-4 2xl:grid-cols-[1.35fr,0.95fr]">
+      <div className="grid gap-4 2xl:grid-cols-[1.35fr_0.95fr]">
         <Panel
           title="Pedidos recentes"
           description={`Leitura compacta da base de pedidos via ${ordersSourceLabel}.`}
@@ -1242,7 +1181,7 @@ export default function AdminDashboard({
           }
         >
           <div className="overflow-hidden rounded-lg border border-white/6">
-            <div className="grid grid-cols-[1.2fr,1fr,0.8fr,0.8fr] gap-3 bg-[#081225] px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
+            <div className="grid grid-cols-[1.2fr_1fr_0.8fr_0.8fr] gap-3 bg-[#081225] px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
               <span>Pedido</span>
               <span>Cliente</span>
               <span>Status</span>
@@ -1251,7 +1190,7 @@ export default function AdminDashboard({
             {orders.slice(0, 4).map((order) => (
               <div
                 key={order.id}
-                className="grid grid-cols-[1.2fr,1fr,0.8fr,0.8fr] gap-3 border-t border-white/6 px-3 py-2.5 text-xs"
+                className="grid grid-cols-[1.2fr_1fr_0.8fr_0.8fr] gap-3 border-t border-white/6 px-3 py-2.5 text-xs"
               >
                 <div>
                   <div className="font-semibold text-white">{order.orderNumber}</div>
@@ -1337,7 +1276,6 @@ export default function AdminDashboard({
       { filter: 'draft', label: 'Rascunho', count: draftProducts.length },
       { filter: 'inactive', label: 'Inativo', count: inactiveProducts.length },
     ];
-    const featuredLowStockProduct = lowStockProducts[0];
     const hasActiveProductFilters =
       productFilter !== 'all' ||
       productCategoryFilter !== 'all' ||
@@ -1351,553 +1289,310 @@ export default function AdminDashboard({
         ? 'Fonte Bling'
         : productSourceFilter === 'zalen'
           ? 'Fonte Zalen'
-          : 'Todas as fontes';
+        : 'Todas as fontes';
 
     return (
       <div className="space-y-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+          <div className="flex flex-wrap gap-1.5">
+            <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
+              {products.length} produtos
+            </SmallBadge>
+            <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
+              {activeProducts.length} ativos
+            </SmallBadge>
+            <SmallBadge className="border-amber-400/20 bg-amber-400/10 text-amber-200">
+              {lowStockProducts.length} estoque baixo
+            </SmallBadge>
+            <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
+              {catalogSourceLabel}
+            </SmallBadge>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled
+              className="inline-flex h-9 cursor-not-allowed items-center gap-2 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs font-semibold text-slate-300 opacity-80"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              Organizar
+            </button>
+            <button
+              type="button"
+              disabled
+              className="inline-flex h-9 cursor-not-allowed items-center gap-2 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs font-semibold text-slate-300 opacity-80"
+            >
+              Exportar e importar
+            </button>
+            <button
+              type="button"
+              disabled
+              className="inline-flex h-9 cursor-not-allowed items-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-3 text-xs font-semibold text-white opacity-90"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Adicionar produto
+            </button>
+          </div>
+        </div>
+
         <Panel
-          title="Resumo do catálogo"
-          description="Leitura operacional compacta para catálogo, estoque e prioridade de conferência."
+          title="Lista de produtos"
+          description="Busca, edição rápida e revisão do catálogo em uma tabela única."
           action={
-            <div className="flex flex-wrap gap-1.5">
+            <div className="hidden flex-wrap gap-1.5 xl:flex">
               <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
-                {catalogSourceLabel}
+                {activeCategory?.name ?? 'Todas as categorias'}
               </SmallBadge>
               <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
-                Loja ativa: {currentStoreBrand.shortName}
+                {sourceFilterLabel}
               </SmallBadge>
             </div>
           }
         >
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_300px]">
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-              {[
-                {
-                  icon: Package2,
-                  label: 'Itens no painel',
-                  value: String(products.length),
-                  helper: 'Catálogo pronto para consulta.',
-                },
-                {
-                  icon: Activity,
-                  label: 'Ativos',
-                  value: String(activeProducts.length),
-                  helper: 'Produtos já visíveis na loja.',
-                },
-                {
-                  icon: Boxes,
-                  label: 'Unidades em estoque',
-                  value: formatCompact(totalInventoryUnits),
-                  helper: `${outOfStockProducts.length} item(ns) zerados.`,
-                },
-                {
-                  icon: LifeBuoy,
-                  label: 'Baixo estoque',
-                  value: String(lowStockProducts.length),
-                  helper: 'Prioridade para conferência.',
-                },
-              ].map((item) => {
-                const Icon = item.icon;
+          <div className="space-y-4">
+            <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_180px_140px_160px_auto]">
+              <label className="relative block">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                <input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Buscar produto, SKU ou categoria..."
+                  className="h-10 w-full rounded-lg border border-white/8 bg-[#081225] pl-9 pr-3 text-xs text-white outline-none transition placeholder:text-slate-500 focus:border-[#1E3DFF]/35"
+                />
+              </label>
 
-                return (
-                  <div
-                    key={item.label}
-                    className="rounded-xl border border-white/6 bg-[#081225] px-3 py-3"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-[11px] font-medium text-slate-400">
-                        {item.label}
-                      </div>
-                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#1E3DFF]/25 bg-[#091427] text-[#7EC3FF]">
-                        <Icon className="h-4 w-4" />
-                      </span>
-                    </div>
-                    <div className="mt-2 text-lg font-semibold text-white">{item.value}</div>
-                    <div className="mt-1 text-[11px] text-slate-500">{item.helper}</div>
-                  </div>
-                );
-              })}
+              <label className="block rounded-lg border border-white/8 bg-[#081225] px-3 py-1.5">
+                <span className="block text-[10px] text-slate-500">Categoria</span>
+                <select
+                  value={productCategoryFilter}
+                  onChange={(event) => setProductCategoryFilter(event.target.value)}
+                  className="mt-0.5 h-6 w-full bg-transparent text-xs font-semibold text-slate-100 outline-none"
+                >
+                  <option value="all">Todas</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.slug}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block rounded-lg border border-white/8 bg-[#081225] px-3 py-1.5">
+                <span className="block text-[10px] text-slate-500">Fonte</span>
+                <select
+                  value={productSourceFilter}
+                  onChange={(event) =>
+                    setProductSourceFilter(event.target.value as ProductSourceFilter)
+                  }
+                  className="mt-0.5 h-6 w-full bg-transparent text-xs font-semibold text-slate-100 outline-none"
+                >
+                  <option value="all">Todas</option>
+                  <option value="zalen">Zalen</option>
+                  <option value="bling">Bling</option>
+                </select>
+              </label>
+
+              <label className="block rounded-lg border border-white/8 bg-[#081225] px-3 py-1.5">
+                <span className="block text-[10px] text-slate-500">Status</span>
+                <select
+                  value={productFilter}
+                  onChange={(event) => setProductFilter(event.target.value as ProductFilter)}
+                  className="mt-0.5 h-6 w-full bg-transparent text-xs font-semibold text-slate-100 outline-none"
+                >
+                  {statusTabs.map((tab) => (
+                    <option key={tab.filter} value={tab.filter}>
+                      {tab.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setProductCategoryFilter('all');
+                  setProductSourceFilter('all');
+                  setProductFilter('all');
+                }}
+                disabled={!hasActiveProductFilters}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs font-semibold text-slate-200 transition hover:border-[#1E3DFF]/35 hover:text-white disabled:cursor-not-allowed disabled:text-slate-500"
+              >
+                <Filter className="h-3.5 w-3.5" />
+                Limpar filtros
+              </button>
             </div>
 
-            <div className="rounded-xl border border-white/6 bg-[linear-gradient(135deg,rgba(16,31,67,0.9),rgba(8,18,37,0.96))] px-4 py-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-[#7EC3FF]">
-                    Estoque editável
-                  </div>
-                  <div className="mt-1 text-sm font-semibold text-white">
-                    Controle direto pela tabela
-                  </div>
-                </div>
-                <SmallBadge className="border-emerald-400/20 bg-emerald-400/10 text-emerald-200">
-                  Inline
-                </SmallBadge>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap gap-1.5">
+                {statusTabs.map((tab) => (
+                  <button
+                    key={tab.filter}
+                    type="button"
+                    onClick={() => setProductFilter(tab.filter)}
+                    className={cn(
+                      'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-medium transition',
+                      productFilter === tab.filter
+                        ? 'border-[#1E3DFF]/35 bg-[#1E3DFF]/12 text-[#A9C7FF]'
+                        : 'border-white/8 bg-[#081225] text-slate-400 hover:text-slate-200'
+                    )}
+                  >
+                    {tab.label}
+                    <span className="text-[10px] opacity-80">{tab.count}</span>
+                  </button>
+                ))}
               </div>
-              <p className="mt-3 text-[11px] leading-5 text-slate-300">
-                Status e estoque continuam operáveis na própria lista, sem abrir telas
-                intermediárias.
-              </p>
-              <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5">
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                    Categoria focada
-                  </div>
-                  <div className="mt-1 text-xs font-semibold text-white">
-                    {activeCategory?.name ?? 'Todas as categorias'}
-                  </div>
+
+              <div className="text-[11px] text-slate-400">
+                Mostrando {filteredProducts.length} de {products.length}
+              </div>
+            </div>
+
+            <div className="overflow-x-auto rounded-lg border border-white/6">
+              <div className="min-w-[1080px]">
+                <div className="grid grid-cols-[minmax(330px,1.7fr)_150px_185px_185px_200px_90px] gap-3 bg-[#081225] px-4 py-2.5 text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                  <span>Produto</span>
+                  <span>Estoque</span>
+                  <span>Preço</span>
+                  <span>Preço PJ</span>
+                  <span>Status</span>
+                  <span className="text-right">Ações</span>
                 </div>
-                <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5">
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                    Preço médio
+
+                {filteredProducts.length === 0 ? (
+                  <div className="px-4 py-10 text-center text-xs text-slate-400">
+                    Nenhum produto encontrado com os filtros atuais.
                   </div>
-                  <div className="mt-1 text-xs font-semibold text-white">
-                    {formatCurrency(totalProductsValue / Math.max(products.length, 1))}
-                  </div>
-                </div>
+                ) : null}
+
+                {filteredProducts.map((product) => {
+                  const primaryCategory = product.categories[0];
+                  const extraCategoriesCount = Math.max(0, product.categories.length - 1);
+                  const priceValue = product.promotionalPrice ?? product.price;
+                  const hasPotentialDuplicate = potentialDuplicateProductIds.has(product.id);
+                  const businessPrice = product.variantId
+                    ? businessPricesByVariantId.get(product.variantId)
+                    : undefined;
+
+                  return (
+                    <div
+                      key={product.id}
+                      className="grid grid-cols-[minmax(330px,1.7fr)_150px_185px_185px_200px_90px] items-center gap-3 border-t border-white/6 px-4 py-3 text-xs transition hover:bg-white/[0.015]"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        {product.imageUrl ? (
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="h-11 w-11 rounded-lg border border-white/8 object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/8 bg-[linear-gradient(135deg,#1E3DFF,#38BDF8)] text-xs font-semibold text-white">
+                            {initialsFromName(product.name)}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <div className="truncate font-semibold text-white">
+                            {product.name}
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400">
+                            {primaryCategory ? (
+                              <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
+                                {primaryCategory.name}
+                              </SmallBadge>
+                            ) : (
+                              <span>Sem categoria</span>
+                            )}
+                            {extraCategoriesCount > 0 ? (
+                              <span>+{extraCategoriesCount}</span>
+                            ) : null}
+                            <span>SKU: {productSku(product)}</span>
+                            {product.brand ? <span>Marca: {product.brand}</span> : null}
+                            <SmallBadge className={productSourceClass(product)}>
+                              {productSourceLabel(product)}
+                            </SmallBadge>
+                            {hasPotentialDuplicate ? (
+                              <SmallBadge className="border-amber-400/20 bg-amber-400/10 text-amber-200">
+                                Duplicado
+                              </SmallBadge>
+                            ) : null}
+                            {product.externalProvider === 'bling' && blingLastSyncAt ? (
+                              <span>Sync: {formatDateTime(blingLastSyncAt)}</span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+
+                      <ProductStockForm product={product} />
+
+                      <div>
+                        <div className="font-semibold text-slate-100">
+                          {formatCurrency(priceValue)}
+                        </div>
+                        {product.promotionalPrice ? (
+                          <div className="mt-1 text-[11px] text-slate-500 line-through">
+                            {formatCurrency(product.price)}
+                          </div>
+                        ) : (
+                          <div className="mt-1 text-[11px] text-slate-500">Preço base</div>
+                        )}
+                      </div>
+
+                      <ProductBusinessPriceForm
+                        product={product}
+                        businessPrice={businessPrice}
+                      />
+
+                      <ProductStatusForm product={product} />
+
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-300 transition hover:border-[#1E3DFF]/35 hover:text-white"
+                          aria-label={`Editar ${product.name}`}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-300 transition hover:border-[#1E3DFF]/35 hover:text-white"
+                          aria-label={`Mais ações para ${product.name}`}
+                        >
+                          <MoreHorizontal className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] text-slate-400">
+              <span>
+                Mostrando {filteredProducts.length} de {products.length} produtos
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-500"
+                >
+                  ‹
+                </button>
+                <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-md border border-[#1E3DFF]/35 bg-[#1E3DFF]/12 px-2 text-xs font-semibold text-[#A9C7FF]">
+                  1
+                </span>
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-500"
+                >
+                  ›
+                </button>
               </div>
             </div>
           </div>
         </Panel>
-
-        <div className="grid gap-4 2xl:grid-cols-[minmax(0,1.55fr)_320px]">
-          <Panel
-            title="Lista de produtos"
-            description="Tabela enxuta para busca, filtro e atualização de catálogo."
-            action={
-              <button
-                type="button"
-                disabled
-                className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-3 py-2 text-xs font-semibold text-white opacity-80"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Adicionar produto
-              </button>
-            }
-          >
-            <div className="space-y-4">
-              <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_180px_140px_160px_auto]">
-                <label className="relative block">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                  <input
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder="Buscar produto, SKU ou categoria..."
-                    className="h-10 w-full rounded-lg border border-white/8 bg-[#081225] pl-9 pr-3 text-xs text-white outline-none transition placeholder:text-slate-500 focus:border-[#1E3DFF]/35"
-                  />
-                </label>
-
-                <label className="block rounded-lg border border-white/8 bg-[#081225] px-3 py-1.5">
-                  <span className="block text-[10px] text-slate-500">Categoria</span>
-                  <select
-                    value={productCategoryFilter}
-                    onChange={(event) => setProductCategoryFilter(event.target.value)}
-                    className="mt-0.5 h-6 w-full bg-transparent text-xs font-semibold text-slate-100 outline-none"
-                  >
-                    <option value="all">Todas</option>
-                    {categories.map((category) => (
-                      <option key={category.id} value={category.slug}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="block rounded-lg border border-white/8 bg-[#081225] px-3 py-1.5">
-                  <span className="block text-[10px] text-slate-500">Fonte</span>
-                  <select
-                    value={productSourceFilter}
-                    onChange={(event) =>
-                      setProductSourceFilter(event.target.value as ProductSourceFilter)
-                    }
-                    className="mt-0.5 h-6 w-full bg-transparent text-xs font-semibold text-slate-100 outline-none"
-                  >
-                    <option value="all">Todas</option>
-                    <option value="zalen">Zalen</option>
-                    <option value="bling">Bling</option>
-                  </select>
-                </label>
-
-                <label className="block rounded-lg border border-white/8 bg-[#081225] px-3 py-1.5">
-                  <span className="block text-[10px] text-slate-500">Status</span>
-                  <select
-                    value={productFilter}
-                    onChange={(event) => setProductFilter(event.target.value as ProductFilter)}
-                    className="mt-0.5 h-6 w-full bg-transparent text-xs font-semibold text-slate-100 outline-none"
-                  >
-                    {statusTabs.map((tab) => (
-                      <option key={tab.filter} value={tab.filter}>
-                        {tab.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchQuery('');
-                    setProductCategoryFilter('all');
-                    setProductSourceFilter('all');
-                    setProductFilter('all');
-                  }}
-                  disabled={!hasActiveProductFilters}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs font-semibold text-slate-200 transition hover:border-[#1E3DFF]/35 hover:text-white disabled:cursor-not-allowed disabled:text-slate-500"
-                >
-                  <Filter className="h-3.5 w-3.5" />
-                  Limpar filtros
-                </button>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap gap-1.5">
-                  {statusTabs.map((tab) => (
-                    <button
-                      key={tab.filter}
-                      type="button"
-                      onClick={() => setProductFilter(tab.filter)}
-                      className={cn(
-                        'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-medium transition',
-                        productFilter === tab.filter
-                          ? 'border-[#1E3DFF]/35 bg-[#1E3DFF]/12 text-[#A9C7FF]'
-                          : 'border-white/8 bg-[#081225] text-slate-400 hover:text-slate-200'
-                      )}
-                    >
-                      {tab.label}
-                      <span className="text-[10px] opacity-80">{tab.count}</span>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="text-[11px] text-slate-400">
-                  {filteredProducts.length} resultado(s) ·{' '}
-                  {activeCategory?.name ?? 'Todas as categorias'} · {sourceFilterLabel}
-                </div>
-              </div>
-
-              <div className="overflow-x-auto rounded-lg border border-white/6">
-                <div className="min-w-[1160px]">
-                  <div className="grid grid-cols-[minmax(300px,1.5fr)_150px_190px_180px_200px_92px] gap-3 bg-[#081225] px-4 py-2.5 text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                    <span>Produto</span>
-                    <span>Categoria</span>
-                    <span>Preço</span>
-                    <span>Estoque</span>
-                    <span>Status</span>
-                    <span className="text-right">Ações</span>
-                  </div>
-
-                  {filteredProducts.length === 0 ? (
-                    <div className="px-4 py-10 text-center text-xs text-slate-400">
-                      Nenhum produto encontrado com os filtros atuais.
-                    </div>
-                  ) : null}
-
-                  {filteredProducts.map((product) => {
-                    const primaryCategory = product.categories[0];
-                    const extraCategoriesCount = Math.max(0, product.categories.length - 1);
-                    const priceValue = product.promotionalPrice ?? product.price;
-                    const hasPotentialDuplicate =
-                      potentialDuplicateProductIds.has(product.id);
-                    const businessPrice = product.variantId
-                      ? businessPricesByVariantId.get(product.variantId)
-                      : undefined;
-
-                    return (
-                      <div
-                        key={product.id}
-                        className="grid grid-cols-[minmax(300px,1.5fr)_150px_190px_180px_200px_92px] items-center gap-3 border-t border-white/6 px-4 py-3 text-xs transition hover:bg-white/[0.015]"
-                      >
-                        <div className="flex min-w-0 items-center gap-3">
-                          {product.imageUrl ? (
-                            <img
-                              src={product.imageUrl}
-                              alt={product.name}
-                              className="h-11 w-11 rounded-lg border border-white/8 object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/8 bg-[linear-gradient(135deg,#1E3DFF,#38BDF8)] text-xs font-semibold text-white">
-                              {initialsFromName(product.name)}
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            <div className="truncate font-semibold text-white">
-                              {product.name}
-                            </div>
-                            <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
-                              <span>SKU: {productSku(product)}</span>
-                              {product.brand ? <span>Marca: {product.brand}</span> : null}
-                              <SmallBadge className={productSourceClass(product)}>
-                                Fonte: {productSourceLabel(product)}
-                              </SmallBadge>
-                              {hasPotentialDuplicate ? (
-                                <SmallBadge className="border-amber-400/20 bg-amber-400/10 text-amber-200">
-                                  Possível duplicado
-                                </SmallBadge>
-                              ) : null}
-                              {product.externalProvider === 'bling' && blingLastSyncAt ? (
-                                <span>Sync: {formatDateTime(blingLastSyncAt)}</span>
-                              ) : null}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="min-w-0">
-                          {primaryCategory ? (
-                            <div className="space-y-1">
-                              <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
-                                {primaryCategory.name}
-                              </SmallBadge>
-                              {extraCategoriesCount > 0 ? (
-                                <div className="text-[11px] text-slate-500">
-                                  +{extraCategoriesCount} categoria(s)
-                                </div>
-                              ) : null}
-                            </div>
-                          ) : (
-                            <span className="text-[11px] text-slate-500">Sem categoria</span>
-                          )}
-                        </div>
-
-                        <div>
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                            PF
-                          </div>
-                          <div className="mt-0.5 font-semibold text-slate-100">
-                            {formatCurrency(priceValue)}
-                          </div>
-                          {product.promotionalPrice ? (
-                            <div className="mt-1 text-[11px] text-slate-500 line-through">
-                              {formatCurrency(product.price)}
-                            </div>
-                          ) : (
-                            <div className="mt-1 text-[11px] text-slate-500">Preço base</div>
-                          )}
-                          <ProductBusinessPriceForm
-                            product={product}
-                            businessPrice={businessPrice}
-                          />
-                        </div>
-
-                        <ProductStockForm product={product} />
-
-                        <ProductStatusForm product={product} />
-
-                        <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-300 transition hover:border-[#1E3DFF]/35 hover:text-white"
-                            aria-label={`Editar ${product.name}`}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-300 transition hover:border-[#1E3DFF]/35 hover:text-white"
-                            aria-label={`Mais ações para ${product.name}`}
-                          >
-                            <MoreHorizontal className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] text-slate-400">
-                <span>
-                  Mostrando {filteredProducts.length} de {products.length} produtos ·{' '}
-                  {lowStockProducts.length} com estoque baixo
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    disabled
-                    className="inline-flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-500"
-                  >
-                    ‹
-                  </button>
-                  <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-md border border-[#1E3DFF]/35 bg-[#1E3DFF]/12 px-2 text-xs font-semibold text-[#A9C7FF]">
-                    1
-                  </span>
-                  <button
-                    type="button"
-                    disabled
-                    className="inline-flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-500"
-                  >
-                    ›
-                  </button>
-                </div>
-              </div>
-            </div>
-          </Panel>
-
-          <div className="space-y-4">
-            <Panel
-              title="Conciliação Zalen/Bling"
-              description="Produtos manuais são preservados; revise duplicidades antes de vincular ou arquivar."
-            >
-              <div className="grid grid-cols-3 gap-2">
-                <div className="rounded-lg border border-emerald-400/15 bg-emerald-400/8 px-2.5 py-2">
-                  <div className="text-[10px] uppercase tracking-[0.14em] text-emerald-200">
-                    Zalen
-                  </div>
-                  <div className="mt-1 text-sm font-semibold text-white">
-                    {nativeProducts.length}
-                  </div>
-                </div>
-                <div className="rounded-lg border border-cyan-400/15 bg-cyan-400/8 px-2.5 py-2">
-                  <div className="text-[10px] uppercase tracking-[0.14em] text-cyan-200">
-                    Bling
-                  </div>
-                  <div className="mt-1 text-sm font-semibold text-white">
-                    {blingProducts.length}
-                  </div>
-                </div>
-                <div className="rounded-lg border border-amber-400/15 bg-amber-400/8 px-2.5 py-2">
-                  <div className="text-[10px] uppercase tracking-[0.14em] text-amber-200">
-                    Revisar
-                  </div>
-                  <div className="mt-1 text-sm font-semibold text-white">
-                    {potentialDuplicateGroups.length}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-3 space-y-2">
-                {potentialDuplicateGroups.length > 0 ? (
-                  potentialDuplicateGroups.slice(0, 4).map((group) => (
-                    <div
-                      key={group.key}
-                      className="rounded-lg border border-amber-400/15 bg-[#081225] px-3 py-2.5"
-                    >
-                      <div className="truncate text-xs font-semibold text-white">
-                        {group.products[0]?.name ?? group.key}
-                      </div>
-                      <div className="mt-1 flex flex-wrap gap-1.5 text-[11px] text-slate-400">
-                        {group.products.map((product) => (
-                          <SmallBadge
-                            key={product.id}
-                            className={productSourceClass(product)}
-                          >
-                            {productSourceLabel(product)}
-                          </SmallBadge>
-                        ))}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="rounded-lg border border-emerald-400/15 bg-emerald-400/8 px-3 py-2.5 text-xs text-emerald-200">
-                    Nenhum par Zalen/Bling com mesmo nome na lista atual.
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-3 grid gap-2">
-                <button
-                  type="button"
-                  disabled
-                  className="inline-flex cursor-not-allowed items-center justify-center rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-[11px] font-semibold text-slate-500"
-                >
-                  Vincular ao Bling em breve
-                </button>
-                <button
-                  type="button"
-                  disabled
-                  className="inline-flex cursor-not-allowed items-center justify-center rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-[11px] font-semibold text-slate-500"
-                >
-                  Arquivar manual em breve
-                </button>
-              </div>
-            </Panel>
-
-            <Panel
-              title="Categorias"
-              description={`Bloco separado para distribuição de produtos e unidades via ${categoriesSourceLabel}.`}
-            >
-              <div className="space-y-3">
-                {categoryLoad.slice(0, 6).map((category) => (
-                  <div key={category.id} className="space-y-2 rounded-lg border border-white/6 bg-[#081225] px-3 py-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="truncate text-xs font-semibold text-white">
-                          {category.name}
-                        </div>
-                        <div className="mt-1 text-[11px] text-slate-400">
-                          {category.count} produto(s) · {category.units} unidade(s)
-                        </div>
-                      </div>
-                      <SmallBadge
-                        className={
-                          category.lowStockCount > 0
-                            ? 'border-amber-400/20 bg-amber-400/10 text-amber-200'
-                            : 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200'
-                        }
-                      >
-                        {category.lowStockCount > 0
-                          ? `${category.lowStockCount} crítico(s)`
-                          : 'OK'}
-                      </SmallBadge>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-white/6">
-                      <div
-                        className="h-1.5 rounded-full bg-[linear-gradient(90deg,#1E3DFF,#38BDF8)]"
-                        style={{
-                          width: `${Math.max(
-                            8,
-                            (category.units / largestCategoryUnits) * 100
-                          )}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Panel>
-
-            <Panel
-              title="Reposição visual"
-              description="Card pequeno com a fila prioritária de conferência."
-            >
-              {featuredLowStockProduct ? (
-                <div className="space-y-2">
-                  {lowStockProducts.slice(0, 3).map((product) => (
-                    <div
-                      key={product.id}
-                      className="flex items-center gap-3 rounded-lg border border-amber-400/15 bg-[linear-gradient(135deg,rgba(245,158,11,0.08),rgba(8,18,37,0.95))] px-3 py-2.5"
-                    >
-                      {product.imageUrl ? (
-                        <img
-                          src={product.imageUrl}
-                          alt={product.name}
-                          className="h-10 w-10 rounded-lg border border-white/8 object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/8 bg-[linear-gradient(135deg,#1E3DFF,#38BDF8)] text-xs font-semibold text-white">
-                          {initialsFromName(product.name)}
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-xs font-semibold text-white">
-                          {product.name}
-                        </div>
-                        <div className="mt-1 text-[11px] text-slate-300">
-                          Estoque atual: {product.stock} unidade(s)
-                        </div>
-                      </div>
-                      <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-amber-400/20 bg-amber-400/10 px-2 text-xs font-semibold text-amber-200">
-                        {product.stock}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-lg border border-emerald-400/15 bg-emerald-400/8 px-3 py-2.5 text-xs text-emerald-200">
-                  Nenhum item em faixa crítica na base atual.
-                </div>
-              )}
-            </Panel>
-          </div>
-        </div>
       </div>
     );
   };
@@ -1931,7 +1626,7 @@ export default function AdminDashboard({
         />
       </div>
 
-      <div className="grid gap-4 2xl:grid-cols-[1.38fr,0.92fr]">
+      <div className="grid gap-4 2xl:grid-cols-[1.38fr_0.92fr]">
         <Panel
           title="Mesa de pedidos"
           description="Tabela principal de operação diária com leitura rápida de cliente, canal, pagamento e entrega."
@@ -1958,7 +1653,7 @@ export default function AdminDashboard({
           }
         >
           <div className="overflow-hidden rounded-lg border border-white/6">
-            <div className="grid grid-cols-[1fr,1fr,0.55fr,0.75fr,0.75fr,0.8fr] gap-3 bg-[#081225] px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
+            <div className="grid grid-cols-[1fr_1fr_0.55fr_0.75fr_0.75fr_0.8fr] gap-3 bg-[#081225] px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
               <span>Pedido</span>
               <span>Cliente</span>
               <span>Itens</span>
@@ -1969,7 +1664,7 @@ export default function AdminDashboard({
             {filteredOrders.map((order) => (
               <div
                 key={order.id}
-                className="grid grid-cols-[1fr,1fr,0.55fr,0.75fr,0.75fr,0.8fr] gap-3 border-t border-white/6 px-3 py-2.5 text-xs"
+                className="grid grid-cols-[1fr_1fr_0.55fr_0.75fr_0.75fr_0.8fr] gap-3 border-t border-white/6 px-3 py-2.5 text-xs"
               >
                 <div>
                   <div className="font-semibold text-white">{order.orderNumber}</div>
@@ -2162,7 +1857,7 @@ export default function AdminDashboard({
         />
       </div>
 
-      <div className="grid gap-4 2xl:grid-cols-[220px,1fr]">
+      <div className="grid gap-4 2xl:grid-cols-[220px_1fr]">
         <Panel title="Clientes" description="Navegação interna do relacionamento.">
           <div className="space-y-1.5">
             {[
@@ -2308,253 +2003,307 @@ export default function AdminDashboard({
     </div>
   );
 
-  const renderIntegrations = () => (
-    <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
-        <MetricCard
-          icon={Database}
-          label="Providers globais"
-          value={String(integrations.length)}
-          helper={`Registry carregado via ${integrationsSourceLabel}.`}
-        />
-        <MetricCard
-          icon={Wifi}
-          label="Conectados"
-          value={String(connectedIntegrations.length)}
-          helper="Somente conexões por loja com status ativo."
-        />
-        <MetricCard
-          icon={RefreshCw}
-          label="Planejados"
-          value={String(plannedIntegrations.length)}
-          helper="Sem token, webhook ou chamada externa."
-        />
-        <MetricCard
-          icon={ShieldCheck}
-          label="Alertas"
-          value={String(erroredIntegrations.length)}
-          helper="Erros reportados por store_integrations."
-        />
-      </div>
+  const renderIntegrations = () => {
+    const integrationStats = [
+      {
+        label: 'Registry',
+        value: String(integrations.length),
+        detail: integrationsSourceLabel,
+        icon: Database,
+      },
+      {
+        label: 'Conectados',
+        value: String(connectedIntegrations.length),
+        detail: 'por loja',
+        icon: Wifi,
+      },
+      {
+        label: 'Planejados',
+        value: String(plannedIntegrations.length),
+        detail: 'sem chamada externa',
+        icon: RefreshCw,
+      },
+      {
+        label: 'Alertas',
+        value: String(erroredIntegrations.length),
+        detail: 'store_integrations',
+        icon: ShieldCheck,
+      },
+    ];
+    const guardrails = [
+      'Sem token no frontend',
+      'Sem chamada externa pelo client',
+      'Credenciais por store_id',
+      'Webhook só server-side',
+    ];
 
-      <div className="grid gap-4 2xl:grid-cols-[0.85fr,1.35fr]">
-        <Panel
-          title="ERP principal"
-          description="Conector previsto para a operação da Brasil Drones."
-          action={
-            primaryErpIntegration ? (
-              <SmallBadge className={integrationStatusClass(primaryErpIntegration)}>
-                {integrationStatusLabel(primaryErpIntegration)}
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+          <div className="flex flex-wrap gap-1.5">
+            {integrationStats.map((item) => (
+              <SmallBadge
+                key={item.label}
+                className="border-white/8 bg-[#081225] text-slate-300"
+              >
+                {item.label}: {item.value}
               </SmallBadge>
-            ) : null
-          }
-        >
-          {primaryErpIntegration ? (
-            <div className="space-y-3">
-              <div className="rounded-lg border border-[#1E3DFF]/20 bg-[linear-gradient(135deg,rgba(30,61,255,0.18),rgba(8,18,37,0.95))] p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-semibold text-white">
-                      {primaryErpIntegration.provider.name}
+            ))}
+          </div>
+          <button
+            type="button"
+            disabled
+            className="inline-flex h-9 w-fit cursor-not-allowed items-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-3 text-xs font-semibold text-white opacity-80"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Novo conector
+          </button>
+        </div>
+
+        <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_340px]">
+          <Panel
+            title="Conectores"
+            description="Catálogo da plataforma combinado com a conexão da loja ativa."
+            action={
+              <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
+                {currentStoreBrand.shortName}
+              </SmallBadge>
+            }
+          >
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-1.5">
+                {integrationStats.map((item) => {
+                  const Icon = item.icon;
+
+                  return (
+                    <div
+                      key={item.label}
+                      className="inline-flex items-center gap-2 rounded-lg border border-white/8 bg-[#081225] px-2.5 py-2 text-xs"
+                    >
+                      <Icon className="h-3.5 w-3.5 text-[#7EC3FF]" />
+                      <span className="font-semibold text-white">{item.value}</span>
+                      <span className="text-slate-400">{item.label}</span>
+                      <span className="text-slate-600">·</span>
+                      <span className="text-slate-500">{item.detail}</span>
                     </div>
-                    <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-[#7EC3FF]">
-                      {providerCategoryLabel[primaryErpIntegration.provider.category]}
-                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="overflow-x-auto rounded-lg border border-white/6">
+                <div className="min-w-[980px]">
+                  <div className="grid grid-cols-[minmax(300px,1.4fr)_130px_150px_150px_145px_150px] gap-3 bg-[#081225] px-4 py-2.5 text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                    <span>Conector</span>
+                    <span>Categoria</span>
+                    <span>Status</span>
+                    <span>Ambiente</span>
+                    <span>Último sync</span>
+                    <span className="text-right">Ação</span>
                   </div>
+                  {integrations.map((item) => {
+                    const actionHref = integrationActionHref(item);
+                    const isPrimaryErp = item.provider.key === primaryErpIntegration?.provider.key;
+                    const environment =
+                      item.integration?.environment ??
+                      (item.provider.status === 'planned' ? 'Planejado' : 'Não configurado');
+
+                    return (
+                      <div
+                        key={item.provider.key}
+                        className={cn(
+                          'grid grid-cols-[minmax(300px,1.4fr)_130px_150px_150px_145px_150px] items-center gap-3 border-t border-white/6 px-4 py-3 text-xs transition hover:bg-white/[0.015]',
+                          isPrimaryErp ? 'bg-[#1E3DFF]/[0.035]' : ''
+                        )}
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#1E3DFF]/25 bg-[#101F43] text-xs font-semibold text-[#A9C7FF]">
+                            {item.provider.name.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                              <span className="truncate font-semibold text-white">
+                                {item.provider.name}
+                              </span>
+                              {isPrimaryErp ? (
+                                <SmallBadge className="border-[#1E3DFF]/30 bg-[#1E3DFF]/10 text-[#A9C7FF]">
+                                  ERP principal
+                                </SmallBadge>
+                              ) : null}
+                            </div>
+                            <div className="mt-1 truncate text-[11px] text-slate-400">
+                              {item.provider.description ?? 'Provider global da plataforma.'}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
+                            {providerCategoryLabel[item.provider.category]}
+                          </SmallBadge>
+                        </div>
+
+                        <div>
+                          <SmallBadge className={integrationStatusClass(item)}>
+                            {integrationStatusLabel(item)}
+                          </SmallBadge>
+                        </div>
+
+                        <div className="font-medium text-slate-300">{environment}</div>
+                        <div className="text-slate-300">{integrationLastSyncLabel(item)}</div>
+
+                        <div className="text-right">
+                          {actionHref ? (
+                            <Link
+                              href={actionHref}
+                              className="inline-flex items-center justify-center gap-1.5 rounded-md border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#A9C7FF] transition hover:border-[#1E3DFF]/45 hover:text-white"
+                            >
+                              {integrationActionLabel(item)}
+                              <ChevronRight className="h-3 w-3" />
+                            </Link>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled
+                              className="cursor-not-allowed rounded-md border border-white/8 bg-white/5 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400"
+                            >
+                              {integrationActionLabel(item)}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+                <span>
+                  Mostrando {integrations.length} conectores · {connectedIntegrations.length}{' '}
+                  conectado(s)
+                </span>
+                <span>{guardrails.join(' · ')}</span>
+              </div>
+            </div>
+          </Panel>
+
+          <div className="space-y-4">
+            <Panel
+              title="ERP principal"
+              description={`Operação prevista para ${currentStoreBrand.shortName}.`}
+              action={
+                primaryErpIntegration ? (
                   <SmallBadge className={integrationStatusClass(primaryErpIntegration)}>
                     {integrationStatusLabel(primaryErpIntegration)}
                   </SmallBadge>
-                </div>
-                <p className="mt-3 text-xs leading-5 text-slate-300">
-                  {primaryErpIntegration.provider.description ??
-                    'ERP planejado para sincronizar catálogo, estoque e pedidos.'}
-                </p>
-              </div>
+                ) : null
+              }
+            >
+              {primaryErpIntegration ? (
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-[#1E3DFF]/20 bg-[linear-gradient(135deg,rgba(30,61,255,0.14),rgba(8,18,37,0.96))] p-3">
+                    <div className="text-sm font-semibold text-white">
+                      {primaryErpIntegration.provider.name}
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-slate-300">
+                      {primaryErpIntegration.provider.description ??
+                        'ERP planejado para sincronizar catálogo, estoque e pedidos.'}
+                    </p>
+                  </div>
 
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5">
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                    Ambiente
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5">
+                      <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                        Ambiente
+                      </div>
+                      <div className="mt-1 text-xs font-semibold text-white">
+                        {primaryErpIntegration.integration?.environment ?? 'Não configurado'}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5">
+                      <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                        Último sync
+                      </div>
+                      <div className="mt-1 text-xs font-semibold text-white">
+                        {integrationLastSyncLabel(primaryErpIntegration)}
+                      </div>
+                    </div>
                   </div>
-                  <div className="mt-1 text-xs font-semibold text-white">
-                    {primaryErpIntegration.integration?.environment ?? 'Não configurado'}
-                  </div>
-                </div>
-                <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5">
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                    Último sync
-                  </div>
-                  <div className="mt-1 text-xs font-semibold text-white">
-                    {integrationLastSyncLabel(primaryErpIntegration)}
-                  </div>
-                </div>
-              </div>
 
-              {integrationActionHref(primaryErpIntegration) ? (
-                <Link
-                  href={integrationActionHref(primaryErpIntegration)!}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-3 py-2 text-xs font-semibold text-[#A9C7FF] transition hover:border-[#1E3DFF]/45 hover:text-white"
-                >
-                  {integrationActionLabel(primaryErpIntegration)}
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </Link>
+                  <Link
+                    href={integrationActionHref(primaryErpIntegration) ?? '/admin'}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-3 py-2 text-xs font-semibold text-[#A9C7FF] transition hover:border-[#1E3DFF]/45 hover:text-white"
+                  >
+                    {integrationActionLabel(primaryErpIntegration)}
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
               ) : (
-                <button
-                  type="button"
-                  disabled
-                  className="inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-3 py-2 text-xs font-semibold text-[#A9C7FF] opacity-80"
-                >
-                  {integrationActionLabel(primaryErpIntegration)}
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </button>
+                <div className="rounded-lg border border-amber-400/15 bg-amber-400/8 px-3 py-2.5 text-xs text-amber-100">
+                  Nenhum provider ERP encontrado no registry atual.
+                </div>
               )}
-            </div>
-          ) : (
-            <div className="rounded-lg border border-amber-400/15 bg-amber-400/8 px-3 py-2.5 text-xs text-amber-100">
-              Nenhum provider ERP encontrado no registry atual.
-            </div>
-          )}
-        </Panel>
+            </Panel>
 
-        <Panel
-          title="Conectores disponíveis"
-          description="Catálogo global da plataforma combinado com o status da loja ativa."
-          action={
-            <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
-              {currentStoreBrand.shortName}
-            </SmallBadge>
-          }
-        >
-          <div className="overflow-x-auto rounded-lg border border-white/6">
-            <div className="min-w-[920px]">
-              <div className="grid grid-cols-[minmax(260px,1fr)_120px_130px_140px_160px] gap-3 bg-[#081225] px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                <span>Conector</span>
-                <span>Categoria</span>
-                <span>Status</span>
-                <span>Último sync</span>
-                <span className="text-right">Ação</span>
+            <Panel title="Saúde" description="Resumo rápido dos conectores.">
+              <div className="space-y-2">
+                {[
+                  {
+                    label: 'Conectados',
+                    value: `${connectedIntegrations.length} conector(es)`,
+                    className: 'text-emerald-200',
+                  },
+                  {
+                    label: 'Planejados',
+                    value: `${plannedIntegrations.length} conector(es)`,
+                    className: 'text-amber-200',
+                  },
+                  {
+                    label: 'Pedidos com ERP',
+                    value: `${syncedOrders.length} pedido(s)`,
+                    className: 'text-[#A9C7FF]',
+                  },
+                  {
+                    label: 'Alertas',
+                    value: `${erroredIntegrations.length} alerta(s)`,
+                    className: 'text-rose-200',
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5 text-xs"
+                  >
+                    <span className="text-slate-400">{item.label}</span>
+                    <span className={cn('font-semibold', item.className)}>
+                      {item.value}
+                    </span>
+                  </div>
+                ))}
               </div>
-              {integrations.map((item) => (
-                <div
-                  key={item.provider.key}
-                  className="grid grid-cols-[minmax(260px,1fr)_120px_130px_140px_160px] items-center gap-3 border-t border-white/6 px-3 py-2.5 text-xs"
-                >
-                  <div className="min-w-0">
-                    <div className="truncate font-semibold text-white">
-                      {item.provider.name}
-                    </div>
-                    <div className="mt-1 truncate text-slate-400">
-                      {item.provider.description ?? 'Provider global da plataforma.'}
-                    </div>
+            </Panel>
+
+            <Panel title="Guardrails" description="Limites ativos nesta etapa.">
+              <div className="space-y-2">
+                {guardrails.map((item) => (
+                  <div
+                    key={item}
+                    className="flex items-center gap-2 rounded-lg border border-white/6 bg-[#081225] px-3 py-2 text-xs text-slate-300"
+                  >
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-emerald-400/12 text-[9px] font-semibold text-emerald-200">
+                      OK
+                    </span>
+                    {item}
                   </div>
-                  <div className="text-slate-300">
-                    {providerCategoryLabel[item.provider.category]}
-                  </div>
-                  <div>
-                    <SmallBadge className={integrationStatusClass(item)}>
-                      {integrationStatusLabel(item)}
-                    </SmallBadge>
-                  </div>
-                  <div className="text-slate-300">{integrationLastSyncLabel(item)}</div>
-                  <div className="text-right">
-                    {integrationActionHref(item) ? (
-                      <Link
-                        href={integrationActionHref(item)!}
-                        className="rounded-md border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#A9C7FF] transition hover:border-[#1E3DFF]/45 hover:text-white"
-                      >
-                        {integrationActionLabel(item)}
-                      </Link>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled
-                        className="cursor-not-allowed rounded-md border border-white/8 bg-white/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300 opacity-75"
-                      >
-                        {integrationActionLabel(item)}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </Panel>
           </div>
-        </Panel>
+        </div>
       </div>
-
-      <div className="grid gap-4 2xl:grid-cols-[1.1fr,1fr]">
-        <Panel
-          title="Base técnica"
-          description="Separação entre registry global e conexão por loja."
-        >
-          <div className="grid gap-2 md:grid-cols-2">
-            {[
-              {
-                label: 'integration_providers',
-                value: `${integrations.length} providers`,
-                detail: 'Catálogo global sem credenciais.',
-              },
-              {
-                label: 'store_integrations',
-                value: `${connectedIntegrations.length} conectada(s)`,
-                detail: 'Configuração filtrada por store_id.',
-              },
-              {
-                label: 'Fonte',
-                value: integrationsSourceLabel,
-                detail: 'Fallback mock mantém o admin disponível.',
-              },
-              {
-                label: 'Pedidos com ERP ref.',
-                value: String(syncedOrders.length),
-                detail: 'Pedidos com vínculo externo registrado.',
-              },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5"
-              >
-                <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                  {item.label}
-                </div>
-                <div className="mt-1 text-sm font-semibold text-white">{item.value}</div>
-                <div className="mt-1 text-[11px] leading-5 text-slate-400">
-                  {item.detail}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Panel>
-
-        <Panel
-          title="Guardrails"
-          description="Limites desta sprint de conectores."
-        >
-          <div className="space-y-2">
-            {[
-              'Nenhuma API externa é chamada diretamente pelo client.',
-              'credentials_encrypted não é selecionado nem enviado ao client.',
-              'Bling usa OAuth server-side e tokens criptografados.',
-              'Mercos permanece global e não conectado na Brasil Drones.',
-              'Mercado Pago e Melhor Envio ficam como planejados.',
-            ].map((item) => (
-              <div
-                key={item}
-                className="flex items-start gap-2 rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5"
-              >
-                <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-md bg-emerald-400/12 text-[9px] font-semibold text-emerald-200">
-                  OK
-                </span>
-                <span className="text-xs leading-5 text-slate-300">{item}</span>
-              </div>
-            ))}
-          </div>
-        </Panel>
-      </div>
-    </div>
-  );
+    );
+  };
 
   const renderSettings = () => (
-    <div className="grid gap-4 2xl:grid-cols-[220px,1fr]">
+    <div className="grid gap-4 2xl:grid-cols-[220px_1fr]">
       <Panel title="Credenciais" description="Estrutura lateral enxuta para os blocos internos do admin.">
         <div className="space-y-1.5">
           {[
@@ -2593,7 +2342,7 @@ export default function AdminDashboard({
             title="Informações pessoais"
             description="Bloco visual para o perfil do operador principal."
           >
-            <div className="grid gap-4 xl:grid-cols-[160px,1fr] xl:items-start">
+            <div className="grid gap-4 xl:grid-cols-[160px_1fr] xl:items-start">
               <div className="rounded-lg border border-white/6 bg-[#081225] p-3 text-center">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#1E3DFF,#38BDF8)] text-sm font-semibold text-white">
                   AD
@@ -2730,110 +2479,22 @@ export default function AdminDashboard({
 
   return (
     <div className="min-h-screen bg-[#050A14] text-[13px] text-slate-100">
-      <aside className="border-b border-white/6 bg-[#050C19]/95 backdrop-blur xl:fixed xl:inset-y-0 xl:left-0 xl:w-60 xl:border-b-0 xl:border-r">
-        <div className="flex h-full flex-col gap-4 px-3 py-4">
-          <div className="rounded-xl border border-white/6 bg-[#071124] px-3 py-3">
-            <img
-              src={platformBrand.logoWhite}
-              alt={platformBrand.productName}
-              className="h-5 w-auto select-none"
-              draggable={false}
-            />
-            <div className="mt-2 text-[10px] uppercase tracking-[0.18em] text-slate-500">
-              Loja ativa
-            </div>
-            <div className="mt-0.5 truncate text-xs font-semibold text-white">
-              {currentStoreBrand.shortName}
-            </div>
-          </div>
-
-          <nav className="space-y-4">
-            {sidebarGroups.map((group) => (
-              <div key={group.label} className="space-y-1">
-                <div className="px-2 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-600">
-                  {group.label}
-                </div>
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = item.id ? activeView === item.id : false;
-                  const itemClassName = cn(
-                    'flex w-full items-center justify-between rounded-xl border px-2.5 py-2 text-left text-xs transition',
-                    isActive
-                      ? 'border-[#1E3DFF]/35 bg-[linear-gradient(135deg,rgba(30,61,255,0.2),rgba(8,18,37,0.95))] text-white shadow-[0_14px_28px_rgba(30,61,255,0.18)]'
-                      : item.disabled
-                        ? 'cursor-not-allowed border-transparent bg-transparent text-slate-600'
-                        : 'border-transparent bg-transparent text-slate-400 hover:border-white/6 hover:bg-[#081225] hover:text-slate-200'
-                  );
-                  const content = (
-                    <>
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span
-                          className={cn(
-                            'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border',
-                            isActive
-                              ? 'border-[#1E3DFF]/30 bg-[#101F43] text-[#7EC3FF]'
-                              : 'border-white/6 bg-[#081225] text-slate-400'
-                          )}
-                        >
-                          <Icon className="h-3.5 w-3.5" />
-                        </span>
-                        <span className="truncate font-medium">{item.label}</span>
-                      </span>
-                      {item.count ? (
-                        <span className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                          {item.count}
-                        </span>
-                      ) : null}
-                    </>
-                  );
-
-                  if (item.href && !item.disabled) {
-                    return (
-                      <Link key={`${group.label}-${item.label}`} href={item.href} className={itemClassName}>
-                        {content}
-                      </Link>
-                    );
-                  }
-
-                  return (
-                    <button
-                      key={`${group.label}-${item.label}`}
-                      type="button"
-                      disabled={item.disabled}
-                      onClick={() => item.id && setActiveView(item.id)}
-                      className={itemClassName}
-                    >
-                      {content}
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-          </nav>
-
-          <div className="mt-auto space-y-2">
-            <div className="rounded-xl border border-white/6 bg-[#081225] px-3 py-3">
-              <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Modo</div>
-              <div className="mt-1 text-xs font-semibold text-white">Fonte atual</div>
-              <p className="mt-1 text-[11px] leading-5 text-slate-400">
-                Catálogo {catalogSourceLabel}; pedidos {ordersSourceLabel}.
-              </p>
-            </div>
-
-            <Link
-              href="/"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#1E3DFF]/30 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-3 py-2 text-xs font-semibold text-white shadow-[0_10px_20px_rgba(30,61,255,0.2)] transition hover:brightness-110"
-            >
-              Voltar à loja
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-        </div>
-      </aside>
+      <AdminSidebar
+        activeKey={activeView}
+        counts={{
+          orders: String(orders.length).padStart(2, '0'),
+          products: String(products.length).padStart(2, '0'),
+          customers: String(customers.length).padStart(2, '0'),
+          integrations: String(integrations.length).padStart(2, '0'),
+          primaryErp: primaryErpIntegration?.integration?.status === 'connected' ? 'ON' : 'ERP',
+        }}
+        footerDescription={`Catálogo ${catalogSourceLabel}; pedidos ${ordersSourceLabel}.`}
+        onSelectView={handleSelectAdminView}
+      />
 
       <main className="xl:pl-60">
-        <div className="px-3 py-3 sm:px-4 lg:px-5">
-          <div className="rounded-xl border border-white/6 bg-[#071124]/92 p-3 shadow-[0_18px_40px_rgba(0,0,0,0.2)] sm:p-4">
+        <div className="w-full px-3 py-3 sm:px-4 lg:px-5">
+          <div className="rounded-lg border border-white/6 bg-[#071124]/92 p-3 shadow-[0_18px_40px_rgba(0,0,0,0.2)] sm:p-4">
             <div className="flex flex-col gap-3 border-b border-white/6 pb-3 xl:flex-row xl:items-center xl:justify-between">
               <div className="space-y-1">
                 <div className="text-[10px] uppercase tracking-[0.22em] text-[#7EC3FF]">
