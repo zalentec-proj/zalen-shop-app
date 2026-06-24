@@ -169,7 +169,25 @@ Tools documentadas:
 - `create_application` via OAuth;
 - `get_application` via OAuth.
 
-Nesta sessão o MCP do Mercado Pago não estava disponível nas tools do agente. A implementação segue com documentação oficial + SDK oficial. Próximos passos podem usar MCP para criar usuários de teste, configurar webhook e rodar checklist de qualidade.
+Configuração workspace adicionada em `.cursor/mcp.json`, conforme a
+documentação oficial de conexão:
+
+```json
+{
+  "mcpServers": {
+    "mercadopago-mcp-server": {
+      "url": "https://mcp.mercadopago.com/mcp"
+    }
+  }
+}
+```
+
+Nesta sessão, o MCP do Mercado Pago ainda não ficou disponível como tool
+executável do agente. O próximo passo é o cliente/IDE carregar essa configuração
+e concluir a autenticação OAuth no Mercado Pago. A implementação runtime da
+Zalen continua com documentação oficial + SDK/API oficial; o MCP será usado para
+homologação, usuários de teste, configuração/diagnóstico de webhook e checklist
+de qualidade.
 
 ## Status de pagamento
 

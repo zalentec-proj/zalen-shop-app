@@ -5,6 +5,11 @@ import { headers } from 'next/headers';
 import { z } from 'zod';
 import { getServerEnv } from '@/lib/env/server';
 import { createClient } from '@/lib/supabase/server';
+import {
+  getStoreSlugFromHostname,
+  isLocalhostName,
+  normalizeHostname,
+} from '@/modules/stores/host-resolution';
 
 type LoginActionState = {
   error: string | null;
@@ -49,12 +54,37 @@ function formError(message: string): FormActionState {
   };
 }
 
-function getSafeNextPath(value: string | null | undefined): string {
-  if (!value || !value.startsWith('/') || value.startsWith('//')) {
+function isAllowedAbsoluteNextTarget(value: string) {
+  try {
+    const url = new URL(value);
+    const hostname = normalizeHostname(url.host);
+    const rootDomain =
+      getServerEnv().PLATFORM_ROOT_DOMAIN ?? 'zalenshop.com.br';
+
+    if (!url.pathname.startsWith('/admin')) {
+      return false;
+    }
+
+    return (
+      isLocalhostName(hostname) ||
+      Boolean(getStoreSlugFromHostname(hostname, rootDomain)) ||
+      hostname === `app.${rootDomain}`
+    );
+  } catch {
+    return false;
+  }
+}
+
+function getSafeNextTarget(value: string | null | undefined): string {
+  if (!value) {
     return '/admin';
   }
 
-  return value;
+  if (value.startsWith('/') && !value.startsWith('//')) {
+    return value;
+  }
+
+  return isAllowedAbsoluteNextTarget(value) ? value : '/admin';
 }
 
 function getPasswordResetSentState(): FormActionState {
@@ -108,7 +138,7 @@ export async function loginAction(
     return invalidCredentialsState;
   }
 
-  redirect(getSafeNextPath(parsed.data.next));
+  redirect(getSafeNextTarget(parsed.data.next));
 }
 
 export async function logoutAction() {

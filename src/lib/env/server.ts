@@ -14,6 +14,8 @@ const serverEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: optionalSecretString,
   SUPABASE_SECRET_KEY: optionalSecretString,
   APP_URL: z.string().trim().url().optional(),
+  PLATFORM_ROOT_DOMAIN: optionalSecretString,
+  AUTH_COOKIE_DOMAIN: optionalSecretString,
   BLING_CLIENT_ID: optionalSecretString,
   BLING_CLIENT_SECRET: optionalSecretString,
   BLING_REDIRECT_URI: z.string().trim().url().optional(),
@@ -76,6 +78,8 @@ function parseServerEnv(): ServerEnv {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     ),
     APP_URL: normalizeEnvValue(process.env.APP_URL),
+    PLATFORM_ROOT_DOMAIN: normalizeEnvValue(process.env.PLATFORM_ROOT_DOMAIN),
+    AUTH_COOKIE_DOMAIN: normalizeEnvValue(process.env.AUTH_COOKIE_DOMAIN),
     BLING_CLIENT_ID: normalizeEnvValue(process.env.BLING_CLIENT_ID),
     BLING_CLIENT_SECRET: normalizeEnvValue(process.env.BLING_CLIENT_SECRET),
     BLING_REDIRECT_URI: normalizeEnvValue(process.env.BLING_REDIRECT_URI),

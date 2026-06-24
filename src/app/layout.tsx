@@ -2,31 +2,23 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Brasil Drones & Parts — Drones e Peças DJI',
+  title: 'Zalen Shop',
   description:
-    'Equipamentos originais, peças selecionadas e suporte técnico para quem exige segurança, precisão e liberdade em cada voo.',
+    'Plataforma Zalen Shop para lojas, produtos, pedidos e integrações.',
   openGraph: {
     type: 'website',
-    url: 'https://brasil-drones.vercel.app/',
-    title: 'Brasil Drones & Parts — Drones e Peças DJI',
+    url: 'https://app.zalenshop.com.br/',
+    title: 'Zalen Shop',
     description:
-      'Equipamentos originais, peças selecionadas e suporte técnico para quem exige segurança, precisão e liberdade em cada voo.',
-    images: [
-      {
-        url: 'https://brasil-drones.vercel.app/og-image.png',
-        width: 1200,
-        height: 630,
-      },
-    ],
+      'Plataforma Zalen Shop para lojas, produtos, pedidos e integrações.',
     locale: 'pt_BR',
-    siteName: 'Brasil Drones & Parts',
+    siteName: 'Zalen Shop',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Brasil Drones & Parts — Drones e Peças DJI',
+    title: 'Zalen Shop',
     description:
-      'Equipamentos originais, peças selecionadas e suporte técnico para quem exige segurança, precisão e liberdade em cada voo.',
-    images: ['https://brasil-drones.vercel.app/og-image.png'],
+      'Plataforma Zalen Shop para lojas, produtos, pedidos e integrações.',
   },
   icons: {
     icon: '/favicon.svg',

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
 import { canAccessStore, getCurrentUser } from '@/modules/auth/auth.service';
 import { getBlingOAuthConfig } from '@/modules/integrations/bling/bling.config';
 import { exchangeBlingAuthorizationCode } from '@/modules/integrations/bling/bling.oauth';
@@ -7,6 +6,7 @@ import {
   recordBlingConnectionError,
   saveBlingOAuthTokens,
 } from '@/modules/integrations/bling/bling.service';
+import { resolveCurrentStoreFromRequest } from '@/modules/stores/store-resolution';
 
 const stateCookieName = 'zalen_bling_oauth_state';
 const detailPath = '/admin/integracoes/bling';
@@ -37,18 +37,19 @@ export async function GET(request: NextRequest) {
   const providerError = request.nextUrl.searchParams.get('error');
   const expectedState = request.cookies.get(stateCookieName)?.value;
   const user = await getCurrentUser();
+  const store = await resolveCurrentStoreFromRequest(request);
 
   if (!user) {
     return redirectToDetail(origin, 'missing_session');
   }
 
-  if (!(await canAccessStore(user.id, ACTIVE_STORE_ID))) {
+  if (!(await canAccessStore(user.id, store.id))) {
     return redirectToDetail(origin, 'access_denied');
   }
 
   if (providerError) {
     await recordBlingConnectionError({
-      storeId: ACTIVE_STORE_ID,
+      storeId: store.id,
       errorCode: 'provider_denied_authorization',
     });
 
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
 
   if (!code || !state || !expectedState || state !== expectedState) {
     await recordBlingConnectionError({
-      storeId: ACTIVE_STORE_ID,
+      storeId: store.id,
       errorCode: 'invalid_oauth_state',
     });
 
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest) {
 
   if (!config.isConfigured) {
     await recordBlingConnectionError({
-      storeId: ACTIVE_STORE_ID,
+      storeId: store.id,
       errorCode: 'missing_oauth_config',
     });
 
@@ -77,7 +78,7 @@ export async function GET(request: NextRequest) {
 
   if (!config.isEncryptionConfigured) {
     await recordBlingConnectionError({
-      storeId: ACTIVE_STORE_ID,
+      storeId: store.id,
       errorCode: 'missing_encryption_config',
     });
 
@@ -87,14 +88,14 @@ export async function GET(request: NextRequest) {
   try {
     const tokens = await exchangeBlingAuthorizationCode(config, code);
     await saveBlingOAuthTokens({
-      storeId: ACTIVE_STORE_ID,
+      storeId: store.id,
       tokens,
     });
 
     return redirectToDetail(origin);
   } catch {
     await recordBlingConnectionError({
-      storeId: ACTIVE_STORE_ID,
+      storeId: store.id,
       errorCode: 'oauth_callback_failed',
     });
 

@@ -1,5 +1,11 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import {
+  getPlatformAppOriginFromHost,
+  getStoreSlugFromHostname,
+  isLocalhostName,
+  normalizeHostname,
+} from '@/modules/stores/host-resolution';
 
 const placeholderFragments = [
   '${',
@@ -31,15 +37,62 @@ function getSafeNextPath(value: string): string {
   return value;
 }
 
+function isAllowedAppRedirectUrl(value: string) {
+  try {
+    const url = new URL(value);
+    const hostname = normalizeHostname(url.host);
+    const rootDomain =
+      normalizeEnvValue(process.env.PLATFORM_ROOT_DOMAIN) ?? 'zalenshop.com.br';
+
+    if (!url.pathname.startsWith('/admin')) {
+      return false;
+    }
+
+    return (
+      isLocalhostName(hostname) ||
+      Boolean(getStoreSlugFromHostname(hostname, rootDomain)) ||
+      hostname === `app.${rootDomain}`
+    );
+  } catch {
+    return false;
+  }
+}
+
+function getSafeNextTarget(value: string | null): string {
+  if (!value) {
+    return '/admin';
+  }
+
+  if (value.startsWith('/') && !value.startsWith('//')) {
+    return getSafeNextPath(value);
+  }
+
+  return isAllowedAppRedirectUrl(value) ? value : '/admin';
+}
+
+function getRequestOrigin(request: NextRequest) {
+  const host =
+    request.headers.get('x-forwarded-host') ??
+    request.headers.get('host') ??
+    request.nextUrl.host;
+  const protocol =
+    request.headers.get('x-forwarded-proto') ??
+    request.nextUrl.protocol.replace(':', '') ??
+    'http';
+
+  return `${protocol}://${host}`;
+}
+
 function redirectWithCookies(
   request: NextRequest,
   response: NextResponse,
-  pathname: string,
+  destination: string | URL,
   searchParams?: Record<string, string>
 ) {
-  const redirectUrl = request.nextUrl.clone();
-  redirectUrl.pathname = pathname;
-  redirectUrl.search = '';
+  const redirectUrl =
+    destination instanceof URL
+      ? destination
+      : new URL(destination, request.nextUrl.origin);
 
   Object.entries(searchParams ?? {}).forEach(([key, value]) => {
     redirectUrl.searchParams.set(key, value);
@@ -64,7 +117,9 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
+  const cookieDomain = normalizeEnvValue(process.env.AUTH_COOKIE_DOMAIN);
   const supabase = createServerClient(supabaseUrl, supabasePublishableKey, {
+    ...(cookieDomain ? { cookieOptions: { domain: cookieDomain } } : {}),
     cookies: {
       getAll() {
         return request.cookies.getAll();
@@ -89,13 +144,27 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   if (pathname.startsWith('/admin') && !user) {
-    return redirectWithCookies(request, response, '/login', {
-      next: getSafeNextPath(`${pathname}${request.nextUrl.search}`),
-    });
+    const rootDomain =
+      normalizeEnvValue(process.env.PLATFORM_ROOT_DOMAIN) ?? 'zalenshop.com.br';
+    const requestOrigin = getRequestOrigin(request);
+    const loginUrl = new URL(
+      '/login',
+      getPlatformAppOriginFromHost(new URL(requestOrigin), rootDomain)
+    );
+    loginUrl.searchParams.set(
+      'next',
+      new URL(`${pathname}${request.nextUrl.search}`, requestOrigin).toString()
+    );
+
+    return redirectWithCookies(request, response, loginUrl);
   }
 
   if ((pathname === '/login' || pathname === '/login/forgot') && user) {
-    return redirectWithCookies(request, response, '/admin');
+    return redirectWithCookies(
+      request,
+      response,
+      getSafeNextTarget(request.nextUrl.searchParams.get('next'))
+    );
   }
 
   return response;

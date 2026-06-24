@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
+import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 import {
   type MercadoPagoPaymentProcessingResult,
   processMercadoPagoPaymentUpdate,
@@ -28,8 +28,9 @@ export async function processMercadoPagoReturn(
   }
 
   try {
+    const store = await resolveCurrentStoreFromHeaders();
     return await processMercadoPagoPaymentUpdate({
-      storeId: ACTIVE_STORE_ID,
+      storeId: store.id,
       paymentId,
       source: 'return',
     });

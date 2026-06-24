@@ -1,6 +1,5 @@
 import { randomBytes } from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
 import { canAccessStore, getCurrentUser } from '@/modules/auth/auth.service';
 import { getBlingOAuthConfig } from '@/modules/integrations/bling/bling.config';
 import { buildBlingAuthorizationUrl } from '@/modules/integrations/bling/bling.oauth';
@@ -8,6 +7,7 @@ import {
   recordBlingConnectionAttempt,
   recordBlingConnectionError,
 } from '@/modules/integrations/bling/bling.service';
+import { resolveCurrentStoreFromRequest } from '@/modules/stores/store-resolution';
 
 const stateCookieName = 'zalen_bling_oauth_state';
 const detailPath = '/admin/integracoes/bling';
@@ -25,6 +25,7 @@ function redirectToDetail(origin: string, error?: string) {
 export async function GET(request: Request) {
   const origin = new URL(request.url).origin;
   const user = await getCurrentUser();
+  const store = await resolveCurrentStoreFromRequest(request);
 
   if (!user) {
     return NextResponse.redirect(
@@ -32,7 +33,7 @@ export async function GET(request: Request) {
     );
   }
 
-  if (!(await canAccessStore(user.id, ACTIVE_STORE_ID))) {
+  if (!(await canAccessStore(user.id, store.id))) {
     return redirectToDetail(origin, 'access_denied');
   }
 
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
 
   if (!config.isConfigured) {
     await recordBlingConnectionError({
-      storeId: ACTIVE_STORE_ID,
+      storeId: store.id,
       errorCode: 'missing_oauth_config',
     });
 
@@ -49,7 +50,7 @@ export async function GET(request: Request) {
 
   if (!config.isEncryptionConfigured) {
     await recordBlingConnectionError({
-      storeId: ACTIVE_STORE_ID,
+      storeId: store.id,
       errorCode: 'missing_encryption_config',
     });
 
@@ -60,7 +61,7 @@ export async function GET(request: Request) {
   const authorizationUrl = buildBlingAuthorizationUrl(config, state);
 
   await recordBlingConnectionAttempt({
-    storeId: ACTIVE_STORE_ID,
+    storeId: store.id,
     userId: user.id,
   });
 

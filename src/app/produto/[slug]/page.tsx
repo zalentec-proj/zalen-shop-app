@@ -6,6 +6,10 @@ import {
   listRelatedProducts,
 } from '@/modules/catalog/product.service';
 import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
+import {
+  getOptionalStoreFromResolution,
+  resolveStoreFromHeaders,
+} from '@/modules/stores/store-resolution';
 import ProductDetailClient from './ProductDetailClient';
 
 interface Props {
@@ -19,20 +23,29 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const product = await getProductBySlug(ACTIVE_STORE_ID, slug);
+  const resolution = await resolveStoreFromHeaders();
+  const store = getOptionalStoreFromResolution(resolution);
+  if (!store) return {};
+
+  const product = await getProductBySlug(store.id, slug);
   if (!product) return {};
   return {
-    title: product.seoTitle ?? `${product.name} — Brasil Drones & Parts`,
+    title: product.seoTitle ?? `${product.name} — ${store.name}`,
     description: product.seoDescription ?? product.description,
   };
 }
 
 export default async function ProductPage({ params }: Props) {
   const { slug } = await params;
-  const product = await getProductBySlug(ACTIVE_STORE_ID, slug);
+  const resolution = await resolveStoreFromHeaders();
+  const store = getOptionalStoreFromResolution(resolution);
+
+  if (!store) notFound();
+
+  const product = await getProductBySlug(store.id, slug);
   if (!product) notFound();
 
-  const relatedProducts = await listRelatedProducts(ACTIVE_STORE_ID, slug, 3);
+  const relatedProducts = await listRelatedProducts(store.id, slug, 3);
 
   return <ProductDetailClient product={product} relatedProducts={relatedProducts} />;
 }

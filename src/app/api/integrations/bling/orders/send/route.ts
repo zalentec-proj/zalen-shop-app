@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { canAccessStore, getCurrentUser } from '@/modules/auth/auth.service';
 import { sendOrderToBling } from '@/modules/integrations/bling/orders/bling-order-send.service';
-import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
+import { resolveCurrentStoreFromRequest } from '@/modules/stores/store-resolution';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,6 +18,7 @@ function getOrderId(body: unknown) {
 
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
+  const store = await resolveCurrentStoreFromRequest(request);
 
   if (!user) {
     return NextResponse.json(
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!(await canAccessStore(user.id, ACTIVE_STORE_ID))) {
+  if (!(await canAccessStore(user.id, store.id))) {
     return NextResponse.json(
       { status: 'error', errorCode: 'access_denied' },
       { status: 403 }
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
   }
 
   const result = await sendOrderToBling({
-    storeId: ACTIVE_STORE_ID,
+    storeId: store.id,
     orderId,
     trigger: 'admin_retry',
   });

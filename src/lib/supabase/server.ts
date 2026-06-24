@@ -23,11 +23,15 @@ export async function createClient() {
   }
 
   const cookieStore = await cookies();
+  const cookieOptions = env.AUTH_COOKIE_DOMAIN
+    ? { domain: env.AUTH_COOKIE_DOMAIN }
+    : undefined;
 
   return createServerClient(
     env.NEXT_PUBLIC_SUPABASE_URL!,
     env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
+      ...(cookieOptions ? { cookieOptions } : {}),
       cookies: {
         getAll() {
           return cookieStore.getAll();

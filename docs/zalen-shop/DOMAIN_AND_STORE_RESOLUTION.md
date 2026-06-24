@@ -4,13 +4,13 @@
 
 A Zalen Shop deve evoluir para resolver a loja ativa pelo host da requisição, de forma parecida com plataformas SaaS de e-commerce como a Nuvemshop: cada loja possui um endereço dentro do domínio da plataforma e, em uma fase posterior, pode usar um domínio próprio.
 
-No MVP atual, `localhost:3000` continua usando Brasil Drones como fallback por meio da store ativa fixa.
+No MVP atual, `localhost`/`127.0.0.1` continuam usando Brasil Drones como fallback, mas o app já possui resolução server-side por subdomínio para o padrão `{storeSlug}.zalenshop.com.br` e para desenvolvimento com `{storeSlug}.lvh.me`.
 
 Domínios definidos para esta fase:
 
 - `www.zalenshop.com.br` é a landing pública da Zalen Shop e vive em outro projeto.
-- `app.zalenshop.com.br` é este app principal, responsável por login, admin e OAuth.
-- `brasil-drones.zalenshop.com.br` será o storefront futuro da Brasil Drones por subdomínio.
+- `app.zalenshop.com.br` é o host central da aplicação, usado para login e fluxos compartilhados.
+- `brasil-drones.zalenshop.com.br` é o subdomínio padrão da Brasil Drones para storefront e `/admin`.
 
 ## 2. Tipos de experiência
 
@@ -18,7 +18,7 @@ Domínios definidos para esta fase:
 
 O storefront é a loja pública vista pelo comprador.
 
-Exemplos futuros:
+Exemplos:
 
 - `brasil-drones.zalenshop.com.br`
 - `lb-london.zalenshop.com.br`
@@ -30,7 +30,7 @@ O storefront deve usar a identidade visual da loja ativa.
 
 O admin da loja é o painel operacional usado pelo cliente para gerenciar produtos, pedidos, integrações e configurações.
 
-Exemplos futuros:
+Exemplos:
 
 - `brasil-drones.zalenshop.com.br/admin`
 - `lb-london.zalenshop.com.br/admin`
@@ -134,7 +134,7 @@ localhost:3000/admin
 
 Para testar subdomínios localmente, usar `lvh.me`, que resolve para `127.0.0.1`.
 
-Exemplos futuros de desenvolvimento:
+Exemplos de desenvolvimento:
 
 ```txt
 brasil-drones.lvh.me:3000/admin
@@ -164,32 +164,33 @@ Reservados inicialmente:
 
 ## 8. Comportamento atual do MVP
 
-Hoje o projeto ainda usa uma store ativa fixa para Brasil Drones.
+O projeto agora resolve a loja por host nos pontos principais server-side:
 
-Isso deve continuar até a etapa de implementação da resolução dinâmica.
+- storefront `/`;
+- produto e categoria;
+- `/admin`;
+- configurações da loja;
+- ações de catálogo/clientes;
+- checkout e identificação de cliente;
+- rotas internas do conector Bling acionadas pelo painel.
 
 Regras atuais:
 
-- não alterar `ACTIVE_STORE_ID` nesta fase;
-- não alterar comportamento de `localhost`;
-- não redirecionar `/` para `/login` ainda, porque hoje `/` renderiza o storefront Brasil Drones via fallback MVP;
-- reavaliar redirect de `app.zalenshop.com.br/` para `/login` quando a resolução por host for implementada;
+- `localhost` e `127.0.0.1` continuam caindo no fallback Brasil Drones;
+- `brasil-drones.lvh.me:3001` resolve `stores.slug = brasil-drones` em desenvolvimento;
+- `brasil-drones.zalenshop.com.br` resolve `stores.slug = brasil-drones` em produção/staging;
+- subdomínios reservados, como `app`, `www` e `api`, não são tratados como loja;
+- `ACTIVE_STORE_ID` permanece apenas como fallback/static build e em webhooks externos que ainda não carregam contexto de loja no payload;
 - não criar `/platform`;
-- não mudar rotas públicas;
-- não alterar Bling, Mercos ou qualquer conector real;
-- documentar a estratégia antes da implementação.
+- não alterar comportamento real de Bling, Mercos ou qualquer conector externo sem pesquisa técnica aprovada.
 
-## 9. Fase futura de implementação
+## 9. Próximas fases
 
-Quando esta estratégia for implementada, a resolução de store deve ser server-side.
+Itens futuros:
 
-Itens esperados:
-
-- helper `resolveStoreFromHost`;
-- normalização segura do host;
-- lista de subdomínios reservados;
-- lookup por `stores.slug`;
-- fallback explícito para Brasil Drones apenas em desenvolvimento/MVP;
-- possível tabela futura `store_domains`;
-- testes para `localhost`, `lvh.me`, `{storeSlug}.zalenshop.com.br` e domínio próprio;
-- repositories e services recebendo `storeId` resolvido fora deles.
+- criar tabela `store_domains` para domínios próprios;
+- associar domínio próprio validado a uma loja;
+- decidir redirect de `app.zalenshop.com.br/` para login ou seletor de loja;
+- implementar seletor de loja para contas com mais de uma `store_membership`;
+- migrar webhooks externos para descobrir loja por metadados seguros do provedor quando disponível;
+- adicionar testes automatizados específicos para `localhost`, `lvh.me`, `{storeSlug}.zalenshop.com.br` e domínio próprio.

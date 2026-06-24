@@ -6,6 +6,10 @@ import {
   listCategoryProducts,
 } from '@/modules/catalog/product.service';
 import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
+import {
+  getOptionalStoreFromResolution,
+  resolveStoreFromHeaders,
+} from '@/modules/stores/store-resolution';
 import CategoryClient from './CategoryClient';
 
 interface Props {
@@ -19,20 +23,29 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const category = await getCategoryBySlug(ACTIVE_STORE_ID, slug);
+  const resolution = await resolveStoreFromHeaders();
+  const store = getOptionalStoreFromResolution(resolution);
+  if (!store) return {};
+
+  const category = await getCategoryBySlug(store.id, slug);
   if (!category) return {};
   return {
-    title: `${category.name} — Brasil Drones & Parts`,
+    title: `${category.name} — ${store.name}`,
     description: `Explore nossa seleção de ${category.name.toLowerCase()} com qualidade e garantia oficial.`,
   };
 }
 
 export default async function CategoryPage({ params }: Props) {
   const { slug } = await params;
+  const resolution = await resolveStoreFromHeaders();
+  const store = getOptionalStoreFromResolution(resolution);
+
+  if (!store) notFound();
+
   const [category, products, categories] = await Promise.all([
-    getCategoryBySlug(ACTIVE_STORE_ID, slug),
-    listCategoryProducts(ACTIVE_STORE_ID, slug),
-    listCategories(ACTIVE_STORE_ID),
+    getCategoryBySlug(store.id, slug),
+    listCategoryProducts(store.id, slug),
+    listCategories(store.id),
   ]);
 
   if (!category) notFound();

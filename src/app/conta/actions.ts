@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { isValidCpfOrCnpj } from '@/modules/customers/br-document';
 import { upsertCustomer } from '@/modules/customers/customer.service';
-import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
+import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 
 export type CustomerAuthState = {
   error?: string;
@@ -106,8 +106,9 @@ export async function customerSignupAction(
     return { error: 'Não foi possível criar sua conta agora.' };
   }
 
+  const store = await resolveCurrentStoreFromHeaders();
   await upsertCustomer({
-    storeId: ACTIVE_STORE_ID,
+    storeId: store.id,
     authUserId: data.user.id,
     name: parsed.data.name,
     email: parsed.data.email,

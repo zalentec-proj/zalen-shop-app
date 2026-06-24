@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { canAccessStore, getCurrentUser } from '@/modules/auth/auth.service';
 import { upsertCustomer } from '@/modules/customers/customer.service';
-import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
+import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 
 const customerFormSchema = z.object({
   name: z.string().trim().min(2),
@@ -16,8 +16,9 @@ const customerFormSchema = z.object({
 
 export async function createAdminCustomerAction(formData: FormData) {
   const user = await getCurrentUser();
+  const store = await resolveCurrentStoreFromHeaders();
 
-  if (!user || !(await canAccessStore(user.id, ACTIVE_STORE_ID))) {
+  if (!user || !(await canAccessStore(user.id, store.id))) {
     return;
   }
 
@@ -34,7 +35,7 @@ export async function createAdminCustomerAction(formData: FormData) {
   }
 
   await upsertCustomer({
-    storeId: ACTIVE_STORE_ID,
+    storeId: store.id,
     name: parsed.data.name,
     email: parsed.data.email || undefined,
     phone: parsed.data.phone || undefined,

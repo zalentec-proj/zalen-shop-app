@@ -6,59 +6,80 @@ import {
   LockKeyhole,
   Server,
 } from 'lucide-react';
+import { headers } from 'next/headers';
 import { currentStoreBrand } from '@/lib/branding/current-store-brand';
+import { getServerEnv } from '@/lib/env/server';
 import {
   SettingsActionButton,
   SettingsBadge,
   SettingsPanel,
 } from '../SettingsShell';
 
-const domainRows = [
-  {
-    label: 'Domínio atual',
-    value: 'localhost:3000/admin',
-    status: 'Ambiente local',
-    tone: 'info' as const,
-  },
-  {
-    label: 'Domínio padrão futuro',
-    value: 'brasil-drones.zalenshop.com.br',
-    status: 'Reservado',
-    tone: 'success' as const,
-  },
-  {
-    label: 'Domínio próprio futuro',
-    value: 'www.brasildrones.com.br',
-    status: 'DNS pendente',
-    tone: 'warning' as const,
-  },
-];
-
 const dnsChecklist = [
   {
-    title: 'Apontar CNAME',
-    detail: 'Configurar o domínio próprio para apontar ao host da Zalen quando a resolução dinâmica estiver pronta.',
+    title: 'Usar subdomínio Zalen',
+    detail: 'O slug da loja resolve o contexto operacional antes de buscar catálogo, pedidos e conectores.',
     icon: Server,
   },
   {
-    title: 'Validar certificado',
-    detail: 'SSL será tratado no deploy final, sem exposição de chaves no frontend.',
+    title: 'Compartilhar sessão segura',
+    detail: 'Em produção, AUTH_COOKIE_DOMAIN permite que login em app.zalenshop.com.br funcione no subdomínio da loja.',
     icon: LockKeyhole,
   },
   {
-    title: 'Definir domínio principal',
-    detail: 'A loja poderá manter o subdomínio Zalen como fallback operacional.',
+    title: 'Preparar domínio próprio',
+    detail: 'Domínio próprio entra depois, com DNS, certificado e associação explícita à loja.',
     icon: ClipboardList,
   },
 ];
 
-export default function DomainsSettingsPage() {
+export const dynamic = 'force-dynamic';
+
+async function getDomainRows() {
+  const headerStore = await headers();
+  const currentHost = headerStore.get('x-forwarded-host') ?? headerStore.get('host') ?? 'localhost';
+  const rootDomain = getServerEnv().PLATFORM_ROOT_DOMAIN ?? 'zalenshop.com.br';
+  const storeSlug = currentStoreBrand.slug;
+
+  return [
+    {
+      label: 'Endereço atual',
+      value: currentHost,
+      status: currentHost.includes('localhost') || currentHost.includes('127.0.0.1')
+        ? 'Fallback local'
+        : 'Resolvido',
+      tone: 'info' as const,
+    },
+    {
+      label: 'Subdomínio da loja',
+      value: `${storeSlug}.${rootDomain}`,
+      status: 'Ativo',
+      tone: 'success' as const,
+    },
+    {
+      label: 'Alias local',
+      value: `${storeSlug}.lvh.me:3001`,
+      status: 'Dev',
+      tone: 'neutral' as const,
+    },
+    {
+      label: 'Domínio próprio',
+      value: 'www.brasildrones.com.br',
+      status: 'Futuro',
+      tone: 'warning' as const,
+    },
+  ];
+}
+
+export default async function DomainsSettingsPage() {
+  const domainRows = await getDomainRows();
+
   return (
     <div className="space-y-4">
       <SettingsPanel
         title="Domínios"
-        description="Estrutura inicial para domínio padrão da Zalen e domínio próprio da loja ativa. DNS real fica fora desta sprint."
-        action={<SettingsBadge tone="warning">DNS mockado</SettingsBadge>}
+        description="A loja já pode ser resolvida pelo subdomínio padrão da Zalen. Domínio próprio permanece como próxima etapa."
+        action={<SettingsBadge tone="success">Subdomínio ativo</SettingsBadge>}
       >
         <div className="grid gap-3">
           {domainRows.map((row) => (
@@ -134,11 +155,11 @@ export default function DomainsSettingsPage() {
             <div className="mt-4 space-y-2">
               <div className="flex items-start gap-2 text-xs text-slate-300">
                 <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-300" />
-                Domínio Zalen planejado como padrão.
+                Domínio Zalen padrão separa a loja do painel da plataforma.
               </div>
               <div className="flex items-start gap-2 text-xs text-slate-300">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300" />
-                Domínio próprio depende de resolução por host.
+                Domínio próprio ainda depende de cadastro, DNS e certificado.
               </div>
             </div>
             <div className="mt-4">

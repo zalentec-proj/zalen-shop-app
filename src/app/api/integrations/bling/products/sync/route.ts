@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
-import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
 import { canAccessStore, getCurrentUser } from '@/modules/auth/auth.service';
 import { runBlingProductSync } from '@/modules/integrations/bling/products/bling-product-sync.service';
+import { resolveCurrentStoreFromRequest } from '@/modules/stores/store-resolution';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -43,6 +43,7 @@ function getSyncRequest(body: unknown): {
 
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
+  const store = await resolveCurrentStoreFromRequest(request);
 
   if (!user) {
     return NextResponse.json(
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!(await canAccessStore(user.id, ACTIVE_STORE_ID))) {
+  if (!(await canAccessStore(user.id, store.id))) {
     return NextResponse.json(
       { status: 'error', errorCode: 'access_denied' },
       { status: 403 }
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
     body = undefined;
   }
 
-  const result = await runBlingProductSync(ACTIVE_STORE_ID, getSyncRequest(body));
+  const result = await runBlingProductSync(store.id, getSyncRequest(body));
 
   if (result.status === 'success') {
     revalidatePath('/');

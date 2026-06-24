@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { ArrowLeft, ExternalLink, ShieldCheck, Wifi } from 'lucide-react';
 import { AdminSidebar } from '@/app/admin/AdminSidebar';
 import { logoutAction } from '@/app/login/actions';
@@ -8,7 +8,10 @@ import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import { platformBrand } from '@/lib/branding/platform-brand';
 import { getCurrentUser, canAccessStore } from '@/modules/auth/auth.service';
 import { getBlingAdminState } from '@/modules/integrations/bling/bling.service';
-import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
+import {
+  getOptionalStoreFromResolution,
+  resolveStoreFromHeaders,
+} from '@/modules/stores/store-resolution';
 import { BlingHomologationPanel } from './BlingHomologationPanel';
 import { BlingInventorySyncPanel } from './BlingInventorySyncPanel';
 import { BlingProductSyncPanel } from './BlingProductSyncPanel';
@@ -94,16 +97,22 @@ function StatusBadge({ status }: { status: keyof typeof statusLabel }) {
 
 export default async function BlingIntegrationPage({ searchParams }: PageProps) {
   const user = await getCurrentUser();
+  const storeResolution = await resolveStoreFromHeaders();
+  const store = getOptionalStoreFromResolution(storeResolution);
+
+  if (!store) {
+    notFound();
+  }
 
   if (!user) {
     redirect(`/login?next=${encodeURIComponent('/admin/integracoes/bling')}`);
   }
 
-  if (!(await canAccessStore(user.id, ACTIVE_STORE_ID))) {
+  if (!(await canAccessStore(user.id, store.id))) {
     redirect('/admin');
   }
 
-  const state = await getBlingAdminState(ACTIVE_STORE_ID);
+  const state = await getBlingAdminState(store.id);
   const params = (await searchParams) ?? {};
   const error = typeof params.error === 'string' ? params.error : undefined;
   const status = state.status in statusLabel ? state.status : 'pending_credentials';

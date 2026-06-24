@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { logoutAction } from '@/app/login/actions';
 import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import { platformBrand } from '@/lib/branding/platform-brand';
@@ -9,7 +9,10 @@ import {
   getPlatformRole,
   getStoreMembership,
 } from '@/modules/auth/auth.service';
-import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
+import {
+  getOptionalStoreFromResolution,
+  resolveStoreFromHeaders,
+} from '@/modules/stores/store-resolution';
 import { SettingsShell } from './SettingsShell';
 
 export const metadata: Metadata = {
@@ -59,6 +62,12 @@ export default async function SettingsLayout({
   children: React.ReactNode;
 }) {
   const user = await getCurrentUser();
+  const storeResolution = await resolveStoreFromHeaders();
+  const store = getOptionalStoreFromResolution(storeResolution);
+
+  if (!store) {
+    notFound();
+  }
 
   if (!user) {
     redirect('/login');
@@ -66,7 +75,7 @@ export default async function SettingsLayout({
 
   const [platformRole, membership] = await Promise.all([
     getPlatformRole(user.id),
-    getStoreMembership(user.id, ACTIVE_STORE_ID),
+    getStoreMembership(user.id, store.id),
   ]);
 
   if (!platformRole && !membership) {

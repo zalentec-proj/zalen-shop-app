@@ -2,7 +2,6 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
 import { checkStoreRole } from '@/modules/auth/auth.service';
 import type { StoreRole } from '@/modules/auth/auth.types';
 import {
@@ -10,6 +9,7 @@ import {
   updateProductStock,
 } from '@/modules/catalog/product.service';
 import { updateVariantBusinessPrice } from '@/modules/pricing/pricing.service';
+import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 
 const writableStoreRoles: StoreRole[] = [
   'store_owner',
@@ -33,8 +33,9 @@ const businessPriceSchema = z.object({
 });
 
 async function canManageProducts(): Promise<boolean> {
+  const store = await resolveCurrentStoreFromHeaders();
   const access = await checkStoreRole(
-    ACTIVE_STORE_ID,
+    store.id,
     writableStoreRoles
   );
 
@@ -57,8 +58,9 @@ export async function updateProductStatusAction(
     return;
   }
 
+  const store = await resolveCurrentStoreFromHeaders();
   const result = await updateProductStatus({
-    storeId: ACTIVE_STORE_ID,
+    storeId: store.id,
     productId: parsed.data.productId,
     status: parsed.data.status,
   });
@@ -86,8 +88,9 @@ export async function updateProductStockAction(
     return;
   }
 
+  const store = await resolveCurrentStoreFromHeaders();
   const result = await updateProductStock({
-    storeId: ACTIVE_STORE_ID,
+    storeId: store.id,
     productId: parsed.data.productId,
     stock: parsed.data.stock,
   });
@@ -115,8 +118,9 @@ export async function updateProductBusinessPriceAction(
     return;
   }
 
+  const store = await resolveCurrentStoreFromHeaders();
   const result = await updateVariantBusinessPrice({
-    storeId: ACTIVE_STORE_ID,
+    storeId: store.id,
     variantId: parsed.data.variantId,
     price: parsed.data.price,
   });

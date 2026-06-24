@@ -2,12 +2,12 @@
 
 import { z } from 'zod';
 import { headers } from 'next/headers';
-import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
 import { createOrder } from '@/modules/orders/order.service';
 import { isValidCpfOrCnpj, onlyDigits } from '@/modules/customers/br-document';
 import { findCheckoutCustomerByIdentifier } from '@/modules/customers/customer.service';
 import { CustomerPersistenceError } from '@/modules/customers/customer.repository';
 import { getServerEnv } from '@/lib/env/server';
+import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 import {
   MercadoPagoPreferenceError,
   createCheckoutPreference,
@@ -242,16 +242,17 @@ export async function checkoutCartAction(
   }
 
   try {
+    const store = await resolveCurrentStoreFromHeaders();
     const requestHeaders = await headers();
     const baseUrl =
       requestHeaders.get('origin') ??
       getServerEnv().APP_URL ??
       'http://localhost:3000';
 
-    await ensureMercadoPagoCheckoutReady(ACTIVE_STORE_ID);
+    await ensureMercadoPagoCheckoutReady(store.id);
 
     const order = await createOrder({
-      storeId: ACTIVE_STORE_ID,
+      storeId: store.id,
       customer: parsed.data.customer,
       items: parsed.data.items,
       sendToErp: false,
@@ -306,8 +307,9 @@ export async function identifyCheckoutCustomerAction(
     };
   }
 
+  const store = await resolveCurrentStoreFromHeaders();
   const customer = await findCheckoutCustomerByIdentifier({
-    storeId: ACTIVE_STORE_ID,
+    storeId: store.id,
     identifier,
   });
 
@@ -390,8 +392,9 @@ export async function previewCheckoutCartAction(
     : parsed.data.customerType ?? 'pf';
 
   try {
+    const store = await resolveCurrentStoreFromHeaders();
     const pricing = await resolveCheckoutPricing({
-      storeId: ACTIVE_STORE_ID,
+      storeId: store.id,
       customerType,
       items: parsed.data.items,
     });

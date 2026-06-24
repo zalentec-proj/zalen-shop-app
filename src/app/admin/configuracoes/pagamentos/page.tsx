@@ -7,8 +7,8 @@ import {
   ShieldCheck,
   WalletCards,
 } from 'lucide-react';
-import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
 import { getMercadoPagoRuntimeState } from '@/modules/integrations/mercado-pago/mercado-pago.connector';
+import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 import {
   SettingsActionButton,
   SettingsBadge,
@@ -114,7 +114,8 @@ const statusTone: Record<PaymentStatus, 'success' | 'disabled' | 'warning' | 'ne
 };
 
 export default async function PaymentSettingsPage() {
-  const mercadoPagoState = await getMercadoPagoRuntimeState(ACTIVE_STORE_ID);
+  const store = await resolveCurrentStoreFromHeaders();
+  const mercadoPagoState = await getMercadoPagoRuntimeState(store.id);
   const paymentProviders = [
     getMercadoPagoPaymentProvider(mercadoPagoState),
     ...getStaticPaymentProviders(),

@@ -1,9 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import { platformBrand } from '@/lib/branding/platform-brand';
-import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
 import {
   listAdminProductsWithSource,
   listCategoriesWithSource,
@@ -17,6 +16,10 @@ import {
   getPlatformRole,
   getStoreMembership,
 } from '@/modules/auth/auth.service';
+import {
+  getOptionalStoreFromResolution,
+  resolveStoreFromHeaders,
+} from '@/modules/stores/store-resolution';
 import { logoutAction } from '@/app/login/actions';
 import AdminDashboard from './AdminDashboard';
 
@@ -63,6 +66,12 @@ function AccessDenied() {
 
 export default async function AdminPage() {
   const user = await getCurrentUser();
+  const storeResolution = await resolveStoreFromHeaders();
+  const store = getOptionalStoreFromResolution(storeResolution);
+
+  if (!store) {
+    notFound();
+  }
 
   if (!user) {
     redirect('/login');
@@ -70,7 +79,7 @@ export default async function AdminPage() {
 
   const [platformRole, membership] = await Promise.all([
     getPlatformRole(user.id),
-    getStoreMembership(user.id, ACTIVE_STORE_ID),
+    getStoreMembership(user.id, store.id),
   ]);
 
   if (!platformRole && !membership) {
@@ -85,12 +94,12 @@ export default async function AdminPage() {
     customers,
     variantPrices,
   ] = await Promise.all([
-    listAdminProductsWithSource(ACTIVE_STORE_ID),
-    listCategoriesWithSource(ACTIVE_STORE_ID),
-    listOrdersWithSource(ACTIVE_STORE_ID),
-    listStoreIntegrationsWithSource(ACTIVE_STORE_ID),
-    listCustomers(ACTIVE_STORE_ID),
-    listAdminVariantPriceSummaries(ACTIVE_STORE_ID),
+    listAdminProductsWithSource(store.id),
+    listCategoriesWithSource(store.id),
+    listOrdersWithSource(store.id),
+    listStoreIntegrationsWithSource(store.id),
+    listCustomers(store.id),
+    listAdminVariantPriceSummaries(store.id),
   ]);
 
   return (
