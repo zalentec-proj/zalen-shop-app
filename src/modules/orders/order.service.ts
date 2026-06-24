@@ -31,6 +31,7 @@ const createOrderInputSchema = z.object({
   storeId: z.string().trim().min(1),
   customerId: z.string().trim().min(1).optional(),
   sendToErp: z.boolean().optional(),
+  requirePersistence: z.boolean().optional(),
   customer: z
     .object({
       authUserId: z.string().trim().min(1).optional(),
@@ -239,7 +240,9 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
     updatedAt: now,
   };
 
-  const savedOrder = await saveOrderToRepository(order);
+  const savedOrder = await saveOrderToRepository(order, {
+    requirePersistence: parsed.requirePersistence,
+  });
 
   if (parsed.sendToErp !== false) {
     await tryAutoSendOrderToBling({

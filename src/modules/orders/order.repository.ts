@@ -755,8 +755,15 @@ export async function listOrdersWithSourceFromRepository(
   };
 }
 
-export async function saveOrderToRepository(order: Order): Promise<Order> {
+export async function saveOrderToRepository(
+  order: Order,
+  options?: { requirePersistence?: boolean }
+): Promise<Order> {
   if (!isSupabaseAdminConfigured()) {
+    if (options?.requirePersistence) {
+      throw new Error('order_persistence_required');
+    }
+
     logDevOnce('order.repository', 'using local order simulation', {
       reason: 'supabase-env-missing',
     });
@@ -766,6 +773,10 @@ export async function saveOrderToRepository(order: Order): Promise<Order> {
   const supabase = createOptionalAdminClient();
 
   if (!supabase) {
+    if (options?.requirePersistence) {
+      throw new Error('order_persistence_required');
+    }
+
     logDevOnce('order.repository', 'using local order simulation', {
       reason: 'supabase-client-unavailable',
     });
@@ -775,6 +786,10 @@ export async function saveOrderToRepository(order: Order): Promise<Order> {
   const storeId = toNullableUuid(order.storeId);
 
   if (!storeId) {
+    if (options?.requirePersistence) {
+      throw new Error('order_persistence_required');
+    }
+
     logDevOnce('order.repository', 'using local order simulation', {
       reason: 'non-uuid-store-id',
     });

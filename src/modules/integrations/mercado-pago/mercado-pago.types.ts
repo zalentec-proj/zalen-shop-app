@@ -54,5 +54,7 @@ export interface MercadoPagoPaymentLookupResult {
   statusDetail?: string;
   externalReference?: string;
   transactionAmount?: number;
+  currencyId?: string;
+  liveMode?: boolean;
   metadata?: Record<string, unknown>;
 }

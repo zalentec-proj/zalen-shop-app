@@ -4,6 +4,7 @@ import {
   MercadoPagoPaymentLookupError,
   getMercadoPagoPayment,
 } from '@/modules/integrations/mercado-pago/mercado-pago.connector';
+import { getServerEnv } from '@/lib/env/server';
 import { tryAutoSendOrderToBling } from '@/modules/integrations/bling/orders/bling-order-send.service';
 import {
   getOrderByIdFromRepository,
@@ -101,6 +102,63 @@ function amountsMatch(paymentAmount: number | undefined, order: OrderListItem) {
   return Math.round(paymentAmount * 100) === Math.round(order.total * 100);
 }
 
+function getMetadataString(
+  metadata: Record<string, unknown> | undefined,
+  key: string
+) {
+  const value = metadata?.[key];
+
+  return typeof value === 'string' ? value : undefined;
+}
+
+function getExpectedLiveMode() {
+  const mercadoPagoEnv = getServerEnv().MERCADO_PAGO_ENV;
+
+  if (!mercadoPagoEnv) {
+    return undefined;
+  }
+
+  return mercadoPagoEnv === 'production';
+}
+
+function getReconciliationError(input: {
+  payment: Awaited<ReturnType<typeof getMercadoPagoPayment>>;
+  order: OrderListItem;
+  storeId: string;
+  transactionStatus: PaymentTransactionStatus;
+}) {
+  const metadataOrderId = getMetadataString(input.payment.metadata, 'order_id');
+  const metadataStoreId = getMetadataString(input.payment.metadata, 'store_id');
+
+  if (metadataOrderId && metadataOrderId !== input.order.id) {
+    return 'payment_metadata_order_mismatch';
+  }
+
+  if (metadataStoreId && metadataStoreId !== input.storeId) {
+    return 'payment_metadata_store_mismatch';
+  }
+
+  if (
+    input.transactionStatus === 'approved' &&
+    input.payment.currencyId &&
+    input.payment.currencyId !== 'BRL'
+  ) {
+    return 'payment_currency_mismatch';
+  }
+
+  const expectedLiveMode = getExpectedLiveMode();
+
+  if (
+    typeof expectedLiveMode === 'boolean' &&
+    typeof input.payment.liveMode === 'boolean' &&
+    input.payment.liveMode !== expectedLiveMode
+  ) {
+    return 'payment_environment_mismatch';
+  }
+
+  return undefined;
+}
+
 function toSafeLookupError(error: unknown) {
   if (error instanceof MercadoPagoPaymentLookupError) {
     return `mercado_pago_lookup_failed:${error.status}:${error.reason}`;
@@ -124,6 +182,8 @@ async function persistPaymentState(input: {
   amount: number;
   source: PaymentUpdateSource;
   approvedAt?: string;
+  currencyId?: string;
+  liveMode?: boolean;
 }) {
   const processedAt = new Date().toISOString();
 
@@ -143,6 +203,8 @@ async function persistPaymentState(input: {
     metadata: {
       source: input.source,
       order_number: input.order.orderNumber,
+      currency_id: input.currencyId,
+      live_mode: input.liveMode,
     },
   });
 }
@@ -191,6 +253,12 @@ export async function processMercadoPagoPaymentUpdate(input: {
 
   const mapping = mapMercadoPagoStatus(payment.status);
   const amount = payment.transactionAmount ?? order.total;
+  const reconciliationError = getReconciliationError({
+    payment,
+    order,
+    storeId: input.storeId,
+    transactionStatus: mapping.transactionStatus,
+  });
 
   if (
     mapping.transactionStatus === 'approved' &&
@@ -206,6 +274,8 @@ export async function processMercadoPagoPaymentUpdate(input: {
       amount,
       source: input.source,
       lastError: 'payment_amount_mismatch',
+      currencyId: payment.currencyId,
+      liveMode: payment.liveMode,
     });
 
     return {
@@ -215,6 +285,31 @@ export async function processMercadoPagoPaymentUpdate(input: {
       orderId: order.id,
       orderNumber: order.orderNumber,
       errorCode: 'payment_amount_mismatch',
+    };
+  }
+
+  if (reconciliationError) {
+    await persistPaymentState({
+      storeId: input.storeId,
+      order,
+      paymentId: payment.id,
+      rawStatus: payment.status,
+      rawStatusDetail: payment.statusDetail,
+      transactionStatus: 'error',
+      amount,
+      source: input.source,
+      lastError: reconciliationError,
+      currencyId: payment.currencyId,
+      liveMode: payment.liveMode,
+    });
+
+    return {
+      ok: false,
+      status: 'error',
+      paymentId: payment.id,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      errorCode: reconciliationError,
     };
   }
 
@@ -234,6 +329,8 @@ export async function processMercadoPagoPaymentUpdate(input: {
     source: input.source,
     approvedAt,
     lastError: mapping.lastError,
+    currencyId: payment.currencyId,
+    liveMode: payment.liveMode,
   });
 
   let transitionedToPaid = false;

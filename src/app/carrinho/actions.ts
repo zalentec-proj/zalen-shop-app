@@ -1,6 +1,7 @@
 'use server';
 
 import { z } from 'zod';
+import { createHash } from 'node:crypto';
 import { headers } from 'next/headers';
 import { createOrder } from '@/modules/orders/order.service';
 import { isValidCpfOrCnpj, onlyDigits } from '@/modules/customers/br-document';
@@ -13,6 +14,12 @@ import {
   createCheckoutPreference,
   ensureMercadoPagoCheckoutReady,
 } from '@/modules/integrations/mercado-pago/mercado-pago.connector';
+import {
+  CheckoutAttemptPersistenceError,
+  completeCheckoutAttempt,
+  markCheckoutAttemptError,
+  reserveCheckoutAttempt,
+} from '@/modules/payments/checkout-attempt.repository';
 import {
   getCustomerTypeFromDocument,
   isValidDocumentForCustomerType,
@@ -104,10 +111,13 @@ const checkoutCustomerSchema = z.object({
 });
 
 const checkoutSchema = z.object({
+  checkoutAttemptId: z.string().trim().uuid(),
   items: z.array(checkoutItemSchema).min(1).max(50),
   customer: checkoutCustomerSchema,
   paymentMethod: z.literal('mercado_pago_checkout_pro'),
 });
+
+type CheckoutInput = z.infer<typeof checkoutSchema>;
 
 export type CheckoutCartActionResult =
   | {
@@ -207,11 +217,18 @@ function getSafeCheckoutError(error: unknown) {
     return `Não foi possível salvar os dados do cliente (${error.safeReason}).`;
   }
 
+  if (error instanceof CheckoutAttemptPersistenceError) {
+    return `Não foi possível reservar a tentativa de pagamento (${error.safeReason}).`;
+  }
+
   if (error instanceof Error) {
     const safeMessages = new Set([
+      'checkout_attempt_in_progress',
+      'checkout_attempt_fingerprint_mismatch',
       'mercado_pago_preference_without_id',
       'mercado_pago_preference_without_checkout_url',
       'Unable to save payment transaction.',
+      'order_persistence_required',
       'Failed to persist order in Supabase.',
       'Failed to persist order items in Supabase.',
       'fetch failed',
@@ -229,6 +246,55 @@ function getSafeCheckoutError(error: unknown) {
   return 'Não foi possível iniciar o pagamento agora.';
 }
 
+function hashCheckoutPayload(value: unknown) {
+  return createHash('sha256')
+    .update(JSON.stringify(value))
+    .digest('hex');
+}
+
+function getCheckoutAttemptFingerprint(input: CheckoutInput) {
+  const items = input.items
+    .map((item) => ({
+      productId: item.productId,
+      variantId: item.variantId,
+      quantity: item.quantity,
+    }))
+    .sort((a, b) =>
+      `${a.productId}:${a.variantId}`.localeCompare(
+        `${b.productId}:${b.variantId}`
+      )
+    );
+  const customer = input.customer;
+  const address = customer.shippingAddress;
+
+  return {
+    cartHash: hashCheckoutPayload({
+      paymentMethod: input.paymentMethod,
+      items,
+    }),
+    customerHash: hashCheckoutPayload({
+      name: customer.name.trim(),
+      email: customer.email.trim().toLowerCase(),
+      phone: onlyDigits(customer.phone),
+      document: onlyDigits(customer.document),
+      customerType:
+        customer.customerType ?? getCustomerTypeFromDocument(customer.document),
+      legalName: customer.legalName?.trim(),
+      stateRegistration: customer.stateRegistration?.trim(),
+      stateRegistrationExempt: customer.stateRegistrationExempt ?? false,
+      shippingAddress: {
+        postalCode: onlyDigits(address.postalCode),
+        street: address.street.trim(),
+        number: address.number?.trim(),
+        complement: address.complement?.trim(),
+        district: address.district?.trim(),
+        city: address.city.trim(),
+        state: address.state.trim().toUpperCase(),
+      },
+    }),
+  };
+}
+
 export async function checkoutCartAction(
   rawInput: unknown
 ): Promise<CheckoutCartActionResult> {
@@ -241,6 +307,13 @@ export async function checkoutCartAction(
     };
   }
 
+  let reservedAttempt:
+    | {
+        id: string;
+        storeId: string;
+      }
+    | undefined;
+
   try {
     const store = await resolveCurrentStoreFromHeaders();
     const requestHeaders = await headers();
@@ -248,18 +321,66 @@ export async function checkoutCartAction(
       requestHeaders.get('origin') ??
       getServerEnv().APP_URL ??
       'http://localhost:3000';
+    const fingerprint = getCheckoutAttemptFingerprint(parsed.data);
 
     await ensureMercadoPagoCheckoutReady(store.id);
+
+    const reservation = await reserveCheckoutAttempt({
+      storeId: store.id,
+      attemptKey: parsed.data.checkoutAttemptId,
+      ...fingerprint,
+    });
+
+    if (reservation.state === 'completed' && reservation.attempt.checkoutUrl) {
+      return {
+        ok: true,
+        orderNumber: reservation.attempt.orderNumber ?? 'Pedido',
+        paymentProvider: 'mercado_pago',
+        paymentUrl: reservation.attempt.checkoutUrl,
+      };
+    }
+
+    if (reservation.state === 'in_progress') {
+      return {
+        ok: false,
+        error:
+          'Já estamos iniciando este pagamento. Aguarde alguns segundos e tente novamente.',
+      };
+    }
+
+    if (reservation.state === 'fingerprint_mismatch') {
+      return {
+        ok: false,
+        error:
+          'Esta tentativa de pagamento pertence a outro carrinho. Revise o carrinho e tente novamente.',
+      };
+    }
+
+    reservedAttempt = {
+      id: reservation.attempt.id,
+      storeId: store.id,
+    };
 
     const order = await createOrder({
       storeId: store.id,
       customer: parsed.data.customer,
       items: parsed.data.items,
       sendToErp: false,
+      requirePersistence: true,
     });
     const payment = await createCheckoutPreference({
       order,
       baseUrl,
+    });
+
+    await completeCheckoutAttempt({
+      storeId: store.id,
+      attemptId: reservation.attempt.id,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      providerReference: payment.preferenceId,
+      checkoutUrl: payment.checkoutUrl,
+      sandboxCheckoutUrl: payment.sandboxInitPoint,
     });
 
     return {
@@ -269,6 +390,15 @@ export async function checkoutCartAction(
       paymentUrl: payment.checkoutUrl,
     };
   } catch (error) {
+    if (reservedAttempt) {
+      await markCheckoutAttemptError({
+        storeId: reservedAttempt.storeId,
+        attemptId: reservedAttempt.id,
+        errorMessage:
+          error instanceof Error ? error.message : 'checkout_failed',
+      }).catch(() => undefined);
+    }
+
     return {
       ok: false,
       error: getSafeCheckoutError(error),

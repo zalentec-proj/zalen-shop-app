@@ -106,6 +106,7 @@ export interface CreateOrderInput {
   customerId?: string;
   customer?: OrderCustomerSnapshot;
   sendToErp?: boolean;
+  requirePersistence?: boolean;
   items: Array<{
     productId: string;
     variantId: string;

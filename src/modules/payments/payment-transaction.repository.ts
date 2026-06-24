@@ -1,7 +1,6 @@
 import 'server-only';
 
 import { createOptionalAdminClient } from '@/lib/supabase/server';
-import { logDevOnce } from '@/lib/logging/dev';
 import type { UpsertPaymentTransactionInput } from './payment-transaction.types';
 
 export async function upsertPaymentTransaction(
@@ -10,11 +9,7 @@ export async function upsertPaymentTransaction(
   const supabase = createOptionalAdminClient();
 
   if (!supabase) {
-    logDevOnce('payment-transaction.repository', 'skipping transaction save', {
-      reason: 'supabase-admin-unavailable',
-      provider: input.provider,
-    });
-    return;
+    throw new Error('Unable to save payment transaction.');
   }
 
   const { error } = await supabase.from('payment_transactions').upsert(

@@ -102,6 +102,18 @@ function toWebhookErrorMessage(errorCode: string | undefined) {
   return errorCode?.slice(0, 220) ?? 'payment_update_failed';
 }
 
+function shouldRetryWebhook(errorCode: string | undefined) {
+  if (!errorCode) {
+    return true;
+  }
+
+  return (
+    errorCode === 'mercado_pago_not_configured' ||
+    errorCode === 'payment_webhook_processing_failed' ||
+    errorCode.startsWith('mercado_pago_lookup_failed')
+  );
+}
+
 export async function POST(request: NextRequest) {
   const secret = getServerEnv().MERCADO_PAGO_WEBHOOK_SECRET;
 
@@ -155,36 +167,70 @@ export async function POST(request: NextRequest) {
   const eventType = getWebhookEventType(body);
   const notificationId = getWebhookNotificationId(request, body, dataId);
 
+  if (!supabase) {
+    return NextResponse.json(
+      { ok: false, error: 'webhook_event_persistence_unavailable' },
+      { status: 503 }
+    );
+  }
+
   let webhookEventId: string | undefined;
+  let webhookAlreadyProcessed = false;
 
-  if (supabase) {
-    const { data, error } = await supabase
+  const { data, error } = await supabase
+    .from('webhook_events')
+    .insert({
+      store_id: ACTIVE_STORE_ID,
+      provider: 'mercado_pago',
+      event_type: eventType,
+      external_id: notificationId,
+      signature_valid: true,
+      payload: {
+        notification: body,
+        paymentId: dataId,
+        requestId: request.headers.get('x-request-id'),
+      },
+      status: 'received',
+    })
+    .select('id')
+    .single();
+
+  if (error?.code === '23505' && notificationId) {
+    const { data: existingEvent, error: existingEventError } = await supabase
       .from('webhook_events')
-      .insert({
-        store_id: ACTIVE_STORE_ID,
-        provider: 'mercado_pago',
-        event_type: eventType,
-        external_id: notificationId,
-        signature_valid: true,
-        payload: {
-          notification: body,
-          paymentId: dataId,
-          requestId: request.headers.get('x-request-id'),
-        },
-        status: 'received',
-      })
-      .select('id')
-      .single();
+      .select('id,status')
+      .eq('store_id', ACTIVE_STORE_ID)
+      .eq('provider', 'mercado_pago')
+      .eq('external_id', notificationId)
+      .maybeSingle();
 
-    if (error?.code === '23505') {
-      return NextResponse.json({ ok: true, duplicate: true });
+    if (existingEventError || !existingEvent) {
+      return NextResponse.json(
+        { ok: false, error: 'webhook_event_lookup_failed' },
+        { status: 503 }
+      );
     }
 
-    if (error) {
-      throw new Error('Unable to save Mercado Pago webhook event.');
-    }
-
+    webhookEventId = existingEvent.id as string;
+    webhookAlreadyProcessed = existingEvent.status === 'processed';
+  } else if (error) {
+    return NextResponse.json(
+      { ok: false, error: 'webhook_event_persistence_failed' },
+      { status: 503 }
+    );
+  } else {
     webhookEventId = data?.id;
+  }
+
+  if (!webhookEventId) {
+    return NextResponse.json(
+      { ok: false, error: 'webhook_event_id_missing' },
+      { status: 503 }
+    );
+  }
+
+  if (webhookAlreadyProcessed) {
+    return NextResponse.json({ ok: true, duplicate: true });
   }
 
   if (dataId && isPaymentWebhookEvent(request, body)) {
@@ -194,22 +240,58 @@ export async function POST(request: NextRequest) {
       source: 'webhook',
     }).catch(() => ({
       ok: false,
+      status: 'error' as const,
       errorCode: 'payment_webhook_processing_failed',
     }));
 
-    if (supabase && webhookEventId) {
-      await supabase
-        .from('webhook_events')
-        .update({
-          status: result.ok ? 'processed' : 'error',
-          processed_at: new Date().toISOString(),
-          error_message: result.ok
-            ? null
-            : toWebhookErrorMessage(result.errorCode),
-        })
-        .eq('id', webhookEventId)
-        .eq('store_id', ACTIVE_STORE_ID);
+    const { error: updateError } = await supabase
+      .from('webhook_events')
+      .update({
+        status: result.ok ? 'processed' : 'error',
+        processed_at: new Date().toISOString(),
+        error_message: result.ok
+          ? null
+          : toWebhookErrorMessage(result.errorCode),
+      })
+      .eq('id', webhookEventId)
+      .eq('store_id', ACTIVE_STORE_ID);
+
+    if (updateError) {
+      return NextResponse.json(
+        { ok: false, error: 'webhook_event_update_failed' },
+        { status: 503 }
+      );
     }
+
+    if (!result.ok && shouldRetryWebhook(result.errorCode)) {
+      return NextResponse.json(
+        { ok: false, error: toWebhookErrorMessage(result.errorCode) },
+        { status: 503 }
+      );
+    }
+
+    return NextResponse.json({
+      ok: result.ok,
+      status: result.status,
+      error: result.ok ? undefined : toWebhookErrorMessage(result.errorCode),
+    });
+  }
+
+  const { error: updateError } = await supabase
+    .from('webhook_events')
+    .update({
+      status: 'processed',
+      processed_at: new Date().toISOString(),
+      error_message: null,
+    })
+    .eq('id', webhookEventId)
+    .eq('store_id', ACTIVE_STORE_ID);
+
+  if (updateError) {
+    return NextResponse.json(
+      { ok: false, error: 'webhook_event_update_failed' },
+      { status: 503 }
+    );
   }
 
   return NextResponse.json({ ok: true });

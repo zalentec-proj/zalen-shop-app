@@ -452,6 +452,10 @@ export async function upsertCustomerInRepository(
   const payload = buildCustomerPayload(input);
 
   if (!supabase) {
+    if (input.source === 'checkout') {
+      throw new CustomerPersistenceError('supabase_admin_unavailable');
+    }
+
     return {
       id: crypto.randomUUID(),
       storeId: input.storeId,

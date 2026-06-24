@@ -1,6 +1,6 @@
 'use client';
 
-import { type ComponentType, useEffect, useMemo, useState } from 'react';
+import { type ComponentType, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -270,6 +270,7 @@ export default function CartClient({ customerSession }: Props) {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
+  const checkoutAttemptIdRef = useRef<string | null>(null);
 
   const itemCount = getItemCount(cart);
   const stepIndex = steps.findIndex((step) => step.id === checkoutStep);
@@ -298,8 +299,18 @@ export default function CartClient({ customerSession }: Props) {
     setCart(getStoredCart());
   }, []);
 
+  function resetCheckoutAttempt() {
+    checkoutAttemptIdRef.current = null;
+  }
+
+  function getCheckoutAttemptId() {
+    checkoutAttemptIdRef.current ??= crypto.randomUUID();
+    return checkoutAttemptIdRef.current;
+  }
+
   function updateCustomer(patch: Partial<CustomerState>) {
     setCheckoutError(null);
+    resetCheckoutAttempt();
     setCustomer((current) => ({
       ...current,
       ...patch,
@@ -309,6 +320,7 @@ export default function CartClient({ customerSession }: Props) {
 
   function persistCart(nextCart: Cart) {
     setCheckoutPreview(null);
+    resetCheckoutAttempt();
     setCart(saveStoredCart(nextCart));
   }
 
@@ -388,6 +400,7 @@ export default function CartClient({ customerSession }: Props) {
       state: result.customer?.shippingAddress?.state ?? customer.state,
     };
 
+    resetCheckoutAttempt();
     setCustomer(nextCustomer);
     await refreshPreview(nextCustomer);
     setCheckoutStep('cadastro');
@@ -475,6 +488,7 @@ export default function CartClient({ customerSession }: Props) {
       customerType: currentType,
     };
 
+    resetCheckoutAttempt();
     setCustomer(nextCustomer);
     setCheckoutError(null);
     await refreshPreview(nextCustomer);
@@ -518,6 +532,7 @@ export default function CartClient({ customerSession }: Props) {
       customer.customerType
     );
     const result = await checkoutCartAction({
+      checkoutAttemptId: getCheckoutAttemptId(),
       customer: {
         name: customer.name,
         email: customer.email,
@@ -553,10 +568,12 @@ export default function CartClient({ customerSession }: Props) {
     }
 
     if (result.paymentUrl) {
+      resetCheckoutAttempt();
       window.location.href = result.paymentUrl;
       return;
     }
 
+    resetCheckoutAttempt();
     setCart(createEmptyCart());
     clearStoredCart();
     setOrderNumber(result.orderNumber);

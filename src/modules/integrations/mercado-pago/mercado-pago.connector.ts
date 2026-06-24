@@ -25,6 +25,8 @@ interface MercadoPagoPaymentResponse {
   status_detail?: string;
   external_reference?: string;
   transaction_amount?: number | string;
+  currency_id?: string;
+  live_mode?: boolean;
   metadata?: unknown;
 }
 
@@ -425,6 +427,8 @@ export async function getMercadoPagoPayment(
     statusDetail: payment.status_detail,
     externalReference: payment.external_reference,
     transactionAmount: toNumber(payment.transaction_amount),
+    currencyId: payment.currency_id,
+    liveMode: payment.live_mode,
     metadata: toRecord(payment.metadata),
   };
 }
