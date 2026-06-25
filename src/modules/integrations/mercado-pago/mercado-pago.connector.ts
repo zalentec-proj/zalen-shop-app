@@ -2,8 +2,24 @@ import 'server-only';
 
 import { getServerEnv } from '@/lib/env/server';
 import { upsertPaymentTransaction } from '@/modules/payments/payment-transaction.repository';
-import { listStoreIntegrationsWithSourceFromRepository } from '@/modules/integrations/core/store-integration.repository';
+import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
+import {
+  decryptIntegrationCredentials,
+  encryptIntegrationCredentials,
+} from '@/modules/integrations/core/credential-vault';
+import {
+  getDefaultMercadoPagoEnvironment,
+  getMercadoPagoOAuthConfig,
+  getMercadoPagoWebhookSecret,
+} from './mercado-pago.config';
+import { refreshMercadoPagoAccessToken } from './mercado-pago.oauth';
+import {
+  getMercadoPagoIntegrationFromRepository,
+  saveMercadoPagoRefreshedCredentialsInRepository,
+} from './mercado-pago.repository';
 import type {
+  MercadoPagoCredentials,
+  MercadoPagoCredentialsSource,
   MercadoPagoCheckoutPreferenceInput,
   MercadoPagoCheckoutPreferenceResult,
   MercadoPagoEnvironment,
@@ -48,20 +64,27 @@ export class MercadoPagoPaymentLookupError extends Error {
   }
 }
 
-function getAccessToken() {
-  const accessToken = getServerEnv().MERCADO_PAGO_ACCESS_TOKEN;
-
-  if (!accessToken) {
-    throw new Error('mercado_pago_not_configured');
-  }
-
-  return accessToken;
+interface MercadoPagoAccessContext {
+  accessToken: string;
+  environment: MercadoPagoEnvironment;
+  credentialsSource: MercadoPagoCredentialsSource;
 }
 
-function toMercadoPagoEnvironment(
-  value: string | undefined
-): MercadoPagoEnvironment {
-  return value === 'production' ? 'production' : 'test';
+function getLegacyEnvFallbackAccessToken(input: {
+  storeId: string;
+  environment: MercadoPagoEnvironment;
+}) {
+  const env = getServerEnv();
+
+  if (input.storeId !== ACTIVE_STORE_ID) {
+    return undefined;
+  }
+
+  if (input.environment !== getDefaultMercadoPagoEnvironment()) {
+    return undefined;
+  }
+
+  return env.MERCADO_PAGO_ACCESS_TOKEN;
 }
 
 function normalizeBaseUrl(baseUrl: string) {
@@ -106,14 +129,8 @@ function splitPhone(phone: string | undefined) {
   };
 }
 
-function shouldUseSandboxUrl(accessToken: string) {
-  const configuredEnvironment = getServerEnv().MERCADO_PAGO_ENV;
-
-  if (configuredEnvironment) {
-    return configuredEnvironment === 'test';
-  }
-
-  return accessToken.startsWith('TEST-');
+function shouldUseSandboxUrl(environment: MercadoPagoEnvironment) {
+  return environment === 'test';
 }
 
 function canUseAutoReturn(url: string) {
@@ -139,30 +156,197 @@ function isCheckoutEnabled(settings: Record<string, unknown> | undefined) {
   return checkoutPro?.enabled !== false;
 }
 
+function toCredentialsSource(
+  value: unknown,
+  fallback: MercadoPagoCredentialsSource
+): MercadoPagoCredentialsSource {
+  return value === 'oauth' || value === 'env' ? value : fallback;
+}
+
+function isTokenExpiringSoon(expiresAt: string | undefined) {
+  if (!expiresAt) {
+    return false;
+  }
+
+  return new Date(expiresAt).getTime() - Date.now() < 5 * 60 * 1000;
+}
+
+function toOptionalString(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
+function toOptionalBoolean(value: unknown) {
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function toConnectedAccount(settings: Record<string, unknown> | undefined) {
+  const account = toRecord(settings?.account);
+
+  if (!account) {
+    return undefined;
+  }
+
+  return {
+    userId: toOptionalString(account.userId),
+    email: toOptionalString(account.email),
+    nickname: toOptionalString(account.nickname),
+    publicKey: toOptionalString(account.publicKey),
+    liveMode: toOptionalBoolean(account.liveMode),
+  };
+}
+
+function toRuntimeStatus(input: {
+  enabled: boolean;
+  credentialsEncrypted?: string;
+  integrationStatus?: string;
+  tokenExpiresAt?: string;
+}) {
+  if (!input.enabled || input.integrationStatus === 'disabled') {
+    return 'disabled' as const;
+  }
+
+  if (input.integrationStatus === 'error') {
+    return 'error' as const;
+  }
+
+  if (input.integrationStatus === 'disconnected') {
+    return 'disconnected' as const;
+  }
+
+  if (input.credentialsEncrypted) {
+    return input.tokenExpiresAt &&
+      new Date(input.tokenExpiresAt).getTime() < Date.now()
+      ? ('expired' as const)
+      : ('connected' as const);
+  }
+
+  return 'pending_credentials' as const;
+}
+
+function mergeRefreshedCredentials(input: {
+  current: MercadoPagoCredentials;
+  refreshed: Omit<MercadoPagoCredentials, 'provider' | 'environment'>;
+}): MercadoPagoCredentials {
+  return {
+    ...input.current,
+    accessToken: input.refreshed.accessToken,
+    refreshToken: input.refreshed.refreshToken ?? input.current.refreshToken,
+    tokenType: input.refreshed.tokenType ?? input.current.tokenType,
+    scope: input.refreshed.scope ?? input.current.scope,
+    expiresIn: input.refreshed.expiresIn,
+    receivedAt: input.refreshed.receivedAt,
+    expiresAt: input.refreshed.expiresAt,
+    userId: input.refreshed.userId ?? input.current.userId,
+    publicKey: input.refreshed.publicKey ?? input.current.publicKey,
+    liveMode: input.refreshed.liveMode ?? input.current.liveMode,
+  };
+}
+
+export async function getMercadoPagoAccessContext(input: {
+  storeId: string;
+  environment?: MercadoPagoEnvironment;
+}): Promise<MercadoPagoAccessContext> {
+  const environment =
+    input.environment ?? getDefaultMercadoPagoEnvironment();
+  const integration = await getMercadoPagoIntegrationFromRepository({
+    storeId: input.storeId,
+    environment,
+  });
+
+  if (integration?.status === 'connected' && integration.credentialsEncrypted) {
+    let credentials =
+      decryptIntegrationCredentials<MercadoPagoCredentials>(
+        integration.credentialsEncrypted
+      );
+
+    if (isTokenExpiringSoon(credentials.expiresAt) && credentials.refreshToken) {
+      const refreshed = await refreshMercadoPagoAccessToken({
+        config: getMercadoPagoOAuthConfig(),
+        refreshToken: credentials.refreshToken,
+      });
+      credentials = mergeRefreshedCredentials({
+        current: credentials,
+        refreshed,
+      });
+
+      await saveMercadoPagoRefreshedCredentialsInRepository({
+        storeId: input.storeId,
+        environment,
+        credentialsEncrypted: encryptIntegrationCredentials(credentials),
+        tokenExpiresAt: credentials.expiresAt,
+        scope: credentials.scope,
+      });
+    }
+
+    return {
+      accessToken: credentials.accessToken,
+      environment,
+      credentialsSource: 'oauth',
+    };
+  }
+
+  if (integration?.status === 'disabled' || integration?.status === 'disconnected') {
+    throw new Error('mercado_pago_disabled');
+  }
+
+  const legacyAccessToken = getLegacyEnvFallbackAccessToken({
+    storeId: input.storeId,
+    environment,
+  });
+
+  if (legacyAccessToken) {
+    return {
+      accessToken: legacyAccessToken,
+      environment,
+      credentialsSource: 'env',
+    };
+  }
+
+  throw new Error('mercado_pago_not_configured');
+}
+
 export async function getMercadoPagoRuntimeState(
-  storeId: string
+  storeId: string,
+  environment: MercadoPagoEnvironment = getDefaultMercadoPagoEnvironment()
 ): Promise<MercadoPagoRuntimeState> {
-  const env = getServerEnv();
-  const integrations =
-    await listStoreIntegrationsWithSourceFromRepository(storeId);
-  const mercadoPagoIntegration = integrations.data.find(
-    (item) => item.provider.key === 'mercado_pago'
-  )?.integration;
+  const mercadoPagoIntegration = await getMercadoPagoIntegrationFromRepository({
+    storeId,
+    environment,
+  });
   const enabled =
     mercadoPagoIntegration?.status !== 'disabled' &&
+    mercadoPagoIntegration?.status !== 'disconnected' &&
     isCheckoutEnabled(mercadoPagoIntegration?.settings);
+  const legacyFallbackConfigured = Boolean(
+    getLegacyEnvFallbackAccessToken({ storeId, environment })
+  );
+  const oauthConfigured = Boolean(mercadoPagoIntegration?.credentialsEncrypted);
   const missingEnv = [
-    env.MERCADO_PAGO_ACCESS_TOKEN ? undefined : 'MERCADO_PAGO_ACCESS_TOKEN',
-    env.MERCADO_PAGO_WEBHOOK_SECRET
+    !oauthConfigured && !legacyFallbackConfigured
+      ? 'Mercado Pago OAuth por loja'
+      : undefined,
+    getMercadoPagoWebhookSecret(environment)
       ? undefined
-      : 'MERCADO_PAGO_WEBHOOK_SECRET',
+      : environment === 'production'
+        ? 'MERCADO_PAGO_WEBHOOK_SECRET_PRODUCTION'
+        : 'MERCADO_PAGO_WEBHOOK_SECRET_TEST',
   ].filter((value): value is string => Boolean(value));
-  const configured = missingEnv.length === 0;
-  const status = !enabled
-    ? 'disabled'
-    : configured
-      ? 'connected'
-      : 'pending_credentials';
+  const configured = enabled && (oauthConfigured || legacyFallbackConfigured);
+  const tokenExpiresAt = toOptionalString(
+    mercadoPagoIntegration?.settings.tokenExpiresAt
+  );
+  const status = toRuntimeStatus({
+    enabled,
+    credentialsEncrypted: mercadoPagoIntegration?.credentialsEncrypted,
+    integrationStatus: mercadoPagoIntegration?.status,
+    tokenExpiresAt,
+  });
+  const credentialsSource = oauthConfigured
+    ? 'oauth'
+    : toCredentialsSource(
+        mercadoPagoIntegration?.settings.credentialsSource,
+        legacyFallbackConfigured ? 'env' : 'oauth'
+      );
   const warnings: string[] = [];
 
   if (!enabled) {
@@ -176,15 +360,18 @@ export async function getMercadoPagoRuntimeState(
   return {
     provider: 'mercado_pago',
     checkoutMode: 'checkout_pro',
-    credentialsSource: 'env',
-    status,
+    credentialsSource,
+    status:
+      configured && status === 'pending_credentials' ? 'connected' : status,
     enabled,
     configured,
-    environment: toMercadoPagoEnvironment(
-      env.MERCADO_PAGO_ENV ?? mercadoPagoIntegration?.environment
-    ),
+    environment,
     missingEnv,
     integrationStatus: mercadoPagoIntegration?.status,
+    connectedAt: toOptionalString(mercadoPagoIntegration?.settings.connectedAt),
+    tokenExpiresAt,
+    lastUpdatedAt: mercadoPagoIntegration?.updatedAt,
+    account: toConnectedAccount(mercadoPagoIntegration?.settings),
     warnings,
   };
 }
@@ -257,9 +444,12 @@ async function createPreferenceOnMercadoPago(
 export async function createCheckoutPreference(
   input: MercadoPagoCheckoutPreferenceInput
 ): Promise<MercadoPagoCheckoutPreferenceResult> {
-  await ensureMercadoPagoCheckoutReady(input.order.storeId);
+  const state = await ensureMercadoPagoCheckoutReady(input.order.storeId);
+  const accessContext = await getMercadoPagoAccessContext({
+    storeId: input.order.storeId,
+    environment: state.environment,
+  });
 
-  const accessToken = getAccessToken();
   const baseUrl = normalizeBaseUrl(input.baseUrl);
   const { order } = input;
   const documentType = getDocumentType(order.customer?.document);
@@ -267,12 +457,17 @@ export async function createCheckoutPreference(
   const payerName = splitName(order.customer?.name);
   const phone = splitPhone(order.customer?.phone);
   const notificationUrl = baseUrl.startsWith('https://')
-    ? `${baseUrl}/api/webhooks/mercado-pago`
+    ? (() => {
+        const url = new URL('/api/webhooks/mercado-pago', baseUrl);
+        url.searchParams.set('store_id', order.storeId);
+        url.searchParams.set('environment', accessContext.environment);
+        return url.toString();
+      })()
     : undefined;
   const backUrls = {
-    success: `${baseUrl}/pagamento/mercado-pago/sucesso?order=${order.id}`,
-    pending: `${baseUrl}/pagamento/mercado-pago/pendente?order=${order.id}`,
-    failure: `${baseUrl}/pagamento/mercado-pago/falha?order=${order.id}`,
+    success: `${baseUrl}/pagamento/mercado-pago/sucesso?order=${order.id}&environment=${accessContext.environment}`,
+    pending: `${baseUrl}/pagamento/mercado-pago/pendente?order=${order.id}&environment=${accessContext.environment}`,
+    failure: `${baseUrl}/pagamento/mercado-pago/falha?order=${order.id}&environment=${accessContext.environment}`,
   };
 
   const body = {
@@ -283,6 +478,7 @@ export async function createCheckoutPreference(
       store_id: order.storeId,
       order_id: order.id,
       order_number: order.orderNumber,
+      environment: accessContext.environment,
     },
     notification_url: notificationUrl,
     payer: {
@@ -330,13 +526,16 @@ export async function createCheckoutPreference(
     })),
   };
 
-  const preference = await createPreferenceOnMercadoPago(body, accessToken);
+  const preference = await createPreferenceOnMercadoPago(
+    body,
+    accessContext.accessToken
+  );
 
   if (!preference.id) {
     throw new Error('mercado_pago_preference_without_id');
   }
 
-  const checkoutUrl = shouldUseSandboxUrl(accessToken)
+  const checkoutUrl = shouldUseSandboxUrl(accessContext.environment)
     ? preference.sandbox_init_point ?? preference.init_point
     : preference.init_point ?? preference.sandbox_init_point;
 
@@ -357,6 +556,8 @@ export async function createCheckoutPreference(
     metadata: {
       order_number: order.orderNumber,
       checkout_mode: 'checkout_pro',
+      environment: accessContext.environment,
+      credentials_source: accessContext.credentialsSource,
     },
   });
 
@@ -388,10 +589,17 @@ export async function getPaymentStatus(
 }
 
 export async function getMercadoPagoPayment(
-  paymentId: string
+  input: {
+    paymentId: string;
+    storeId: string;
+    environment?: MercadoPagoEnvironment;
+  }
 ): Promise<MercadoPagoPaymentLookupResult> {
-  const accessToken = getAccessToken();
-  const normalizedPaymentId = paymentId.trim();
+  const accessContext = await getMercadoPagoAccessContext({
+    storeId: input.storeId,
+    environment: input.environment,
+  });
+  const normalizedPaymentId = input.paymentId.trim();
 
   if (!normalizedPaymentId) {
     throw new MercadoPagoPaymentLookupError(400, 'missing_payment_id');
@@ -404,7 +612,7 @@ export async function getMercadoPagoPayment(
     {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${accessContext.accessToken}`,
       },
       cache: 'no-store',
     }

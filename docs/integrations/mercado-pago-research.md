@@ -1,6 +1,6 @@
 # Pesquisa Técnica — Mercado Pago
 
-> Status: **Beta Checkout Pro — preferência, retorno, webhook e conciliação inicial**
+> Status: **Checkout Pro multi-lojista — OAuth por loja, fallback ENV legado e conciliação inicial**
 > Fonte de verdade: documentação oficial Mercado Pago Developers.
 
 ## Fontes oficiais consultadas
@@ -13,6 +13,8 @@
 - https://www.mercadopago.com.br/developers/pt/docs/checkout-pro/payment-notifications
 - https://www.mercadopago.com.br/developers/pt/reference/payments/_payments_id/get
 - https://www.mercadopago.com.br/developers/pt/docs/your-integrations/credentials
+- https://www.mercadopago.com.br/developers/pt/docs/security/oauth/creation
+- https://www.mercadopago.com.br/developers/pt/docs/security/oauth/renewal
 - https://www.mercadopago.com.br/developers/pt/docs/mcp-server/overview
 - https://www.mercadopago.com.br/developers/pt/docs/mcp-server/connection
 - https://www.mercadopago.com.br/developers/pt/docs/mcp-server/tools
@@ -44,23 +46,49 @@ Uso seguro:
 - chamadas API usam `Authorization: Bearer {{YOUR_ACCESS_TOKEN}}`;
 - credenciais de teste e produção devem ser separadas por ambiente.
 
-Variáveis previstas:
+Modelo atual:
+
+- a Zalen possui uma aplicação OAuth Mercado Pago;
+- cada loja autoriza sua própria conta Mercado Pago pelo admin;
+- credenciais ficam criptografadas em `store_integrations.credentials_encrypted`
+  por `store_id + provider_key + environment`;
+- `settings_json` guarda apenas metadados seguros, como fonte da credencial,
+  conta conectada, datas e status do Checkout Pro;
+- o runtime prefere OAuth da loja e só usa ENV como fallback legado da Brasil
+  Drones enquanto ela não reconectar.
+
+OAuth oficial:
+
+- autorização via `https://auth.mercadopago.com/authorization`;
+- parâmetros usados: `client_id`, `response_type=code`, `platform_id=mp`,
+  `state` assinado e `redirect_uri`;
+- troca de código via `POST https://api.mercadopago.com/oauth/token`;
+- payload de autorização inclui `grant_type=authorization_code`, `code`,
+  `client_id`, `client_secret`, `redirect_uri` e `test_token=true` no ambiente
+  de teste;
+- renovação usa `grant_type=refresh_token`, `refresh_token`, `client_id` e
+  `client_secret`;
+- `offline_access` é necessário para refresh token.
+
+Variáveis previstas da aplicação Zalen:
 
 ```env
 MERCADO_PAGO_ENV=test
+MERCADO_PAGO_CLIENT_ID=
+MERCADO_PAGO_CLIENT_SECRET=
+MERCADO_PAGO_REDIRECT_URI=
+MERCADO_PAGO_WEBHOOK_SECRET_TEST=
+MERCADO_PAGO_WEBHOOK_SECRET_PRODUCTION=
+
+# fallback legado temporário Brasil Drones
 MERCADO_PAGO_ACCESS_TOKEN=
 MERCADO_PAGO_PUBLIC_KEY=
 MERCADO_PAGO_WEBHOOK_SECRET=
 ```
 
-Nesta fase beta, a Zalen usa `MERCADO_PAGO_ACCESS_TOKEN` e
-`MERCADO_PAGO_WEBHOOK_SECRET` server-side via env. `Public Key` fica reservado
-para Checkout Transparente/Bricks. O ambiente deve ser definido por
-`MERCADO_PAGO_ENV`, porque credenciais de teste podem não usar prefixo `TEST-`.
-
-A ativação por loja fica em `store_integrations.settings_json.checkoutPro`.
-Credenciais criptografadas por loja e OAuth Mercado Pago multi-loja ficam fora
-desta etapa.
+`Public Key` fica reservado para Checkout Transparente/Bricks. O ambiente deve
+ser definido por `MERCADO_PAGO_ENV`, porque credenciais de teste podem não usar
+prefixo `TEST-`.
 
 ## Checkout Pro
 
@@ -91,8 +119,10 @@ Campos usados pela Zalen:
 - `payer`: e-mail, nome, telefone e CPF/CNPJ para pre-preenchimento;
 - `external_reference`: `order.id` interno da Zalen;
 - `metadata`: `store_id`, `order_id`, `order_number`;
+- `environment`: ambiente usado na preferência;
 - `back_urls`: rotas de sucesso, pendente e falha;
-- `notification_url`: rota de webhook quando houver URL HTTPS.
+- `notification_url`: rota de webhook quando houver URL HTTPS, sempre com
+  `store_id` e `environment`.
 
 A resposta da preferência contém `id`, `init_point` e `sandbox_init_point`. Tokens de acesso não aparecem na resposta ao frontend.
 
@@ -134,10 +164,13 @@ Estratégia Zalen implementada:
 - validar assinatura antes de processar;
 - salvar evento em `webhook_events`;
 - deduplicar notificação por identificador seguro salvo em `external_id`;
-- consultar o pagamento server-side por `GET /v1/payments/{payment_id}`;
+- consultar o pagamento server-side por `GET /v1/payments/{payment_id}` usando
+  a credencial da loja e do ambiente do webhook;
 - atualizar `payment_transactions` e `orders` pelo `external_reference` do
   pagamento, que aponta para `orders.id`;
 - manter idempotência por `store_id + order_id + provider`;
+- rejeitar divergência entre `metadata.store_id`, `external_reference` e pedido
+  da loja;
 - disparar envio ao Bling apenas quando o pedido transita de não pago para pago;
 - não salvar token, credencial ou payload completo do pagamento em resposta
   pública.
@@ -224,4 +257,4 @@ A primeira versão usa estratégia híbrida:
 - captura manual;
 - reembolso automático;
 - split/marketplace financeiro;
-- OAuth Mercado Pago multi-loja.
+- configuração automática de webhooks via MCP ou API.

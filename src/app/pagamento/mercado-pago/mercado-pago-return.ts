@@ -5,6 +5,7 @@ import {
   type MercadoPagoPaymentProcessingResult,
   processMercadoPagoPaymentUpdate,
 } from '@/modules/payments/mercado-pago-payment.service';
+import { parseMercadoPagoEnvironment } from '@/modules/integrations/mercado-pago/mercado-pago.config';
 
 export type MercadoPagoReturnSearchParams = Promise<
   Record<string, string | string[] | undefined> | undefined
@@ -22,6 +23,7 @@ export async function processMercadoPagoReturn(
     firstParam(params.payment_id) ??
     firstParam(params.collection_id) ??
     firstParam(params['data.id']);
+  const environment = parseMercadoPagoEnvironment(firstParam(params.environment));
 
   if (!paymentId) {
     return null;
@@ -32,6 +34,7 @@ export async function processMercadoPagoReturn(
     return await processMercadoPagoPaymentUpdate({
       storeId: store.id,
       paymentId,
+      environment: environment ?? undefined,
       source: 'return',
     });
   } catch {

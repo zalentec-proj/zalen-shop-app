@@ -3,10 +3,13 @@ import {
   InvalidWebhookSignatureError,
   WebhookSignatureValidator,
 } from 'mercadopago';
-import { getServerEnv } from '@/lib/env/server';
 import { createOptionalAdminClient } from '@/lib/supabase/server';
-import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
 import { processMercadoPagoPaymentUpdate } from '@/modules/payments/mercado-pago-payment.service';
+import {
+  getMercadoPagoWebhookSecret,
+  parseMercadoPagoEnvironment,
+} from '@/modules/integrations/mercado-pago/mercado-pago.config';
+import type { MercadoPagoEnvironment } from '@/modules/integrations/mercado-pago/mercado-pago.types';
 
 function getWebhookDataId(request: NextRequest, body: unknown) {
   const queryDataId =
@@ -114,8 +117,39 @@ function shouldRetryWebhook(errorCode: string | undefined) {
   );
 }
 
+function getWebhookContext(request: NextRequest): {
+  storeId?: string;
+  environment?: MercadoPagoEnvironment;
+} {
+  const storeId = request.nextUrl.searchParams.get('store_id') ?? undefined;
+  const environment = parseMercadoPagoEnvironment(
+    request.nextUrl.searchParams.get('environment')
+  );
+
+  return {
+    storeId,
+    environment: environment ?? undefined,
+  };
+}
+
 export async function POST(request: NextRequest) {
-  const secret = getServerEnv().MERCADO_PAGO_WEBHOOK_SECRET;
+  const context = getWebhookContext(request);
+
+  if (!context.storeId) {
+    return NextResponse.json(
+      { ok: false, error: 'missing_store_id' },
+      { status: 400 }
+    );
+  }
+
+  if (!context.environment) {
+    return NextResponse.json(
+      { ok: false, error: 'missing_environment' },
+      { status: 400 }
+    );
+  }
+
+  const secret = getMercadoPagoWebhookSecret(context.environment);
 
   if (!secret) {
     return NextResponse.json(
@@ -180,7 +214,7 @@ export async function POST(request: NextRequest) {
   const { data, error } = await supabase
     .from('webhook_events')
     .insert({
-      store_id: ACTIVE_STORE_ID,
+      store_id: context.storeId,
       provider: 'mercado_pago',
       event_type: eventType,
       external_id: notificationId,
@@ -188,6 +222,7 @@ export async function POST(request: NextRequest) {
       payload: {
         notification: body,
         paymentId: dataId,
+        environment: context.environment,
         requestId: request.headers.get('x-request-id'),
       },
       status: 'received',
@@ -199,7 +234,7 @@ export async function POST(request: NextRequest) {
     const { data: existingEvent, error: existingEventError } = await supabase
       .from('webhook_events')
       .select('id,status')
-      .eq('store_id', ACTIVE_STORE_ID)
+      .eq('store_id', context.storeId)
       .eq('provider', 'mercado_pago')
       .eq('external_id', notificationId)
       .maybeSingle();
@@ -235,8 +270,9 @@ export async function POST(request: NextRequest) {
 
   if (dataId && isPaymentWebhookEvent(request, body)) {
     const result = await processMercadoPagoPaymentUpdate({
-      storeId: ACTIVE_STORE_ID,
+      storeId: context.storeId,
       paymentId: dataId,
+      environment: context.environment,
       source: 'webhook',
     }).catch(() => ({
       ok: false,
@@ -254,7 +290,7 @@ export async function POST(request: NextRequest) {
           : toWebhookErrorMessage(result.errorCode),
       })
       .eq('id', webhookEventId)
-      .eq('store_id', ACTIVE_STORE_ID);
+      .eq('store_id', context.storeId);
 
     if (updateError) {
       return NextResponse.json(
@@ -285,7 +321,7 @@ export async function POST(request: NextRequest) {
       error_message: null,
     })
     .eq('id', webhookEventId)
-    .eq('store_id', ACTIVE_STORE_ID);
+    .eq('store_id', context.storeId);
 
   if (updateError) {
     return NextResponse.json(

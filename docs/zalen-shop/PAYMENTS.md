@@ -19,10 +19,14 @@ primeira versão usa Checkout Pro com menor exposição PCI.
 
 ## 3. Autenticação
 
-- Beta atual usa `MERCADO_PAGO_ACCESS_TOKEN` e `MERCADO_PAGO_WEBHOOK_SECRET`
-  server-side por ambiente.
-- A ativação operacional por loja fica em `store_integrations`.
-- OAuth e credenciais criptografadas por loja ficam para uma evolução posterior.
+- A Zalen usa uma aplicação OAuth Mercado Pago própria.
+- Cada loja autoriza sua própria conta Mercado Pago em `/admin/integracoes/mercado-pago`.
+- Tokens ficam criptografados em `store_integrations.credentials_encrypted` por
+  `store_id + provider_key + environment`.
+- `settings_json` guarda apenas metadados seguros, como conta conectada,
+  `credentialsSource`, datas e status do Checkout Pro.
+- `MERCADO_PAGO_ACCESS_TOKEN` e `MERCADO_PAGO_WEBHOOK_SECRET` permanecem como
+  fallback legado temporário para Brasil Drones até a reconexão OAuth.
 - Nenhum token no frontend.
 
 ## 4. Fluxo futuro com Mercado Pago
@@ -50,13 +54,16 @@ Fase atual:
 - Backend cria pedido local no Supabase.
 - Backend cria preferência Checkout Pro no Mercado Pago.
 - Frontend recebe apenas a URL pública de checkout e redireciona o comprador.
+- Preferência inclui `store_id` e `environment` na `notification_url`.
 
 Fase atual de conciliação:
 
 - rotas de retorno do Mercado Pago leem `payment_id`/`collection_id` e consultam
   o pagamento server-side;
-- webhook validado salva `webhook_events` e usa o mesmo service de conciliação;
+- webhook validado por segredo de ambiente salva `webhook_events` e usa o mesmo
+  service de conciliação;
 - webhooks são deduplicados antes de processar a conciliação;
+- conciliação valida `metadata.store_id`, `external_reference` e loja do pedido;
 - `payment_transactions` registra preferência, pagamento externo, status bruto e
   status normalizado;
 - `approved` marca o pedido como `payment_status = paid` e `status = confirmed`;

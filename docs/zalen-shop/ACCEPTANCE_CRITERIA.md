@@ -89,10 +89,17 @@
 
 ## 7.1 Mercado Pago
 
+- Cada loja pode conectar Mercado Pago por OAuth em teste e produção.
+- Tokens OAuth ficam criptografados em `store_integrations`.
+- Brasil Drones pode usar fallback ENV apenas enquanto não houver OAuth conectado.
+- Admin não exibe token, refresh token ou segredo de webhook.
 - Checkout valida configuração server-side antes de criar pedido.
+- Checkout usa credencial da loja que criou o pedido.
 - Preferência Checkout Pro é criada apenas server-side.
+- `notification_url` inclui `store_id` e `environment`.
 - Webhook valida assinatura antes de salvar/processar.
 - Webhook é idempotente.
+- Webhook processa o evento na loja indicada e rejeita divergência de metadata.
 - Pagamento aprovado marca pedido como pago/confirmado.
 - Envio ao Bling só dispara após transição real para pago.
 

@@ -23,9 +23,14 @@ const serverEnvSchema = z.object({
   BLING_ENV: optionalSecretString,
   INTEGRATION_TOKEN_ENCRYPTION_KEY: optionalSecretString,
   MERCADO_PAGO_ENV: z.enum(['test', 'production']).optional(),
+  MERCADO_PAGO_CLIENT_ID: optionalSecretString,
+  MERCADO_PAGO_CLIENT_SECRET: optionalSecretString,
+  MERCADO_PAGO_REDIRECT_URI: z.string().trim().url().optional(),
   MERCADO_PAGO_ACCESS_TOKEN: optionalSecretString,
   MERCADO_PAGO_PUBLIC_KEY: optionalSecretString,
   MERCADO_PAGO_WEBHOOK_SECRET: optionalSecretString,
+  MERCADO_PAGO_WEBHOOK_SECRET_TEST: optionalSecretString,
+  MERCADO_PAGO_WEBHOOK_SECRET_PRODUCTION: optionalSecretString,
   RESEND_API_KEY: optionalSecretString,
   EMAIL_DEFAULT_FROM: optionalSecretString,
   EMAIL_DEFAULT_REPLY_TO: optionalSecretString,
@@ -92,6 +97,15 @@ function parseServerEnv(): ServerEnv {
       process.env.INTEGRATION_TOKEN_ENCRYPTION_KEY
     ),
     MERCADO_PAGO_ENV: normalizeMercadoPagoEnv(process.env.MERCADO_PAGO_ENV),
+    MERCADO_PAGO_CLIENT_ID: normalizeEnvValue(
+      process.env.MERCADO_PAGO_CLIENT_ID
+    ),
+    MERCADO_PAGO_CLIENT_SECRET: normalizeEnvValue(
+      process.env.MERCADO_PAGO_CLIENT_SECRET
+    ),
+    MERCADO_PAGO_REDIRECT_URI: normalizeEnvValue(
+      process.env.MERCADO_PAGO_REDIRECT_URI
+    ),
     MERCADO_PAGO_ACCESS_TOKEN: normalizeEnvValue(
       process.env.MERCADO_PAGO_ACCESS_TOKEN
     ),
@@ -100,6 +114,12 @@ function parseServerEnv(): ServerEnv {
     ),
     MERCADO_PAGO_WEBHOOK_SECRET: normalizeEnvValue(
       process.env.MERCADO_PAGO_WEBHOOK_SECRET
+    ),
+    MERCADO_PAGO_WEBHOOK_SECRET_TEST: normalizeEnvValue(
+      process.env.MERCADO_PAGO_WEBHOOK_SECRET_TEST
+    ),
+    MERCADO_PAGO_WEBHOOK_SECRET_PRODUCTION: normalizeEnvValue(
+      process.env.MERCADO_PAGO_WEBHOOK_SECRET_PRODUCTION
     ),
     RESEND_API_KEY: normalizeEnvValue(process.env.RESEND_API_KEY),
     EMAIL_DEFAULT_FROM: normalizeEnvValue(process.env.EMAIL_DEFAULT_FROM),

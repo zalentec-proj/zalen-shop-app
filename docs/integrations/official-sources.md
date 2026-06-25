@@ -31,11 +31,15 @@
 | Checkout Pro — Visão geral | https://www.mercadopago.com.br/developers/pt/docs/checkout-pro/overview |
 | Checkout Transparente (API) | https://www.mercadopago.com.br/developers/pt/docs/checkout-api/landing |
 | Notificações de pagamento | https://www.mercadopago.com.br/developers/pt/docs/checkout-pro/payment-notifications |
+| OAuth — criação de access token | https://www.mercadopago.com.br/developers/pt/docs/security/oauth/creation |
+| OAuth — renovação de token | https://www.mercadopago.com.br/developers/pt/docs/security/oauth/renewal |
 
 **Notas:**
 - Verificar se o projeto usará Checkout Pro ou Checkout Transparente.
 - Notificações (webhooks) devem ser validadas antes de atualizar status de pedido.
 - Ambiente sandbox disponível para testes.
+- O modelo multi-lojista usa uma aplicação OAuth da Zalen e credenciais
+  criptografadas por loja em `store_integrations`.
 
 ---
 

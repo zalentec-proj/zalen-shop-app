@@ -4,9 +4,12 @@ import {
   MercadoPagoPaymentLookupError,
   getMercadoPagoPayment,
 } from '@/modules/integrations/mercado-pago/mercado-pago.connector';
-import { getServerEnv } from '@/lib/env/server';
+import type { MercadoPagoEnvironment } from '@/modules/integrations/mercado-pago/mercado-pago.types';
 import { tryAutoSendOrderToBling } from '@/modules/integrations/bling/orders/bling-order-send.service';
-import { getActiveStore } from '@/modules/stores/current-store';
+import {
+  getStaticActiveStoreContext,
+  getStoreByIdFromRepository,
+} from '@/modules/stores/store.repository';
 import { sendPaymentStatusStoreEmail } from '@/modules/email/store-transactional-email.service';
 import {
   getOrderByIdFromRepository,
@@ -113,20 +116,19 @@ function getMetadataString(
   return typeof value === 'string' ? value : undefined;
 }
 
-function getExpectedLiveMode() {
-  const mercadoPagoEnv = getServerEnv().MERCADO_PAGO_ENV;
-
-  if (!mercadoPagoEnv) {
+function getExpectedLiveMode(environment: MercadoPagoEnvironment | undefined) {
+  if (!environment) {
     return undefined;
   }
 
-  return mercadoPagoEnv === 'production';
+  return environment === 'production';
 }
 
 function getReconciliationError(input: {
   payment: Awaited<ReturnType<typeof getMercadoPagoPayment>>;
   order: OrderListItem;
   storeId: string;
+  environment?: MercadoPagoEnvironment;
   transactionStatus: PaymentTransactionStatus;
 }) {
   const metadataOrderId = getMetadataString(input.payment.metadata, 'order_id');
@@ -148,7 +150,7 @@ function getReconciliationError(input: {
     return 'payment_currency_mismatch';
   }
 
-  const expectedLiveMode = getExpectedLiveMode();
+  const expectedLiveMode = getExpectedLiveMode(input.environment);
 
   if (
     typeof expectedLiveMode === 'boolean' &&
@@ -214,12 +216,17 @@ async function persistPaymentState(input: {
 export async function processMercadoPagoPaymentUpdate(input: {
   storeId: string;
   paymentId: string;
+  environment?: MercadoPagoEnvironment;
   source: PaymentUpdateSource;
 }): Promise<MercadoPagoPaymentProcessingResult> {
   let payment;
 
   try {
-    payment = await getMercadoPagoPayment(input.paymentId);
+    payment = await getMercadoPagoPayment({
+      storeId: input.storeId,
+      paymentId: input.paymentId,
+      environment: input.environment,
+    });
   } catch (error) {
     return {
       ok: false,
@@ -259,6 +266,7 @@ export async function processMercadoPagoPaymentUpdate(input: {
     payment,
     order,
     storeId: input.storeId,
+    environment: input.environment,
     transactionStatus: mapping.transactionStatus,
   });
 
@@ -362,7 +370,9 @@ export async function processMercadoPagoPaymentUpdate(input: {
     });
   }
 
-  const store = getActiveStore();
+  const store =
+    (await getStoreByIdFromRepository(input.storeId)) ??
+    getStaticActiveStoreContext();
 
   if (mapping.transactionStatus === 'approved' && transitionedToPaid) {
     await sendPaymentStatusStoreEmail({

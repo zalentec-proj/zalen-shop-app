@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   WalletCards,
 } from 'lucide-react';
+import Link from 'next/link';
 import { getMercadoPagoRuntimeState } from '@/modules/integrations/mercado-pago/mercado-pago.connector';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 import {
@@ -25,6 +26,7 @@ type PaymentProviderCard = {
   note: string;
   action: string;
   icon: typeof CreditCard;
+  href?: string;
   actionDisabled?: boolean;
 };
 
@@ -42,17 +44,17 @@ function getMercadoPagoPaymentProvider(
   return {
     name: 'Mercado Pago',
     status,
-    summary: 'Checkout Pro em beta para cartão, Pix e boleto com conciliação server-side.',
+    summary: 'Checkout Pro para cartão, Pix e boleto com conciliação server-side.',
     sellsWith: ['Cartão de crédito', 'Pix', 'Boleto'],
     note:
       state.status === 'connected'
-        ? `Ambiente ${state.environment}. Segredos ficam em env server-side e a loja controla a ativação por conector.`
+        ? `Ambiente ${state.environment}. Credenciais por ${state.credentialsSource === 'oauth' ? 'OAuth da loja' : 'ENV legado da Brasil Drones'}.`
         : state.status === 'disabled'
           ? 'Desativado em store_integrations para a loja ativa.'
-          : `Pendente de configuração server-side: ${missingEnv}.`,
-    action: state.status === 'connected' ? 'Beta ativo' : 'Configurar env',
+          : `Pendente de configuração: ${missingEnv}.`,
+    action: state.status === 'connected' ? 'Gerenciar' : 'Conectar',
     icon: WalletCards,
-    actionDisabled: true,
+    href: '/admin/integracoes/mercado-pago',
   };
 }
 
@@ -194,12 +196,24 @@ export default async function PaymentSettingsPage() {
                   </div>
 
                   <div className="md:justify-self-end">
-                    <SettingsActionButton disabled={isFuture || provider.actionDisabled}>
-                      {provider.action}
-                      {['active', 'beta'].includes(provider.status) ? (
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                      ) : null}
-                    </SettingsActionButton>
+                    {provider.href && !isFuture && !provider.actionDisabled ? (
+                      <Link
+                        href={provider.href}
+                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/8 bg-[#081225] px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-[#1E3DFF]/35 hover:text-white"
+                      >
+                        {provider.action}
+                        {['active', 'beta'].includes(provider.status) ? (
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                        ) : null}
+                      </Link>
+                    ) : (
+                      <SettingsActionButton disabled={isFuture || provider.actionDisabled}>
+                        {provider.action}
+                        {['active', 'beta'].includes(provider.status) ? (
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                        ) : null}
+                      </SettingsActionButton>
+                    )}
                   </div>
                 </div>
               );

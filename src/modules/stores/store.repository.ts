@@ -80,3 +80,33 @@ export async function getStoreBySlugFromRepository(
 
   return toStoreContext(data as StoreRow, 'supabase');
 }
+
+export async function getStoreByIdFromRepository(
+  storeId: string
+): Promise<StoreContext | null> {
+  if (!storeId) {
+    return null;
+  }
+
+  if (storeId === activeStore.id) {
+    return getStaticActiveStoreContext();
+  }
+
+  const supabase = createOptionalPublicServerClient();
+
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('stores')
+    .select('id, name, slug, status, created_at')
+    .eq('id', storeId)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return toStoreContext(data as StoreRow, 'supabase');
+}
