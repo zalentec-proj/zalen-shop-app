@@ -2,10 +2,10 @@
 
 import { useActionState } from 'react';
 import Link from 'next/link';
-import { Lock, Mail, UserRound, Phone, BadgeCheck } from 'lucide-react';
+import { BadgeCheck, KeyRound, Mail, type LucideIcon } from 'lucide-react';
 import Logo from '@/components/ui/Logo';
 import type { CustomerAuthState } from './actions';
-import { customerLoginAction, customerSignupAction } from './actions';
+import { customerOtpAction } from './actions';
 
 type Mode = 'login' | 'signup';
 
@@ -14,15 +14,20 @@ interface CustomerAuthFormProps {
   nextPath: string;
 }
 
-const initialState: CustomerAuthState = {};
+const initialState: CustomerAuthState = {
+  step: 'email',
+};
 
 export default function CustomerAuthForm({
   mode,
   nextPath,
 }: CustomerAuthFormProps) {
-  const action = mode === 'login' ? customerLoginAction : customerSignupAction;
-  const [state, formAction, isPending] = useActionState(action, initialState);
+  const [state, formAction, isPending] = useActionState(
+    customerOtpAction,
+    initialState
+  );
   const isSignup = mode === 'signup';
+  const isCodeStep = state.step === 'code' && state.email;
 
   return (
     <main className="min-h-screen bg-brand-bg px-4 py-10 text-white">
@@ -45,7 +50,7 @@ export default function CustomerAuthForm({
               </p>
             </div>
             <div className="grid gap-3 text-xs text-brand-muted">
-              {['Carrinho real persistido', 'Pedido salvo no Supabase', 'Integração ERP server-side'].map((item) => (
+              {['Acesso por código de e-mail', 'Pedidos e rastreio salvos', 'Preços PF/PJ recalculados no servidor'].map((item) => (
                 <div key={item} className="flex items-center gap-2">
                   <BadgeCheck className="h-4 w-4 text-green-accent" />
                   <span>{item}</span>
@@ -60,31 +65,50 @@ export default function CustomerAuthForm({
             </Link>
             <div className="mb-7">
               <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-green-accent">
-                {isSignup ? 'Criar acesso' : 'Entrar na conta'}
+                {isCodeStep ? 'Verificar e-mail' : isSignup ? 'Criar acesso' : 'Entrar na conta'}
               </span>
               <h2 className="mt-2 text-2xl font-black tracking-tight text-white font-display">
-                {isSignup ? 'Crie sua conta para comprar' : 'Acesse para finalizar a compra'}
+                {isCodeStep
+                  ? 'Digite o código recebido'
+                  : isSignup
+                    ? 'Crie sua conta para acompanhar pedidos'
+                    : 'Acesse sua conta por e-mail'}
               </h2>
               <p className="mt-2 text-sm text-brand-muted">
-                {isSignup
-                  ? 'Usaremos esses dados para registrar o comprador no pedido.'
-                  : 'Depois do login, você volta para o carrinho automaticamente.'}
+                {isCodeStep
+                  ? `Enviamos um código para ${state.email}.`
+                  : 'Você receberá um código seguro para entrar sem senha.'}
               </p>
             </div>
 
             <form action={formAction} className="grid gap-3">
               <input type="hidden" name="next" value={nextPath} />
+              <input
+                type="hidden"
+                name="intent"
+                value={isCodeStep ? 'verify' : 'request'}
+              />
 
-              {isSignup ? (
+              {isCodeStep ? (
                 <>
-                  <Field icon={UserRound} name="name" placeholder="Nome completo" autoComplete="name" />
-                  <Field icon={Phone} name="phone" placeholder="WhatsApp" autoComplete="tel" />
-                  <Field icon={BadgeCheck} name="document" placeholder="CPF ou CNPJ" autoComplete="off" />
+                  <input type="hidden" name="email" value={state.email} />
+                  <Field
+                    icon={KeyRound}
+                    name="token"
+                    placeholder="Código de acesso"
+                    autoComplete="one-time-code"
+                    inputMode="numeric"
+                  />
                 </>
-              ) : null}
-
-              <Field icon={Mail} name="email" type="email" placeholder="E-mail" autoComplete="email" />
-              <Field icon={Lock} name="password" type="password" placeholder="Senha" autoComplete={isSignup ? 'new-password' : 'current-password'} />
+              ) : (
+                <Field
+                  icon={Mail}
+                  name="email"
+                  type="email"
+                  placeholder="E-mail"
+                  autoComplete="email"
+                />
+              )}
 
               {state.error ? (
                 <p className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200">
@@ -105,14 +129,21 @@ export default function CustomerAuthForm({
               >
                 {isPending
                   ? 'Processando...'
-                  : isSignup
-                    ? 'Criar conta'
-                    : 'Entrar e continuar'}
+                  : isCodeStep
+                    ? 'Verificar código'
+                    : 'Receber código'}
               </button>
             </form>
 
             <div className="mt-6 rounded-2xl border border-brand-border-soft bg-white/[0.02] p-4 text-center text-sm text-brand-muted">
-              {isSignup ? (
+              {isCodeStep ? (
+                <>
+                  Não recebeu?{' '}
+                  <Link href={`/conta/entrar?next=${encodeURIComponent(nextPath)}`} className="font-bold text-blue-primary hover:underline">
+                    Solicitar novo código
+                  </Link>
+                </>
+              ) : isSignup ? (
                 <>
                   Já tem conta?{' '}
                   <Link href={`/conta/entrar?next=${encodeURIComponent(nextPath)}`} className="font-bold text-blue-primary hover:underline">
@@ -141,12 +172,14 @@ function Field({
   placeholder,
   type = 'text',
   autoComplete,
+  inputMode,
 }: {
-  icon: typeof UserRound;
+  icon: LucideIcon;
   name: string;
   placeholder: string;
   type?: string;
   autoComplete?: string;
+  inputMode?: 'text' | 'numeric';
 }) {
   return (
     <label className="relative block">
@@ -156,6 +189,7 @@ function Field({
         type={type}
         placeholder={placeholder}
         autoComplete={autoComplete}
+        inputMode={inputMode}
         className="h-12 w-full rounded-xl border border-brand-border-soft bg-[#050A14]/85 pl-10 pr-3 text-sm font-semibold text-white outline-none transition placeholder:text-brand-muted focus:border-blue-primary/70"
       />
     </label>

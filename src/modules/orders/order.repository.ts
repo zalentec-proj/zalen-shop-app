@@ -562,6 +562,76 @@ export async function getOrderByIdFromRepository(
   );
 }
 
+export async function listOrdersByCustomerIdFromRepository(input: {
+  storeId: string;
+  customerId: string;
+}): Promise<OrderListItem[]> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return [];
+  }
+
+  const { data: orderRows, error: orderError } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('store_id', input.storeId)
+    .eq('customer_id', input.customerId)
+    .order('created_at', { ascending: false });
+
+  if (orderError || !orderRows) {
+    return [];
+  }
+
+  const orders = orderRows as OrderRow[];
+  const orderIds = orders.map((order) => order.id);
+  const itemsByOrderId = await getOrderItemsFromRepository(
+    supabase,
+    input.storeId,
+    orderIds
+  );
+
+  return orders.map((order) =>
+    mapOrder(order, itemsByOrderId.get(order.id) ?? [], input.storeId)
+  );
+}
+
+export async function getOrderByIdForCustomerFromRepository(input: {
+  storeId: string;
+  customerId: string;
+  orderId: string;
+}): Promise<OrderListItem | null> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return null;
+  }
+
+  const { data: orderRow, error: orderError } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('store_id', input.storeId)
+    .eq('customer_id', input.customerId)
+    .eq('id', input.orderId)
+    .maybeSingle();
+
+  if (orderError || !orderRow) {
+    return null;
+  }
+
+  const itemsByOrderId = await getOrderItemsFromRepository(
+    supabase,
+    input.storeId,
+    [input.orderId]
+  );
+
+  return mapOrder(
+    orderRow as OrderRow,
+    itemsByOrderId.get(input.orderId) ?? [],
+    input.storeId
+  );
+}
+
 export async function updateOrderExternalErpStateInRepository(input: {
   storeId: string;
   orderId: string;
@@ -632,6 +702,33 @@ export async function updateOrderPaymentStateInRepository(input: {
 
   if (error) {
     throw new Error('Unable to update order payment state.');
+  }
+}
+
+export async function updateOrderFulfillmentStateInRepository(input: {
+  storeId: string;
+  orderId: string;
+  status: OrderStatus;
+  fulfillmentStatus: FulfillmentStatus;
+}) {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from('orders')
+    .update({
+      status: input.status,
+      fulfillment_status: input.fulfillmentStatus,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', input.orderId)
+    .eq('store_id', input.storeId);
+
+  if (error) {
+    throw new Error('Unable to update order fulfillment state.');
   }
 }
 

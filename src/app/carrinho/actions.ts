@@ -25,6 +25,7 @@ import {
   isValidDocumentForCustomerType,
   resolveCheckoutPricing,
 } from '@/modules/pricing/pricing.service';
+import { sendOrderReceivedStoreEmail } from '@/modules/email/store-transactional-email.service';
 import type { CustomerType } from '@/modules/pricing/pricing.types';
 
 const checkoutItemSchema = z.object({
@@ -382,6 +383,13 @@ export async function checkoutCartAction(
       checkoutUrl: payment.checkoutUrl,
       sandboxCheckoutUrl: payment.sandboxInitPoint,
     });
+
+    await sendOrderReceivedStoreEmail({
+      storeId: store.id,
+      storeName: store.shortName,
+      order,
+      baseUrl,
+    }).catch(() => undefined);
 
     return {
       ok: true,

@@ -18,6 +18,9 @@ export default async function MercadoPagoSuccessPage({
     : null;
   const isApproved = result?.status === 'approved';
   const isPending = result?.status === 'pending';
+  const accountHref = result?.orderId
+    ? `/conta/entrar?next=${encodeURIComponent(`/conta/pedidos/${result.orderId}`)}`
+    : '/conta/entrar?next=/conta/pedidos';
 
   return (
     <main className="min-h-screen bg-brand-bg px-4 py-16 text-white">
@@ -44,12 +47,20 @@ export default async function MercadoPagoSuccessPage({
           </p>
         ) : null}
         {isApproved ? <ClearCartOnApproved /> : null}
-        <Link
-          href="/"
-          className="mt-2 flex h-12 w-full items-center justify-center rounded-xl bg-blue-primary text-sm font-bold text-white"
-        >
-          Continuar comprando
-        </Link>
+        <div className="mt-2 grid w-full gap-2 sm:grid-cols-2">
+          <Link
+            href={accountHref}
+            className="flex h-12 items-center justify-center rounded-xl bg-blue-primary px-4 text-sm font-bold text-white"
+          >
+            Acompanhar pedido
+          </Link>
+          <Link
+            href="/"
+            className="flex h-12 items-center justify-center rounded-xl border border-white/10 px-4 text-sm font-bold text-white transition hover:border-white/20"
+          >
+            Continuar comprando
+          </Link>
+        </div>
       </section>
     </main>
   );

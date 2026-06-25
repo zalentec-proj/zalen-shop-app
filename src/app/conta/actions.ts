@@ -1,31 +1,29 @@
 'use server';
 
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
-import { isValidCpfOrCnpj } from '@/modules/customers/br-document';
-import { upsertCustomer } from '@/modules/customers/customer.service';
+import {
+  requestCustomerLoginCode,
+  verifyCustomerLoginCode,
+} from '@/modules/customer-account/customer-auth.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 
 export type CustomerAuthState = {
+  step: 'email' | 'code';
+  email?: string;
+  next?: string;
   error?: string;
   message?: string;
 };
 
-const loginSchema = z.object({
+const emailSchema = z.object({
   email: z.string().trim().email(),
-  password: z.string().min(6),
   next: z.string().optional(),
 });
 
-const signupSchema = loginSchema.extend({
-  name: z.string().trim().min(2),
-  phone: z.string().trim().min(8),
-  document: z
-    .string()
-    .trim()
-    .min(11)
-    .refine(isValidCpfOrCnpj, 'CPF ou CNPJ inválido.'),
+const codeSchema = emailSchema.extend({
+  token: z.string().trim().min(4).max(12),
 });
 
 function formValue(formData: FormData, key: string) {
@@ -35,93 +33,102 @@ function formValue(formData: FormData, key: string) {
 
 function getSafeNextPath(value: string | undefined) {
   if (!value || !value.startsWith('/') || value.startsWith('//')) {
-    return '/carrinho';
+    return '/conta';
   }
 
   if (value.startsWith('/admin') || value.startsWith('/platform')) {
-    return '/carrinho';
+    return '/conta';
   }
 
   return value;
 }
 
-export async function customerLoginAction(
-  _previousState: CustomerAuthState,
-  formData: FormData
-): Promise<CustomerAuthState> {
-  const parsed = loginSchema.safeParse({
-    email: formValue(formData, 'email'),
-    password: formValue(formData, 'password'),
-    next: formValue(formData, 'next'),
-  });
+async function getBaseUrl() {
+  const requestHeaders = await headers();
 
-  if (!parsed.success) {
-    return { error: 'Informe e-mail e senha válidos.' };
-  }
-
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
-    email: parsed.data.email,
-    password: parsed.data.password,
-  });
-
-  if (error) {
-    return { error: 'Não foi possível entrar com esses dados.' };
-  }
-
-  redirect(getSafeNextPath(parsed.data.next));
+  return (
+    requestHeaders.get('origin') ??
+    process.env.APP_URL ??
+    'http://localhost:3000'
+  );
 }
 
-export async function customerSignupAction(
-  _previousState: CustomerAuthState,
+export async function customerOtpAction(
+  previousState: CustomerAuthState,
   formData: FormData
 ): Promise<CustomerAuthState> {
-  const parsed = signupSchema.safeParse({
-    name: formValue(formData, 'name'),
+  const intent = formValue(formData, 'intent');
+  const next = getSafeNextPath(formValue(formData, 'next') || previousState.next);
+
+  if (intent === 'verify') {
+    const parsed = codeSchema.safeParse({
+      email: formValue(formData, 'email') || previousState.email,
+      token: formValue(formData, 'token'),
+      next,
+    });
+
+    if (!parsed.success) {
+      return {
+        step: 'code',
+        email: previousState.email,
+        next,
+        error: 'Informe o código recebido por e-mail.',
+      };
+    }
+
+    const store = await resolveCurrentStoreFromHeaders();
+    const result = await verifyCustomerLoginCode({
+      storeId: store.id,
+      email: parsed.data.email,
+      token: parsed.data.token,
+    });
+
+    if (!result.ok) {
+      return {
+        step: 'code',
+        email: parsed.data.email,
+        next,
+        error: 'Código inválido ou expirado. Solicite um novo código.',
+      };
+    }
+
+    redirect(next);
+  }
+
+  const parsed = emailSchema.safeParse({
     email: formValue(formData, 'email'),
-    phone: formValue(formData, 'phone'),
-    document: formValue(formData, 'document'),
-    password: formValue(formData, 'password'),
-    next: formValue(formData, 'next'),
+    next,
   });
 
   if (!parsed.success) {
-    return { error: 'Revise nome, e-mail, telefone, documento e senha.' };
-  }
-
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({
-    email: parsed.data.email,
-    password: parsed.data.password,
-    options: {
-      data: {
-        full_name: parsed.data.name,
-        phone: parsed.data.phone,
-        document: parsed.data.document,
-      },
-    },
-  });
-
-  if (error || !data.user) {
-    return { error: 'Não foi possível criar sua conta agora.' };
-  }
-
-  const store = await resolveCurrentStoreFromHeaders();
-  await upsertCustomer({
-    storeId: store.id,
-    authUserId: data.user.id,
-    name: parsed.data.name,
-    email: parsed.data.email,
-    phone: parsed.data.phone,
-    document: parsed.data.document,
-    source: 'checkout',
-  });
-
-  if (!data.session) {
     return {
-      message: 'Conta criada. Verifique seu e-mail para confirmar o acesso antes de finalizar a compra.',
+      step: 'email',
+      next,
+      error: 'Informe um e-mail válido.',
     };
   }
 
-  redirect(getSafeNextPath(parsed.data.next));
+  try {
+    const store = await resolveCurrentStoreFromHeaders();
+    await requestCustomerLoginCode({
+      storeId: store.id,
+      storeName: store.name,
+      email: parsed.data.email,
+      baseUrl: await getBaseUrl(),
+      next,
+    });
+  } catch {
+    return {
+      step: 'email',
+      next,
+      error: 'Não foi possível enviar o código agora. Tente novamente em instantes.',
+    };
+  }
+
+  return {
+    step: 'code',
+    email: parsed.data.email.trim().toLowerCase(),
+    next,
+    message: 'Enviamos um código de acesso para o seu e-mail.',
+  };
 }

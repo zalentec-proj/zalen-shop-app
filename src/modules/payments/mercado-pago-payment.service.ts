@@ -6,6 +6,8 @@ import {
 } from '@/modules/integrations/mercado-pago/mercado-pago.connector';
 import { getServerEnv } from '@/lib/env/server';
 import { tryAutoSendOrderToBling } from '@/modules/integrations/bling/orders/bling-order-send.service';
+import { getActiveStore } from '@/modules/stores/current-store';
+import { sendPaymentStatusStoreEmail } from '@/modules/email/store-transactional-email.service';
 import {
   getOrderByIdFromRepository,
   markOrderPaymentApprovedIfPendingInRepository,
@@ -358,6 +360,31 @@ export async function processMercadoPagoPaymentUpdate(input: {
       storeId: input.storeId,
       orderId: order.id,
     });
+  }
+
+  const store = getActiveStore();
+
+  if (mapping.transactionStatus === 'approved' && transitionedToPaid) {
+    await sendPaymentStatusStoreEmail({
+      storeId: input.storeId,
+      storeName: store.shortName,
+      order,
+      status: 'approved',
+    }).catch(() => undefined);
+  } else if (mapping.orderPaymentStatus === 'pending') {
+    await sendPaymentStatusStoreEmail({
+      storeId: input.storeId,
+      storeName: store.shortName,
+      order,
+      status: 'pending',
+    }).catch(() => undefined);
+  } else if (mapping.orderPaymentStatus === 'failed') {
+    await sendPaymentStatusStoreEmail({
+      storeId: input.storeId,
+      storeName: store.shortName,
+      order,
+      status: 'failed',
+    }).catch(() => undefined);
   }
 
   return {

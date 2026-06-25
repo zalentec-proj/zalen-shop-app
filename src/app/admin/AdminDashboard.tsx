@@ -32,6 +32,7 @@ import {
   updateProductStockAction,
 } from '@/app/admin/products/actions';
 import { createAdminCustomerAction } from '@/app/admin/customers/actions';
+import { upsertOrderShipmentAction } from '@/app/admin/orders/actions';
 import { AdminSidebar } from '@/app/admin/AdminSidebar';
 import type { AdminVariantPriceSummary } from '@/modules/pricing/pricing.types';
 import { currentStoreBrand } from '@/lib/branding/current-store-brand';
@@ -596,6 +597,58 @@ function CustomerCreateForm() {
       <div className="md:col-span-2">
         <InlineSubmitButton idleLabel="Adicionar" />
       </div>
+    </form>
+  );
+}
+
+function OrderShipmentForm({ order }: { order: OrderListItem }) {
+  const defaultShipmentStatus =
+    order.status === 'delivered'
+      ? 'delivered'
+      : order.status === 'shipped'
+        ? 'in_transit'
+        : 'posted';
+
+  return (
+    <form
+      action={upsertOrderShipmentAction}
+      className="grid gap-2 rounded-lg border border-white/6 bg-[#081225]/70 p-2 md:grid-cols-[118px_1fr_1fr_1.5fr_auto]"
+    >
+      <input type="hidden" name="orderId" value={order.id} />
+      <select
+        name="status"
+        defaultValue={defaultShipmentStatus}
+        aria-label={`Status de envio do pedido ${order.orderNumber}`}
+        className="h-8 rounded-md border border-white/8 bg-[#050A14] px-2 text-[11px] font-semibold text-white outline-none focus:border-[#1E3DFF]/35"
+      >
+        <option value="posted">Postado</option>
+        <option value="in_transit">Em trânsito</option>
+        <option value="out_for_delivery">Saiu para entrega</option>
+        <option value="delivered">Entregue</option>
+        <option value="exception">Ocorrência</option>
+        <option value="pending">Pendente</option>
+        <option value="cancelled">Cancelado</option>
+      </select>
+      <input
+        name="carrier"
+        placeholder="Transportadora"
+        aria-label={`Transportadora do pedido ${order.orderNumber}`}
+        className="h-8 rounded-md border border-white/8 bg-[#050A14] px-2 text-[11px] font-semibold text-white outline-none placeholder:text-slate-600 focus:border-[#1E3DFF]/35"
+      />
+      <input
+        name="trackingCode"
+        placeholder="Código"
+        aria-label={`Código de rastreio do pedido ${order.orderNumber}`}
+        className="h-8 rounded-md border border-white/8 bg-[#050A14] px-2 text-[11px] font-semibold text-white outline-none placeholder:text-slate-600 focus:border-[#1E3DFF]/35"
+      />
+      <input
+        name="trackingUrl"
+        type="url"
+        placeholder="URL de rastreio"
+        aria-label={`URL de rastreio do pedido ${order.orderNumber}`}
+        className="h-8 rounded-md border border-white/8 bg-[#050A14] px-2 text-[11px] font-semibold text-white outline-none placeholder:text-slate-600 focus:border-[#1E3DFF]/35"
+      />
+      <InlineSubmitButton idleLabel="Rastreio" />
     </form>
   );
 }
@@ -1220,6 +1273,9 @@ export default function AdminDashboard({
                 </div>
                 <div className="text-right font-semibold text-white">
                   {formatCurrency(order.total)}
+                </div>
+                <div className="col-span-full">
+                  <OrderShipmentForm order={order} />
                 </div>
               </div>
             ))}

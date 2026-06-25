@@ -14,11 +14,14 @@ import {
   type OrderDataSource,
   type OrderRepositoryResult,
   getOrderByIdFromRepository,
+  getOrderByIdForCustomerFromRepository,
+  listOrdersByCustomerIdFromRepository,
   listMockOrdersFromRepository,
   listOrdersFromRepository,
   listOrdersWithSourceFromRepository,
   saveOrderToRepository,
   updateOrderExternalErpStateInRepository,
+  updateOrderFulfillmentStateInRepository,
 } from './order.repository';
 import { upsertCheckoutCustomer } from '../customers/customer.service';
 import { tryAutoSendOrderToBling } from '../integrations/bling/orders/bling-order-send.service';
@@ -265,6 +268,21 @@ export async function getOrderById(
   return getOrderByIdFromRepository(storeId, orderId);
 }
 
+export async function listOrdersByCustomerId(input: {
+  storeId: string;
+  customerId: string;
+}): Promise<OrderListItem[]> {
+  return listOrdersByCustomerIdFromRepository(input);
+}
+
+export async function getOrderByIdForCustomer(input: {
+  storeId: string;
+  customerId: string;
+  orderId: string;
+}): Promise<OrderListItem | null> {
+  return getOrderByIdForCustomerFromRepository(input);
+}
+
 export async function markOrderErpSyncError(input: {
   storeId: string;
   orderId: string;
@@ -276,4 +294,13 @@ export async function markOrderErpSyncError(input: {
     status: 'error',
     lastError: input.errorCode,
   });
+}
+
+export async function markOrderShipmentState(input: {
+  storeId: string;
+  orderId: string;
+  status: 'shipped' | 'delivered' | 'processing';
+  fulfillmentStatus: 'partial' | 'fulfilled' | 'unfulfilled';
+}) {
+  return updateOrderFulfillmentStateInRepository(input);
 }

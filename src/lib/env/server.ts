@@ -26,6 +26,9 @@ const serverEnvSchema = z.object({
   MERCADO_PAGO_ACCESS_TOKEN: optionalSecretString,
   MERCADO_PAGO_PUBLIC_KEY: optionalSecretString,
   MERCADO_PAGO_WEBHOOK_SECRET: optionalSecretString,
+  RESEND_API_KEY: optionalSecretString,
+  EMAIL_DEFAULT_FROM: optionalSecretString,
+  EMAIL_DEFAULT_REPLY_TO: optionalSecretString,
   MELHOR_ENVIO_TOKEN: optionalSecretString,
   GEMINI_API_KEY: optionalSecretString,
 });
@@ -97,6 +100,11 @@ function parseServerEnv(): ServerEnv {
     ),
     MERCADO_PAGO_WEBHOOK_SECRET: normalizeEnvValue(
       process.env.MERCADO_PAGO_WEBHOOK_SECRET
+    ),
+    RESEND_API_KEY: normalizeEnvValue(process.env.RESEND_API_KEY),
+    EMAIL_DEFAULT_FROM: normalizeEnvValue(process.env.EMAIL_DEFAULT_FROM),
+    EMAIL_DEFAULT_REPLY_TO: normalizeEnvValue(
+      process.env.EMAIL_DEFAULT_REPLY_TO
     ),
     MELHOR_ENVIO_TOKEN: normalizeEnvValue(process.env.MELHOR_ENVIO_TOKEN),
     GEMINI_API_KEY: normalizeEnvValue(process.env.GEMINI_API_KEY),

@@ -39,6 +39,24 @@
 
 ---
 
+## Resend
+
+| Recurso | URL |
+|---|---|
+| Documentação geral | https://resend.com/docs |
+| Enviar e-mail | https://resend.com/docs/api-reference/emails/send-email |
+| Domínios | https://resend.com/docs/dashboard/domains/introduction |
+| API keys | https://resend.com/docs/api-reference/api-keys/create-api-key |
+| Webhooks | https://resend.com/docs/api-reference/webhooks/create-webhook |
+
+**Notas:**
+- A chave `RESEND_API_KEY` é server-side e nunca deve ir para o frontend.
+- Domínios/subdomínios devem ser verificados antes de usar remetente da loja.
+- No MVP, a Zalen usa uma conta Resend central e registra envios por `store_id`.
+- Chave própria por loja é fase posterior e deve ser guardada criptografada.
+
+---
+
 ## Melhor Envio
 
 | Recurso | URL |

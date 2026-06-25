@@ -18,6 +18,7 @@ Nenhuma integração pode ser implementada com endpoints, payloads, headers, esc
 |---|---|---|
 | **Bling** | ERP operacional — produtos, estoque, pedidos, notas | Beta operacional |
 | **Mercado Pago** | Pagamentos — Pix, cartão, boleto via Checkout Pro | Beta Checkout Pro |
+| **Resend** | E-mails transacionais por loja — login, pedido, pagamento e rastreio | MVP centralizado |
 | **Melhor Envio** | Cotação e geração de etiquetas de frete | Planejado |
 | **Asaas** | Pagamentos alternativos (futuro) | Futuro |
 | **Pagar.me** | Pagamentos alternativos (futuro) | Futuro |
@@ -61,6 +62,7 @@ Se o endpoint não está na documentação oficial, ele não existe. Não assuma
 | `research-checklist.md` | Checklist padrão antes de implementar |
 | `bling-research-template.md` | Template de pesquisa técnica — Bling |
 | `mercado-pago-research-template.md` | Template de pesquisa técnica — Mercado Pago |
+| `resend-research.md` | Pesquisa técnica — Resend |
 | `melhor-envio-research-template.md` | Template de pesquisa técnica — Melhor Envio |
 
 ---

@@ -2,7 +2,10 @@ import 'server-only';
 
 import { z } from 'zod';
 import {
+  findCustomerByAuthUserIdFromRepository,
   findCustomerByCheckoutIdentifierFromRepository,
+  findCustomerByEmailFromRepository,
+  linkCustomerAuthUserInRepository,
   listCustomersFromRepository,
   upsertCustomerInRepository,
 } from './customer.repository';
@@ -96,4 +99,26 @@ export async function findCheckoutCustomerByIdentifier(input: {
   identifier: string;
 }): Promise<Customer | null> {
   return findCustomerByCheckoutIdentifierFromRepository(input);
+}
+
+export async function findCustomerByAuthUserId(input: {
+  storeId: string;
+  authUserId: string;
+}): Promise<Customer | null> {
+  return findCustomerByAuthUserIdFromRepository(input);
+}
+
+export async function findCustomerByEmail(input: {
+  storeId: string;
+  email: string;
+}): Promise<Customer | null> {
+  return findCustomerByEmailFromRepository(input);
+}
+
+export async function linkCustomerAuthUser(input: {
+  storeId: string;
+  customerId: string;
+  authUserId: string;
+}): Promise<Customer | null> {
+  return linkCustomerAuthUserInRepository(input);
 }

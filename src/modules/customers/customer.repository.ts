@@ -445,6 +445,135 @@ export async function findCustomerByCheckoutIdentifierFromRepository(input: {
   return mapCustomer(customerRow, defaultAddress);
 }
 
+export async function findCustomerByAuthUserIdFromRepository(input: {
+  storeId: string;
+  authUserId: string;
+}): Promise<Customer | null> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('customers')
+    .select('*')
+    .eq('store_id', input.storeId)
+    .eq('auth_user_id', input.authUserId)
+    .maybeSingle();
+
+  if (error || !data) {
+    if (error) {
+      logCustomerRepositoryError('auth_user_lookup', error);
+    }
+
+    return null;
+  }
+
+  const customerRow = data as CustomerRow;
+  const defaultAddress = (await getDefaultAddressesByCustomerId(input.storeId, [
+    customerRow.id,
+  ])).get(customerRow.id);
+
+  return mapCustomer(customerRow, defaultAddress);
+}
+
+export async function findCustomerByEmailFromRepository(input: {
+  storeId: string;
+  email: string;
+}): Promise<Customer | null> {
+  const supabase = createOptionalAdminClient();
+  const email = cleanEmail(input.email);
+
+  if (!supabase || !email) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('customers')
+    .select('*')
+    .eq('store_id', input.storeId)
+    .eq('email', email)
+    .maybeSingle();
+
+  if (error || !data) {
+    if (error) {
+      logCustomerRepositoryError('email_lookup', error);
+    }
+
+    return null;
+  }
+
+  const customerRow = data as CustomerRow;
+  const defaultAddress = (await getDefaultAddressesByCustomerId(input.storeId, [
+    customerRow.id,
+  ])).get(customerRow.id);
+
+  return mapCustomer(customerRow, defaultAddress);
+}
+
+export async function linkCustomerAuthUserInRepository(input: {
+  storeId: string;
+  customerId: string;
+  authUserId: string;
+}): Promise<Customer | null> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return null;
+  }
+
+  const { data: existing, error: existingError } = await supabase
+    .from('customers')
+    .select('*')
+    .eq('store_id', input.storeId)
+    .eq('id', input.customerId)
+    .maybeSingle();
+
+  if (existingError || !existing) {
+    if (existingError) {
+      logCustomerRepositoryError('link_auth_user_lookup', existingError);
+    }
+
+    return null;
+  }
+
+  const existingCustomer = existing as CustomerRow;
+
+  if (
+    existingCustomer.auth_user_id &&
+    existingCustomer.auth_user_id !== input.authUserId
+  ) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('customers')
+    .update({
+      auth_user_id: input.authUserId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('store_id', input.storeId)
+    .eq('id', input.customerId)
+    .select('*')
+    .single();
+
+  if (error || !data) {
+    if (error) {
+      logCustomerRepositoryError('link_auth_user_update', error);
+    }
+
+    return null;
+  }
+
+  const customerRow = data as CustomerRow;
+  const defaultAddress = (await getDefaultAddressesByCustomerId(input.storeId, [
+    customerRow.id,
+  ])).get(customerRow.id);
+
+  return mapCustomer(customerRow, defaultAddress);
+}
+
 export async function upsertCustomerInRepository(
   input: CustomerInput
 ): Promise<Customer> {
