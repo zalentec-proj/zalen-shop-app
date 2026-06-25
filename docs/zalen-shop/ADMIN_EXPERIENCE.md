@@ -137,6 +137,26 @@ Configurações iniciais:
 - integrações;
 - preferências operacionais.
 
+### Envios
+
+A tela `/admin/configuracoes/envios` é funcional para a Fase 1 de frete nativo.
+
+Permite:
+
+- cadastrar a origem de envio da loja;
+- ativar/desativar métodos nativos;
+- configurar valor de frete fixo;
+- configurar subtotal mínimo para frete grátis;
+- configurar prazo mínimo e máximo;
+- manter Melhor Envio apenas como provider planejado.
+
+Regras:
+
+- ações de escrita são Server Actions;
+- permissões são validadas no servidor;
+- apenas métodos nativos calculam frete no MVP;
+- providers externos continuam dependentes de pesquisa técnica oficial.
+
 ## 10. Regras de implementação
 
 - Admin deve usar componentes próprios de sistema.

@@ -27,6 +27,10 @@ import {
 } from '@/modules/pricing/pricing.service';
 import { sendOrderReceivedStoreEmail } from '@/modules/email/store-transactional-email.service';
 import type { CustomerType } from '@/modules/pricing/pricing.types';
+import {
+  quoteNativeShipping,
+  type ShippingRate,
+} from '@/modules/shipping/shipment.service';
 
 const checkoutItemSchema = z.object({
   productId: z.string().trim().min(1),
@@ -41,6 +45,18 @@ const optionalCheckoutString = z
   .or(z.literal(''))
   .transform((value) => (value ? value : undefined));
 
+const checkoutShippingAddressSchema = z
+  .object({
+    postalCode: z.string().trim().min(8),
+    street: z.string().trim().min(2),
+    number: optionalCheckoutString,
+    complement: optionalCheckoutString,
+    district: optionalCheckoutString,
+    city: z.string().trim().min(2),
+    state: z.string().trim().min(2).max(2),
+  })
+  .required();
+
 const checkoutCustomerSchema = z.object({
   name: z.string().trim().min(2),
   email: z.string().trim().email(),
@@ -54,17 +70,7 @@ const checkoutCustomerSchema = z.object({
   legalName: optionalCheckoutString,
   stateRegistration: optionalCheckoutString,
   stateRegistrationExempt: z.boolean().optional(),
-  shippingAddress: z
-    .object({
-      postalCode: z.string().trim().min(8),
-      street: z.string().trim().min(2),
-      number: optionalCheckoutString,
-      complement: optionalCheckoutString,
-      district: optionalCheckoutString,
-      city: z.string().trim().min(2),
-      state: z.string().trim().min(2).max(2),
-    })
-    .required(),
+  shippingAddress: checkoutShippingAddressSchema,
 }).superRefine((customer, context) => {
   const detectedCustomerType = getCustomerTypeFromDocument(customer.document);
 
@@ -113,6 +119,7 @@ const checkoutCustomerSchema = z.object({
 
 const checkoutSchema = z.object({
   checkoutAttemptId: z.string().trim().uuid(),
+  shippingQuoteId: z.string().trim().uuid(),
   items: z.array(checkoutItemSchema).min(1).max(50),
   customer: checkoutCustomerSchema,
   paymentMethod: z.literal('mercado_pago_checkout_pro'),
@@ -187,6 +194,20 @@ export type CheckoutPreviewActionResult =
       error: string;
     };
 
+export type CheckoutShippingQuoteActionResult =
+  | {
+      ok: true;
+      customerType: CustomerType;
+      priceListName?: string;
+      subtotal: number;
+      discountTotal: number;
+      shippingOptions: ShippingRate[];
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
 function getSafeCheckoutError(error: unknown) {
   if (
     error instanceof Error &&
@@ -232,6 +253,12 @@ function getSafeCheckoutError(error: unknown) {
       'order_persistence_required',
       'Failed to persist order in Supabase.',
       'Failed to persist order items in Supabase.',
+      'shipping_quote_required',
+      'shipping_quote_not_found',
+      'shipping_quote_expired',
+      'shipping_quote_items_changed',
+      'shipping_quote_address_changed',
+      'shipping_quote_stale',
       'fetch failed',
     ]);
 
@@ -272,6 +299,7 @@ function getCheckoutAttemptFingerprint(input: CheckoutInput) {
     cartHash: hashCheckoutPayload({
       paymentMethod: input.paymentMethod,
       items,
+      shippingQuoteId: input.shippingQuoteId,
     }),
     customerHash: hashCheckoutPayload({
       name: customer.name.trim(),
@@ -366,6 +394,7 @@ export async function checkoutCartAction(
       storeId: store.id,
       customer: parsed.data.customer,
       items: parsed.data.items,
+      shippingQuoteId: parsed.data.shippingQuoteId,
       sendToErp: false,
       requirePersistence: true,
     });
@@ -513,6 +542,10 @@ const checkoutPreviewSchema = z.object({
   document: z.string().trim().optional(),
 });
 
+const checkoutShippingQuoteSchema = checkoutPreviewSchema.extend({
+  shippingAddress: checkoutShippingAddressSchema,
+});
+
 export async function previewCheckoutCartAction(
   rawInput: unknown
 ): Promise<CheckoutPreviewActionResult> {
@@ -560,6 +593,60 @@ export async function previewCheckoutCartAction(
     return {
       ok: false,
       error: 'Não foi possível calcular os preços agora.',
+    };
+  }
+}
+
+export async function quoteCheckoutShippingAction(
+  rawInput: unknown
+): Promise<CheckoutShippingQuoteActionResult> {
+  const parsed = checkoutShippingQuoteSchema.safeParse(rawInput);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: 'Revise o endereço de entrega para calcular o frete.',
+    };
+  }
+
+  const customerType = parsed.data.document
+    ? getCustomerTypeFromDocument(parsed.data.document)
+    : parsed.data.customerType ?? 'pf';
+
+  try {
+    const store = await resolveCurrentStoreFromHeaders();
+    const pricing = await resolveCheckoutPricing({
+      storeId: store.id,
+      customerType,
+      items: parsed.data.items,
+    });
+    const shippingOptions = await quoteNativeShipping({
+      storeId: store.id,
+      subtotal: pricing.subtotal,
+      destinationPostalCode: parsed.data.shippingAddress.postalCode,
+      items: parsed.data.items,
+    });
+
+    if (shippingOptions.length === 0) {
+      return {
+        ok: false,
+        error:
+          'Nenhum método de envio ativo foi encontrado para este endereço.',
+      };
+    }
+
+    return {
+      ok: true,
+      customerType: pricing.customerType,
+      priceListName: pricing.priceListName,
+      subtotal: pricing.subtotal,
+      discountTotal: pricing.discountTotal,
+      shippingOptions,
+    };
+  } catch {
+    return {
+      ok: false,
+      error: 'Não foi possível calcular o frete agora.',
     };
   }
 }

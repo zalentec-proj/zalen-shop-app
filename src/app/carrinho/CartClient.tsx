@@ -24,7 +24,9 @@ import {
   checkoutCartAction,
   identifyCheckoutCustomerAction,
   previewCheckoutCartAction,
+  quoteCheckoutShippingAction,
   type CheckoutPreviewActionResult,
+  type CheckoutShippingQuoteActionResult,
 } from './actions';
 import { isValidCnpj, isValidCpf, isValidCpfOrCnpj, onlyDigits } from '@/modules/customers/br-document';
 import {
@@ -55,6 +57,10 @@ type CheckoutStep =
   | 'pagamento';
 
 type CheckoutPreview = Extract<CheckoutPreviewActionResult, { ok: true }>;
+type CheckoutShippingOption = Extract<
+  CheckoutShippingQuoteActionResult,
+  { ok: true }
+>['shippingOptions'][number];
 
 type CustomerState = {
   name: string;
@@ -265,11 +271,18 @@ export default function CartClient({ customerSession }: Props) {
   });
   const [checkoutPreview, setCheckoutPreview] =
     useState<CheckoutPreview | null>(null);
+  const [shippingOptions, setShippingOptions] = useState<
+    CheckoutShippingOption[]
+  >([]);
+  const [selectedShippingQuoteId, setSelectedShippingQuoteId] = useState<
+    string | null
+  >(null);
   const [checkoutDone, setCheckoutDone] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
+  const [isQuotingShipping, setIsQuotingShipping] = useState(false);
   const checkoutAttemptIdRef = useRef<string | null>(null);
 
   const itemCount = getItemCount(cart);
@@ -278,11 +291,13 @@ export default function CartClient({ customerSession }: Props) {
     customer.document,
     customer.customerType
   );
+  const selectedShippingOption = shippingOptions.find(
+    (option) => option.quoteId === selectedShippingQuoteId
+  );
   const summarySubtotal = checkoutPreview?.subtotal ?? cart.subtotal;
-  const summaryShipping =
-    checkoutPreview?.shippingTotal ?? (cart.subtotal >= 500 ? 0 : 49.9);
-  const summaryTotal =
-    checkoutPreview?.total ?? cart.total + summaryShipping;
+  const summaryDiscount = checkoutPreview?.discountTotal ?? 0;
+  const summaryShipping = selectedShippingOption?.price ?? 0;
+  const summaryTotal = summarySubtotal + summaryShipping - summaryDiscount;
   const summaryItems = checkoutPreview?.items;
 
   const actionItems = useMemo(
@@ -303,6 +318,11 @@ export default function CartClient({ customerSession }: Props) {
     checkoutAttemptIdRef.current = null;
   }
 
+  function clearShippingSelection() {
+    setShippingOptions([]);
+    setSelectedShippingQuoteId(null);
+  }
+
   function getCheckoutAttemptId() {
     checkoutAttemptIdRef.current ??= crypto.randomUUID();
     return checkoutAttemptIdRef.current;
@@ -316,10 +336,12 @@ export default function CartClient({ customerSession }: Props) {
       ...patch,
     }));
     setCheckoutPreview(null);
+    clearShippingSelection();
   }
 
   function persistCart(nextCart: Cart) {
     setCheckoutPreview(null);
+    clearShippingSelection();
     resetCheckoutAttempt();
     setCart(saveStoredCart(nextCart));
   }
@@ -349,6 +371,43 @@ export default function CartClient({ customerSession }: Props) {
     }
 
     setCheckoutPreview(result);
+    return result;
+  }
+
+  async function refreshShippingQuotes(nextCustomer = customer) {
+    if (actionItems.length === 0) {
+      return null;
+    }
+
+    setIsQuotingShipping(true);
+
+    const result = await quoteCheckoutShippingAction({
+      items: actionItems,
+      document: nextCustomer.document,
+      customerType: nextCustomer.customerType,
+      shippingAddress: {
+        postalCode: nextCustomer.postalCode,
+        street: nextCustomer.street,
+        number: nextCustomer.number,
+        complement: nextCustomer.complement,
+        district: nextCustomer.district,
+        city: nextCustomer.city,
+        state: nextCustomer.state.toUpperCase(),
+      },
+    });
+
+    setIsQuotingShipping(false);
+
+    if (!result.ok) {
+      setCheckoutError(result.error);
+      clearShippingSelection();
+      return null;
+    }
+
+    setShippingOptions(result.shippingOptions);
+    setSelectedShippingQuoteId(
+      result.shippingOptions.find((option) => option.quoteId)?.quoteId ?? null
+    );
     return result;
   }
 
@@ -504,13 +563,28 @@ export default function CartClient({ customerSession }: Props) {
     }
 
     setCheckoutError(null);
-    await refreshPreview();
+    const preview = await refreshPreview();
+
+    if (!preview) {
+      return;
+    }
+
+    const quotes = await refreshShippingQuotes();
+
+    if (!quotes) {
+      return;
+    }
+
     setCheckoutStep('envio');
   }
 
   async function handleContinueFromShipping() {
+    if (!selectedShippingQuoteId) {
+      setCheckoutError('Selecione uma forma de envio para continuar.');
+      return;
+    }
+
     setCheckoutError(null);
-    await refreshPreview();
     setCheckoutStep('pagamento');
   }
 
@@ -524,6 +598,12 @@ export default function CartClient({ customerSession }: Props) {
       return;
     }
 
+    if (!selectedShippingQuoteId) {
+      setCheckoutError('Selecione uma forma de envio antes do pagamento.');
+      setCheckoutStep('envio');
+      return;
+    }
+
     setCheckoutError(null);
     setIsSubmitting(true);
 
@@ -533,6 +613,7 @@ export default function CartClient({ customerSession }: Props) {
     );
     const result = await checkoutCartAction({
       checkoutAttemptId: getCheckoutAttemptId(),
+      shippingQuoteId: selectedShippingQuoteId,
       customer: {
         name: customer.name,
         email: customer.email,
@@ -998,37 +1079,90 @@ export default function CartClient({ customerSession }: Props) {
                       Forma de envio
                     </h2>
                     <p className="mt-1 text-sm text-brand-muted">
-                      Melhor Envio ainda não está ativo; usamos regra operacional
-                      inicial da Zalen.
+                      Escolha uma opção calculada pela loja ativa. O valor será
+                      revalidado no servidor antes do pagamento.
                     </p>
                   </div>
-                  <div className="rounded-2xl border border-green-accent/25 bg-green-accent/8 p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-accent/15">
-                        <Truck className="h-5 w-5 text-green-accent" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between gap-3">
-                          <h3 className="text-sm font-bold text-white">
-                            Entrega Brasil Drones
-                          </h3>
-                          <span className="text-sm font-black text-green-accent">
-                            {summaryShipping === 0
-                              ? 'Grátis'
-                              : formatCurrency(summaryShipping)}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-xs leading-5 text-brand-muted">
-                          Frete grátis a partir de {formatCurrency(500)}. Prazo
-                          estimado: 2 a 4 dias úteis.
-                        </p>
-                      </div>
+                  {isQuotingShipping ? (
+                    <div className="rounded-2xl border border-brand-border-soft bg-white/[0.02] p-4 text-sm font-semibold text-brand-muted">
+                      Calculando opções de envio...
                     </div>
+                  ) : null}
+                  <div className="grid gap-3">
+                    {shippingOptions.map((option) => {
+                      const checked =
+                        option.quoteId === selectedShippingQuoteId;
+                      const deliveryWindow =
+                        option.deliveryMinDays === option.deliveryMaxDays
+                          ? `${option.deliveryMinDays ?? 0} dia(s) úteis`
+                          : `${option.deliveryMinDays ?? 0} a ${
+                              option.deliveryMaxDays ?? 0
+                            } dias úteis`;
+
+                      return (
+                        <label
+                          key={option.quoteId ?? option.serviceCode}
+                          className={`rounded-2xl border p-4 transition ${
+                            checked
+                              ? 'border-green-accent/40 bg-green-accent/10'
+                              : 'border-brand-border-soft bg-white/[0.02] hover:border-blue-primary/40'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="shippingQuote"
+                            className="sr-only"
+                            checked={checked}
+                            onChange={() => {
+                              resetCheckoutAttempt();
+                              setSelectedShippingQuoteId(option.quoteId ?? null);
+                            }}
+                          />
+                          <div className="flex items-start gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-accent/15">
+                              <Truck className="h-5 w-5 text-green-accent" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between gap-3">
+                                <h3 className="text-sm font-bold text-white">
+                                  {option.serviceName}
+                                </h3>
+                                <span className="text-sm font-black text-green-accent">
+                                  {option.price === 0
+                                    ? 'Grátis'
+                                    : formatCurrency(option.price)}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-xs leading-5 text-brand-muted">
+                                {option.description ??
+                                  'Método nativo configurado pela loja.'}
+                              </p>
+                              <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold text-brand-muted">
+                                <span className="rounded-full border border-white/10 px-2 py-1">
+                                  {deliveryWindow}
+                                </span>
+                                <span className="rounded-full border border-white/10 px-2 py-1">
+                                  {option.kind === 'pickup'
+                                    ? 'Retirada'
+                                    : 'Entrega'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                    {!isQuotingShipping && shippingOptions.length === 0 ? (
+                      <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm font-semibold text-amber-100">
+                        Nenhuma forma de envio ativa para este endereço.
+                      </div>
+                    ) : null}
                   </div>
                   <CheckoutActionBar
                     onBack={() => setCheckoutStep('entrega')}
                     onNext={handleContinueFromShipping}
                     nextLabel="Continuar para pagamento"
+                    disabled={!selectedShippingQuoteId || isQuotingShipping}
                   />
                 </div>
               ) : null}

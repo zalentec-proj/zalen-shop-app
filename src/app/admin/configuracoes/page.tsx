@@ -122,7 +122,7 @@ export default function SettingsIndexPage() {
           <div className="space-y-2">
             {[
               'Nenhum pagamento real foi implementado.',
-              'Nenhum frete real foi implementado.',
+              'Frete nativo é server-side; Melhor Envio segue planejado.',
               'Domínios e DNS permanecem visuais.',
               'Tokens e secrets não entram no frontend.',
             ].map((item) => (

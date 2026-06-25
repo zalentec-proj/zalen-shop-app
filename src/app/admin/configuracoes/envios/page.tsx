@@ -1,108 +1,83 @@
 import {
   BadgeCheck,
   Boxes,
-  Building2,
+  MapPin,
   PackageCheck,
   Store,
   Truck,
 } from 'lucide-react';
 import {
-  SettingsActionButton,
   SettingsBadge,
   SettingsPanel,
 } from '../SettingsShell';
+import {
+  getShippingConfiguration,
+  type ShippingMethod,
+} from '@/modules/shipping/shipment.service';
+import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
+import {
+  updateShippingMethodAction,
+  upsertShippingOriginAction,
+} from './actions';
 
-type ShippingStatus = 'active' | 'disabled' | 'pending' | 'future';
+const methodIconByKind = {
+  pickup: Store,
+  fixed: Truck,
+  manual: PackageCheck,
+  external: Boxes,
+} satisfies Record<ShippingMethod['kind'], typeof Truck>;
 
-const shippingMethods: Array<{
-  name: string;
-  status: ShippingStatus;
-  summary: string;
-  coverage: string;
-  rules: string[];
-  note: string;
-  action: string;
-  icon: typeof Truck;
-}> = [
-  {
-    name: 'Retirada na loja',
-    status: 'active',
-    summary: 'Permite que o cliente retire o pedido em um ponto definido pela operação.',
-    coverage: 'Brasil Drones',
-    rules: ['Sem custo de frete', 'Confirmação manual', 'Horário operacional'],
-    note: 'Ideal para peças pequenas e clientes próximos ao centro de atendimento.',
-    action: 'Configurar',
-    icon: Store,
-  },
-  {
-    name: 'Frete fixo',
-    status: 'active',
-    summary: 'Valor único por região ou regra simples enquanto cotações reais não estão ativas.',
-    coverage: 'Regra local',
-    rules: ['Valor manual', 'Sem cotação externa', 'Editável futuramente'],
-    note: 'Não calcula distância, peso ou cubagem nesta sprint.',
-    action: 'Configurar',
-    icon: Truck,
-  },
-  {
-    name: 'Frete grátis',
-    status: 'disabled',
-    summary: 'Campanha visual para liberar frete grátis por valor mínimo de pedido.',
-    coverage: 'Campanha futura',
-    rules: ['Valor mínimo', 'Categorias elegíveis', 'Região definida'],
-    note: 'Estado visual apenas. A regra real deve ser calculada server-side.',
-    action: 'Configurar',
-    icon: BadgeCheck,
-  },
-  {
-    name: 'Melhor Envio',
-    status: 'pending',
-    summary: 'Operador logístico planejado para cotação e etiqueta após pesquisa técnica.',
-    coverage: 'Transportadoras parceiras',
-    rules: ['OAuth/API futura', 'Cotação server-side', 'Etiqueta futura'],
-    note: 'Nenhuma chamada ao Melhor Envio foi implementada.',
-    action: 'Finalizar configuração',
-    icon: Boxes,
-  },
-  {
-    name: 'Correios',
-    status: 'future',
-    summary: 'Integração futura para serviços dos Correios quando a estratégia logística for definida.',
-    coverage: 'Nacional',
-    rules: ['PAC', 'Sedex', 'Contrato futuro'],
-    note: 'Fora do escopo atual.',
-    action: 'Em breve',
-    icon: PackageCheck,
-  },
-];
-
-const statusLabel: Record<ShippingStatus, string> = {
-  active: 'Ativado',
-  disabled: 'Desativado',
-  pending: 'Pendente',
-  future: 'Futuro',
+const methodLabelByKind: Record<ShippingMethod['kind'], string> = {
+  pickup: 'Retirada',
+  fixed: 'Frete fixo',
+  manual: 'Entrega manual',
+  external: 'Provider externo',
 };
 
-const statusTone: Record<ShippingStatus, 'success' | 'disabled' | 'warning' | 'neutral'> = {
-  active: 'success',
-  disabled: 'disabled',
-  pending: 'warning',
-  future: 'neutral',
-};
+const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+});
 
-export default function ShippingSettingsPage() {
+function formatCurrency(value: number) {
+  return currencyFormatter.format(value);
+}
+
+function formatDeliveryWindow(method: ShippingMethod) {
+  if (
+    method.minDeliveryDays === undefined ||
+    method.maxDeliveryDays === undefined
+  ) {
+    return 'Prazo não definido';
+  }
+
+  if (method.minDeliveryDays === method.maxDeliveryDays) {
+    return `${method.minDeliveryDays} dia(s) úteis`;
+  }
+
+  return `${method.minDeliveryDays} a ${method.maxDeliveryDays} dias úteis`;
+}
+
+export default async function ShippingSettingsPage() {
+  const store = await resolveCurrentStoreFromHeaders();
+  const { origin, methods } = await getShippingConfiguration(store.id);
+  const activeMethods = methods.filter((method) => method.status === 'active');
+  const nativeMethods = methods.filter((method) => method.kind !== 'external');
+  const externalMethods = methods.filter((method) => method.kind === 'external');
+
   return (
     <div className="space-y-4">
       <SettingsPanel
         title="Meios de envio"
-        description="Defina opções de entrega e retirada. Nesta etapa, os métodos são visuais e não calculam frete real."
-        action={<SettingsActionButton variant="primary" disabled>Novo envio</SettingsActionButton>}
+        description="Configure origem e métodos nativos. O checkout calcula frete no servidor e salva uma cotação válida por 30 minutos."
+        action={<SettingsBadge tone="success">Server-side</SettingsBadge>}
       >
-        <div className="grid gap-2 md:grid-cols-3">
+        <div className="grid gap-2 md:grid-cols-4">
           {[
-            ['Métodos ativos', shippingMethods.filter((method) => method.status === 'active').length],
-            ['Pendentes', shippingMethods.filter((method) => method.status === 'pending').length],
-            ['Planejados', shippingMethods.filter((method) => method.status === 'future').length],
+            ['Métodos ativos', activeMethods.length],
+            ['Métodos nativos', nativeMethods.length],
+            ['Providers externos', externalMethods.length],
+            ['Origem', origin?.status === 'active' ? 'Ativa' : 'Pendente'],
           ].map(([label, value]) => (
             <div key={label} className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5">
               <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
@@ -114,17 +89,117 @@ export default function ShippingSettingsPage() {
         </div>
       </SettingsPanel>
 
+      <SettingsPanel
+        title="Origem de envio"
+        description="Usada para retirada local e, no futuro, para cotações externas. No MVP há uma origem por loja."
+      >
+        <form action={upsertShippingOriginAction} className="grid gap-3">
+          <div className="grid gap-3 md:grid-cols-3">
+            <Field
+              label="Remetente"
+              name="senderName"
+              defaultValue={origin?.senderName ?? ''}
+              required
+            />
+            <Field
+              label="CEP origem"
+              name="postalCode"
+              defaultValue={origin?.postalCode ?? ''}
+              required
+            />
+            <Field
+              label="Telefone"
+              name="phone"
+              defaultValue={origin?.phone ?? ''}
+            />
+          </div>
+          <div className="grid gap-3 md:grid-cols-[1fr_120px_1fr]">
+            <Field
+              label="Rua/Avenida"
+              name="street"
+              defaultValue={origin?.street ?? ''}
+              required
+            />
+            <Field
+              label="Número"
+              name="number"
+              defaultValue={origin?.number ?? ''}
+              required
+            />
+            <Field
+              label="Complemento"
+              name="complement"
+              defaultValue={origin?.complement ?? ''}
+            />
+          </div>
+          <div className="grid gap-3 md:grid-cols-[1fr_1fr_90px_90px]">
+            <Field
+              label="Bairro"
+              name="district"
+              defaultValue={origin?.district ?? ''}
+              required
+            />
+            <Field
+              label="Cidade"
+              name="city"
+              defaultValue={origin?.city ?? ''}
+              required
+            />
+            <Field
+              label="UF"
+              name="state"
+              defaultValue={origin?.state ?? ''}
+              required
+            />
+            <Field
+              label="País"
+              name="country"
+              defaultValue={origin?.country ?? 'BR'}
+              required
+            />
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <label className="grid gap-1 text-xs font-semibold text-slate-300">
+              Status
+              <select
+                name="status"
+                defaultValue={origin?.status ?? 'active'}
+                className="h-9 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs text-white outline-none"
+              >
+                <option value="active">Ativa</option>
+                <option value="disabled">Desativada</option>
+              </select>
+            </label>
+            <button
+              type="submit"
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-4 text-xs font-semibold text-white"
+            >
+              <MapPin className="h-3.5 w-3.5" />
+              Salvar origem
+            </button>
+          </div>
+        </form>
+      </SettingsPanel>
+
       <div className="grid gap-3">
-        {shippingMethods.map((method) => {
-          const Icon = method.icon;
-          const isFuture = method.status === 'future';
+        {methods.map((method) => {
+          const Icon = methodIconByKind[method.kind];
+          const active = method.status === 'active';
+          const freeRule =
+            method.freeOverSubtotal !== undefined
+              ? `Grátis acima de ${formatCurrency(method.freeOverSubtotal)}`
+              : 'Sem regra de grátis';
 
           return (
             <section
-              key={method.name}
+              key={method.id}
               className="rounded-lg border border-white/6 bg-[#0A1730]/95 p-4"
             >
-              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_220px] xl:items-start">
+              <form
+                action={updateShippingMethodAction}
+                className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start"
+              >
+                <input type="hidden" name="methodId" value={method.id} />
                 <div>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex min-w-0 items-start gap-3">
@@ -132,57 +207,155 @@ export default function ShippingSettingsPage() {
                         <Icon className="h-4 w-4" />
                       </span>
                       <div>
-                        <h2 className="text-sm font-semibold text-white">{method.name}</h2>
+                        <h2 className="text-sm font-semibold text-white">
+                          {method.name}
+                        </h2>
                         <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-400">
-                          {method.summary}
+                          {method.description ?? 'Método configurável da loja.'}
                         </p>
                       </div>
                     </div>
-                    <SettingsBadge tone={statusTone[method.status]}>
-                      {statusLabel[method.status]}
+                    <SettingsBadge tone={active ? 'success' : 'disabled'}>
+                      {active ? 'Ativo' : 'Desativado'}
                     </SettingsBadge>
                   </div>
 
-                  <div className="mt-4 grid gap-2 lg:grid-cols-[190px_1fr]">
-                    <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5">
-                      <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                        Cobertura
-                      </div>
-                      <div className="mt-1 text-xs font-semibold text-white">{method.coverage}</div>
-                    </div>
-                    <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5">
-                      <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                        Regras visuais
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {method.rules.map((rule) => (
-                          <SettingsBadge key={rule} tone="info">{rule}</SettingsBadge>
-                        ))}
-                      </div>
-                    </div>
+                  <div className="mt-4 grid gap-2 lg:grid-cols-3">
+                    <Metric label="Tipo" value={methodLabelByKind[method.kind]} />
+                    <Metric
+                      label="Valor atual"
+                      value={
+                        method.price === 0 ? 'Grátis' : formatCurrency(method.price)
+                      }
+                    />
+                    <Metric label="Prazo" value={formatDeliveryWindow(method)} />
                   </div>
                 </div>
 
                 <div className="rounded-lg border border-white/6 bg-[#081225] p-3">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-white">
-                    <Building2 className="h-3.5 w-3.5 text-[#7EC3FF]" />
-                    Operação local
+                  <div className="grid gap-2">
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <Field
+                        label="Valor"
+                        name="price"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        defaultValue={String(method.price)}
+                      />
+                      <Field
+                        label="Grátis acima de"
+                        name="freeOverSubtotal"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        defaultValue={
+                          method.freeOverSubtotal !== undefined
+                            ? String(method.freeOverSubtotal)
+                            : ''
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      <Field
+                        label="Prazo mín."
+                        name="minDeliveryDays"
+                        type="number"
+                        min="0"
+                        step="1"
+                        defaultValue={
+                          method.minDeliveryDays !== undefined
+                            ? String(method.minDeliveryDays)
+                            : ''
+                        }
+                      />
+                      <Field
+                        label="Prazo máx."
+                        name="maxDeliveryDays"
+                        type="number"
+                        min="0"
+                        step="1"
+                        defaultValue={
+                          method.maxDeliveryDays !== undefined
+                            ? String(method.maxDeliveryDays)
+                            : ''
+                        }
+                      />
+                      <label className="grid gap-1 text-xs font-semibold text-slate-300">
+                        Status
+                        <select
+                          name="status"
+                          defaultValue={method.status}
+                          className="h-9 rounded-lg border border-white/8 bg-[#0A1730] px-3 text-xs text-white outline-none"
+                        >
+                          <option value="active">Ativo</option>
+                          <option value="disabled">Desativado</option>
+                        </select>
+                      </label>
+                    </div>
                   </div>
-                  <p className="mt-2 text-[11px] leading-5 text-slate-400">{method.note}</p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <SettingsActionButton disabled={isFuture}>{method.action}</SettingsActionButton>
-                    {method.status !== 'future' ? (
-                      <SettingsActionButton disabled>
-                        {method.status === 'active' ? 'Desativar' : 'Ativar'}
-                      </SettingsActionButton>
-                    ) : null}
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                      <BadgeCheck className="h-3.5 w-3.5 text-emerald-300" />
+                      {freeRule}
+                    </div>
+                    <button
+                      type="submit"
+                      className="rounded-lg border border-white/8 bg-[#0A1730] px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-[#1E3DFF]/35 hover:text-white"
+                    >
+                      Salvar método
+                    </button>
                   </div>
                 </div>
-              </div>
+              </form>
             </section>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  name,
+  defaultValue,
+  type = 'text',
+  required,
+  min,
+  step,
+}: {
+  label: string;
+  name: string;
+  defaultValue: string;
+  type?: string;
+  required?: boolean;
+  min?: string;
+  step?: string;
+}) {
+  return (
+    <label className="grid gap-1 text-xs font-semibold text-slate-300">
+      {label}
+      <input
+        name={name}
+        type={type}
+        required={required}
+        min={min}
+        step={step}
+        defaultValue={defaultValue}
+        className="h-9 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs text-white outline-none transition focus:border-[#1E3DFF]/45"
+      />
+    </label>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5">
+      <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+        {label}
+      </div>
+      <div className="mt-1 text-xs font-semibold text-white">{value}</div>
     </div>
   );
 }

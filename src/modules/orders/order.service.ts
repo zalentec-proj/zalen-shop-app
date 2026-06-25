@@ -29,12 +29,14 @@ import {
   getCustomerTypeFromDocument,
   resolveCheckoutPricing,
 } from '../pricing/pricing.service';
+import { validateShippingQuoteForCheckout } from '../shipping/shipment.service';
 
 const createOrderInputSchema = z.object({
   storeId: z.string().trim().min(1),
   customerId: z.string().trim().min(1).optional(),
   sendToErp: z.boolean().optional(),
   requirePersistence: z.boolean().optional(),
+  shippingQuoteId: z.string().trim().uuid().optional(),
   customer: z
     .object({
       authUserId: z.string().trim().min(1).optional(),
@@ -80,6 +82,10 @@ function generateOrderNumber(): string {
   return `BD-${Math.floor(100000 + Math.random() * 900000)}`;
 }
 
+function roundCurrency(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 export async function listOrders(storeId: string): Promise<OrderListItem[]> {
   return listOrdersFromRepository(storeId);
 }
@@ -114,6 +120,29 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
       quantity: item.quantity,
     })),
   });
+  const shippingAddress = parsed.customer?.shippingAddress;
+  const shippingQuote = parsed.shippingQuoteId
+    ? await validateShippingQuoteForCheckout({
+        storeId: parsed.storeId,
+        quoteId: parsed.shippingQuoteId,
+        subtotal: pricing.subtotal,
+        destinationPostalCode: shippingAddress?.postalCode ?? '',
+        items: parsed.items.map((item) => ({
+          productId: item.productId,
+          variantId: item.variantId,
+          quantity: item.quantity,
+        })),
+      })
+    : null;
+
+  if (parsed.requirePersistence && !shippingQuote) {
+    throw new Error('shipping_quote_required');
+  }
+
+  const shippingTotal = shippingQuote?.price ?? 0;
+  const orderTotal = roundCurrency(
+    pricing.subtotal + shippingTotal - pricing.discountTotal
+  );
 
   const resolvedItems = pricing.items.map((item) => ({
     id: crypto.randomUUID(),
@@ -209,9 +238,24 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
     paymentStatus: 'pending',
     fulfillmentStatus: 'unfulfilled',
     subtotal: pricing.subtotal,
-    shippingTotal: pricing.shippingTotal,
+    shippingTotal,
+    shippingMethodId: shippingQuote?.methodId,
+    shippingQuoteId: shippingQuote?.id,
+    shippingProviderKey: shippingQuote?.providerKey,
+    shippingServiceCode: shippingQuote?.serviceCode,
+    shippingServiceName: shippingQuote?.serviceName,
+    shippingCarrierName: shippingQuote?.carrierName,
+    shippingDeliveryMinDays: shippingQuote?.deliveryMinDays,
+    shippingDeliveryMaxDays: shippingQuote?.deliveryMaxDays,
+    shippingMetadata: shippingQuote
+      ? {
+          destinationPostalCode: shippingQuote.destinationPostalCode,
+          itemsHash: shippingQuote.itemsHash,
+          expiresAt: shippingQuote.expiresAt,
+        }
+      : {},
     discountTotal: pricing.discountTotal,
-    total: pricing.total,
+    total: orderTotal,
     customerType,
     customerLegalName:
       customer?.legalName ??

@@ -267,6 +267,15 @@ orders (
   fulfillment_status text,
   subtotal numeric(12,2),
   shipping_total numeric(12,2),
+  shipping_method_id uuid references shipping_methods(id),
+  shipping_quote_id uuid references shipping_quotes(id),
+  shipping_provider_key text references integration_providers(key),
+  shipping_service_code text,
+  shipping_service_name text,
+  shipping_carrier_name text,
+  shipping_delivery_min_days integer,
+  shipping_delivery_max_days integer,
+  shipping_metadata_json jsonb,
   discount_total numeric(12,2),
   total numeric(12,2),
   price_list_id uuid references price_lists(id),
@@ -301,6 +310,113 @@ order_items (
   price_list_name text
 )
 ```
+
+## 5.1 Frete e envios
+
+Frete é calculado server-side. O checkout não envia valor de frete final; ele
+envia apenas a cotação escolhida.
+
+```sql
+store_shipping_origins (
+  id uuid primary key,
+  store_id uuid references stores(id),
+  sender_name text,
+  postal_code text,
+  street text,
+  number text,
+  complement text,
+  district text,
+  city text,
+  state text,
+  country text,
+  phone text,
+  status text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique(store_id)
+)
+```
+
+```sql
+shipping_methods (
+  id uuid primary key,
+  store_id uuid references stores(id),
+  kind text, -- pickup | fixed | manual | external
+  provider_key text references integration_providers(key),
+  service_code text,
+  name text,
+  description text,
+  status text,
+  sort_order integer,
+  price numeric(12,2),
+  free_over_subtotal numeric(12,2),
+  min_delivery_days integer,
+  max_delivery_days integer,
+  settings_json jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+)
+```
+
+```sql
+shipping_quotes (
+  id uuid primary key,
+  store_id uuid references stores(id),
+  method_id uuid references shipping_methods(id),
+  provider_key text references integration_providers(key),
+  service_code text,
+  carrier_name text,
+  service_name text,
+  price numeric(12,2),
+  delivery_min_days integer,
+  delivery_max_days integer,
+  destination_postal_code text,
+  items_hash text,
+  expires_at timestamptz,
+  raw_payload jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+)
+```
+
+```sql
+shipments (
+  id uuid primary key,
+  store_id uuid references stores(id),
+  order_id uuid references orders(id),
+  provider_key text references integration_providers(key),
+  external_shipment_id text,
+  external_label_id text,
+  label_url text,
+  label_format text,
+  carrier text,
+  tracking_code text,
+  tracking_url text,
+  status text,
+  raw_payload jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+)
+```
+
+```sql
+shipment_events (
+  id uuid primary key,
+  store_id uuid references stores(id),
+  shipment_id uuid references shipments(id),
+  provider_key text references integration_providers(key),
+  external_event_id text,
+  status text,
+  description text,
+  occurred_at timestamptz,
+  raw_payload jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+)
+```
+
+Para o MVP, `store_integrations` continua sendo a fonte de configuração de
+providers externos. Não existe `store_shipping_providers` separado.
 
 ## 6. Conectores globais
 
@@ -416,6 +532,12 @@ product_variants(store_id)
 categories(store_id)
 orders(store_id)
 orders(store_id, created_at)
+orders(shipping_method_id)
+orders(shipping_quote_id)
+store_shipping_origins(store_id)
+shipping_methods(store_id, status)
+shipping_quotes(store_id, expires_at)
+shipment_events(store_id, shipment_id)
 platform_users(user_id)
 store_memberships(user_id)
 store_memberships(store_id)

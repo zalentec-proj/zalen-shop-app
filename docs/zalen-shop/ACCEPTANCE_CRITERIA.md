@@ -30,6 +30,9 @@
 - Checkout identifica PF por CPF e PJ por CNPJ.
 - Checkout aplica tabela de preço PF/PJ server-side.
 - Frontend não define preço cobrado, frete ou total final.
+- Checkout calcula frete por cotação server-side.
+- Checkout finaliza enviando apenas `shippingQuoteId`.
+- Cotação expirada, alterada ou de outro carrinho bloqueia criação do pedido.
 - Compra PJ coleta razão social e inscrição estadual ou isenção.
 - Layout responsivo.
 - Performance aceitável.
@@ -63,6 +66,8 @@
 - Pedido é salvo no banco.
 - Pedido salva snapshot do comprador quando informado.
 - Pedido salva snapshot fiscal PF/PJ e tabela de preço aplicada.
+- Pedido salva `shipping_total` calculado no servidor.
+- Pedido salva método, cotação e metadados normalizados do frete escolhido.
 - `order_items` salva preço unitário final calculado no servidor.
 - Pedido criado pelo storefront salva cliente e snapshot do comprador mesmo sem login.
 - Pedido criado pelo storefront fica vinculado ao cliente autenticado quando houver conta.
@@ -87,7 +92,17 @@
 - Nenhuma API externa é chamada pelo frontend.
 - Credenciais não aparecem no frontend.
 
-## 7.1 Mercado Pago
+## 7.1 Envios
+
+- `store_shipping_origins` representa uma origem de envio por loja no MVP.
+- `shipping_methods` representa retirada, frete fixo, entrega manual e futuro provider externo.
+- `shipping_quotes` persiste cotações por 30 minutos.
+- Métodos nativos não chamam APIs externas.
+- Frete grátis por subtotal é calculado no servidor.
+- `/admin/configuracoes/envios` permite configurar origem e métodos nativos.
+- Melhor Envio permanece bloqueado até pesquisa técnica oficial preenchida.
+
+## 7.2 Mercado Pago
 
 - Cada loja pode conectar Mercado Pago por OAuth em teste e produção.
 - Tokens OAuth ficam criptografados em `store_integrations`.

@@ -75,6 +75,15 @@ export interface Order {
   fulfillmentStatus: FulfillmentStatus;
   subtotal: number;
   shippingTotal: number;
+  shippingMethodId?: string;
+  shippingQuoteId?: string;
+  shippingProviderKey?: string;
+  shippingServiceCode?: string;
+  shippingServiceName?: string;
+  shippingCarrierName?: string;
+  shippingDeliveryMinDays?: number;
+  shippingDeliveryMaxDays?: number;
+  shippingMetadata?: Record<string, unknown>;
   discountTotal: number;
   total: number;
   customerType?: CustomerType;
@@ -107,6 +116,7 @@ export interface CreateOrderInput {
   customer?: OrderCustomerSnapshot;
   sendToErp?: boolean;
   requirePersistence?: boolean;
+  shippingQuoteId?: string;
   items: Array<{
     productId: string;
     variantId: string;

@@ -38,10 +38,6 @@ function getBaseVariantUnitPrice(variant: ProductVariant) {
   return variant.promotionalPrice ?? variant.price;
 }
 
-function calculateShippingTotal(subtotal: number): number {
-  return subtotal >= 500 ? 0 : 49.9;
-}
-
 function roundCurrency(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
@@ -167,7 +163,7 @@ export async function resolveCheckoutPricing(
   const subtotal = roundCurrency(
     items.reduce((accumulator, item) => accumulator + item.total, 0)
   );
-  const shippingTotal = calculateShippingTotal(subtotal);
+  const shippingTotal = 0;
   const discountTotal = 0;
   const firstPricedItem = items.find((item) => item.priceListId);
 

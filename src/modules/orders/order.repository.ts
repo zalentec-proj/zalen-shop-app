@@ -51,6 +51,15 @@ type OrderRow = {
   fulfillment_status: string | null;
   subtotal: number | string | null;
   shipping_total: number | string | null;
+  shipping_method_id: string | null;
+  shipping_quote_id: string | null;
+  shipping_provider_key: string | null;
+  shipping_service_code: string | null;
+  shipping_service_name: string | null;
+  shipping_carrier_name: string | null;
+  shipping_delivery_min_days: number | null;
+  shipping_delivery_max_days: number | null;
+  shipping_metadata_json: Record<string, unknown> | null;
   discount_total: number | string | null;
   total: number | string | null;
   external_erp_provider: string | null;
@@ -357,6 +366,15 @@ function mapOrder(
     fulfillmentStatus: toFulfillmentStatus(row.fulfillment_status),
     subtotal: toNumber(row.subtotal),
     shippingTotal: toNumber(row.shipping_total),
+    shippingMethodId: row.shipping_method_id ?? undefined,
+    shippingQuoteId: row.shipping_quote_id ?? undefined,
+    shippingProviderKey: row.shipping_provider_key ?? undefined,
+    shippingServiceCode: row.shipping_service_code ?? undefined,
+    shippingServiceName: row.shipping_service_name ?? undefined,
+    shippingCarrierName: row.shipping_carrier_name ?? undefined,
+    shippingDeliveryMinDays: row.shipping_delivery_min_days ?? undefined,
+    shippingDeliveryMaxDays: row.shipping_delivery_max_days ?? undefined,
+    shippingMetadata: row.shipping_metadata_json ?? {},
     discountTotal: toNumber(row.discount_total),
     total: toNumber(row.total),
     customerType: toCustomerType(row.customer_type),
@@ -922,6 +940,15 @@ export async function saveOrderToRepository(
     fulfillment_status: order.fulfillmentStatus,
     subtotal: order.subtotal,
     shipping_total: order.shippingTotal,
+    shipping_method_id: toNullableUuid(order.shippingMethodId),
+    shipping_quote_id: toNullableUuid(order.shippingQuoteId),
+    shipping_provider_key: order.shippingProviderKey,
+    shipping_service_code: order.shippingServiceCode,
+    shipping_service_name: order.shippingServiceName,
+    shipping_carrier_name: order.shippingCarrierName,
+    shipping_delivery_min_days: order.shippingDeliveryMinDays,
+    shipping_delivery_max_days: order.shippingDeliveryMaxDays,
+    shipping_metadata_json: order.shippingMetadata ?? {},
     discount_total: order.discountTotal,
     total: order.total,
     external_erp_provider: order.externalErpProvider,
