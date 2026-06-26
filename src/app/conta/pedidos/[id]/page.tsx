@@ -11,6 +11,8 @@ import { createClient } from '@/lib/supabase/server';
 import { getCustomerOrderForUser } from '@/modules/customer-account/customer-account.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 
+export const dynamic = 'force-dynamic';
+
 interface PageProps {
   params: Promise<{ id: string }>;
 }

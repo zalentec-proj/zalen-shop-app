@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/server';
 import { getCustomerAccountForUser } from '@/modules/customer-account/customer-account.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 
+export const dynamic = 'force-dynamic';
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
