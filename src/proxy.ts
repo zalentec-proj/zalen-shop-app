@@ -1,11 +1,14 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import {
+  DEFAULT_LOCAL_STORE_ROOT_DOMAIN,
   getPlatformAppOriginFromHost,
   getStoreSlugFromHostname,
   isLocalhostName,
+  isReservedPlatformSubdomain,
   normalizeHostname,
 } from '@/modules/stores/host-resolution';
+import { activeStore } from '@/modules/stores/current-store';
 
 const placeholderFragments = [
   '${',
@@ -83,6 +86,41 @@ function getRequestOrigin(request: NextRequest) {
   return `${protocol}://${host}`;
 }
 
+function getStoreAdminOrigin(request: NextRequest, rootDomain: string) {
+  const requestOrigin = new URL(getRequestOrigin(request));
+  const hostname = normalizeHostname(requestOrigin.host);
+  const port = requestOrigin.port ? `:${requestOrigin.port}` : '';
+
+  if (hostname?.endsWith(`.${DEFAULT_LOCAL_STORE_ROOT_DOMAIN}`)) {
+    return `${requestOrigin.protocol}//${activeStore.slug}.${DEFAULT_LOCAL_STORE_ROOT_DOMAIN}${port}`;
+  }
+
+  return `${requestOrigin.protocol}//${activeStore.slug}.${rootDomain}`;
+}
+
+function shouldRedirectAdminToStoreHost(
+  request: NextRequest,
+  rootDomain: string
+) {
+  const hostname = normalizeHostname(
+    request.headers.get('x-forwarded-host') ??
+      request.headers.get('host') ??
+      request.nextUrl.host
+  );
+
+  if (!hostname || isLocalhostName(hostname)) {
+    return false;
+  }
+
+  if (hostname === rootDomain) {
+    return true;
+  }
+
+  const slug = getStoreSlugFromHostname(hostname, rootDomain);
+
+  return isReservedPlatformSubdomain(slug);
+}
+
 function redirectWithCookies(
   request: NextRequest,
   response: NextResponse,
@@ -108,6 +146,19 @@ function redirectWithCookies(
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
+  const pathname = request.nextUrl.pathname;
+  const rootDomain =
+    normalizeEnvValue(process.env.PLATFORM_ROOT_DOMAIN) ?? 'zalenshop.com.br';
+
+  if (pathname.startsWith('/admin') && shouldRedirectAdminToStoreHost(request, rootDomain)) {
+    const storeAdminUrl = new URL(
+      `${pathname}${request.nextUrl.search}`,
+      getStoreAdminOrigin(request, rootDomain)
+    );
+
+    return NextResponse.redirect(storeAdminUrl);
+  }
+
   const supabaseUrl = normalizeEnvValue(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const supabasePublishableKey = normalizeEnvValue(
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
@@ -141,11 +192,8 @@ export async function proxy(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const pathname = request.nextUrl.pathname;
 
   if (pathname.startsWith('/admin') && !user) {
-    const rootDomain =
-      normalizeEnvValue(process.env.PLATFORM_ROOT_DOMAIN) ?? 'zalenshop.com.br';
     const requestOrigin = getRequestOrigin(request);
     const loginUrl = new URL(
       '/login',
