@@ -80,7 +80,7 @@ export async function requestCustomerLoginCode(input: {
     accountUrl,
   });
 
-  await sendStoreEmail({
+  const emailResult = await sendStoreEmail({
     storeId: input.storeId,
     templateKey: 'customer_login_code',
     recipientEmail: email,
@@ -92,6 +92,12 @@ export async function requestCustomerLoginCode(input: {
       next,
     },
   });
+
+  if (!emailResult.ok) {
+    throw new Error(
+      `customer_login_email_not_sent:${emailResult.errorCode ?? emailResult.status}`
+    );
+  }
 
   return {
     email,
