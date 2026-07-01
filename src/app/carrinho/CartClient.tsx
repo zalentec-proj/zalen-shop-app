@@ -23,12 +23,19 @@ import Footer from '@/components/layout/Footer';
 import {
   checkoutCartAction,
   identifyCheckoutCustomerAction,
+  lookupCheckoutPostalCodeAction,
   previewCheckoutCartAction,
   quoteCheckoutShippingAction,
+  requestCheckoutEmailCodeAction,
   type CheckoutPreviewActionResult,
   type CheckoutShippingQuoteActionResult,
+  verifyCheckoutEmailCodeAction,
 } from './actions';
 import { isValidCnpj, isValidCpf, isValidCpfOrCnpj, onlyDigits } from '@/modules/customers/br-document';
+import {
+  getEmailTypoErrorMessage,
+  normalizeEmailAddress,
+} from '@/modules/customers/email-validation';
 import {
   createEmptyCart,
   getItemCount,
@@ -82,6 +89,21 @@ type CustomerState = {
 };
 
 type ValidationState = 'empty' | 'valid' | 'invalid' | 'neutral';
+type EmailVerificationStatus = 'idle' | 'sent' | 'verified';
+
+type EmailVerificationState = {
+  email: string;
+  status: EmailVerificationStatus;
+  token: string;
+  message?: string;
+  error?: string;
+};
+
+type PostalCodeLookupState = {
+  postalCode?: string;
+  status: 'idle' | 'loading' | 'found' | 'error';
+  message?: string;
+};
 
 const steps: Array<{ id: CheckoutStep; label: string; title: string }> = [
   { id: 'identificacao', label: '1', title: 'Identificação' },
@@ -269,6 +291,20 @@ export default function CartClient({ customerSession }: Props) {
     city: '',
     state: '',
   });
+  const initialVerifiedEmail = customerSession?.email
+    ? normalizeEmailAddress(customerSession.email)
+    : '';
+  const [emailVerification, setEmailVerification] =
+    useState<EmailVerificationState>({
+      email: initialVerifiedEmail,
+      status: initialVerifiedEmail ? 'verified' : 'idle',
+      token: '',
+      message: initialVerifiedEmail ? 'E-mail validado.' : undefined,
+    });
+  const [postalCodeLookup, setPostalCodeLookup] =
+    useState<PostalCodeLookupState>({
+      status: 'idle',
+    });
   const [checkoutPreview, setCheckoutPreview] =
     useState<CheckoutPreview | null>(null);
   const [shippingOptions, setShippingOptions] = useState<
@@ -283,7 +319,11 @@ export default function CartClient({ customerSession }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [isQuotingShipping, setIsQuotingShipping] = useState(false);
+  const [isSendingEmailCode, setIsSendingEmailCode] = useState(false);
+  const [isVerifyingEmailCode, setIsVerifyingEmailCode] = useState(false);
   const checkoutAttemptIdRef = useRef<string | null>(null);
+  const lastPostalCodeLookupRef = useRef<string | null>(null);
+  const currentPostalCodeRef = useRef('');
 
   const itemCount = getItemCount(cart);
   const stepIndex = steps.findIndex((step) => step.id === checkoutStep);
@@ -299,6 +339,13 @@ export default function CartClient({ customerSession }: Props) {
   const summaryShipping = selectedShippingOption?.price ?? 0;
   const summaryTotal = summarySubtotal + summaryShipping - summaryDiscount;
   const summaryItems = checkoutPreview?.items;
+  const normalizedCustomerEmail = normalizeEmailAddress(customer.email);
+  const currentPostalCodeDigits = onlyDigits(customer.postalCode);
+  const isCheckoutEmailVerified =
+    Boolean(normalizedCustomerEmail) &&
+    emailVerification.status === 'verified' &&
+    emailVerification.email === normalizedCustomerEmail;
+  currentPostalCodeRef.current = currentPostalCodeDigits;
 
   const actionItems = useMemo(
     () =>
@@ -314,6 +361,81 @@ export default function CartClient({ customerSession }: Props) {
     setCart(getStoredCart());
   }, []);
 
+  useEffect(() => {
+    const digits = onlyDigits(customer.postalCode);
+
+    if (digits.length !== 8) {
+      lastPostalCodeLookupRef.current = null;
+      setPostalCodeLookup((current) =>
+        current.status === 'idle'
+          ? current
+          : {
+              status: 'idle',
+            }
+      );
+      return;
+    }
+
+    if (lastPostalCodeLookupRef.current === digits) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      lastPostalCodeLookupRef.current = digits;
+      setPostalCodeLookup({
+        postalCode: digits,
+        status: 'loading',
+        message: 'Consultando CEP...',
+      });
+
+      const result = await lookupCheckoutPostalCodeAction({
+        postalCode: digits,
+      });
+
+      if (currentPostalCodeRef.current !== digits) {
+        return;
+      }
+
+      if (!result.ok) {
+        setPostalCodeLookup({
+          postalCode: digits,
+          status: 'error',
+          message: result.error,
+        });
+        return;
+      }
+
+      resetCheckoutAttempt();
+      setCheckoutPreview(null);
+      clearShippingSelection();
+      setCustomer((current) => {
+        if (onlyDigits(current.postalCode) !== digits) {
+          return current;
+        }
+
+        return {
+          ...current,
+          postalCode: result.address.postalCode,
+          street: result.address.street ?? '',
+          district: result.address.district ?? '',
+          city: result.address.city,
+          state: result.address.state,
+        };
+      });
+      setCheckoutError(null);
+      setPostalCodeLookup({
+        postalCode: result.address.postalCode,
+        status: 'found',
+        message:
+          result.address.street && result.address.district
+            ? 'Endereço localizado. Complete número e complemento se houver.'
+            : 'CEP localizado. Complete os campos que faltarem.',
+      });
+    }, 350);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [customer.postalCode]);
+
   function resetCheckoutAttempt() {
     checkoutAttemptIdRef.current = null;
   }
@@ -328,9 +450,28 @@ export default function CartClient({ customerSession }: Props) {
     return checkoutAttemptIdRef.current;
   }
 
+  function syncEmailVerificationForEmail(email: string) {
+    const normalizedEmail = normalizeEmailAddress(email);
+
+    setEmailVerification((current) => {
+      if (current.status === 'verified' && current.email === normalizedEmail) {
+        return current;
+      }
+
+      return {
+        email: normalizedEmail,
+        status: 'idle',
+        token: '',
+      };
+    });
+  }
+
   function updateCustomer(patch: Partial<CustomerState>) {
     setCheckoutError(null);
     resetCheckoutAttempt();
+    if (patch.email !== undefined) {
+      syncEmailVerificationForEmail(patch.email);
+    }
     setCustomer((current) => ({
       ...current,
       ...patch,
@@ -415,9 +556,17 @@ export default function CartClient({ customerSession }: Props) {
     const value = identifier.trim();
     const digits = onlyDigits(value);
     const isDocument = digits.length >= 11;
+    const emailTypoMessage = isEmail(value)
+      ? getEmailTypoErrorMessage(value)
+      : null;
 
     if (!isEmail(value) && (!isDocument || !isValidCpfOrCnpj(value))) {
       setCheckoutError('Informe um e-mail, CPF ou CNPJ válido.');
+      return;
+    }
+
+    if (emailTypoMessage) {
+      setCheckoutError(emailTypoMessage);
       return;
     }
 
@@ -461,6 +610,7 @@ export default function CartClient({ customerSession }: Props) {
 
     resetCheckoutAttempt();
     setCustomer(nextCustomer);
+    syncEmailVerificationForEmail(nextCustomer.email);
     await refreshPreview(nextCustomer);
     setCheckoutStep('cadastro');
   }
@@ -477,6 +627,12 @@ export default function CartClient({ customerSession }: Props) {
 
     if (!isEmail(customer.email)) {
       return 'Informe um e-mail válido para acompanhar o pedido.';
+    }
+
+    const emailTypoMessage = getEmailTypoErrorMessage(customer.email);
+
+    if (emailTypoMessage) {
+      return emailTypoMessage;
     }
 
     if (onlyDigits(customer.phone).length < 10) {
@@ -588,6 +744,89 @@ export default function CartClient({ customerSession }: Props) {
     setCheckoutStep('pagamento');
   }
 
+  async function handleSendEmailCode() {
+    const email = normalizeEmailAddress(customer.email);
+
+    if (!isEmail(email)) {
+      setCheckoutError('Informe um e-mail válido para receber o código.');
+      setCheckoutStep('cadastro');
+      return;
+    }
+
+    const emailTypoMessage = getEmailTypoErrorMessage(email);
+
+    if (emailTypoMessage) {
+      setCheckoutError(emailTypoMessage);
+      setCheckoutStep('cadastro');
+      return;
+    }
+
+    setCheckoutError(null);
+    setIsSendingEmailCode(true);
+
+    const result = await requestCheckoutEmailCodeAction({ email });
+
+    setIsSendingEmailCode(false);
+
+    if (!result.ok) {
+      setEmailVerification({
+        email,
+        status: 'idle',
+        token: '',
+        error: result.error,
+      });
+      return;
+    }
+
+    setEmailVerification({
+      email: result.email,
+      status: 'sent',
+      token: '',
+      message: result.message,
+    });
+  }
+
+  async function handleVerifyEmailCode() {
+    const email = normalizeEmailAddress(customer.email);
+    const token = emailVerification.token.trim();
+
+    if (!isEmail(email) || token.length < 4) {
+      setEmailVerification((current) => ({
+        ...current,
+        email,
+        error: 'Informe o código recebido por e-mail.',
+      }));
+      return;
+    }
+
+    setIsVerifyingEmailCode(true);
+
+    const result = await verifyCheckoutEmailCodeAction({
+      email,
+      token,
+    });
+
+    setIsVerifyingEmailCode(false);
+
+    if (!result.ok) {
+      setEmailVerification((current) => ({
+        ...current,
+        email,
+        error: result.error,
+        message: undefined,
+      }));
+      return;
+    }
+
+    setCheckoutError(null);
+    setEmailVerification({
+      email: result.email,
+      status: 'verified',
+      token: '',
+      message: result.message,
+    });
+  }
+
   async function handleCheckout() {
     const customerError = validateCustomerData();
     const deliveryError = validateDeliveryData();
@@ -601,6 +840,12 @@ export default function CartClient({ customerSession }: Props) {
     if (!selectedShippingQuoteId) {
       setCheckoutError('Selecione uma forma de envio antes do pagamento.');
       setCheckoutStep('envio');
+      return;
+    }
+
+    if (!isCheckoutEmailVerified) {
+      setCheckoutError('Valide o e-mail com o código recebido antes do pagamento.');
+      setCheckoutStep('pagamento');
       return;
     }
 
@@ -627,6 +872,7 @@ export default function CartClient({ customerSession }: Props) {
             : undefined,
         stateRegistrationExempt:
           currentType === 'pj' ? customer.stateRegistrationExempt : false,
+        acceptsMarketing: customer.acceptsMarketing,
         shippingAddress: {
           postalCode: customer.postalCode,
           street: customer.street,
@@ -683,16 +929,16 @@ export default function CartClient({ customerSession }: Props) {
           </p>
           <div className="w-full rounded-2xl border border-blue-primary/20 bg-blue-primary/10 p-4 text-left">
             <p className="text-xs font-bold text-white">
-              Quer comprar mais rápido na próxima?
+              Acompanhe seu pedido
             </p>
             <p className="mt-1 text-[11px] leading-5 text-brand-muted">
-              A conta é opcional e ajuda a acompanhar pedidos futuros.
+              Use o mesmo e-mail validado para ver pagamentos, pedidos e rastreio.
             </p>
             <Link
-              href="/conta/cadastro"
+              href="/conta"
               className="mt-3 flex h-10 items-center justify-center rounded-xl bg-blue-primary text-xs font-bold text-white"
             >
-              Criar conta opcional
+              Ir para minha conta
             </Link>
           </div>
           <Link
@@ -760,11 +1006,11 @@ export default function CartClient({ customerSession }: Props) {
                 Checkout
               </p>
               <h1 className="font-display text-2xl font-black text-white">
-                Compra sem conta obrigatória
+                Compra sem senha obrigatória
               </h1>
               <p className="max-w-2xl text-sm leading-6 text-brand-muted">
-                Identificamos CPF ou CNPJ para aplicar a regra correta de cliente
-                e salvar dados fiscais do pedido.
+                Validamos o e-mail para ligar o pedido ao comprador e usamos CPF
+                ou CNPJ para aplicar a regra correta de cliente.
               </p>
             </div>
 
@@ -802,16 +1048,20 @@ export default function CartClient({ customerSession }: Props) {
                         validationState={
                           !identifier.trim()
                             ? 'empty'
-                            : isEmail(identifier) || isValidCpfOrCnpj(identifier)
+                            : (isEmail(identifier) &&
+                                !getEmailTypoErrorMessage(identifier)) ||
+                                isValidCpfOrCnpj(identifier)
                               ? 'valid'
                               : 'invalid'
                         }
                         icon={IdCard}
                         helper={
-                          identifier.trim() &&
-                          !isEmail(identifier) &&
-                          !isValidCpfOrCnpj(identifier)
-                            ? 'Digite um e-mail, CPF ou CNPJ válido.'
+                          identifier.trim()
+                            ? getEmailTypoErrorMessage(identifier) ??
+                              (!isEmail(identifier) &&
+                              !isValidCpfOrCnpj(identifier)
+                                ? 'Digite um e-mail, CPF ou CNPJ válido.'
+                                : undefined)
                             : undefined
                         }
                       />
@@ -872,11 +1122,13 @@ export default function CartClient({ customerSession }: Props) {
                       onChange={(value) => updateCustomer({ email: value })}
                       validationState={getGenericValidationState(
                         customer.email,
-                        isEmail
+                        (value) =>
+                          isEmail(value) && !getEmailTypoErrorMessage(value)
                       )}
                       icon={Mail}
                       type="email"
                       autoComplete="email"
+                      helper={getEmailTypoErrorMessage(customer.email) ?? undefined}
                     />
                     <CheckoutInput
                       label="Telefone com DDD"
@@ -1002,11 +1254,18 @@ export default function CartClient({ customerSession }: Props) {
                       label="CEP"
                       value={customer.postalCode}
                       onChange={(value) => updateCustomer({ postalCode: value })}
-                      validationState={getGenericValidationState(
-                        customer.postalCode,
-                        (value) => onlyDigits(value).length >= 8
-                      )}
+                      validationState={
+                        postalCodeLookup.status === 'error'
+                          ? 'invalid'
+                          : postalCodeLookup.status === 'found'
+                            ? 'valid'
+                            : getGenericValidationState(
+                                customer.postalCode,
+                                (value) => onlyDigits(value).length >= 8
+                              )
+                      }
                       autoComplete="postal-code"
+                      helper={postalCodeLookup.message}
                     />
                     <CheckoutInput
                       label="Rua/Avenida"
@@ -1174,9 +1433,95 @@ export default function CartClient({ customerSession }: Props) {
                       Forma de pagamento
                     </h2>
                     <p className="mt-1 text-sm text-brand-muted">
-                      Você será redirecionado para o ambiente seguro do Mercado
-                      Pago.
+                      Valide o e-mail antes de seguir para o Mercado Pago.
                     </p>
+                  </div>
+                  <div
+                    className={`rounded-2xl border p-4 ${
+                      isCheckoutEmailVerified
+                        ? 'border-green-accent/35 bg-green-accent/10'
+                        : 'border-brand-border-soft bg-white/[0.02]'
+                    }`}
+                  >
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-accent/15">
+                          {isCheckoutEmailVerified ? (
+                            <CheckCircle2 className="h-5 w-5 text-green-accent" />
+                          ) : (
+                            <Mail className="h-5 w-5 text-green-accent" />
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-bold text-white">
+                            {isCheckoutEmailVerified
+                              ? 'E-mail validado'
+                              : 'Validar e-mail'}
+                          </h3>
+                          <p className="mt-1 text-xs leading-5 text-brand-muted">
+                            {normalizedCustomerEmail || 'Informe o e-mail do comprador'}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleSendEmailCode}
+                        disabled={isSendingEmailCode || isCheckoutEmailVerified}
+                        className="h-10 rounded-xl border border-green-accent/30 px-4 text-xs font-bold text-green-accent transition hover:bg-green-accent/10 disabled:cursor-default disabled:opacity-60"
+                      >
+                        {isSendingEmailCode
+                          ? 'Enviando...'
+                          : isCheckoutEmailVerified
+                            ? 'Validado'
+                            : emailVerification.status === 'sent'
+                              ? 'Reenviar código'
+                              : 'Enviar código'}
+                      </button>
+                    </div>
+
+                    {!isCheckoutEmailVerified ? (
+                      <div className="mt-4 grid gap-3 md:grid-cols-[1fr_160px]">
+                        <input
+                          value={emailVerification.token}
+                          onChange={(event) =>
+                            setEmailVerification((current) => ({
+                              ...current,
+                              token: event.target.value
+                                .replace(/\D/g, '')
+                                .slice(0, 12),
+                              error: undefined,
+                            }))
+                          }
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          placeholder="Código"
+                          className="h-11 w-full rounded-xl border border-brand-border-soft bg-[#050A14]/80 px-3 text-center text-lg font-black tracking-[0.24em] text-white outline-none transition placeholder:text-sm placeholder:font-semibold placeholder:tracking-normal placeholder:text-brand-muted focus:border-green-accent/60"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleVerifyEmailCode}
+                          disabled={
+                            isVerifyingEmailCode ||
+                            emailVerification.token.trim().length < 4
+                          }
+                          className="h-11 rounded-xl bg-green-accent px-5 text-sm font-black text-brand-bg transition hover:opacity-95 disabled:cursor-wait disabled:opacity-60"
+                        >
+                          {isVerifyingEmailCode ? 'Validando...' : 'Validar'}
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {emailVerification.message || emailVerification.error ? (
+                      <p
+                        className={`mt-3 text-xs font-semibold ${
+                          emailVerification.error
+                            ? 'text-red-200'
+                            : 'text-green-accent'
+                        }`}
+                      >
+                        {emailVerification.error ?? emailVerification.message}
+                      </p>
+                    ) : null}
                   </div>
                   <div className="rounded-2xl border border-blue-primary bg-blue-primary/10 p-4">
                     <div className="flex items-start gap-3">
@@ -1200,7 +1545,7 @@ export default function CartClient({ customerSession }: Props) {
                     nextLabel={
                       isSubmitting ? 'Iniciando pagamento...' : 'Pagar com Mercado Pago'
                     }
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !isCheckoutEmailVerified}
                   />
                 </div>
               ) : null}

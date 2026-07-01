@@ -3,10 +3,21 @@
 import { z } from 'zod';
 import { createHash } from 'node:crypto';
 import { headers } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 import { createOrder } from '@/modules/orders/order.service';
 import { isValidCpfOrCnpj, onlyDigits } from '@/modules/customers/br-document';
 import { findCheckoutCustomerByIdentifier } from '@/modules/customers/customer.service';
 import { CustomerPersistenceError } from '@/modules/customers/customer.repository';
+import {
+  getCommonEmailTypoSuggestion,
+  getEmailTypoErrorMessage,
+  normalizeEmailAddress,
+} from '@/modules/customers/email-validation';
+import {
+  requestCustomerLoginCode,
+  verifyCustomerLoginCode,
+} from '@/modules/customer-account/customer-auth.service';
+import { lookupBrazilianPostalCode } from '@/modules/address/postal-code.service';
 import { getServerEnv } from '@/lib/env/server';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 import {
@@ -70,6 +81,7 @@ const checkoutCustomerSchema = z.object({
   legalName: optionalCheckoutString,
   stateRegistration: optionalCheckoutString,
   stateRegistrationExempt: z.boolean().optional(),
+  acceptsMarketing: z.boolean().optional(),
   shippingAddress: checkoutShippingAddressSchema,
 }).superRefine((customer, context) => {
   const detectedCustomerType = getCustomerTypeFromDocument(customer.document);
@@ -126,6 +138,17 @@ const checkoutSchema = z.object({
 });
 
 type CheckoutInput = z.infer<typeof checkoutSchema>;
+
+export type CheckoutEmailCodeActionResult =
+  | {
+      ok: true;
+      email: string;
+      message: string;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
 
 export type CheckoutCartActionResult =
   | {
@@ -208,6 +231,22 @@ export type CheckoutShippingQuoteActionResult =
       error: string;
     };
 
+export type CheckoutPostalCodeLookupActionResult =
+  | {
+      ok: true;
+      address: {
+        postalCode: string;
+        street?: string;
+        district?: string;
+        city: string;
+        state: string;
+      };
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
 function getSafeCheckoutError(error: unknown) {
   if (
     error instanceof Error &&
@@ -259,8 +298,26 @@ function getSafeCheckoutError(error: unknown) {
       'shipping_quote_items_changed',
       'shipping_quote_address_changed',
       'shipping_quote_stale',
+      'checkout_email_not_verified',
+      'checkout_email_mismatch',
       'fetch failed',
     ]);
+
+    if (error.message === 'checkout_email_not_verified') {
+      return 'Valide o e-mail com o código recebido antes de iniciar o pagamento.';
+    }
+
+    if (error.message === 'checkout_email_mismatch') {
+      return 'O e-mail validado não corresponde ao e-mail informado no checkout.';
+    }
+
+    if (error.message.startsWith('checkout_email_typo:')) {
+      const suggestion = error.message.split(':')[1];
+
+      return suggestion
+        ? `Revise o e-mail antes de continuar. Talvez seja ${suggestion}.`
+        : 'Revise o e-mail antes de continuar.';
+    }
 
     if (safeMessages.has(error.message)) {
       return `Não foi possível iniciar o pagamento agora (${error.message}).`;
@@ -311,6 +368,7 @@ function getCheckoutAttemptFingerprint(input: CheckoutInput) {
       legalName: customer.legalName?.trim(),
       stateRegistration: customer.stateRegistration?.trim(),
       stateRegistrationExempt: customer.stateRegistrationExempt ?? false,
+      acceptsMarketing: customer.acceptsMarketing ?? false,
       shippingAddress: {
         postalCode: onlyDigits(address.postalCode),
         street: address.street.trim(),
@@ -321,6 +379,199 @@ function getCheckoutAttemptFingerprint(input: CheckoutInput) {
         state: address.state.trim().toUpperCase(),
       },
     }),
+  };
+}
+
+async function getCheckoutBaseUrl() {
+  const requestHeaders = await headers();
+
+  return (
+    requestHeaders.get('origin') ??
+    getServerEnv().APP_URL ??
+    'http://localhost:3000'
+  );
+}
+
+function assertCheckoutEmailLooksIntentional(email: string) {
+  const suggestion = getCommonEmailTypoSuggestion(email);
+
+  if (suggestion) {
+    throw new Error(`checkout_email_typo:${suggestion}`);
+  }
+}
+
+async function requireVerifiedCheckoutEmail(input: {
+  email: string;
+}) {
+  const checkoutEmail = normalizeEmailAddress(input.email);
+  assertCheckoutEmailLooksIntentional(checkoutEmail);
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getUser();
+
+  if (error || !data.user) {
+    throw new Error('checkout_email_not_verified');
+  }
+
+  const sessionEmail = normalizeEmailAddress(data.user.email ?? '');
+
+  if (!sessionEmail || sessionEmail !== checkoutEmail) {
+    throw new Error('checkout_email_mismatch');
+  }
+
+  return {
+    authUserId: data.user.id,
+    email: sessionEmail,
+  };
+}
+
+const checkoutEmailCodeRequestSchema = z.object({
+  email: z.string().trim().email(),
+});
+
+const checkoutEmailCodeVerificationSchema = checkoutEmailCodeRequestSchema.extend({
+  token: z.string().trim().min(4).max(12),
+});
+
+export async function requestCheckoutEmailCodeAction(
+  rawInput: unknown
+): Promise<CheckoutEmailCodeActionResult> {
+  const parsed = checkoutEmailCodeRequestSchema.safeParse(rawInput);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: 'Informe um e-mail válido.',
+    };
+  }
+
+  const email = normalizeEmailAddress(parsed.data.email);
+  const typoMessage = getEmailTypoErrorMessage(email);
+
+  if (typoMessage) {
+    return {
+      ok: false,
+      error: typoMessage,
+    };
+  }
+
+  try {
+    const store = await resolveCurrentStoreFromHeaders();
+
+    await requestCustomerLoginCode({
+      storeId: store.id,
+      storeName: store.name,
+      email,
+      baseUrl: await getCheckoutBaseUrl(),
+      next: '/carrinho',
+    });
+
+    return {
+      ok: true,
+      email,
+      message: 'Enviamos um código para validar seu e-mail.',
+    };
+  } catch {
+    return {
+      ok: false,
+      error: 'Não foi possível enviar o código agora. Tente novamente em instantes.',
+    };
+  }
+}
+
+export async function verifyCheckoutEmailCodeAction(
+  rawInput: unknown
+): Promise<CheckoutEmailCodeActionResult> {
+  const parsed = checkoutEmailCodeVerificationSchema.safeParse(rawInput);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: 'Informe o código recebido por e-mail.',
+    };
+  }
+
+  const email = normalizeEmailAddress(parsed.data.email);
+  const typoMessage = getEmailTypoErrorMessage(email);
+
+  if (typoMessage) {
+    return {
+      ok: false,
+      error: typoMessage,
+    };
+  }
+
+  const store = await resolveCurrentStoreFromHeaders();
+  const result = await verifyCustomerLoginCode({
+    storeId: store.id,
+    email,
+    token: parsed.data.token,
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      error: 'Código inválido ou expirado. Solicite um novo código.',
+    };
+  }
+
+  return {
+    ok: true,
+    email,
+    message: 'E-mail validado.',
+  };
+}
+
+const checkoutPostalCodeLookupSchema = z.object({
+  postalCode: z.string().trim().min(8),
+});
+
+function getPostalCodeLookupErrorMessage(errorCode: string) {
+  if (errorCode === 'invalid_postal_code') {
+    return 'Informe um CEP válido com 8 dígitos.';
+  }
+
+  if (errorCode === 'postal_code_not_found') {
+    return 'CEP não encontrado. Revise o número ou preencha o endereço manualmente.';
+  }
+
+  if (errorCode === 'postal_code_incomplete') {
+    return 'Não foi possível completar este CEP. Preencha o endereço manualmente.';
+  }
+
+  return 'Não foi possível consultar o CEP agora. Preencha o endereço manualmente.';
+}
+
+export async function lookupCheckoutPostalCodeAction(
+  rawInput: unknown
+): Promise<CheckoutPostalCodeLookupActionResult> {
+  const parsed = checkoutPostalCodeLookupSchema.safeParse(rawInput);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: 'Informe um CEP válido com 8 dígitos.',
+    };
+  }
+
+  const result = await lookupBrazilianPostalCode(parsed.data.postalCode);
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      error: getPostalCodeLookupErrorMessage(result.errorCode),
+    };
+  }
+
+  return {
+    ok: true,
+    address: {
+      postalCode: result.postalCode,
+      street: result.street,
+      district: result.district,
+      city: result.city,
+      state: result.state,
+    },
   };
 }
 
@@ -345,12 +596,18 @@ export async function checkoutCartAction(
 
   try {
     const store = await resolveCurrentStoreFromHeaders();
-    const requestHeaders = await headers();
-    const baseUrl =
-      requestHeaders.get('origin') ??
-      getServerEnv().APP_URL ??
-      'http://localhost:3000';
-    const fingerprint = getCheckoutAttemptFingerprint(parsed.data);
+    const verifiedEmail = await requireVerifiedCheckoutEmail({
+      email: parsed.data.customer.email,
+    });
+    const checkoutInput = {
+      ...parsed.data,
+      customer: {
+        ...parsed.data.customer,
+        email: verifiedEmail.email,
+      },
+    } satisfies CheckoutInput;
+    const baseUrl = await getCheckoutBaseUrl();
+    const fingerprint = getCheckoutAttemptFingerprint(checkoutInput);
 
     await ensureMercadoPagoCheckoutReady(store.id);
 
@@ -392,9 +649,12 @@ export async function checkoutCartAction(
 
     const order = await createOrder({
       storeId: store.id,
-      customer: parsed.data.customer,
-      items: parsed.data.items,
-      shippingQuoteId: parsed.data.shippingQuoteId,
+      customer: {
+        ...checkoutInput.customer,
+        authUserId: verifiedEmail.authUserId,
+      },
+      items: checkoutInput.items,
+      shippingQuoteId: checkoutInput.shippingQuoteId,
       sendToErp: false,
       requirePersistence: true,
     });

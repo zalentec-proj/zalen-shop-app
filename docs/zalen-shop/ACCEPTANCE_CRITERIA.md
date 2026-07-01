@@ -62,15 +62,24 @@
 
 - Carrinho adiciona/remove itens.
 - Total é calculado no backend quando checkout real for implementado.
+- Checkout não exige senha, mas exige e-mail validado por código antes do
+  pagamento.
+- E-mails com erro comum de domínio, como `gmail.coim`, bloqueiam envio de código
+  e criação de pagamento com sugestão segura de correção.
 - Pedido é criado com número amigável.
 - Pedido é salvo no banco.
 - Pedido salva snapshot do comprador quando informado.
 - Pedido salva snapshot fiscal PF/PJ e tabela de preço aplicada.
+- CEP válido no checkout preenche cidade, UF, bairro e logradouro quando a base
+  ViaCEP retornar esses dados.
+- Endereço preenchido por CEP continua editável para casos de CEP genérico ou
+  base incompleta.
 - Pedido salva `shipping_total` calculado no servidor.
 - Pedido salva método, cotação e metadados normalizados do frete escolhido.
 - `order_items` salva preço unitário final calculado no servidor.
-- Pedido criado pelo storefront salva cliente e snapshot do comprador mesmo sem login.
-- Pedido criado pelo storefront fica vinculado ao cliente autenticado quando houver conta.
+- Pedido criado pelo storefront salva cliente e snapshot do comprador.
+- Pedido criado pelo storefront fica vinculado ao `auth_user_id` validado antes
+  do pagamento.
 - Pedido dispara envio ERP server-side e registra erro seguro quando integração
   estiver pendente/incompleta.
 

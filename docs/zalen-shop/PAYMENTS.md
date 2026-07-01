@@ -49,7 +49,11 @@ Zalen envia pedido ao Bling
 
 Fase atual:
 
-- Checkout convidado na Zalen coleta e-mail, entrega e CPF/CNPJ.
+- Checkout na Zalen coleta e-mail, entrega e CPF/CNPJ sem exigir senha.
+- Checkout valida o e-mail por código enviado pela loja antes do pagamento.
+- Backend bloqueia criação de pedido/preferência se o e-mail atual não estiver
+  validado na sessão Supabase Auth.
+- Backend cria ou reutiliza `customers` vinculado por `auth_user_id`.
 - Backend valida se Mercado Pago está ativo/configurado antes de criar pedido.
 - Backend cria pedido local no Supabase.
 - Backend cria preferência Checkout Pro no Mercado Pago.

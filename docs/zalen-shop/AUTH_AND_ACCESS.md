@@ -28,9 +28,16 @@ Rotas públicas do storefront:
 - `/conta/cadastro`
 - futuras páginas públicas da loja
 
-Navegação, catálogo, carrinho e checkout convidado são públicos. A compra não
-exige conta. O comprador informa e-mail, entrega e CPF/CNPJ no checkout; a conta
-de comprador é opcional para compras futuras e acompanhamento.
+Navegação, catálogo e carrinho são públicos. Para iniciar pagamento, o comprador
+não precisa criar senha, mas precisa validar o e-mail com código enviado pela
+loja. Essa validação cria ou reutiliza a identidade Supabase Auth do comprador e
+vincula `customers.auth_user_id` ao cadastro privado da store antes da criação da
+preferência de pagamento.
+
+O comprador informa e-mail, entrega e CPF/CNPJ no checkout. CPF/CNPJ continuam
+sendo validados server-side para definir `customer_type` e a tabela de preço
+aplicável. Mensagens de validação de e-mail devem ser genéricas o suficiente para
+evitar enumeração de contas.
 
 ## 4. Rotas protegidas
 

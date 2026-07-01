@@ -48,6 +48,7 @@ const createOrderInputSchema = z.object({
       legalName: z.string().trim().min(1).optional(),
       stateRegistration: z.string().trim().min(1).optional(),
       stateRegistrationExempt: z.boolean().optional(),
+      acceptsMarketing: z.boolean().optional(),
       shippingAddress: z
         .object({
           recipientName: z.string().trim().min(1).optional(),
@@ -178,6 +179,7 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
         legalName: parsed.customer.legalName,
         stateRegistration: parsed.customer.stateRegistration,
         stateRegistrationExempt: parsed.customer.stateRegistrationExempt,
+        acceptsMarketing: parsed.customer.acceptsMarketing,
         source: 'checkout',
         address: parsed.customer.shippingAddress
           ? {

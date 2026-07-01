@@ -45,6 +45,7 @@ export interface OrderCustomerSnapshot {
   legalName?: string;
   stateRegistration?: string;
   stateRegistrationExempt?: boolean;
+  acceptsMarketing?: boolean;
   shippingAddress?: OrderAddressSnapshot;
 }
 

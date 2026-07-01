@@ -61,6 +61,22 @@
 
 ---
 
+## ViaCEP
+
+| Recurso | URL |
+|---|---|
+| Documentação geral | https://viacep.com.br/ |
+| Consulta CEP JSON | https://viacep.com.br/ws/01001000/json/ |
+
+**Notas:**
+- O CEP deve ser enviado com 8 dígitos.
+- Formato inválido retorna HTTP 400.
+- CEP válido inexistente retorna JSON com `erro: true`.
+- Não exige token e deve ser chamado server-side pela Zalen.
+- Uso massivo para validação de bases locais pode ser bloqueado pelo provedor.
+
+---
+
 ## Melhor Envio
 
 | Recurso | URL |
