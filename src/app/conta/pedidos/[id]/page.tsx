@@ -7,7 +7,7 @@ import {
   Truck,
   type LucideIcon,
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { createOptionalClient } from '@/lib/supabase/server';
 import { getCustomerOrderForUser } from '@/modules/customer-account/customer-account.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 
@@ -62,7 +62,12 @@ function statusLabel(status: string | undefined) {
 
 export default async function CustomerOrderDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = await createOptionalClient();
+
+  if (!supabase) {
+    redirect(`/conta/entrar?next=/conta/pedidos/${id}`);
+  }
+
   const { data } = await supabase.auth.getUser();
 
   if (!data.user) {

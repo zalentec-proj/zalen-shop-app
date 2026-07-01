@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, User, ShoppingCart, Menu, X } from 'lucide-react';
+import { ReceiptText, Search, User, ShoppingCart, Menu, X } from 'lucide-react';
 import Logo from '../ui/Logo';
 
 interface NavbarProps {
@@ -110,8 +110,15 @@ export default function Navbar({
           </div>
 
           {/* User Button */}
-          <Link href="/conta/entrar" className="hidden sm:flex p-2 text-brand-white hover:text-blue-primary transition-colors cursor-pointer rounded-full hover:bg-white/5" id="user-btn">
+          <Link
+            href="/conta"
+            aria-label="Minha conta"
+            title="Minha conta"
+            className="hidden h-10 items-center gap-2 rounded-full px-3 text-brand-white transition-colors hover:bg-white/5 hover:text-blue-primary sm:flex"
+            id="user-btn"
+          >
             <User className="w-5 h-5" />
+            <span className="hidden text-xs font-semibold xl:inline">Minha conta</span>
           </Link>
 
           {/* Cart Trigger with green accent badge */}
@@ -164,10 +171,22 @@ export default function Navbar({
 
           <div className="h-[1px] bg-brand-border my-2"></div>
 
-          <div className="flex items-center justify-between px-3 py-1">
-            <span className="text-sm text-brand-muted">Acessar minha conta</span>
-            <Link href="/conta/entrar" className="p-2 bg-brand-surface rounded-full border border-brand-border text-brand-white">
+          <div className="grid gap-2 px-3 py-1">
+            <Link
+              href="/conta"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between rounded-xl border border-brand-border bg-brand-surface px-4 py-3 text-brand-white"
+            >
+              <span className="text-sm font-semibold">Minha conta</span>
               <User className="w-4 h-4" />
+            </Link>
+            <Link
+              href="/conta/pedidos"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between rounded-xl border border-brand-border bg-brand-surface px-4 py-3 text-brand-white"
+            >
+              <span className="text-sm font-semibold">Meus pedidos</span>
+              <ReceiptText className="w-4 h-4" />
             </Link>
           </div>
         </div>

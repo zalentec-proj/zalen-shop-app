@@ -7,7 +7,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import Logo from '@/components/ui/Logo';
-import { createClient } from '@/lib/supabase/server';
+import { createOptionalClient } from '@/lib/supabase/server';
 import { getCustomerAccountForUser } from '@/modules/customer-account/customer-account.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 
@@ -44,7 +44,12 @@ function statusLabel(status: string) {
 }
 
 export default async function CustomerAccountPage() {
-  const supabase = await createClient();
+  const supabase = await createOptionalClient();
+
+  if (!supabase) {
+    redirect('/conta/entrar?next=/conta');
+  }
+
   const { data } = await supabase.auth.getUser();
 
   if (!data.user) {
