@@ -6,7 +6,6 @@ import { z } from 'zod';
 import { getServerEnv } from '@/lib/env/server';
 import { createClient } from '@/lib/supabase/server';
 import {
-  getStoreSlugFromHostname,
   isLocalhostName,
   normalizeHostname,
 } from '@/modules/stores/host-resolution';
@@ -67,7 +66,6 @@ function isAllowedAbsoluteNextTarget(value: string) {
 
     return (
       isLocalhostName(hostname) ||
-      Boolean(getStoreSlugFromHostname(hostname, rootDomain)) ||
       hostname === `app.${rootDomain}`
     );
   } catch {
@@ -97,20 +95,29 @@ function getPasswordResetSentState(): FormActionState {
 
 async function getAppOrigin() {
   const env = getServerEnv();
-
-  if (env.APP_URL) {
-    return env.APP_URL;
-  }
-
   const headerStore = await headers();
-  const host = headerStore.get('host');
+  const forwardedHost = headerStore.get('x-forwarded-host');
+  const host = forwardedHost ?? headerStore.get('host');
   const protocol = headerStore.get('x-forwarded-proto') ?? 'http';
 
-  if (!host) {
-    return 'http://localhost:3000';
+  if (env.APP_URL) {
+    const configuredUrl = new URL(env.APP_URL);
+    const configuredHostname = normalizeHostname(configuredUrl.host);
+
+    if (!isLocalhostName(configuredHostname)) {
+      return configuredUrl.origin;
+    }
+
+    const requestHostname = normalizeHostname(host);
+
+    if (host && !isLocalhostName(requestHostname)) {
+      return `${protocol}://${host}`;
+    }
+
+    return configuredUrl.origin;
   }
 
-  return `${protocol}://${host}`;
+  return host ? `${protocol}://${host}` : 'http://localhost:3000';
 }
 
 export async function loginAction(

@@ -3,12 +3,9 @@ import { NextResponse, type NextRequest } from 'next/server';
 import {
   DEFAULT_LOCAL_STORE_ROOT_DOMAIN,
   getPlatformAppOriginFromHost,
-  getStoreSlugFromHostname,
   isLocalhostName,
-  isReservedPlatformSubdomain,
   normalizeHostname,
 } from '@/modules/stores/host-resolution';
-import { activeStore } from '@/modules/stores/current-store';
 
 const placeholderFragments = [
   '${',
@@ -53,7 +50,6 @@ function isAllowedAppRedirectUrl(value: string) {
 
     return (
       isLocalhostName(hostname) ||
-      Boolean(getStoreSlugFromHostname(hostname, rootDomain)) ||
       hostname === `app.${rootDomain}`
     );
   } catch {
@@ -86,19 +82,7 @@ function getRequestOrigin(request: NextRequest) {
   return `${protocol}://${host}`;
 }
 
-function getStoreAdminOrigin(request: NextRequest, rootDomain: string) {
-  const requestOrigin = new URL(getRequestOrigin(request));
-  const hostname = normalizeHostname(requestOrigin.host);
-  const port = requestOrigin.port ? `:${requestOrigin.port}` : '';
-
-  if (hostname?.endsWith(`.${DEFAULT_LOCAL_STORE_ROOT_DOMAIN}`)) {
-    return `${requestOrigin.protocol}//${activeStore.slug}.${DEFAULT_LOCAL_STORE_ROOT_DOMAIN}${port}`;
-  }
-
-  return `${requestOrigin.protocol}//${activeStore.slug}.${rootDomain}`;
-}
-
-function shouldRedirectAdminToStoreHost(
+function shouldRedirectAdminToPlatformHost(
   request: NextRequest,
   rootDomain: string
 ) {
@@ -112,13 +96,11 @@ function shouldRedirectAdminToStoreHost(
     return false;
   }
 
-  if (hostname === rootDomain) {
-    return true;
+  if (hostname.endsWith(`.${DEFAULT_LOCAL_STORE_ROOT_DOMAIN}`)) {
+    return false;
   }
 
-  const slug = getStoreSlugFromHostname(hostname, rootDomain);
-
-  return isReservedPlatformSubdomain(slug);
+  return hostname !== `app.${rootDomain}`;
 }
 
 function redirectWithCookies(
@@ -150,10 +132,11 @@ export async function proxy(request: NextRequest) {
   const rootDomain =
     normalizeEnvValue(process.env.PLATFORM_ROOT_DOMAIN) ?? 'zalenshop.com.br';
 
-  if (pathname.startsWith('/admin') && shouldRedirectAdminToStoreHost(request, rootDomain)) {
+  if (pathname.startsWith('/admin') && shouldRedirectAdminToPlatformHost(request, rootDomain)) {
+    const requestOrigin = new URL(getRequestOrigin(request));
     const storeAdminUrl = new URL(
       `${pathname}${request.nextUrl.search}`,
-      getStoreAdminOrigin(request, rootDomain)
+      getPlatformAppOriginFromHost(requestOrigin, rootDomain)
     );
 
     return NextResponse.redirect(storeAdminUrl);
@@ -199,10 +182,7 @@ export async function proxy(request: NextRequest) {
       '/login',
       getPlatformAppOriginFromHost(new URL(requestOrigin), rootDomain)
     );
-    loginUrl.searchParams.set(
-      'next',
-      new URL(`${pathname}${request.nextUrl.search}`, requestOrigin).toString()
-    );
+    loginUrl.searchParams.set('next', getSafeNextPath(`${pathname}${request.nextUrl.search}`));
 
     return redirectWithCookies(request, response, loginUrl);
   }

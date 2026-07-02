@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { platformBrand } from '@/lib/branding/platform-brand';
 import {
-  getStoreSlugFromHostname,
   isLocalhostName,
   normalizeHostname,
 } from '@/modules/stores/host-resolution';
@@ -30,7 +29,6 @@ function isAllowedAbsoluteNextTarget(value: string) {
 
     return (
       isLocalhostName(hostname) ||
-      Boolean(getStoreSlugFromHostname(hostname, rootDomain)) ||
       hostname === `app.${rootDomain}`
     );
   } catch {

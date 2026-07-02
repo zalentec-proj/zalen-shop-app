@@ -136,7 +136,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 SUPABASE_SECRET_KEY=<service-role-key>
-APP_URL=http://localhost:3000
+APP_URL=https://app.zalenshop.com.br
 ```
 
 `SUPABASE_SERVICE_ROLE_KEY` é o nome preferido. `SUPABASE_SECRET_KEY` continua aceito
@@ -144,13 +144,19 @@ por compatibilidade com setups anteriores.
 
 ### Redirect URLs de Auth
 
-Para recuperação de senha no admin, cadastre as URLs abaixo em Supabase Dashboard →
-Authentication → URL Configuration → Redirect URLs:
+Para recuperação de senha no admin, configure em Supabase Dashboard →
+Authentication → URL Configuration:
+
+- Site URL: `https://app.zalenshop.com.br`
+- Redirect URLs:
 
 ```text
 http://localhost:3000/auth/callback
-https://<dominio-de-producao>/auth/callback
+https://app.zalenshop.com.br/auth/callback
 ```
+
+Em produção, `Site URL` e `APP_URL` não podem ficar como `http://localhost:3000`;
+caso contrário os e-mails de recuperação podem redirecionar para o ambiente local.
 
 O fluxo usado pelo app é:
 
