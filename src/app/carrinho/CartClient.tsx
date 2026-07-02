@@ -122,6 +122,25 @@ function formatCurrency(value: number) {
   return currencyFormatter.format(value);
 }
 
+function formatDeliveryWindow(option: CheckoutShippingOption) {
+  if (option.deliveryTimeLabel) {
+    return option.deliveryTimeLabel;
+  }
+
+  if (
+    option.deliveryMinDays === undefined ||
+    option.deliveryMaxDays === undefined
+  ) {
+    return 'Prazo a confirmar';
+  }
+
+  if (option.deliveryMinDays === option.deliveryMaxDays) {
+    return `${option.deliveryMinDays} dia(s) úteis`;
+  }
+
+  return `${option.deliveryMinDays} a ${option.deliveryMaxDays} dias úteis`;
+}
+
 function isEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
@@ -337,6 +356,9 @@ export default function CartClient({ customerSession }: Props) {
   const summarySubtotal = checkoutPreview?.subtotal ?? cart.subtotal;
   const summaryDiscount = checkoutPreview?.discountTotal ?? 0;
   const summaryShipping = selectedShippingOption?.price ?? 0;
+  const summaryShippingLabel = selectedShippingOption?.serviceName
+    ? `Frete (${selectedShippingOption.serviceName})`
+    : 'Frete';
   const summaryTotal = summarySubtotal + summaryShipping - summaryDiscount;
   const summaryItems = checkoutPreview?.items;
   const normalizedCustomerEmail = normalizeEmailAddress(customer.email);
@@ -1351,12 +1373,7 @@ export default function CartClient({ customerSession }: Props) {
                     {shippingOptions.map((option) => {
                       const checked =
                         option.quoteId === selectedShippingQuoteId;
-                      const deliveryWindow =
-                        option.deliveryMinDays === option.deliveryMaxDays
-                          ? `${option.deliveryMinDays ?? 0} dia(s) úteis`
-                          : `${option.deliveryMinDays ?? 0} a ${
-                              option.deliveryMaxDays ?? 0
-                            } dias úteis`;
+                      const deliveryWindow = formatDeliveryWindow(option);
 
                       return (
                         <label
@@ -1393,8 +1410,10 @@ export default function CartClient({ customerSession }: Props) {
                                 </span>
                               </div>
                               <p className="mt-1 text-xs leading-5 text-brand-muted">
-                                {option.description ??
-                                  'Método nativo configurado pela loja.'}
+                                {option.carrierName
+                                  ? `${option.carrierName} · cotação real por CEP e medidas`
+                                  : option.description ??
+                                    'Método configurado pela loja.'}
                               </p>
                               <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold text-brand-muted">
                                 <span className="rounded-full border border-white/10 px-2 py-1">
@@ -1403,7 +1422,9 @@ export default function CartClient({ customerSession }: Props) {
                                 <span className="rounded-full border border-white/10 px-2 py-1">
                                   {option.kind === 'pickup'
                                     ? 'Retirada'
-                                    : 'Entrega'}
+                                    : option.providerKey === 'superfrete'
+                                      ? 'SuperFrete quote-only'
+                                      : 'Entrega'}
                                 </span>
                               </div>
                             </div>
@@ -1666,7 +1687,7 @@ export default function CartClient({ customerSession }: Props) {
               <div className="mt-5 space-y-2 border-t border-brand-border-soft pt-4">
                 <SummaryRow label="Subtotal" value={formatCurrency(summarySubtotal)} />
                 <SummaryRow
-                  label="Frete"
+                  label={summaryShippingLabel}
                   value={summaryShipping === 0 ? 'Grátis' : formatCurrency(summaryShipping)}
                   accent={summaryShipping === 0}
                 />

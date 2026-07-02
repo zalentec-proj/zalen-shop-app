@@ -15,6 +15,7 @@ import {
 import { BlingHomologationPanel } from './BlingHomologationPanel';
 import { BlingInventorySyncPanel } from './BlingInventorySyncPanel';
 import { BlingProductSyncPanel } from './BlingProductSyncPanel';
+import { BlingWebhookProcessPanel } from './BlingWebhookProcessPanel';
 
 export const metadata: Metadata = {
   title: `${platformBrand.productName} Admin — Bling`,
@@ -58,24 +59,6 @@ function formatOptionalDateTime(value?: string | null) {
   }
 
   return dateTimeFormatter.format(new Date(value));
-}
-
-type OrderSendStatus = 'running' | 'success' | 'error' | undefined;
-
-function formatOrderSendStatus(status: OrderSendStatus) {
-  if (status === 'success') {
-    return 'Sucesso';
-  }
-
-  if (status === 'error') {
-    return 'Erro';
-  }
-
-  if (status === 'running') {
-    return 'Em execução';
-  }
-
-  return 'Sem execução';
 }
 
 function StatusBadge({ status }: { status: keyof typeof statusLabel }) {
@@ -261,58 +244,11 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
                 </div>
 
                 <aside className="space-y-4">
-                  <section className="rounded-xl border border-white/8 bg-[#0A1730]/95 p-4">
-                    <ShieldCheck className="h-5 w-5 text-[#7EC3FF]" />
-                    <h2 className="mt-3 text-base font-semibold">
-                      Pedidos e webhooks
-                    </h2>
-                    <div className="mt-3 space-y-2 text-xs">
-                      {[
-                        {
-                          label: 'Trava de pedido',
-                          value: state.orderSend.enabled ? 'Ligada' : 'Desligada',
-                        },
-                        {
-                          label: 'Último envio',
-                          value:
-                            formatOptionalDateTime(state.orderSend.updatedAt) ??
-                            'Sem envio',
-                        },
-                        {
-                          label: 'Status do envio',
-                          value: formatOrderSendStatus(state.orderSend.status),
-                        },
-                        {
-                          label: 'Webhooks recebidos',
-                          value: String(state.webhooks.received),
-                        },
-                        {
-                          label: 'Jobs pendentes',
-                          value: String(state.webhooks.pending),
-                        },
-                        {
-                          label: 'Erros',
-                          value: String(state.webhooks.error),
-                        },
-                        {
-                          label: 'Último webhook',
-                          value:
-                            formatOptionalDateTime(state.webhooks.lastReceivedAt) ??
-                            'Sem webhook',
-                        },
-                      ].map((item) => (
-                        <div
-                          key={item.label}
-                          className="flex items-center justify-between gap-3 rounded-lg border border-white/6 bg-[#081225] px-3 py-2"
-                        >
-                          <span className="text-slate-400">{item.label}</span>
-                          <span className="font-semibold text-white">
-                            {item.value}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
+                  <BlingWebhookProcessPanel
+                    canRun={canRunBlingJobs}
+                    initialSummary={state.webhooks}
+                    orderSend={state.orderSend}
+                  />
 
                   <section className="rounded-xl border border-white/8 bg-[#0A1730]/95 p-4">
                     <Wifi className="h-5 w-5 text-[#7EC3FF]" />

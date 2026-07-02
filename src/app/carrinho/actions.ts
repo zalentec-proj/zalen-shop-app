@@ -39,7 +39,7 @@ import {
 import { sendOrderReceivedStoreEmail } from '@/modules/email/store-transactional-email.service';
 import type { CustomerType } from '@/modules/pricing/pricing.types';
 import {
-  quoteNativeShipping,
+  quoteShipping,
   type ShippingRate,
 } from '@/modules/shipping/shipment.service';
 
@@ -283,6 +283,32 @@ function getSafeCheckoutError(error: unknown) {
   }
 
   if (error instanceof Error) {
+    const checkoutErrorMessages: Record<string, string> = {
+      shipping_origin_required:
+        'Configure a origem de envio da loja antes de calcular o frete.',
+      shipping_postal_code_invalid: 'Informe um CEP válido para calcular o frete.',
+      shipping_product_not_found:
+        'Não foi possível calcular o frete porque um produto do carrinho não foi encontrado.',
+      shipping_product_variant_not_found:
+        'Não foi possível calcular o frete porque uma variação do carrinho não foi encontrada.',
+      shipping_product_dimensions_missing:
+        'Não foi possível calcular o frete porque um ou mais produtos estão sem peso ou dimensões cadastradas.',
+      superfrete_token_missing:
+        'SuperFrete ainda não está configurada para calcular o frete real.',
+      superfrete_quote_failed:
+        'SuperFrete não conseguiu calcular o frete agora. Tente novamente em instantes.',
+      superfrete_quote_timeout:
+        'A cotação de frete demorou mais que o esperado. Tente novamente.',
+      superfrete_quote_invalid_response:
+        'SuperFrete retornou uma cotação inválida. Tente novamente em instantes.',
+      superfrete_no_services:
+        'Nenhuma transportadora disponível para este CEP e pacote.',
+    };
+
+    if (checkoutErrorMessages[error.message]) {
+      return checkoutErrorMessages[error.message];
+    }
+
     const safeMessages = new Set([
       'checkout_attempt_in_progress',
       'checkout_attempt_fingerprint_mismatch',
@@ -880,7 +906,7 @@ export async function quoteCheckoutShippingAction(
       customerType,
       items: parsed.data.items,
     });
-    const shippingOptions = await quoteNativeShipping({
+    const shippingOptions = await quoteShipping({
       storeId: store.id,
       subtotal: pricing.subtotal,
       destinationPostalCode: parsed.data.shippingAddress.postalCode,
@@ -903,10 +929,10 @@ export async function quoteCheckoutShippingAction(
       discountTotal: pricing.discountTotal,
       shippingOptions,
     };
-  } catch {
+  } catch (error) {
     return {
       ok: false,
-      error: 'Não foi possível calcular o frete agora.',
+      error: getSafeCheckoutError(error),
     };
   }
 }

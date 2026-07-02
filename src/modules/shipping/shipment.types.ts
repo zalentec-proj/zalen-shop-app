@@ -93,6 +93,8 @@ export interface ShippingRate {
   price: number;
   deliveryMinDays?: number;
   deliveryMaxDays?: number;
+  deliveryTimeLabel?: string;
+  rawPayload?: Record<string, unknown>;
   expiresAt?: string;
 }
 
@@ -107,6 +109,7 @@ export interface ShippingQuote {
   price: number;
   deliveryMinDays?: number;
   deliveryMaxDays?: number;
+  deliveryTimeLabel?: string;
   destinationPostalCode: string;
   itemsHash: string;
   expiresAt: string;

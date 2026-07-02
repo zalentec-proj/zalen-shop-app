@@ -12,6 +12,11 @@ import {
   upsertShippingOriginInRepository,
   upsertManualShipmentInRepository,
 } from './shipment.repository';
+import { isManualShippingFallbackEnabled } from '../integrations/superfrete/superfrete.config';
+import {
+  calculateSuperFreteRates,
+  hasActiveSuperFreteMethod,
+} from './providers/superfrete';
 import type {
   Shipment,
   ShippingMethod,
@@ -114,21 +119,68 @@ function getNativeRate(input: {
   };
 }
 
-async function calculateNativeRates(input: ShippingQuoteInput) {
-  const [origin, methods] = await Promise.all([
-    getShippingOriginFromRepository(input.storeId),
-    listShippingMethodsFromRepository(input.storeId),
-  ]);
-
-  return methods
+function calculateNativeRatesFromConfiguration(input: {
+  quote: ShippingQuoteInput;
+  origin: ShippingOrigin | null;
+  methods: ShippingMethod[];
+}) {
+  return input.methods
     .map((method) =>
       getNativeRate({
         method,
-        subtotal: input.subtotal,
-        origin,
+        subtotal: input.quote.subtotal,
+        origin: input.origin,
       })
     )
     .filter((rate): rate is ShippingRate => Boolean(rate));
+}
+
+async function getShippingCalculationConfiguration(storeId: string) {
+  const [origin, methods] = await Promise.all([
+    getShippingOriginFromRepository(storeId),
+    listShippingMethodsFromRepository(storeId),
+  ]);
+
+  return {
+    origin,
+    methods,
+  };
+}
+
+async function calculateNativeRates(input: ShippingQuoteInput) {
+  const configuration = await getShippingCalculationConfiguration(input.storeId);
+
+  return calculateNativeRatesFromConfiguration({
+    quote: input,
+    ...configuration,
+  });
+}
+
+async function calculateShippingRates(input: ShippingQuoteInput) {
+  const configuration = await getShippingCalculationConfiguration(input.storeId);
+  const hasSuperFrete = hasActiveSuperFreteMethod(configuration.methods);
+
+  if (hasSuperFrete) {
+    try {
+      return await calculateSuperFreteRates({
+        quote: input,
+        ...configuration,
+      });
+    } catch (error) {
+      if (!isManualShippingFallbackEnabled()) {
+        throw error;
+      }
+    }
+  }
+
+  if (!hasSuperFrete || isManualShippingFallbackEnabled()) {
+    return calculateNativeRatesFromConfiguration({
+      quote: input,
+      ...configuration,
+    });
+  }
+
+  return [];
 }
 
 export async function getShippingConfiguration(storeId: string): Promise<{
@@ -180,6 +232,28 @@ export async function quoteNativeShipping(
   });
 }
 
+export async function quoteShipping(
+  input: ShippingQuoteInput
+): Promise<ShippingRate[]> {
+  const destinationPostalCode = onlyDigits(input.destinationPostalCode);
+  const rates = await calculateShippingRates({
+    ...input,
+    destinationPostalCode,
+  });
+
+  if (rates.length === 0) {
+    return [];
+  }
+
+  return insertShippingQuotesInRepository({
+    storeId: input.storeId,
+    destinationPostalCode,
+    itemsHash: getShippingItemsHash(input.items),
+    expiresAt: getQuoteExpiration(),
+    rates,
+  });
+}
+
 export async function validateShippingQuoteForCheckout(input: {
   storeId: string;
   quoteId: string;
@@ -208,7 +282,7 @@ export async function validateShippingQuoteForCheckout(input: {
     throw new Error('shipping_quote_address_changed');
   }
 
-  const currentRates = await calculateNativeRates({
+  const currentRates = await calculateShippingRates({
     storeId: input.storeId,
     subtotal: input.subtotal,
     destinationPostalCode: input.destinationPostalCode,
@@ -227,6 +301,8 @@ export async function validateShippingQuoteForCheckout(input: {
 
   return quote;
 }
+
+export const validateShippingQuote = validateShippingQuoteForCheckout;
 
 export async function listShipmentsByOrderIds(input: {
   storeId: string;

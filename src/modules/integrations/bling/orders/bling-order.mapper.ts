@@ -36,6 +36,71 @@ function toBlingPersonType(
   return undefined;
 }
 
+function metadataString(
+  metadata: Record<string, unknown> | undefined,
+  key: string
+) {
+  const value = metadata?.[key];
+
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function metadataPackage(metadata: Record<string, unknown> | undefined) {
+  const value = metadata?.package;
+
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const pack = value as Record<string, unknown>;
+
+  return {
+    weight: typeof pack.weight === 'number' ? pack.weight : undefined,
+    height: typeof pack.height === 'number' ? pack.height : undefined,
+    width: typeof pack.width === 'number' ? pack.width : undefined,
+    length: typeof pack.length === 'number' ? pack.length : undefined,
+  };
+}
+
+function formatShippingNotes(order: OrderListItem, shippingTotal: number) {
+  const lines = [`Pedido Zalen Shop ${order.orderNumber}`];
+
+  if (order.shippingProviderKey === 'superfrete') {
+    lines.push('Frete cotado no checkout via SuperFrete quote-only.');
+    lines.push('Etiqueta deve ser gerada operacionalmente no Bling/SuperFrete.');
+  }
+
+  if (order.shippingCarrierName) {
+    lines.push(`Transportadora: ${order.shippingCarrierName}`);
+  }
+
+  if (order.shippingServiceName) {
+    lines.push(`Servico: ${order.shippingServiceName}`);
+  }
+
+  if (order.shippingServiceCode) {
+    lines.push(`Codigo do servico: ${order.shippingServiceCode}`);
+  }
+
+  const deliveryLabel = metadataString(order.shippingMetadata, 'deliveryTimeLabel');
+
+  if (deliveryLabel) {
+    lines.push(`Prazo exibido ao cliente: ${deliveryLabel}`);
+  }
+
+  lines.push(`Valor cobrado: R$ ${toMoney(shippingTotal).toFixed(2)}`);
+
+  const pack = metadataPackage(order.shippingMetadata);
+
+  if (pack?.length && pack.width && pack.height && pack.weight) {
+    lines.push(
+      `Pacote calculado: ${pack.length}x${pack.width}x${pack.height} cm, ${pack.weight} kg.`
+    );
+  }
+
+  return lines.join('\n');
+}
+
 export function mapOrderToBlingDraft(
   order: OrderListItem,
   options: { paymentMethodId?: number } = {}
@@ -107,7 +172,7 @@ export function mapOrderToBlingDraft(
           },
         }
       : undefined,
-    observacoesInternas: `Pedido Zalen Shop ${order.orderNumber}`,
+    observacoesInternas: formatShippingNotes(order, totals.shipping),
   } satisfies BlingOrderDraft['payload'];
 
   return {

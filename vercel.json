@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/jobs/bling/webhooks/process",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/jobs/bling/sync",
+      "schedule": "30 3 * * *"
+    }
+  ]
+}

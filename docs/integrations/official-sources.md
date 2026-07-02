@@ -77,6 +77,23 @@
 
 ---
 
+## SuperFrete
+
+| Recurso | URL |
+|---|---|
+| Primeiros passos | https://superfrete.readme.io/reference/primeiros-passos |
+| Cálculo de frete | https://superfrete.readme.io/reference/frete |
+| Cotação de frete | https://superfrete.readme.io/reference/cotacao-de-frete |
+| Informações dos pacotes | https://superfrete.readme.io/reference/informações-dos-pacotes |
+| Autenticação | https://superfrete.readme.io/reference/autenticação |
+
+**Notas:**
+- Na V1, usar somente `POST /api/v0/calculator`.
+- Não implementar etiqueta, pagamento de etiqueta, impressão, webhook ou rastreio direto.
+- Token deve ficar apenas no servidor.
+
+---
+
 ## Melhor Envio
 
 | Recurso | URL |

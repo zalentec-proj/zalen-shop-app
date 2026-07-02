@@ -190,6 +190,12 @@ function mapMethod(row: ShippingMethodRow): ShippingMethod {
 }
 
 function mapQuote(row: ShippingQuoteRow): ShippingQuote {
+  const rawPayload = row.raw_payload ?? {};
+  const deliveryTimeLabel =
+    typeof rawPayload.deliveryTimeLabel === 'string'
+      ? rawPayload.deliveryTimeLabel
+      : undefined;
+
   return {
     id: row.id,
     storeId: row.store_id,
@@ -201,10 +207,11 @@ function mapQuote(row: ShippingQuoteRow): ShippingQuote {
     price: toNumber(row.price),
     deliveryMinDays: row.delivery_min_days ?? undefined,
     deliveryMaxDays: row.delivery_max_days ?? undefined,
+    deliveryTimeLabel,
     destinationPostalCode: row.destination_postal_code,
     itemsHash: row.items_hash,
     expiresAt: row.expires_at,
-    rawPayload: row.raw_payload ?? {},
+    rawPayload,
     createdAt: row.created_at ?? new Date(0).toISOString(),
     updatedAt: row.updated_at ?? row.created_at ?? new Date(0).toISOString(),
   };
@@ -357,6 +364,8 @@ export async function insertShippingQuotesInRepository(input: {
         raw_payload: {
           kind: rate.kind,
           description: rate.description,
+          deliveryTimeLabel: rate.deliveryTimeLabel,
+          ...(rate.rawPayload ?? {}),
         },
       }))
     )

@@ -21,6 +21,8 @@ const serverEnvSchema = z.object({
   BLING_REDIRECT_URI: z.string().trim().url().optional(),
   BLING_SCOPES: optionalSecretString,
   BLING_ENV: optionalSecretString,
+  CRON_SECRET: optionalSecretString,
+  INTERNAL_JOB_SECRET: optionalSecretString,
   INTEGRATION_TOKEN_ENCRYPTION_KEY: optionalSecretString,
   MERCADO_PAGO_ENV: z.enum(['test', 'production']).optional(),
   MERCADO_PAGO_CLIENT_ID: optionalSecretString,
@@ -35,6 +37,12 @@ const serverEnvSchema = z.object({
   EMAIL_DEFAULT_FROM: optionalSecretString,
   EMAIL_DEFAULT_REPLY_TO: optionalSecretString,
   MELHOR_ENVIO_TOKEN: optionalSecretString,
+  SUPER_FRETE_API: optionalSecretString,
+  SUPERFRETE_API_TOKEN_BRASIL_DRONES: optionalSecretString,
+  SUPERFRETE_API_BASE_URL: z.string().trim().url().optional(),
+  SUPERFRETE_SERVICES: optionalSecretString,
+  SUPERFRETE_USER_AGENT: optionalSecretString,
+  ENABLE_MANUAL_SHIPPING_FALLBACK: optionalSecretString,
   GEMINI_API_KEY: optionalSecretString,
 });
 
@@ -93,6 +101,8 @@ function parseServerEnv(): ServerEnv {
     BLING_REDIRECT_URI: normalizeEnvValue(process.env.BLING_REDIRECT_URI),
     BLING_SCOPES: normalizeEnvValue(process.env.BLING_SCOPES),
     BLING_ENV: normalizeEnvValue(process.env.BLING_ENV),
+    CRON_SECRET: normalizeEnvValue(process.env.CRON_SECRET),
+    INTERNAL_JOB_SECRET: normalizeEnvValue(process.env.INTERNAL_JOB_SECRET),
     INTEGRATION_TOKEN_ENCRYPTION_KEY: normalizeEnvValue(
       process.env.INTEGRATION_TOKEN_ENCRYPTION_KEY
     ),
@@ -127,6 +137,20 @@ function parseServerEnv(): ServerEnv {
       process.env.EMAIL_DEFAULT_REPLY_TO
     ),
     MELHOR_ENVIO_TOKEN: normalizeEnvValue(process.env.MELHOR_ENVIO_TOKEN),
+    SUPER_FRETE_API: normalizeEnvValue(process.env.SUPER_FRETE_API),
+    SUPERFRETE_API_TOKEN_BRASIL_DRONES: normalizeEnvValue(
+      process.env.SUPERFRETE_API_TOKEN_BRASIL_DRONES
+    ),
+    SUPERFRETE_API_BASE_URL: normalizeEnvValue(
+      process.env.SUPERFRETE_API_BASE_URL
+    ),
+    SUPERFRETE_SERVICES: normalizeEnvValue(process.env.SUPERFRETE_SERVICES),
+    SUPERFRETE_USER_AGENT: normalizeEnvValue(
+      process.env.SUPERFRETE_USER_AGENT
+    ),
+    ENABLE_MANUAL_SHIPPING_FALLBACK: normalizeEnvValue(
+      process.env.ENABLE_MANUAL_SHIPPING_FALLBACK
+    ),
     GEMINI_API_KEY: normalizeEnvValue(process.env.GEMINI_API_KEY),
   });
 

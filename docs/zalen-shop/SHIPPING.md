@@ -4,14 +4,14 @@
 
 O MVP não deve tentar replicar logística completa da Nuvemshop ou do Bling.
 
-## 2. MVP
+## 2. V1
 
-- Retirada na loja.
-- Frete fixo.
-- Frete grátis acima de valor mínimo.
-- Código de rastreio manual.
-- Status de envio no pedido.
-- E-mail/status para o comprador, se implementado.
+- Cotação real no checkout via SuperFrete quote-only.
+- Cliente escolhe transportadora/serviço antes do pagamento.
+- Pedido salva snapshot da cotação.
+- Pedido pago vai ao Bling com o frete escolhido.
+- Bling continua como hub operacional de expedição, etiqueta e rastreio.
+- Código de rastreio segue manual ou via sincronização futura do Bling.
 
 ## 2.1 Implementação nativa — Fase 1
 
@@ -35,14 +35,47 @@ Decisões congeladas:
 - Métodos nativos não exigem peso/dimensões.
 - Peso interno das variantes é kg; dimensões são cm.
 - Provider externo não usa fallback físico silencioso.
+- SuperFrete usa `products[]`; se peso ou dimensões estiverem ausentes, a cotação é bloqueada.
 
 Seed inicial Brasil Drones:
 
+- SuperFrete quote-only ativo como provider externo de cotação.
 - Entrega Brasil Drones ativa.
 - Valor: R$49,90.
 - Frete grátis acima de R$500.
 - Prazo: 2 a 4 dias úteis.
 - Retirada local desativada até origem ativa cadastrada.
+
+O fallback manual só deve ser usado quando explicitamente habilitado por
+configuração de ambiente.
+
+## 2.2 SuperFrete quote-only
+
+A V1 usa apenas:
+
+```http
+POST /api/v0/calculator
+```
+
+Não usar na V1:
+
+- envio de frete para carrinho SuperFrete;
+- geração de etiqueta;
+- pagamento de etiqueta;
+- link de impressão;
+- webhook;
+- rastreio direto;
+- OAuth por loja.
+
+Serviços iniciais:
+
+- `1` PAC;
+- `2` SEDEX;
+- `3` Jadlog;
+- `17` Mini Envios.
+
+Loggi depende da configuração do token SuperFrete e não deve ser incluída
+manualmente no campo `services`.
 
 ## 3. Bling
 
@@ -56,20 +89,20 @@ Se o lojista desejar, o Bling pode continuar cuidando de:
 - rastreio;
 - Melhor Envio.
 
-## 4. Melhor Envio
+## 4. SuperFrete e futuros providers
 
-Integração prevista para fase posterior.
+SuperFrete direta completa fica prevista para fase posterior.
 
 Melhor Envio não deve ser chamado até a pesquisa técnica oficial estar
 preenchida em `docs/integrations/melhor-envio-research-template.md`.
 
 Possíveis recursos:
 
-- cotação automática de frete;
 - geração de etiqueta;
 - rastreamento;
 - atualização automática do pedido;
-- cálculo por CEP.
+- webhooks;
+- cálculo por CEP para providers adicionais.
 
 ## 5. Fluxo ideal futuro
 

@@ -19,6 +19,7 @@ Nenhuma integração pode ser implementada com endpoints, payloads, headers, esc
 | **Bling** | ERP operacional — produtos, estoque, pedidos, notas | Beta operacional |
 | **Mercado Pago** | Pagamentos — Pix, cartão, boleto via Checkout Pro | Beta Checkout Pro |
 | **Resend** | E-mails transacionais por loja — login, pedido, pagamento e rastreio | MVP centralizado |
+| **SuperFrete** | Cotação real de frete no checkout | V1 quote-only |
 | **Melhor Envio** | Cotação e geração de etiquetas de frete | Planejado |
 | **Asaas** | Pagamentos alternativos (futuro) | Futuro |
 | **Pagar.me** | Pagamentos alternativos (futuro) | Futuro |
@@ -38,7 +39,7 @@ Nunca pule etapas. Se a documentação oficial não estiver clara, registre a d�
 ## Alertas de segurança obrigatórios
 
 ### ❌ Nunca expor token no frontend
-Tokens de acesso (Bling, Mercado Pago, Melhor Envio) são segredos de servidor. Nunca devem aparecer em código client-side, variáveis `NEXT_PUBLIC_*`, respostas de API ou HTML renderizado.
+Tokens de acesso (Bling, Mercado Pago, SuperFrete, Melhor Envio) são segredos de servidor. Nunca devem aparecer em código client-side, variáveis `NEXT_PUBLIC_*`, respostas de API ou HTML renderizado.
 
 ### ❌ Nunca salvar token em log
 Logs de erro, console.log, Sentry, Datadog ou qualquer sistema de observabilidade não devem conter tokens, refresh tokens ou credenciais.
@@ -63,6 +64,7 @@ Se o endpoint não está na documentação oficial, ele não existe. Não assuma
 | `bling-research-template.md` | Template de pesquisa técnica — Bling |
 | `mercado-pago-research-template.md` | Template de pesquisa técnica — Mercado Pago |
 | `resend-research.md` | Pesquisa técnica — Resend |
+| `superfrete-research.md` | Pesquisa técnica — SuperFrete quote-only |
 | `melhor-envio-research-template.md` | Template de pesquisa técnica — Melhor Envio |
 
 ---

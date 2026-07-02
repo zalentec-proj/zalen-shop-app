@@ -266,6 +266,12 @@ function formatDateTime(value: string) {
   return longDateFormatter.format(new Date(value));
 }
 
+function orderMetadataString(order: OrderListItem, key: string) {
+  const value = order.shippingMetadata?.[key];
+
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
 function initialsFromName(name?: string) {
   if (!name) return 'BD';
 
@@ -1758,7 +1764,23 @@ export default function AdminDashboard({
                     ) : null}
                   </div>
                 </div>
-                <div className="text-slate-200">{order.items.length} item(ns)</div>
+                <div className="text-slate-200">
+                  {order.items.length} item(ns)
+                  {order.shippingServiceName ? (
+                    <div className="mt-1 space-y-0.5 text-[11px] text-slate-400">
+                      <div className="truncate">
+                        {order.shippingCarrierName
+                          ? `${order.shippingCarrierName} · `
+                          : ''}
+                        {order.shippingServiceName}
+                      </div>
+                      <div>{formatCurrency(order.shippingTotal)}</div>
+                      {orderMetadataString(order, 'deliveryTimeLabel') ? (
+                        <div>{orderMetadataString(order, 'deliveryTimeLabel')}</div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
                 <div className="space-y-1">
                   <SmallBadge className={orderStatusClass[order.status]}>
                     {orderStatusLabel[order.status]}

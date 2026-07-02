@@ -29,6 +29,8 @@ Objetivo: deixar a primeira loja operável.
 - Sync de produtos.
 - Sync de estoque.
 - Envio de pedidos para Bling em beta, com trava por loja e retry.
+- Processador de webhooks Bling para produto/estoque.
+- Sync incremental agendado Bling como camada de segurança.
 - Logs de integração.
 - Reprocessamento básico de erros.
 
@@ -41,10 +43,18 @@ Objetivo: transformar integrações em catálogo de conectores reutilizáveis.
 - Bling como ERP disponível para Brasil Drones.
 - Mercos documentado para LB London.
 - Mercado Pago em beta com Checkout Pro, retorno e webhook validados.
-- Melhor Envio planejado.
+- SuperFrete em V1 quote-only para cotação real no checkout.
+- Melhor Envio planejado como provider futuro.
 - Interfaces comuns de ERP, payment e shipping.
 - Webhooks server-side validados e enfileirados.
 - Idempotência.
+
+Roadmap de logística:
+
+- V1: SuperFrete apenas cotação + Bling operacional.
+- V2: token SuperFrete por loja.
+- V3: geração automática de etiqueta, se necessário.
+- V4: webhook/rastreio direto, se fizer sentido.
 
 ## Fase 4 — Segunda loja/case: LB London
 

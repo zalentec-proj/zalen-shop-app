@@ -88,6 +88,17 @@ export const mockIntegrationProviders: IntegrationProvider[] = [
     createdAt: fallbackDate,
     updatedAt: fallbackDate,
   },
+  {
+    id: 'provider-superfrete',
+    key: 'superfrete',
+    name: 'SuperFrete',
+    category: 'shipping',
+    status: 'beta',
+    description:
+      'Cotação real de frete quote-only para checkout. Etiqueta e rastreio seguem operacionais no Bling.',
+    createdAt: fallbackDate,
+    updatedAt: fallbackDate,
+  },
 ];
 
 function toCompactLogText(value: string | undefined) {

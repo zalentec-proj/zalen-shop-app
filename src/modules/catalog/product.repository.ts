@@ -62,6 +62,12 @@ export interface UpdateProductStockInput {
   stock: number;
 }
 
+export interface MarkIntegrationProductInactiveInput {
+  storeId: string;
+  externalProvider: string;
+  externalId: string;
+}
+
 export interface UpsertIntegrationCategoryInput {
   externalId: string;
   name: string;
@@ -1351,6 +1357,48 @@ export async function updateProductStatusInRepository(
     persisted: false,
     source: 'supabase',
     error: 'product-status-update-failed',
+  };
+}
+
+export async function markIntegrationProductInactiveInRepository(
+  input: MarkIntegrationProductInactiveInput
+): Promise<CatalogMutationResult> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return {
+      ok: false,
+      persisted: false,
+      source: 'mock',
+      error: 'supabase-admin-not-configured',
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('products')
+    .update({
+      status: 'inactive',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('store_id', input.storeId)
+    .eq('external_provider', input.externalProvider)
+    .eq('external_id', input.externalId)
+    .select('id')
+    .maybeSingle();
+
+  if (!error) {
+    return {
+      ok: true,
+      persisted: Boolean(data),
+      source: 'supabase',
+    };
+  }
+
+  return {
+    ok: false,
+    persisted: false,
+    source: 'supabase',
+    error: 'integration-product-inactivate-failed',
   };
 }
 

@@ -1,6 +1,6 @@
 # Pesquisa Técnica — Bling
 
-> Status: **App público / OAuth Ready / Product Sync v1 / Inventory Sync v1 / Order Send beta / Webhook v1 enfileirado**
+> Status: **App público / OAuth Ready / Product Sync v1 / Inventory Sync v1 / Order Send beta / Webhook worker v1 / Cron sync v1**
 > Fontes oficiais consultadas: https://developer.bling.com.br
 
 ## Fonte oficial
@@ -266,7 +266,8 @@ Idempotência:
 
 ## Webhooks
 
-Implementado recebimento Bling v1 como validação + deduplicação + fila.
+Implementado recebimento Bling v1 como validação + deduplicação + fila, com
+processador server-side separado para aplicar eventos de produto e estoque.
 
 Fonte oficial: https://developer.bling.com.br/webhooks
 
@@ -293,7 +294,38 @@ Comportamento implementado:
 - duplicidade retorna `200` sem criar novo job;
 - cria `sync_jobs` com `job_type = webhook_process`, `status = pending` e
   payload mínimo (`webhookEventId`, `eventId`, `event`, IDs externos);
-- não atualiza produto, estoque ou pedido a partir do webhook nesta entrega.
+- o endpoint público não atualiza produto, estoque ou pedido diretamente;
+- o worker protegido processa eventos `product.created`, `product.updated`,
+  `product.deleted`, `stock.*` e `virtual_stock.*`;
+- produto criado/alterado aciona sync unitário por ID Bling;
+- produto removido no Bling é marcado como `inactive` na Zalen, sem apagar
+  histórico;
+- eventos de estoque acionam sync de saldos por lote usando `/estoques/saldos`;
+- eventos fora do escopo são marcados como processados/ignorados para evitar
+  retry infinito;
+- jobs com erro usam `attempts`, `locked_at` e `next_attempt_at` para retry
+  seguro.
+
+## Jobs internos e cron
+
+Rotas server-side protegidas:
+
+```txt
+GET|POST /api/jobs/bling/webhooks/process
+GET|POST /api/jobs/bling/sync
+POST     /api/integrations/bling/webhooks/process
+```
+
+Regras:
+
+- as rotas `/api/jobs/*` exigem `Authorization: Bearer <CRON_SECRET>` ou
+  `Authorization: Bearer <INTERNAL_JOB_SECRET>`;
+- a rota de admin exige sessão Supabase e acesso à loja ativa;
+- no plano Hobby atual da Vercel, os crons rodam diariamente às 03:00 UTC
+  (webhooks) e 03:30 UTC (sync incremental);
+- quando a conta subir para Pro, a configuração recomendada volta a ser
+  webhooks a cada 5 minutos e sync incremental a cada 30 minutos;
+- nenhum token Bling é retornado ao frontend ou salvo em log.
 
 ## Variáveis de ambiente necessárias
 
@@ -304,6 +336,8 @@ BLING_REDIRECT_URI=
 BLING_SCOPES=
 BLING_ENV=sandbox
 INTEGRATION_TOKEN_ENCRYPTION_KEY=
+CRON_SECRET=
+INTERNAL_JOB_SECRET=
 ```
 
 ## Segurança

@@ -107,9 +107,11 @@
 - `store_shipping_origins` representa uma origem de envio por loja no MVP.
 - `shipping_methods` representa retirada, frete fixo, entrega manual e futuro provider externo.
 - `shipping_quotes` persiste cotações por 30 minutos.
+- SuperFrete V1 chama apenas `POST /api/v0/calculator` no servidor.
 - Métodos nativos não chamam APIs externas.
 - Frete grátis por subtotal é calculado no servidor.
 - `/admin/configuracoes/envios` permite configurar origem e métodos nativos.
+- SuperFrete não gera etiqueta, pagamento de etiqueta, impressão, webhook ou rastreio direto na V1.
 - Melhor Envio permanece bloqueado até pesquisa técnica oficial preenchida.
 
 ## 7.2 Mercado Pago
@@ -147,7 +149,10 @@ Após implementação:
 - estoque sincronizado;
 - pedido enviado;
 - erro registrado em log;
-- webhook salvo antes de processar.
+- webhook salvo antes de processar;
+- webhook de produto/estoque processado fora da request pública;
+- sync incremental agendado mantém produto/estoque consistentes;
+- eventos duplicados não geram sync duplicado.
 
 ## 9. Mercos
 

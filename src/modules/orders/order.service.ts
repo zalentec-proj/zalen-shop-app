@@ -254,6 +254,10 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
           destinationPostalCode: shippingQuote.destinationPostalCode,
           itemsHash: shippingQuote.itemsHash,
           expiresAt: shippingQuote.expiresAt,
+          quoteOnly: shippingQuote.rawPayload.quoteOnly === true,
+          deliveryTimeLabel: shippingQuote.deliveryTimeLabel,
+          package: shippingQuote.rawPayload.package,
+          quote: shippingQuote.rawPayload,
         }
       : {},
     discountTotal: pricing.discountTotal,

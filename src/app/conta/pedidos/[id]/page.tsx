@@ -61,6 +61,15 @@ function statusLabel(status: string | undefined) {
   return labels[status ?? ''] ?? status ?? 'Pendente';
 }
 
+function shippingMetadataString(
+  metadata: Record<string, unknown> | undefined,
+  key: string
+) {
+  const value = metadata?.[key];
+
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
 export default async function CustomerOrderDetailPage({ params }: PageProps) {
   const { id } = await params;
   const supabase = await createOptionalClient();
@@ -86,6 +95,14 @@ export default async function CustomerOrderDetailPage({ params }: PageProps) {
   if (!order) {
     notFound();
   }
+
+  const shippingChoice = [order.shippingCarrierName, order.shippingServiceName]
+    .filter(Boolean)
+    .join(' - ');
+  const shippingDeliveryLabel = shippingMetadataString(
+    order.shippingMetadata,
+    'deliveryTimeLabel'
+  );
 
   return (
     <main className="min-h-screen bg-brand-bg px-4 py-8 text-white">
@@ -137,7 +154,9 @@ export default async function CustomerOrderDetailPage({ params }: PageProps) {
             value={
               order.shipments[0]
                 ? statusLabel(order.shipments[0].status)
-                : 'Rastreio pendente'
+                : order.paymentStatus === 'paid'
+                  ? 'Em separação'
+                  : 'Rastreio pendente'
             }
           />
         </section>
@@ -166,6 +185,25 @@ export default async function CustomerOrderDetailPage({ params }: PageProps) {
             ))}
           </div>
         </section>
+
+        {shippingChoice ? (
+          <section className="rounded-2xl border border-brand-border bg-[#090E17]/90 p-5">
+            <h2 className="text-lg font-black">Frete escolhido</h2>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <InfoLine label="Serviço" value={shippingChoice} />
+              <InfoLine
+                label="Valor"
+                value={formatCurrency(order.shippingTotal)}
+              />
+              <InfoLine label="Prazo estimado" value={shippingDeliveryLabel} />
+            </div>
+            {order.shipments.length === 0 ? (
+              <p className="mt-4 text-sm text-brand-muted">
+                Pedido aprovado. A loja está preparando o envio.
+              </p>
+            ) : null}
+          </section>
+        ) : null}
 
         <section className="rounded-2xl border border-brand-border bg-[#090E17]/90 p-5">
           <h2 className="text-lg font-black">Rastreio</h2>
@@ -196,7 +234,7 @@ export default async function CustomerOrderDetailPage({ params }: PageProps) {
               ))
             ) : (
               <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4 text-sm text-brand-muted">
-                O rastreio ainda não foi informado pela loja.
+                Aguardando expedição no Bling.
               </div>
             )}
           </div>

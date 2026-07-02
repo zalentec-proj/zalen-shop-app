@@ -3,8 +3,9 @@
 ## Status desta sprint
 
 Implementada a base segura para OAuth Bling da Brasil Drones, sincronização real
-de produtos/estoque, envio beta de pedidos e recebimento de webhook v1
-enfileirado. O app Zalen Shop está aprovado/publicado no Bling.
+de produtos/estoque, envio beta de pedidos, recebimento de webhook v1,
+processador de eventos e sincronização agendada de segurança. O app Zalen Shop
+está aprovado/publicado no Bling.
 
 ## O que foi implementado
 
@@ -42,6 +43,11 @@ enfileirado. O app Zalen Shop está aprovado/publicado no Bling.
   `settings_json.orderSend.enabled === true`.
 - Webhook Bling v1 com assinatura HMAC-SHA256, deduplicação por `eventId`,
   persistência em `webhook_events` e job `webhook_process` pendente.
+- Worker server-side para processar webhooks de produto/estoque fora da request
+  pública do Bling.
+- Cron Vercel para processar webhooks pendentes e rodar sync incremental de
+  segurança.
+- Admin do Bling com ação manual para processar pendências de webhook.
 
 ## Rotas
 
@@ -52,7 +58,10 @@ POST /api/integrations/bling/homologation/run
 POST /api/integrations/bling/products/sync
 POST /api/integrations/bling/inventory/sync
 POST /api/integrations/bling/orders/send
+POST /api/integrations/bling/webhooks/process
 POST /api/webhooks/bling
+GET|POST /api/jobs/bling/webhooks/process
+GET|POST /api/jobs/bling/sync
 ```
 
 ## Domínios oficiais
@@ -73,6 +82,8 @@ BLING_REDIRECT_URI=https://app.zalenshop.com.br/api/integrations/bling/callback
 BLING_SCOPES=
 BLING_ENV=production
 INTEGRATION_TOKEN_ENCRYPTION_KEY=
+CRON_SECRET=
+INTERNAL_JOB_SECRET=
 ```
 
 Para desenvolvimento local, usar:
@@ -302,7 +313,7 @@ Regras implementadas:
 - rota interna `POST /api/integrations/bling/orders/send` permite retry manual;
 - erros são códigos seguros, sem token ou payload bruto.
 
-## Webhook Bling v1 enfileirado
+## Webhook Bling v1 processado
 
 Regras implementadas:
 
@@ -313,12 +324,38 @@ Regras implementadas:
 - evento válido salva `webhook_events` com `signature_valid = true`;
 - duplicidade por `store_id + provider + eventId` retorna `200`;
 - cria `sync_jobs.job_type = webhook_process` com `status = pending`;
-- nenhum evento de negócio é aplicado nesta etapa.
+- nenhum evento de negócio é aplicado dentro da request pública do Bling;
+- rota protegida `/api/jobs/bling/webhooks/process` consome pendências;
+- rota admin `/api/integrations/bling/webhooks/process` permite reprocessar
+  pendências da loja ativa;
+- eventos `product.created` e `product.updated` acionam sync unitário do produto;
+- evento `product.deleted` inativa produto importado sem apagar histórico;
+- eventos `stock.*` e `virtual_stock.*` acionam sync de estoque por lote;
+- eventos fora do escopo são marcados como ignorados para não criar retry
+  infinito;
+- erros usam retry com `attempts`, `locked_at` e `next_attempt_at`.
+
+## Cron sync v1
+
+Regras implementadas:
+
+- `vercel.json` agenda `/api/jobs/bling/webhooks/process` diariamente às
+  03:00 UTC enquanto a Vercel estiver no plano Hobby;
+- `vercel.json` agenda `/api/jobs/bling/sync` diariamente às 03:30 UTC enquanto
+  a Vercel estiver no plano Hobby;
+- em plano Pro, os horários recomendados são webhooks a cada 5 minutos e sync
+  incremental a cada 30 minutos;
+- os jobs internos exigem `CRON_SECRET` ou `INTERNAL_JOB_SECRET`;
+- o sync agendado lista lojas com Bling conectado e credenciais criptografadas;
+- para cada loja, roda sync incremental de produtos e sync de estoque;
+- jobs simultâneos continuam bloqueados pelos serviços existentes de produto e
+  estoque.
 
 ## Próximas etapas
 
 1. Implementar estoque por depósito específico via `/estoques/saldos/{idDeposito}`.
-2. Implementar processador/worker de webhook Bling.
-3. Refinar configuração operacional de forma de pagamento/filial quando a loja
+2. Refinar configuração operacional de forma de pagamento/filial quando a loja
    ativar envio real em produção.
+3. Confirmar unidade operacional de peso vinda do Bling antes de abrir vendas
+   com frete real SuperFrete.
 4. Preparar Mercado Pago e Melhor Envio como conectores opcionais futuros.

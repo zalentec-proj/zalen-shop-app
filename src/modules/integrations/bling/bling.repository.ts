@@ -25,6 +25,28 @@ type BlingSyncJobType =
   | 'order_send'
   | 'webhook_process';
 
+type BlingWebhookProcessJobRow = {
+  id: string;
+  store_id: string;
+  status: string;
+  attempts: number | null;
+  payload: Record<string, unknown> | null;
+  created_at: string | null;
+  locked_at?: string | null;
+  next_attempt_at?: string | null;
+};
+
+export type BlingWebhookProcessJob = {
+  id: string;
+  storeId: string;
+  attempts: number;
+  payload: Record<string, unknown>;
+  webhookEventId?: string;
+  eventId?: string;
+  event?: string;
+  externalIds: Record<string, string | number>;
+};
+
 type SupabaseRepositoryError = {
   code?: string;
   message?: string;
@@ -89,6 +111,36 @@ function toOptionalNumber(value: unknown) {
   return undefined;
 }
 
+function mapBlingWebhookProcessJob(
+  row: BlingWebhookProcessJobRow
+): BlingWebhookProcessJob {
+  const payload = isRecord(row.payload) ? row.payload : {};
+  const externalIds = isRecord(payload.externalIds)
+    ? Object.fromEntries(
+        Object.entries(payload.externalIds).filter(
+          ([, value]) =>
+            (typeof value === 'string' && value.trim()) ||
+            (typeof value === 'number' && Number.isFinite(value))
+        )
+      )
+    : {};
+
+  return {
+    id: row.id,
+    storeId: row.store_id,
+    attempts: row.attempts ?? 0,
+    payload,
+    webhookEventId:
+      typeof payload.webhookEventId === 'string'
+        ? payload.webhookEventId
+        : undefined,
+    eventId:
+      typeof payload.eventId === 'string' ? payload.eventId : undefined,
+    event: typeof payload.event === 'string' ? payload.event : undefined,
+    externalIds: externalIds as Record<string, string | number>,
+  };
+}
+
 export async function getBlingIntegrationFromRepository(
   storeId: string
 ): Promise<StoreIntegration | null> {
@@ -151,6 +203,33 @@ export async function getBlingEncryptedCredentialsFromRepository(
         : 'sandbox',
     settings: data.settings_json ?? {},
   };
+}
+
+export async function listConnectedBlingStoreIdsInRepository(): Promise<string[]> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('store_integrations')
+    .select('store_id')
+    .eq('provider_key', BLING_PROVIDER_KEY)
+    .eq('status', 'connected')
+    .not('credentials_encrypted', 'is', null);
+
+  if (error || !data) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      data
+        .map((row) => row.store_id)
+        .filter((storeId): storeId is string => typeof storeId === 'string')
+    )
+  );
 }
 
 export async function getBlingOrderSendSettingsFromRepository(
@@ -693,6 +772,198 @@ export async function createBlingWebhookProcessJobInRepository(input: {
   }
 
   return { jobId: data.id as string, duplicate: false };
+}
+
+export async function releaseStaleBlingWebhookProcessJobsInRepository(input: {
+  storeId?: string;
+  staleBefore: string;
+  limit?: number;
+}) {
+  const supabase = requireAdminClient();
+
+  let query = supabase
+    .from('sync_jobs')
+    .select('id, store_id')
+    .eq('provider', BLING_PROVIDER_KEY)
+    .eq('job_type', 'webhook_process')
+    .eq('status', 'running')
+    .is('processed_at', null)
+    .not('locked_at', 'is', null)
+    .lte('locked_at', input.staleBefore)
+    .order('locked_at', { ascending: true })
+    .limit(input.limit ?? 25);
+
+  if (input.storeId) {
+    query = query.eq('store_id', input.storeId);
+  }
+
+  const { data, error } = await query;
+
+  if (error || !data?.length) {
+    return 0;
+  }
+
+  let released = 0;
+  const now = new Date().toISOString();
+
+  for (const row of data) {
+    const { error: updateError } = await supabase
+      .from('sync_jobs')
+      .update({
+        status: 'error',
+        last_error: 'webhook_process_lock_expired',
+        locked_at: null,
+        next_attempt_at: now,
+      })
+      .eq('id', row.id)
+      .eq('store_id', row.store_id)
+      .eq('provider', BLING_PROVIDER_KEY)
+      .eq('job_type', 'webhook_process')
+      .eq('status', 'running')
+      .is('processed_at', null);
+
+    if (!updateError) {
+      released += 1;
+    }
+  }
+
+  return released;
+}
+
+export async function claimPendingBlingWebhookProcessJobsInRepository(input: {
+  storeId?: string;
+  limit?: number;
+} = {}): Promise<BlingWebhookProcessJob[]> {
+  const supabase = requireAdminClient();
+  const limit = Math.max(1, Math.min(input.limit ?? 20, 100));
+  const now = new Date();
+  const staleBefore = new Date(now.getTime() - 15 * 60 * 1000).toISOString();
+  const nowIso = now.toISOString();
+
+  await releaseStaleBlingWebhookProcessJobsInRepository({
+    storeId: input.storeId,
+    staleBefore,
+  });
+
+  let query = supabase
+    .from('sync_jobs')
+    .select('id, store_id, status, attempts, payload, created_at, locked_at, next_attempt_at')
+    .eq('provider', BLING_PROVIDER_KEY)
+    .eq('job_type', 'webhook_process')
+    .in('status', ['pending', 'error'])
+    .is('processed_at', null)
+    .order('created_at', { ascending: true })
+    .limit(limit * 5);
+
+  if (input.storeId) {
+    query = query.eq('store_id', input.storeId);
+  }
+
+  const { data, error } = await query;
+
+  if (error || !data?.length) {
+    return [];
+  }
+
+  const claimed: BlingWebhookProcessJob[] = [];
+
+  for (const row of data as BlingWebhookProcessJobRow[]) {
+    if (claimed.length >= limit) {
+      break;
+    }
+
+    const nextAttemptAt = row.next_attempt_at
+      ? new Date(row.next_attempt_at)
+      : null;
+
+    if (nextAttemptAt && nextAttemptAt > now) {
+      continue;
+    }
+
+    const attempts = (row.attempts ?? 0) + 1;
+    const { data: updated, error: updateError } = await supabase
+      .from('sync_jobs')
+      .update({
+        status: 'running',
+        attempts,
+        locked_at: nowIso,
+        next_attempt_at: null,
+        last_error: null,
+      })
+      .eq('id', row.id)
+      .eq('store_id', row.store_id)
+      .eq('provider', BLING_PROVIDER_KEY)
+      .eq('job_type', 'webhook_process')
+      .eq('status', row.status)
+      .is('processed_at', null)
+      .select('id, store_id, status, attempts, payload, created_at, locked_at, next_attempt_at')
+      .maybeSingle();
+
+    if (!updateError && updated) {
+      claimed.push(mapBlingWebhookProcessJob(updated as BlingWebhookProcessJobRow));
+    }
+  }
+
+  return claimed;
+}
+
+export async function completeBlingWebhookProcessJobInRepository(input: {
+  jobId: string;
+  storeId: string;
+  status: 'success' | 'error';
+  summary: Record<string, unknown>;
+  lastError?: string;
+  nextAttemptAt?: string;
+  final?: boolean;
+}) {
+  const supabase = requireAdminClient();
+  const finished = input.status === 'success' || input.final;
+
+  const { error } = await supabase
+    .from('sync_jobs')
+    .update({
+      status: input.status,
+      payload: input.summary,
+      last_error: input.lastError ?? null,
+      locked_at: null,
+      next_attempt_at:
+        input.status === 'error' && !input.final
+          ? input.nextAttemptAt ?? new Date().toISOString()
+          : null,
+      processed_at: finished ? new Date().toISOString() : null,
+    })
+    .eq('id', input.jobId)
+    .eq('store_id', input.storeId)
+    .eq('provider', BLING_PROVIDER_KEY)
+    .eq('job_type', 'webhook_process');
+
+  if (error) {
+    throw new Error('Unable to complete Bling webhook process job.');
+  }
+}
+
+export async function updateBlingWebhookEventStatusInRepository(input: {
+  webhookEventId: string;
+  storeId: string;
+  status: 'received' | 'processed' | 'error';
+  errorMessage?: string;
+}) {
+  const supabase = requireAdminClient();
+
+  const { error } = await supabase
+    .from('webhook_events')
+    .update({
+      status: input.status,
+      processed_at: input.status === 'processed' ? new Date().toISOString() : null,
+      error_message: input.errorMessage ?? null,
+    })
+    .eq('id', input.webhookEventId)
+    .eq('store_id', input.storeId)
+    .eq('provider', BLING_PROVIDER_KEY);
+
+  if (error) {
+    throw new Error('Unable to update Bling webhook event status.');
+  }
 }
 
 export async function getBlingWebhookOperationalSummaryFromRepository(

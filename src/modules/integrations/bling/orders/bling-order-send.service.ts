@@ -39,6 +39,7 @@ function getSafeErrorCode(error: unknown) {
       'order_missing_items',
       'bling_order_response_missing_id',
       'bling_order_send_disabled',
+      'order_payment_not_approved',
     ];
 
     if (safeErrorMessages.includes(error.message)) {
@@ -91,6 +92,21 @@ export async function sendOrderToBling(
       status: 'error',
       orderId: input.orderId,
       errorCode: 'order_not_found',
+    };
+  }
+
+  if (order.paymentStatus !== 'paid') {
+    await markOrderSendError({
+      storeId: input.storeId,
+      orderId: input.orderId,
+      errorCode: 'order_payment_not_approved',
+    });
+
+    return {
+      status: 'error',
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      errorCode: 'order_payment_not_approved',
     };
   }
 
