@@ -3,6 +3,7 @@
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
+import { createOptionalClient } from '@/lib/supabase/server';
 import {
   requestCustomerLoginCode,
   verifyCustomerLoginCode,
@@ -131,4 +132,14 @@ export async function customerOtpAction(
     next,
     message: 'Enviamos um código de acesso para o seu e-mail.',
   };
+}
+
+export async function customerSignOutAction() {
+  const supabase = await createOptionalClient();
+
+  if (supabase) {
+    await supabase.auth.signOut({ scope: 'local' });
+  }
+
+  redirect('/conta/entrar');
 }

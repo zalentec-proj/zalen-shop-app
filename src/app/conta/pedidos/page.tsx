@@ -4,6 +4,7 @@ import { ArrowLeft, PackageCheck } from 'lucide-react';
 import { createOptionalClient } from '@/lib/supabase/server';
 import { getCustomerAccountForUser } from '@/modules/customer-account/customer-account.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
+import CustomerAccountHeader from '../CustomerAccountHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,6 +64,8 @@ export default async function CustomerOrdersPage() {
   return (
     <main className="min-h-screen bg-brand-bg px-4 py-8 text-white">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
+        <CustomerAccountHeader email={data.user.email} />
+
         <Link
           href="/conta"
           className="inline-flex items-center gap-2 text-sm font-semibold text-brand-muted hover:text-white"

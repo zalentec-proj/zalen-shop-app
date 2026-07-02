@@ -6,10 +6,10 @@ import {
   Truck,
   type LucideIcon,
 } from 'lucide-react';
-import Logo from '@/components/ui/Logo';
 import { createOptionalClient } from '@/lib/supabase/server';
 import { getCustomerAccountForUser } from '@/modules/customer-account/customer-account.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
+import CustomerAccountHeader from './CustomerAccountHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,19 +88,7 @@ export default async function CustomerAccountPage() {
   return (
     <main className="min-h-screen bg-brand-bg px-4 py-8 text-white">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-brand-border bg-[#090E17]/90 px-5 py-4">
-          <Link href="/" className="inline-flex">
-            <Logo size="sm" />
-          </Link>
-          <nav className="flex items-center gap-3 text-sm font-semibold text-brand-muted">
-            <Link href="/" className="hover:text-white">
-              Loja
-            </Link>
-            <Link href="/conta/pedidos" className="hover:text-white">
-              Meus pedidos
-            </Link>
-          </nav>
-        </header>
+        <CustomerAccountHeader email={data.user.email} />
 
         <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="rounded-2xl border border-brand-border bg-[#090E17]/90 p-6">

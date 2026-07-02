@@ -87,6 +87,7 @@
 
 - Clientes usam `store_id`.
 - Clientes podem ser vinculados a Supabase Auth por `auth_user_id`.
+- Área do comprador autenticada mostra ação visível de sair da sessão.
 - Clientes não são públicos para `anon`.
 - Admin autorizado pode listar e cadastrar clientes.
 - Lista mostra última compra e total consumido quando houver pedidos vinculados.
