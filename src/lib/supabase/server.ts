@@ -9,6 +9,7 @@ import 'server-only';
 import { createServerClient } from '@supabase/ssr';
 import { createClient as createSupabaseJsClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { getAuthCookieDomain } from '@/lib/auth/cookie-domain';
 import {
   getServerEnv,
   isSupabaseAdminConfigured,
@@ -23,8 +24,9 @@ export async function createClient() {
   }
 
   const cookieStore = await cookies();
-  const cookieOptions = env.AUTH_COOKIE_DOMAIN
-    ? { domain: env.AUTH_COOKIE_DOMAIN }
+  const authCookieDomain = getAuthCookieDomain();
+  const cookieOptions = authCookieDomain
+    ? { domain: authCookieDomain }
     : undefined;
 
   return createServerClient(

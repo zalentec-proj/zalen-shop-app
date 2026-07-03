@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { getAuthCookieDomain } from '@/lib/auth/cookie-domain';
 import {
   DEFAULT_LOCAL_STORE_ROOT_DOMAIN,
   getPlatformAppOriginFromHost,
@@ -169,7 +170,7 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  const cookieDomain = normalizeEnvValue(process.env.AUTH_COOKIE_DOMAIN);
+  const cookieDomain = getAuthCookieDomain();
   const supabase = createServerClient(supabaseUrl, supabasePublishableKey, {
     ...(cookieDomain ? { cookieOptions: { domain: cookieDomain } } : {}),
     cookies: {
