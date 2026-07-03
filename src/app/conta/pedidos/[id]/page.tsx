@@ -13,6 +13,7 @@ import { getCustomerOrderForUser } from '@/modules/customer-account/customer-acc
 import { noindexMetadata } from '@/modules/seo/seo.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 import CustomerAccountHeader from '../../CustomerAccountHeader';
+import { retryCustomerOrderPaymentAction } from './actions';
 
 export const metadata: Metadata = {
   title: 'Detalhe do pedido — Brasil Drones & Parts',
@@ -23,6 +24,9 @@ export const dynamic = 'force-dynamic';
 
 interface PageProps {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{
+    payment?: string;
+  }>;
 }
 
 function formatCurrency(value: number) {
@@ -68,6 +72,34 @@ function statusLabel(status: string | undefined) {
   return labels[status ?? ''] ?? status ?? 'Pendente';
 }
 
+function paymentStatusLabel(status: string | undefined) {
+  const labels: Record<string, string> = {
+    created: 'Pagamento iniciado',
+    pending: 'Aguardando pagamento',
+    approved: 'Pago',
+    paid: 'Pago',
+    rejected: 'Recusado',
+    cancelled: 'Cancelado',
+    refunded: 'Estornado',
+    failed: 'Falhou',
+    error: 'Com erro',
+  };
+
+  return labels[status ?? ''] ?? statusLabel(status);
+}
+
+function paymentNoticeLabel(value: string | undefined) {
+  const labels: Record<string, string> = {
+    already_paid: 'Este pedido já está pago.',
+    unavailable: 'Este pedido não permite novo pagamento.',
+    mercado_pago_error:
+      'O Mercado Pago não conseguiu gerar um novo checkout agora.',
+    retry_error: 'Não foi possível iniciar um novo pagamento agora.',
+  };
+
+  return value ? labels[value] : undefined;
+}
+
 function shippingMetadataString(
   metadata: Record<string, unknown> | undefined,
   key: string
@@ -77,8 +109,12 @@ function shippingMetadataString(
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
 
-export default async function CustomerOrderDetailPage({ params }: PageProps) {
+export default async function CustomerOrderDetailPage({
+  params,
+  searchParams,
+}: PageProps) {
   const { id } = await params;
+  const search = await searchParams;
   const supabase = await createOptionalClient();
 
   if (!supabase) {
@@ -110,6 +146,15 @@ export default async function CustomerOrderDetailPage({ params }: PageProps) {
     order.shippingMetadata,
     'deliveryTimeLabel'
   );
+  const effectivePaymentStatus = order.payment?.status ?? order.paymentStatus;
+  const isPaid =
+    order.paymentStatus === 'paid' || order.payment?.status === 'approved';
+  const canRetryPayment =
+    !isPaid &&
+    order.status !== 'cancelled' &&
+    order.paymentStatus !== 'refunded' &&
+    order.payment?.status !== 'refunded';
+  const paymentNotice = paymentNoticeLabel(search?.payment);
 
   return (
     <main className="min-h-screen bg-brand-bg px-4 py-8 text-white">
@@ -153,7 +198,7 @@ export default async function CustomerOrderDetailPage({ params }: PageProps) {
           <InfoPanel
             icon={CreditCard}
             title="Pagamento"
-            value={statusLabel(order.payment?.status ?? order.paymentStatus)}
+            value={paymentStatusLabel(effectivePaymentStatus)}
           />
           <InfoPanel
             icon={Truck}
@@ -167,6 +212,35 @@ export default async function CustomerOrderDetailPage({ params }: PageProps) {
             }
           />
         </section>
+
+        {paymentNotice ? (
+          <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm font-semibold text-amber-100">
+            {paymentNotice}
+          </div>
+        ) : null}
+
+        {canRetryPayment ? (
+          <section className="rounded-2xl border border-blue-primary/30 bg-blue-primary/10 p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-black">Pagamento pendente</h2>
+                <p className="mt-1 text-sm text-brand-muted">
+                  Você pode abrir um novo checkout do Mercado Pago para este
+                  mesmo pedido.
+                </p>
+              </div>
+              <form action={retryCustomerOrderPaymentAction}>
+                <input type="hidden" name="orderId" value={order.id} />
+                <button
+                  type="submit"
+                  className="inline-flex h-11 items-center justify-center rounded-xl bg-blue-primary px-5 text-sm font-black text-white shadow-[0_8px_24px_rgba(30,61,255,0.28)] transition hover:opacity-95"
+                >
+                  Pagar com Mercado Pago
+                </button>
+              </form>
+            </div>
+          </section>
+        ) : null}
 
         <section className="rounded-2xl border border-brand-border bg-[#090E17]/90 p-5">
           <h2 className="text-lg font-black">Itens</h2>
@@ -206,7 +280,9 @@ export default async function CustomerOrderDetailPage({ params }: PageProps) {
             </div>
             {order.shipments.length === 0 ? (
               <p className="mt-4 text-sm text-brand-muted">
-                Pedido aprovado. A loja está preparando o envio.
+                {isPaid
+                  ? 'Pedido aprovado. A loja está preparando o envio.'
+                  : 'A loja prepara o envio depois da aprovação do pagamento.'}
               </p>
             ) : null}
           </section>
@@ -241,7 +317,9 @@ export default async function CustomerOrderDetailPage({ params }: PageProps) {
               ))
             ) : (
               <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4 text-sm text-brand-muted">
-                Aguardando expedição no Bling.
+                {isPaid
+                  ? 'Aguardando expedição no Bling.'
+                  : 'Rastreio será exibido depois da aprovação do pagamento.'}
               </div>
             )}
           </div>

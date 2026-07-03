@@ -80,6 +80,8 @@
 - Pedido criado pelo storefront salva cliente e snapshot do comprador.
 - Pedido criado pelo storefront fica vinculado ao `auth_user_id` validado antes
   do pagamento.
+- Pedido não pago/cancelado mostra opção de retomar pagamento sem duplicar o
+  pedido.
 - Pedido dispara envio ERP server-side e registra erro seguro quando integração
   estiver pendente/incompleta.
 
