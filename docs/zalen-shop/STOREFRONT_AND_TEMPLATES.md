@@ -132,3 +132,35 @@ Storefront
 ```
 
 Isso melhora performance, resiliência e SEO.
+
+## 11. SEO, feeds e rastreio
+
+O storefront deve carregar a base de crescimento por loja, sem misturar regra de
+negócio em componentes visuais.
+
+SEO técnico:
+
+- `robots.txt` dinâmico por host;
+- `sitemap.xml` com home, categorias e produtos ativos;
+- canonical por página;
+- Open Graph e Twitter por loja/produto/categoria;
+- `noindex` para admin, login, conta, carrinho e retornos de pagamento;
+- JSON-LD sanitizado para `Organization`, `WebSite`, `BreadcrumbList` e
+  `Product`.
+
+Google Merchant:
+
+- endpoint público `/feeds/google-merchant.xml`;
+- um item por variante com preço, imagem e URL pública;
+- sem tokens e sem dados privados.
+
+Rastreio:
+
+- GTM/GA4/Google Ads/Meta são configurados por `store_integrations`;
+- consentimento padrão é restritivo;
+- UTMs e click IDs só ficam em cookie first-party após aceite;
+- eventos client-side: `view_item_list`, `view_item`, `add_to_cart`,
+  `view_cart`, `begin_checkout`, `purchase`;
+- venda confirmada usa `event_id = purchase:{storeId}:{orderId}` para
+  deduplicação com server-side;
+- nenhuma credencial aparece no HTML ou no bundle do storefront.

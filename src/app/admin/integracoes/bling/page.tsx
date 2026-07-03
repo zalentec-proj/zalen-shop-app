@@ -6,6 +6,7 @@ import { AdminSidebar } from '@/app/admin/AdminSidebar';
 import { logoutAction } from '@/app/login/actions';
 import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import { platformBrand } from '@/lib/branding/platform-brand';
+import { noindexMetadata } from '@/modules/seo/seo.service';
 import { getCurrentUser, canAccessStore } from '@/modules/auth/auth.service';
 import { getBlingAdminState } from '@/modules/integrations/bling/bling.service';
 import {
@@ -19,6 +20,7 @@ import { BlingWebhookProcessPanel } from './BlingWebhookProcessPanel';
 
 export const metadata: Metadata = {
   title: `${platformBrand.productName} Admin — Bling`,
+  ...noindexMetadata,
 };
 
 export const dynamic = 'force-dynamic';

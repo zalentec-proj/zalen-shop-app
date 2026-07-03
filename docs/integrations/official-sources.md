@@ -94,6 +94,47 @@
 
 ---
 
+## Google Marketing, SEO e Merchant Center
+
+| Recurso | URL |
+|---|---|
+| Tag Platform — Consent Mode | https://developers.google.com/tag-platform/security/guides/consent |
+| GA4 ecommerce | https://developers.google.com/analytics/devguides/collection/ga4/ecommerce |
+| Google Ads enhanced conversions | https://support.google.com/google-ads/answer/9888656 |
+| Merchant Center product data specification | https://support.google.com/merchants/answer/7052112 |
+| SEO Starter Guide | https://developers.google.com/search/docs/fundamentals/seo-starter-guide |
+| Product structured data | https://developers.google.com/search/docs/appearance/structured-data/product |
+| Sitemaps | https://developers.google.com/search/docs/crawling-indexing/sitemaps/overview |
+| Robots.txt | https://developers.google.com/search/docs/crawling-indexing/robots/intro |
+
+**Notas:**
+- Consentimento padrão deve ser restritivo.
+- IDs públicos podem ficar em `settings_json`; tokens não existem no frontend.
+- Merchant feed é público por loja, mas sem segredos.
+- Dados estruturados devem ser gerados pelo servidor e sanitizados.
+
+---
+
+## Meta Pixel e Conversions API
+
+| Recurso | URL |
+|---|---|
+| Meta Business SDK Node.js | https://github.com/facebook/facebook-nodejs-business-sdk |
+| SDK API / Graph version | https://raw.githubusercontent.com/facebook/facebook-nodejs-business-sdk/main/src/api.js |
+| SDK EventRequest | https://raw.githubusercontent.com/facebook/facebook-nodejs-business-sdk/main/src/objects/serverside/event-request.js |
+| SDK ServerEvent | https://raw.githubusercontent.com/facebook/facebook-nodejs-business-sdk/main/src/objects/serverside/server-event.js |
+| SDK UserData | https://raw.githubusercontent.com/facebook/facebook-nodejs-business-sdk/main/src/objects/serverside/user-data.js |
+| SDK CustomData | https://raw.githubusercontent.com/facebook/facebook-nodejs-business-sdk/main/src/objects/serverside/custom-data.js |
+
+**Notas:**
+- Pixel carrega apenas após consentimento de marketing.
+- CAPI usa token criptografado em `store_integrations`.
+- `event_id` deve ser compartilhado entre browser e server para deduplicação.
+- CPF/CNPJ nunca deve ser enviado; e-mail/telefone só normalizados e hashados
+  quando consentido.
+
+---
+
 ## Melhor Envio
 
 | Recurso | URL |

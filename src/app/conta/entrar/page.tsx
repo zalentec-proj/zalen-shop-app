@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
+import { noindexMetadata } from '@/modules/seo/seo.service';
 import CustomerAuthForm from '../CustomerAuthForm';
 
 export const metadata: Metadata = {
   title: 'Entrar — Brasil Drones & Parts',
   description: 'Acesse sua conta para finalizar compras na Brasil Drones.',
+  ...noindexMetadata,
 };
 
 interface PageProps {

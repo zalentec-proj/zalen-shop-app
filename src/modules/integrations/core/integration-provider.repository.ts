@@ -99,6 +99,72 @@ export const mockIntegrationProviders: IntegrationProvider[] = [
     createdAt: fallbackDate,
     updatedAt: fallbackDate,
   },
+  {
+    id: 'provider-google-tag-manager',
+    key: 'google_tag_manager',
+    name: 'Google Tag Manager',
+    category: 'analytics',
+    status: 'beta',
+    description:
+      'Container por loja para tags e eventos de marketing no storefront.',
+    createdAt: fallbackDate,
+    updatedAt: fallbackDate,
+  },
+  {
+    id: 'provider-ga4',
+    key: 'ga4',
+    name: 'Google Analytics 4',
+    category: 'analytics',
+    status: 'beta',
+    description:
+      'Eventos ecommerce GA4 via data layer e compra confirmada.',
+    createdAt: fallbackDate,
+    updatedAt: fallbackDate,
+  },
+  {
+    id: 'provider-google-ads',
+    key: 'google_ads',
+    name: 'Google Ads',
+    category: 'analytics',
+    status: 'beta',
+    description:
+      'Conversão de compra, enhanced conversions e click IDs por loja.',
+    createdAt: fallbackDate,
+    updatedAt: fallbackDate,
+  },
+  {
+    id: 'provider-google-merchant-center',
+    key: 'google_merchant_center',
+    name: 'Google Merchant Center',
+    category: 'sales_channel',
+    status: 'beta',
+    description:
+      'Feed de produtos por loja para Shopping, free listings e Performance Max.',
+    createdAt: fallbackDate,
+    updatedAt: fallbackDate,
+  },
+  {
+    id: 'provider-meta-pixel',
+    key: 'meta_pixel',
+    name: 'Meta Pixel',
+    category: 'analytics',
+    status: 'beta',
+    description:
+      'Eventos de navegador para Meta Ads com consentimento e deduplicação.',
+    createdAt: fallbackDate,
+    updatedAt: fallbackDate,
+  },
+  {
+    id: 'provider-meta-conversions-api',
+    key: 'meta_conversions_api',
+    name: 'Meta Conversions API',
+    category: 'analytics',
+    status: 'beta',
+    description:
+      'Eventos server-side Meta CAPI com token criptografado por loja.',
+    createdAt: fallbackDate,
+    updatedAt: fallbackDate,
+  },
 ];
 
 function toCompactLogText(value: string | undefined) {

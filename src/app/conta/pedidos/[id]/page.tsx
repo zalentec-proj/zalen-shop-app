@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import {
@@ -9,8 +10,14 @@ import {
 } from 'lucide-react';
 import { createOptionalClient } from '@/lib/supabase/server';
 import { getCustomerOrderForUser } from '@/modules/customer-account/customer-account.service';
+import { noindexMetadata } from '@/modules/seo/seo.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 import CustomerAccountHeader from '../../CustomerAccountHeader';
+
+export const metadata: Metadata = {
+  title: 'Detalhe do pedido — Brasil Drones & Parts',
+  ...noindexMetadata,
+};
 
 export const dynamic = 'force-dynamic';
 

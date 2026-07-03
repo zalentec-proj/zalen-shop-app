@@ -130,6 +130,33 @@
 - Pagamento aprovado marca pedido como pago/confirmado.
 - Envio ao Bling só dispara após transição real para pago.
 
+## 7.3 Growth, SEO e tráfego pago
+
+- `integration_providers` inclui GTM, GA4, Google Ads, Google Merchant Center,
+  Meta Pixel e Meta CAPI.
+- Configurações por loja ficam em `store_integrations.settings_json`.
+- Token Meta CAPI fica criptografado em `store_integrations.credentials_encrypted`.
+- Admin `/admin/integracoes/marketing` não aceita HTML, scripts livres ou tags
+  arbitrárias.
+- `robots.txt` bloqueia `/admin`, `/api`, `/login`, `/conta`, `/carrinho` e
+  `/pagamento`.
+- `sitemap.xml` lista home, categorias e produtos ativos da loja.
+- Feed `/feeds/google-merchant.xml` gera itens por variante com preço, imagem,
+  URL, disponibilidade e preço BRL.
+- Home, categoria e produto possuem canonical, Open Graph/Twitter e JSON-LD
+  sanitizado quando aplicável.
+- Admin, login, conta, carrinho e retorno de pagamento possuem `noindex`.
+- Cookies de marketing, Pixel, CAPI e enhanced conversions dependem de aceite.
+- Eventos client-side cobrem `view_item_list`, `view_item`, `add_to_cart`,
+  `view_cart`, `begin_checkout` e `purchase`.
+- Venda aprovada Mercado Pago dispara `Purchase` server-side somente quando a
+  transição para pago acontece pela primeira vez.
+- `marketing_events` deduplica por `store_id + provider_key + event_name + event_id`.
+- Retorno e webhook Mercado Pago não duplicam compra server-side.
+- CPF/CNPJ nunca é enviado para Google ou Meta.
+- E-mail/telefone só são normalizados e hash SHA-256 quando houver consentimento.
+- Integrações desativadas não carregam scripts nem enviam eventos.
+
 ## 8. Bling
 
 Antes de implementação real:

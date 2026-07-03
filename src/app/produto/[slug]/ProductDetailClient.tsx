@@ -15,6 +15,7 @@ import {
 import Footer from '@/components/layout/Footer';
 import { addStoredCartItem } from '@/modules/cart/cart.storage';
 import type { Product, ProductSummary } from '@/modules/catalog/product.types';
+import { pushMarketingEvent } from '@/modules/marketing/marketing.client';
 
 interface Props {
   product: Product;
@@ -44,6 +45,29 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
       imageUrl: product.images[0]?.url,
       unitPrice: price,
       quantity,
+    });
+    pushMarketingEvent({
+      event: 'add_to_cart',
+      event_id: `add_to_cart:${product.id}:${variant.id}:${Date.now()}`,
+      ecommerce: {
+        currency: 'BRL',
+        value: price * quantity,
+        items: [
+          {
+            item_id: variant.sku ?? variant.id,
+            item_name: product.name,
+            item_brand: product.brand,
+            item_category: product.categories[0]?.name,
+            price,
+            quantity,
+          },
+        ],
+      },
+      meta: {
+        eventName: 'AddToCart',
+        contentIds: [variant.sku ?? variant.id],
+        contentName: product.name,
+      },
     });
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 2000);

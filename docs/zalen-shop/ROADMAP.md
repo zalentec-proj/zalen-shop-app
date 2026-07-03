@@ -109,6 +109,14 @@ Objetivo: criar a área interna da Zalen.
 
 ## Fase 8 — Crescimento
 
+- SEO técnico avançado por loja.
+- `robots.txt`, `sitemap.xml` e canonical dinâmicos por host.
+- JSON-LD de loja, breadcrumb e produto.
+- GTM, GA4, Google Ads, Merchant Center, Meta Pixel e Meta CAPI como conectores.
+- Feed Google Merchant Center por loja.
+- Consentimento restritivo para cookies e anúncios.
+- Rastreio ecommerce client-side.
+- Compra confirmada server-side com deduplicação por `event_id`.
 - Catálogo social Meta/Instagram.
 - IA para descrições.
 - Recomendações inteligentes.

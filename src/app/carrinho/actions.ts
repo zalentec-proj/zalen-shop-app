@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { createHash } from 'node:crypto';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { createOrder } from '@/modules/orders/order.service';
 import { isValidCpfOrCnpj, onlyDigits } from '@/modules/customers/br-document';
@@ -20,6 +20,7 @@ import {
 import { findCustomerByAuthUserId } from '@/modules/customers/customer.service';
 import { lookupBrazilianPostalCode } from '@/modules/address/postal-code.service';
 import { getServerEnv } from '@/lib/env/server';
+import { parseMarketingContextCookie } from '@/modules/marketing/marketing.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 import {
   MercadoPagoPreferenceError,
@@ -910,6 +911,9 @@ export async function checkoutCartAction(
       },
       items: checkoutInput.items,
       shippingQuoteId: checkoutInput.shippingQuoteId,
+      marketingContext: parseMarketingContextCookie(
+        (await cookies()).get('zalen_marketing_context')?.value
+      ),
       sendToErp: false,
       requirePersistence: true,
     });

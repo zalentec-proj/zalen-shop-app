@@ -1,5 +1,11 @@
 import Link from 'next/link';
 import { CheckCircle2, Clock3 } from 'lucide-react';
+import { getOrderById } from '@/modules/orders/order.service';
+import { MarketingDataLayer } from '@/modules/marketing/MarketingDataLayer';
+import { MarketingScripts } from '@/modules/marketing/MarketingScripts';
+import { getMarketingRuntimeConfig } from '@/modules/marketing/marketing.service';
+import { noindexMetadata } from '@/modules/seo/seo.service';
+import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 import { ClearCartOnApproved } from '../ClearCartOnApproved';
 import {
   type MercadoPagoReturnSearchParams,
@@ -10,6 +16,11 @@ interface PageProps {
   searchParams?: MercadoPagoReturnSearchParams;
 }
 
+export const metadata = {
+  title: 'Pagamento confirmado — Brasil Drones & Parts',
+  ...noindexMetadata,
+};
+
 export default async function MercadoPagoSuccessPage({
   searchParams,
 }: PageProps) {
@@ -18,12 +29,48 @@ export default async function MercadoPagoSuccessPage({
     : null;
   const isApproved = result?.status === 'approved';
   const isPending = result?.status === 'pending';
+  const store = await resolveCurrentStoreFromHeaders();
+  const [marketingConfig, order] = await Promise.all([
+    getMarketingRuntimeConfig(store),
+    isApproved && result?.orderId
+      ? getOrderById(store.id, result.orderId)
+      : Promise.resolve(null),
+  ]);
   const accountHref = result?.orderId
     ? `/conta/entrar?next=${encodeURIComponent(`/conta/pedidos/${result.orderId}`)}`
     : '/conta/entrar?next=/conta/pedidos';
 
   return (
-    <main className="min-h-screen bg-brand-bg px-4 py-16 text-white">
+    <>
+      <MarketingScripts config={marketingConfig} />
+      {isApproved && order ? (
+        <MarketingDataLayer
+          config={marketingConfig}
+          event={{
+            event: 'purchase',
+            event_id: `purchase:${store.id}:${order.id}`,
+            ecommerce: {
+              currency: 'BRL',
+              value: order.total,
+              shipping: order.shippingTotal,
+              transaction_id: order.id,
+              items: order.items.map((item) => ({
+                item_id: item.sku ?? item.variantId,
+                item_name: item.name,
+                price: item.unitPrice,
+                quantity: item.quantity,
+              })),
+            },
+            meta: {
+              eventName: 'Purchase',
+              contentIds: order.items.map((item) => item.sku ?? item.variantId),
+            },
+          }}
+        />
+      ) : (
+        <MarketingDataLayer config={marketingConfig} />
+      )}
+      <main className="min-h-screen bg-brand-bg px-4 py-16 text-white">
       <section className="mx-auto flex max-w-lg flex-col items-center gap-5 rounded-[32px] border border-green-accent/20 bg-white/[0.03] p-8 text-center">
         {isPending ? (
           <Clock3 className="h-14 w-14 text-yellow-300" />
@@ -62,6 +109,7 @@ export default async function MercadoPagoSuccessPage({
           </Link>
         </div>
       </section>
-    </main>
+      </main>
+    </>
   );
 }

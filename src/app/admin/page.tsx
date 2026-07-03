@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import { platformBrand } from '@/lib/branding/platform-brand';
+import { noindexMetadata } from '@/modules/seo/seo.service';
 import {
   listAdminProductsWithSource,
   listCategoriesWithSource,
@@ -25,6 +26,7 @@ import AdminDashboard from './AdminDashboard';
 
 export const metadata: Metadata = {
   title: `${platformBrand.productName} Admin — ${currentStoreBrand.shortName}`,
+  ...noindexMetadata,
 };
 
 export const dynamic = 'force-dynamic';

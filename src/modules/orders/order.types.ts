@@ -85,6 +85,7 @@ export interface Order {
   shippingDeliveryMinDays?: number;
   shippingDeliveryMaxDays?: number;
   shippingMetadata?: Record<string, unknown>;
+  marketingContext?: Record<string, unknown>;
   discountTotal: number;
   total: number;
   customerType?: CustomerType;
@@ -118,6 +119,7 @@ export interface CreateOrderInput {
   sendToErp?: boolean;
   requirePersistence?: boolean;
   shippingQuoteId?: string;
+  marketingContext?: Record<string, unknown>;
   items: Array<{
     productId: string;
     variantId: string;

@@ -14,7 +14,13 @@ Zalen Shop Core
 │   ├── bling
 │   ├── mercos
 │   ├── mercado_pago
-│   └── melhor_envio
+│   ├── melhor_envio
+│   ├── google_tag_manager
+│   ├── ga4
+│   ├── google_ads
+│   ├── google_merchant_center
+│   ├── meta_pixel
+│   └── meta_conversions_api
 └── store_integrations
     ├── Brasil Drones → Bling
     └── LB London → Mercos
@@ -32,6 +38,12 @@ Exemplos:
 | mercos | Mercos | erp | planned |
 | mercado_pago | Mercado Pago | payment | beta |
 | melhor_envio | Melhor Envio | shipping | planned |
+| google_tag_manager | Google Tag Manager | analytics | beta |
+| ga4 | Google Analytics 4 | analytics | beta |
+| google_ads | Google Ads | analytics | beta |
+| google_merchant_center | Google Merchant Center | sales_channel | beta |
+| meta_pixel | Meta Pixel | analytics | beta |
+| meta_conversions_api | Meta Conversions API | analytics | beta |
 
 Categorias possíveis:
 
@@ -160,6 +172,27 @@ Futuro:
 - análise de gargalos da operação.
 
 A base deve registrar eventos, logs, erros e recomendações estruturadas desde cedo.
+
+## 9.1 Growth, SEO e tráfego pago
+
+Marketing também é conector da plataforma.
+
+Regras:
+
+- IDs públicos de GTM, GA4, Google Ads, Merchant Center e Meta Pixel ficam em
+  `store_integrations.settings_json`.
+- Token Meta CAPI fica criptografado em `store_integrations.credentials_encrypted`.
+- Storefront não aceita HTML, scripts livres ou tags arbitrárias.
+- GTM é a camada principal de tags client-side por loja.
+- Conversões críticas de venda confirmada são registradas server-side em
+  `marketing_events`.
+- O evento de compra usa `event_id = purchase:{storeId}:{orderId}` para
+  deduplicação entre browser e server.
+- Google Ads compra é gerenciada via GTM/Google tag; o backend registra a venda
+  confirmada como diagnóstico idempotente.
+- Meta CAPI só envia `Purchase` quando há Pixel ID, token criptografado e
+  consentimento de marketing.
+- CPF/CNPJ nunca é enviado para Google ou Meta.
 
 ## 10. Regras de implementação
 

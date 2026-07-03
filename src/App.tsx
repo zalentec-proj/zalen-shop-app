@@ -30,6 +30,7 @@ import {
   saveStoredCart,
   subscribeToStoredCart,
 } from './modules/cart/cart.storage';
+import { pushMarketingEvent } from './modules/marketing/marketing.client';
 
 interface AppProps {
   products: Product[];
@@ -88,6 +89,29 @@ export default function App({ products }: AppProps) {
       quantity,
     }));
 
+    pushMarketingEvent({
+      event: 'add_to_cart',
+      event_id: `add_to_cart:${product.catalogProductId}:${product.variantId}:${Date.now()}`,
+      ecommerce: {
+        currency: 'BRL',
+        value: product.price * quantity,
+        items: [
+          {
+            item_id: product.sku ?? product.variantId,
+            item_name: product.name,
+            item_category: product.category,
+            price: product.price,
+            quantity,
+          },
+        ],
+      },
+      meta: {
+        eventName: 'AddToCart',
+        contentIds: [product.sku ?? product.variantId],
+        contentName: product.name,
+      },
+    });
+
     setCartOpen(true);
   };
 
@@ -100,6 +124,24 @@ export default function App({ products }: AppProps) {
   };
 
   const handleCheckout = () => {
+    pushMarketingEvent({
+      event: 'begin_checkout',
+      event_id: `begin_checkout:${Date.now()}`,
+      ecommerce: {
+        currency: 'BRL',
+        value: cart.total,
+        items: cart.items.map((item) => ({
+          item_id: item.sku ?? item.variantId,
+          item_name: item.name,
+          price: item.unitPrice,
+          quantity: item.quantity,
+        })),
+      },
+      meta: {
+        eventName: 'InitiateCheckout',
+        contentIds: cart.items.map((item) => item.sku ?? item.variantId),
+      },
+    });
     setCartOpen(false);
     window.location.href = '/carrinho';
   };

@@ -51,6 +51,7 @@ import {
   saveStoredCart,
 } from '@/modules/cart/cart.storage';
 import type { Cart } from '@/modules/cart/cart.types';
+import { pushMarketingEvent } from '@/modules/marketing/marketing.client';
 import type { CustomerType } from '@/modules/pricing/pricing.types';
 
 type CheckoutSessionCustomer = {
@@ -413,6 +414,7 @@ export default function CartClient({ customerSession }: Props) {
   const checkoutAttemptIdRef = useRef<string | null>(null);
   const lastPostalCodeLookupRef = useRef<string | null>(null);
   const currentPostalCodeRef = useRef('');
+  const viewCartTrackedRef = useRef(false);
 
   const itemCount = getItemCount(cart);
   const stepIndex = steps.findIndex((step) => step.id === checkoutStep);
@@ -452,6 +454,28 @@ export default function CartClient({ customerSession }: Props) {
   useEffect(() => {
     setCart(getStoredCart());
   }, []);
+
+  useEffect(() => {
+    if (viewCartTrackedRef.current || cart.items.length === 0) {
+      return;
+    }
+
+    viewCartTrackedRef.current = true;
+    pushMarketingEvent({
+      event: 'view_cart',
+      event_id: `view_cart:${Date.now()}`,
+      ecommerce: {
+        currency: 'BRL',
+        value: cart.total,
+        items: cart.items.map((item) => ({
+          item_id: item.sku ?? item.variantId,
+          item_name: item.name,
+          price: item.unitPrice,
+          quantity: item.quantity,
+        })),
+      },
+    });
+  }, [cart.items, cart.total]);
 
   useEffect(() => {
     const digits = onlyDigits(customer.postalCode);
@@ -1010,6 +1034,25 @@ export default function CartClient({ customerSession }: Props) {
     }
 
     setCheckoutError(null);
+    pushMarketingEvent({
+      event: 'begin_checkout',
+      event_id: `begin_checkout:${getCheckoutAttemptId()}`,
+      ecommerce: {
+        currency: 'BRL',
+        value: summaryTotal,
+        shipping: summaryShipping,
+        items: cart.items.map((item) => ({
+          item_id: item.sku ?? item.variantId,
+          item_name: item.name,
+          price: item.unitPrice,
+          quantity: item.quantity,
+        })),
+      },
+      meta: {
+        eventName: 'InitiateCheckout',
+        contentIds: cart.items.map((item) => item.sku ?? item.variantId),
+      },
+    });
     setCheckoutStep('pagamento');
   }
 

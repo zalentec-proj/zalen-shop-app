@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Clock3 } from 'lucide-react';
+import { noindexMetadata } from '@/modules/seo/seo.service';
 import {
   type MercadoPagoReturnSearchParams,
   processMercadoPagoReturn,
@@ -8,6 +9,11 @@ import {
 interface PageProps {
   searchParams?: MercadoPagoReturnSearchParams;
 }
+
+export const metadata = {
+  title: 'Pagamento pendente — Brasil Drones & Parts',
+  ...noindexMetadata,
+};
 
 export default async function MercadoPagoPendingPage({
   searchParams,

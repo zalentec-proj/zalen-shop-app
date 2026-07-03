@@ -44,7 +44,7 @@ Grupos atuais:
 
 - Operação: Visão geral, Pedidos, Produtos, Clientes.
 - Canais: Loja online e canais futuros.
-- Conectores: Integrações e ERP principal.
+- Conectores: Integrações, ERP principal e Marketing.
 - Configuração: Pagamentos, Envios, Domínios e Configurações.
 
 Futuro:
@@ -125,6 +125,30 @@ A tela de integrações deve mostrar:
 Brasil Drones deve ver Bling como conector principal.
 
 Mercos não deve aparecer como conector ativo da Brasil Drones, mas pode existir no catálogo global da plataforma.
+
+### Marketing, SEO e tráfego pago
+
+A tela `/admin/integracoes/marketing` configura a base de crescimento da loja.
+
+Permite:
+
+- ativar GTM por loja;
+- configurar GA4;
+- configurar Google Ads conversion ID e label de compra;
+- habilitar enhanced conversions quando houver consentimento;
+- visualizar URL de `robots.txt`, `sitemap.xml` e feed Google Merchant;
+- configurar token de verificação Merchant e categoria padrão;
+- configurar Meta Pixel ID;
+- salvar token Meta CAPI criptografado;
+- informar Test Event Code da Meta;
+- ver últimos eventos server-side e checklist de ativação.
+
+Não permite:
+
+- colar scripts livres;
+- inserir HTML arbitrário;
+- expor tokens;
+- criar campanhas, anúncios, públicos ou orçamento.
 
 ## 9. Configurações
 

@@ -10,6 +10,7 @@ import {
   CreditCard,
   Database,
   LayoutGrid,
+  Megaphone,
   Package2,
   Settings2,
   ShoppingCart,
@@ -29,6 +30,7 @@ export type AdminSidebarKey =
   | 'marketplaces'
   | 'integrations'
   | 'bling'
+  | 'marketing'
   | 'payments'
   | 'shipping'
   | 'domains'
@@ -153,6 +155,13 @@ function buildSidebarGroups(counts?: AdminSidebarCounts): AdminSidebarGroup[] {
           icon: Database,
           count: counts?.primaryErp ?? 'ERP',
           href: '/admin/integracoes/bling',
+        },
+        {
+          key: 'marketing',
+          label: 'Marketing',
+          icon: Megaphone,
+          count: 'SEO',
+          href: '/admin/integracoes/marketing',
         },
       ],
     },

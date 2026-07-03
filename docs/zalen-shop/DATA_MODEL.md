@@ -276,6 +276,7 @@ orders (
   shipping_delivery_min_days integer,
   shipping_delivery_max_days integer,
   shipping_metadata_json jsonb,
+  marketing_context_json jsonb,
   discount_total numeric(12,2),
   total numeric(12,2),
   price_list_id uuid references price_lists(id),
@@ -292,6 +293,10 @@ orders (
 
 Pedidos mantêm snapshot do comprador para preservar o estado da compra mesmo se
 o cadastro de cliente for alterado depois.
+
+`marketing_context_json` guarda contexto não sensível da jornada: consentimento,
+UTMs, `gclid`, `gbraid`, `wbraid`, `fbclid`, `fbp`, `fbc`, landing page e
+referrer. CPF/CNPJ não entra nesse campo.
 
 ```sql
 order_items (
@@ -458,7 +463,13 @@ Exemplos iniciais:
 - `bling` — ERP — available/planned conforme estágio;
 - `mercos` — ERP — planned;
 - `mercado_pago` — payment — beta;
-- `melhor_envio` — shipping — planned.
+- `melhor_envio` — shipping — planned;
+- `google_tag_manager` — analytics — beta;
+- `ga4` — analytics — beta;
+- `google_ads` — analytics — beta;
+- `google_merchant_center` — sales_channel — beta;
+- `meta_pixel` — analytics — beta;
+- `meta_conversions_api` — analytics — beta.
 
 ## 7. Conectores por loja
 
@@ -488,6 +499,50 @@ Exemplos:
 - LB London → Mercos
 
 Credenciais sempre pertencem à loja e nunca ao frontend.
+
+Configurações de marketing por provider:
+
+- GTM: `{ enabled, containerId }`
+- GA4: `{ enabled, measurementId, debugMode }`
+- Google Ads: `{ enabled, conversionId, purchaseConversionLabel, enhancedConversionsEnabled }`
+- Merchant Center: `{ enabled, verificationToken, defaultGoogleProductCategory }`
+- Meta Pixel: `{ enabled, pixelId }`
+- Meta CAPI: `{ enabled, testEventCode }`
+
+Token Meta CAPI fica apenas em `credentials_encrypted`.
+
+## 7.1 Eventos de marketing
+
+```sql
+marketing_events (
+  id uuid primary key,
+  store_id uuid references stores(id),
+  provider_key text references integration_providers(key),
+  event_name text not null,
+  event_id text not null,
+  source text not null,
+  order_id uuid references orders(id),
+  order_number text,
+  status text not null,
+  occurred_at timestamptz,
+  processed_at timestamptz,
+  value numeric(12,2),
+  currency text,
+  payload_json jsonb,
+  response_json jsonb,
+  error_message text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique(store_id, provider_key, event_name, event_id)
+)
+```
+
+Uso:
+
+- deduplicar compra server-side;
+- registrar diagnóstico seguro de Google Ads/GTM;
+- registrar envio Meta CAPI;
+- nunca armazenar token, CPF/CNPJ ou PII em claro.
 
 ## 8. Webhooks e jobs
 

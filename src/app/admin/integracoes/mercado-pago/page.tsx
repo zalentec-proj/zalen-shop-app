@@ -15,6 +15,7 @@ import { AdminSidebar } from '@/app/admin/AdminSidebar';
 import { logoutAction } from '@/app/login/actions';
 import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import { platformBrand } from '@/lib/branding/platform-brand';
+import { noindexMetadata } from '@/modules/seo/seo.service';
 import { canAccessStore, getCurrentUser } from '@/modules/auth/auth.service';
 import { getMercadoPagoAdminState } from '@/modules/integrations/mercado-pago/mercado-pago.account.service';
 import type {
@@ -33,6 +34,7 @@ import {
 
 export const metadata: Metadata = {
   title: `${platformBrand.productName} Admin — Mercado Pago`,
+  ...noindexMetadata,
 };
 
 export const dynamic = 'force-dynamic';

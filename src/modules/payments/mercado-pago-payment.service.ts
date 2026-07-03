@@ -11,6 +11,7 @@ import {
   getStoreByIdFromRepository,
 } from '@/modules/stores/store.repository';
 import { sendPaymentStatusStoreEmail } from '@/modules/email/store-transactional-email.service';
+import { dispatchPurchaseMarketingEvent } from '@/modules/marketing/marketing.service';
 import {
   getOrderByIdFromRepository,
   markOrderPaymentApprovedIfPendingInRepository,
@@ -363,6 +364,11 @@ export async function processMercadoPagoPaymentUpdate(input: {
   let blingTriggered = false;
 
   if (mapping.transactionStatus === 'approved' && transitionedToPaid) {
+    await dispatchPurchaseMarketingEvent({
+      storeId: input.storeId,
+      order,
+    }).catch(() => undefined);
+
     blingTriggered = true;
     await tryAutoSendOrderToBling({
       storeId: input.storeId,

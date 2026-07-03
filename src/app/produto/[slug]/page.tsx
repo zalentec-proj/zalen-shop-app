@@ -5,6 +5,18 @@ import {
   listProducts,
   listRelatedProducts,
 } from '@/modules/catalog/product.service';
+import { MarketingDataLayer } from '@/modules/marketing/MarketingDataLayer';
+import { MarketingScripts } from '@/modules/marketing/MarketingScripts';
+import { getMarketingRuntimeConfig } from '@/modules/marketing/marketing.service';
+import {
+  JsonLd,
+  buildBreadcrumbJsonLd,
+  buildOrganizationJsonLd,
+  buildProductBreadcrumb,
+  buildProductJsonLd,
+  buildStoreMetadata,
+  getCurrentOrigin,
+} from '@/modules/seo/seo.service';
 import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
 import {
   getOptionalStoreFromResolution,
@@ -29,10 +41,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const product = await getProductBySlug(store.id, slug);
   if (!product) return {};
-  return {
+  const origin = await getCurrentOrigin();
+  return buildStoreMetadata({
+    store,
+    origin,
     title: product.seoTitle ?? `${product.name} — ${store.name}`,
     description: product.seoDescription ?? product.description,
-  };
+    path: `/produto/${product.slug}`,
+    imageUrl: product.images[0]?.url,
+  });
 }
 
 export default async function ProductPage({ params }: Props) {
@@ -46,6 +63,49 @@ export default async function ProductPage({ params }: Props) {
   if (!product) notFound();
 
   const relatedProducts = await listRelatedProducts(store.id, slug, 3);
+  const [origin, marketingConfig] = await Promise.all([
+    getCurrentOrigin(),
+    getMarketingRuntimeConfig(store),
+  ]);
+  const variant = product.variants[0];
+  const price = variant?.promotionalPrice ?? variant?.price;
 
-  return <ProductDetailClient product={product} relatedProducts={relatedProducts} />;
+  return (
+    <>
+      <MarketingScripts config={marketingConfig} />
+      <JsonLd data={buildOrganizationJsonLd(store, origin)} />
+      <JsonLd data={buildBreadcrumbJsonLd(origin, buildProductBreadcrumb(product))} />
+      <JsonLd data={buildProductJsonLd(store, origin, product)} />
+      <MarketingDataLayer
+        config={marketingConfig}
+        event={{
+          event: 'view_item',
+          event_id: `view_item:${store.id}:${product.id}`,
+          ecommerce: {
+            currency: 'BRL',
+            value: price,
+            items: [
+              {
+                item_id: variant?.sku ?? variant?.id ?? product.id,
+                item_name: product.name,
+                item_brand: product.brand,
+                item_category: product.categories[0]?.name,
+                price,
+                quantity: 1,
+              },
+            ],
+          },
+          meta: {
+            eventName: 'ViewContent',
+            contentIds: [variant?.sku ?? variant?.id ?? product.id],
+            contentName: product.name,
+          },
+        }}
+      />
+      <ProductDetailClient
+        product={product}
+        relatedProducts={relatedProducts}
+      />
+    </>
+  );
 }

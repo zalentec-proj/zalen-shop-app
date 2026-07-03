@@ -5,6 +5,17 @@ import App from '@/App';
 import { getServerEnv } from '@/lib/env/server';
 import { listStorefrontProducts } from '@/modules/catalog/product.service';
 import { toStorefrontProducts } from '@/modules/catalog/storefront-product.adapter';
+import { MarketingDataLayer } from '@/modules/marketing/MarketingDataLayer';
+import { MarketingScripts } from '@/modules/marketing/MarketingScripts';
+import { getMarketingRuntimeConfig } from '@/modules/marketing/marketing.service';
+import {
+  JsonLd,
+  buildOrganizationJsonLd,
+  buildStoreMetadata,
+  buildWebSiteJsonLd,
+  getCurrentOrigin,
+  storefrontDescription,
+} from '@/modules/seo/seo.service';
 import {
   getOptionalStoreFromResolution,
   resolveStoreFromHeaders,
@@ -35,22 +46,13 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 
   return {
-    title: `${store.name} — Drones e Peças DJI`,
-    description:
-      'Equipamentos originais, peças selecionadas e suporte técnico para quem exige segurança, precisão e liberdade em cada voo.',
-    openGraph: {
-      type: 'website',
+    ...(await buildStoreMetadata({
+      store,
+      origin: await getCurrentOrigin(),
       title: `${store.name} — Drones e Peças DJI`,
-      description:
-        'Equipamentos originais, peças selecionadas e suporte técnico para quem exige segurança, precisão e liberdade em cada voo.',
-      siteName: store.name,
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: `${store.name} — Drones e Peças DJI`,
-      description:
-        'Equipamentos originais, peças selecionadas e suporte técnico para quem exige segurança, precisão e liberdade em cada voo.',
-    },
+      description: storefrontDescription,
+      path: '/',
+    })),
   };
 }
 
@@ -95,9 +97,41 @@ export default async function HomePage() {
     return <StoreNotFound />;
   }
 
-  const products = toStorefrontProducts(
-    await listStorefrontProducts(store.id)
-  );
+  const catalogProducts = await listStorefrontProducts(store.id);
+  const products = toStorefrontProducts(catalogProducts);
+  const [origin, marketingConfig] = await Promise.all([
+    getCurrentOrigin(),
+    getMarketingRuntimeConfig(store),
+  ]);
 
-  return <App products={products} />;
+  return (
+    <>
+      <MarketingScripts config={marketingConfig} />
+      <JsonLd data={buildOrganizationJsonLd(store, origin)} />
+      <JsonLd data={buildWebSiteJsonLd(store, origin)} />
+      <MarketingDataLayer
+        config={marketingConfig}
+        event={{
+          event: 'view_item_list',
+          event_id: `view_item_list:${store.id}:home`,
+          ecommerce: {
+            currency: 'BRL',
+            items: catalogProducts.slice(0, 24).map((product) => {
+              const variant = product.variants[0];
+
+              return {
+                item_id: variant?.sku ?? variant?.id ?? product.id,
+                item_name: product.name,
+                item_brand: product.brand,
+                item_category: product.categories[0]?.name,
+                price: variant?.promotionalPrice ?? variant?.price,
+                quantity: 1,
+              };
+            }),
+          },
+        }}
+      />
+      <App products={products} />
+    </>
+  );
 }

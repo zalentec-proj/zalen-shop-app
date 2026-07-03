@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { platformBrand } from '@/lib/branding/platform-brand';
+import { noindexMetadata } from '@/modules/seo/seo.service';
 import {
   isLocalhostName,
   normalizeHostname,
@@ -9,6 +10,7 @@ import LoginClient from './LoginClient';
 export const metadata: Metadata = {
   title: `Login — ${platformBrand.name}`,
   description: 'Acesse o painel operacional da Zalen Shop.',
+  ...noindexMetadata,
 };
 
 interface LoginPageProps {

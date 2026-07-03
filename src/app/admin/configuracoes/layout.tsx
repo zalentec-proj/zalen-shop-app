@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import { logoutAction } from '@/app/login/actions';
 import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import { platformBrand } from '@/lib/branding/platform-brand';
+import { noindexMetadata } from '@/modules/seo/seo.service';
 import {
   getCurrentUser,
   getPlatformRole,
@@ -17,6 +18,7 @@ import { SettingsShell } from './SettingsShell';
 
 export const metadata: Metadata = {
   title: `Configurações — ${platformBrand.productName} Admin`,
+  ...noindexMetadata,
 };
 
 export const dynamic = 'force-dynamic';

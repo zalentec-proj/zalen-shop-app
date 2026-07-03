@@ -60,6 +60,7 @@ type OrderRow = {
   shipping_delivery_min_days: number | null;
   shipping_delivery_max_days: number | null;
   shipping_metadata_json: Record<string, unknown> | null;
+  marketing_context_json: Record<string, unknown> | null;
   discount_total: number | string | null;
   total: number | string | null;
   external_erp_provider: string | null;
@@ -375,6 +376,7 @@ function mapOrder(
     shippingDeliveryMinDays: row.shipping_delivery_min_days ?? undefined,
     shippingDeliveryMaxDays: row.shipping_delivery_max_days ?? undefined,
     shippingMetadata: row.shipping_metadata_json ?? {},
+    marketingContext: row.marketing_context_json ?? {},
     discountTotal: toNumber(row.discount_total),
     total: toNumber(row.total),
     customerType: toCustomerType(row.customer_type),
@@ -949,6 +951,7 @@ export async function saveOrderToRepository(
     shipping_delivery_min_days: order.shippingDeliveryMinDays,
     shipping_delivery_max_days: order.shippingDeliveryMaxDays,
     shipping_metadata_json: order.shippingMetadata ?? {},
+    marketing_context_json: order.marketingContext ?? {},
     discount_total: order.discountTotal,
     total: order.total,
     external_erp_provider: order.externalErpProvider,

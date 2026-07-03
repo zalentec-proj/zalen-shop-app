@@ -37,6 +37,7 @@ const createOrderInputSchema = z.object({
   sendToErp: z.boolean().optional(),
   requirePersistence: z.boolean().optional(),
   shippingQuoteId: z.string().trim().uuid().optional(),
+  marketingContext: z.record(z.string(), z.unknown()).optional(),
   customer: z
     .object({
       authUserId: z.string().trim().min(1).optional(),
@@ -260,6 +261,7 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
           quote: shippingQuote.rawPayload,
         }
       : {},
+    marketingContext: parsed.marketingContext ?? {},
     discountTotal: pricing.discountTotal,
     total: orderTotal,
     customerType,
