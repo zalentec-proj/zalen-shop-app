@@ -9,7 +9,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Navbar from './components/layout/Navbar';
 import Hero from './components/home/Hero';
 import BenefitsBar from './components/home/BenefitsBar';
-import Categories from './components/home/Categories';
 import CategoryProductSections from './components/home/CategoryProductSections';
 import FeaturedProduct from './components/home/FeaturedProduct';
 import BestSellers from './components/home/BestSellers';
@@ -186,11 +185,14 @@ export default function App({ products, categories }: AppProps) {
     if (currentPage !== 'home') {
       setCurrentPage('home');
     }
-    const section = document.getElementById('catalogo');
-    if (section) {
-      section.scrollIntoView({ behavior: 'smooth' });
-    }
+    window.setTimeout(() => {
+      const section = document.getElementById('catalogo');
+      if (section) {
+        section.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 0);
   };
+  const shouldShowCatalog = Boolean(activeCategory || searchQuery.trim());
 
   return (
     <div className="min-h-screen bg-brand-bg md:bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-deep/30 via-brand-bg to-brand-bg relative" style={{ maxWidth: '100vw' }}>
@@ -212,7 +214,7 @@ export default function App({ products, categories }: AppProps) {
         <main className="w-full">
           <Hero
             onExploreClick={() => {
-              const sec = document.getElementById('catalogo');
+              const sec = document.getElementById('vitrines');
               if (sec) sec.scrollIntoView({ behavior: 'smooth' });
             }}
             onPeasClick={() => {
@@ -225,15 +227,6 @@ export default function App({ products, categories }: AppProps) {
           />
 
           <BenefitsBar />
-
-          <Categories
-            categories={categories}
-            activeCategory={activeCategory}
-            onCategorySelect={(category) => {
-              setActiveCategory(category);
-              setSearchQuery('');
-            }}
-          />
 
           <CategoryProductSections
             products={products}
@@ -251,20 +244,24 @@ export default function App({ products, categories }: AppProps) {
             }}
           />
 
-          <BestSellers
-            products={products}
-            categories={categories}
-            onProductClick={handleProductSelect}
-            onAddToCart={(prod) => handleAddToCart(prod, 1)}
-            activeCategory={activeCategory}
-            onCategorySelect={(category) => {
-              setActiveCategory(category);
-              if (category) {
-                setSearchQuery('');
-              }
-            }}
-            searchQuery={searchQuery}
-          />
+          {shouldShowCatalog ? (
+            <BestSellers
+              products={products}
+              categories={categories}
+              onProductClick={handleProductSelect}
+              onAddToCart={(prod) => handleAddToCart(prod, 1)}
+              activeCategory={activeCategory}
+              onCategorySelect={(category) => {
+                setActiveCategory(category);
+                if (category) {
+                  setSearchQuery('');
+                }
+              }}
+              searchQuery={searchQuery}
+            />
+          ) : (
+            <div id="catalogo" className="scroll-mt-28" />
+          )}
 
           <TechSection />
         </main>

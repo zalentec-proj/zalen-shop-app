@@ -161,7 +161,7 @@ export default function CategoryProductSections({
   }
 
   return (
-    <section className="w-full px-4 py-14 md:px-8">
+    <section className="w-full scroll-mt-28 px-4 py-14 md:px-8" id="vitrines">
       <div className="mx-auto flex max-w-7xl flex-col gap-14">
         {sections.map((section) => (
           <div key={section.id} className="flex flex-col gap-5">
