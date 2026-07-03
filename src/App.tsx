@@ -10,6 +10,7 @@ import Navbar from './components/layout/Navbar';
 import Hero from './components/home/Hero';
 import BenefitsBar from './components/home/BenefitsBar';
 import Categories from './components/home/Categories';
+import CategoryProductSections from './components/home/CategoryProductSections';
 import FeaturedProduct from './components/home/FeaturedProduct';
 import BestSellers from './components/home/BestSellers';
 import TechSection from './components/home/TechSection';
@@ -170,8 +171,24 @@ export default function App({ products, categories }: AppProps) {
 
   const handleCategoryFromNavbar = (cat: string | null) => {
     setActiveCategory(cat);
+    setSearchQuery('');
     if (currentPage !== 'home') {
       setCurrentPage('home');
+    }
+  };
+
+  const handleExploreSection = (input: {
+    categorySlug?: string;
+    searchQuery?: string;
+  }) => {
+    setActiveCategory(input.categorySlug ?? null);
+    setSearchQuery(input.searchQuery ?? '');
+    if (currentPage !== 'home') {
+      setCurrentPage('home');
+    }
+    const section = document.getElementById('catalogo');
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
@@ -212,7 +229,18 @@ export default function App({ products, categories }: AppProps) {
           <Categories
             categories={categories}
             activeCategory={activeCategory}
-            onCategorySelect={setActiveCategory}
+            onCategorySelect={(category) => {
+              setActiveCategory(category);
+              setSearchQuery('');
+            }}
+          />
+
+          <CategoryProductSections
+            products={products}
+            categories={categories}
+            onProductClick={handleProductSelect}
+            onAddToCart={(prod) => handleAddToCart(prod, 1)}
+            onExploreSection={handleExploreSection}
           />
 
           <FeaturedProduct
@@ -229,7 +257,12 @@ export default function App({ products, categories }: AppProps) {
             onProductClick={handleProductSelect}
             onAddToCart={(prod) => handleAddToCart(prod, 1)}
             activeCategory={activeCategory}
-            onCategorySelect={setActiveCategory}
+            onCategorySelect={(category) => {
+              setActiveCategory(category);
+              if (category) {
+                setSearchQuery('');
+              }
+            }}
             searchQuery={searchQuery}
           />
 
