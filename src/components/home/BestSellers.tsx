@@ -3,6 +3,7 @@ import { Product, FilterState, StorefrontCategory } from '../../types';
 import ProductCard from '../ecommerce/ProductCard';
 import FilterPanel from '../ecommerce/FilterPanel';
 import { HelpCircle, Star, Sparkles } from 'lucide-react';
+import { getAcceptedCategorySlugs } from './category-display';
 
 interface BestSellersProps {
   products: Product[];
@@ -86,13 +87,9 @@ export default function BestSellers({
     return products.filter((p) => {
       // Category filter comparison
       if (localFilters.category) {
-        const activeCategoryOption = categories.find(
-          (category) => category.slug === localFilters.category
+        const acceptedSlugs = new Set(
+          getAcceptedCategorySlugs(categories, localFilters.category)
         );
-        const acceptedSlugs = new Set([
-          localFilters.category,
-          ...(activeCategoryOption?.descendantSlugs ?? []),
-        ]);
         const categoryMatches =
           (p.categorySlug ? acceptedSlugs.has(p.categorySlug) : false) ||
           p.categories?.some((category) => acceptedSlugs.has(category.slug));

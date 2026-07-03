@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ReceiptText, Search, User, ShoppingCart, Menu, X } from 'lucide-react';
 import Logo from '../ui/Logo';
 import type { StorefrontCategory } from '../../types';
+import { getPrimaryStorefrontCategories } from '../home/category-display';
 
 interface NavbarProps {
   categories: StorefrontCategory[];
@@ -42,12 +43,10 @@ export default function Navbar({
   }, []);
 
   const navLinks = useMemo(() => {
-    const dynamicLinks = categories.slice(0, 6).map((category) => ({
+    return getPrimaryStorefrontCategories(categories).map((category) => ({
       label: category.name,
       value: category.slug,
     }));
-
-    return [{ label: 'Todos', value: null }, ...dynamicLinks];
   }, [categories]);
 
   const handleLinkClick = (categoryValue: string | null) => {
@@ -65,7 +64,13 @@ export default function Navbar({
       {/* Floating glass bar / Sleek nav bar */}
       <nav id="navbar-main" className="max-w-7xl mx-auto h-[82px] px-6 md:px-8 rounded-full flex items-center justify-between navbar-glass transition-all duration-300 hover:border-white/20 shadow-[0_12px_32px_rgba(0,0,0,0.55)]">
         {/* Brand Logo */}
-        <button onClick={onNavigateToHome} className="focus:outline-none cursor-pointer shrink-0">
+        <button
+          onClick={() => {
+            onCategorySelect(null);
+            onNavigateToHome();
+          }}
+          className="focus:outline-none cursor-pointer shrink-0"
+        >
           <Logo size="sm" className="h-[36px] md:h-[52px]" />
         </button>
 
