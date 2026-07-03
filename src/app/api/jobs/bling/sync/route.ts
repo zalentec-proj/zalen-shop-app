@@ -1,10 +1,33 @@
 import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { authorizeInternalJobRequest } from '@/modules/integrations/bling/jobs/bling-job-auth';
-import { runBlingScheduledSync } from '@/modules/integrations/bling/jobs/bling-scheduled-sync.service';
+import {
+  runBlingScheduledSync,
+  type BlingScheduledSyncMode,
+} from '@/modules/integrations/bling/jobs/bling-scheduled-sync.service';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+function getSyncMode(value: string | null | undefined): BlingScheduledSyncMode {
+  return value === 'full' ? 'full' : 'incremental';
+}
+
+async function getRequestMode(request: Request): Promise<BlingScheduledSyncMode> {
+  const url = new URL(request.url);
+  const queryMode = getSyncMode(url.searchParams.get('mode'));
+
+  if (queryMode === 'full') {
+    return queryMode;
+  }
+
+  try {
+    const body = (await request.clone().json()) as { mode?: unknown };
+    return getSyncMode(typeof body.mode === 'string' ? body.mode : undefined);
+  } catch {
+    return 'incremental';
+  }
+}
 
 async function handle(request: Request) {
   const auth = authorizeInternalJobRequest(request);
@@ -16,7 +39,9 @@ async function handle(request: Request) {
     );
   }
 
-  const result = await runBlingScheduledSync();
+  const result = await runBlingScheduledSync({
+    productSyncMode: await getRequestMode(request),
+  });
 
   revalidatePath('/');
   revalidatePath('/admin');

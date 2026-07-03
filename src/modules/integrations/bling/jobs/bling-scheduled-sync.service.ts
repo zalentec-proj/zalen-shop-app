@@ -27,6 +27,8 @@ export type BlingScheduledSyncResult = {
   results: BlingScheduledSyncStoreResult[];
 };
 
+export type BlingScheduledSyncMode = 'incremental' | 'full';
+
 function toSafeErrorCode(error: unknown) {
   if (error instanceof Error && /^[a-z0-9_:-]+$/i.test(error.message)) {
     return error.message.slice(0, 80);
@@ -37,6 +39,7 @@ function toSafeErrorCode(error: unknown) {
 
 export async function runBlingScheduledSync(input: {
   storeIds?: string[];
+  productSyncMode?: BlingScheduledSyncMode;
 } = {}): Promise<BlingScheduledSyncResult> {
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
@@ -55,7 +58,7 @@ export async function runBlingScheduledSync(input: {
 
     try {
       const productResult = await runBlingProductSync(storeId, {
-        mode: 'incremental',
+        mode: input.productSyncMode ?? 'incremental',
       });
 
       storeResult.productSync = {
