@@ -571,6 +571,16 @@ function getCustomerEmailForCode(customer: { email?: string } | null) {
   return email || null;
 }
 
+function getSavedCustomerEmailTypoErrorMessage(email: string) {
+  const suggestion = getCommonEmailTypoSuggestion(email);
+
+  if (!suggestion) {
+    return null;
+  }
+
+  return `O e-mail cadastrado parece incorreto (${maskEmail(email)}). Use Alterar e-mail/CPF/CNPJ e informe o e-mail correto, ou fale com atendimento.`;
+}
+
 async function requireVerifiedCheckoutEmail(input: {
   email: string;
 }) {
@@ -793,6 +803,15 @@ export async function requestCheckoutAccountCodeAction(
     };
   }
 
+  const typoMessage = getSavedCustomerEmailTypoErrorMessage(email);
+
+  if (typoMessage) {
+    return {
+      ok: false,
+      error: typoMessage,
+    };
+  }
+
   try {
     await requestCustomerLoginCode({
       storeId: store.id,
@@ -836,6 +855,15 @@ export async function verifyCheckoutAccountCodeAction(
     return {
       ok: false,
       error: 'Não encontramos um e-mail validável para este cadastro.',
+    };
+  }
+
+  const typoMessage = getSavedCustomerEmailTypoErrorMessage(email);
+
+  if (typoMessage) {
+    return {
+      ok: false,
+      error: typoMessage,
     };
   }
 
@@ -1371,6 +1399,15 @@ export async function identifyCheckoutCustomerAction(
         document: isDocumentLookup ? digits : customer.document,
         customerType: customer.customerType,
       },
+    };
+  }
+
+  const typoMessage = getSavedCustomerEmailTypoErrorMessage(email);
+
+  if (typoMessage) {
+    return {
+      ok: false,
+      error: typoMessage,
     };
   }
 
