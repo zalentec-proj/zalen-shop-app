@@ -50,9 +50,31 @@ import {
 import type { Cart } from '@/modules/cart/cart.types';
 import type { CustomerType } from '@/modules/pricing/pricing.types';
 
+type CheckoutSessionCustomer = {
+  name?: string;
+  email?: string;
+  phone?: string;
+  document?: string;
+  customerType?: CustomerType;
+  legalName?: string;
+  stateRegistration?: string;
+  stateRegistrationExempt?: boolean;
+  acceptsMarketing?: boolean;
+  shippingAddress?: {
+    postalCode?: string;
+    street?: string;
+    number?: string;
+    complement?: string;
+    district?: string;
+    city?: string;
+    state?: string;
+  };
+};
+
 interface Props {
   customerSession: {
     email?: string;
+    customer?: CheckoutSessionCustomer;
   } | null;
 }
 
@@ -173,6 +195,43 @@ function getDocumentValidationState(document: string, customerType: CustomerType
       : 'invalid';
 }
 
+function getInitialCheckoutStep(
+  customerSession: Props['customerSession']
+): CheckoutStep {
+  return customerSession?.email ? 'cadastro' : 'identificacao';
+}
+
+function getInitialCustomerState(
+  customerSession: Props['customerSession']
+): CustomerState {
+  const sessionCustomer = customerSession?.customer;
+  const document = sessionCustomer?.document ?? '';
+  const customerType = getCustomerTypeFromDocumentInput(
+    document,
+    sessionCustomer?.customerType ?? 'pf'
+  );
+
+  return {
+    name: sessionCustomer?.name ?? '',
+    email: sessionCustomer?.email ?? customerSession?.email ?? '',
+    phone: sessionCustomer?.phone ?? '',
+    document,
+    customerType,
+    legalName: sessionCustomer?.legalName ?? '',
+    stateRegistration: sessionCustomer?.stateRegistration ?? '',
+    stateRegistrationExempt:
+      sessionCustomer?.stateRegistrationExempt ?? false,
+    acceptsMarketing: sessionCustomer?.acceptsMarketing ?? false,
+    postalCode: sessionCustomer?.shippingAddress?.postalCode ?? '',
+    street: sessionCustomer?.shippingAddress?.street ?? '',
+    number: sessionCustomer?.shippingAddress?.number ?? '',
+    complement: sessionCustomer?.shippingAddress?.complement ?? '',
+    district: sessionCustomer?.shippingAddress?.district ?? '',
+    city: sessionCustomer?.shippingAddress?.city ?? '',
+    state: sessionCustomer?.shippingAddress?.state ?? '',
+  };
+}
+
 function getGenericValidationState(
   value: string,
   validator: (value: string) => boolean
@@ -290,26 +349,16 @@ function StepCard({
 export default function CartClient({ customerSession }: Props) {
   const [cart, setCart] = useState<Cart>(() => createEmptyCart());
   const [checkoutStep, setCheckoutStep] =
-    useState<CheckoutStep>('identificacao');
-  const [identifier, setIdentifier] = useState(customerSession?.email ?? '');
-  const [customer, setCustomer] = useState<CustomerState>({
-    name: '',
-    email: customerSession?.email ?? '',
-    phone: '',
-    document: '',
-    customerType: 'pf',
-    legalName: '',
-    stateRegistration: '',
-    stateRegistrationExempt: false,
-    acceptsMarketing: false,
-    postalCode: '',
-    street: '',
-    number: '',
-    complement: '',
-    district: '',
-    city: '',
-    state: '',
-  });
+    useState<CheckoutStep>(() => getInitialCheckoutStep(customerSession));
+  const [identifier, setIdentifier] = useState(
+    customerSession?.customer?.document ??
+      customerSession?.customer?.email ??
+      customerSession?.email ??
+      ''
+  );
+  const [customer, setCustomer] = useState<CustomerState>(() =>
+    getInitialCustomerState(customerSession)
+  );
   const initialVerifiedEmail = customerSession?.email
     ? normalizeEmailAddress(customerSession.email)
     : '';
