@@ -1805,21 +1805,16 @@ export default function CartClient({ customerSession }: Props) {
                                 </span>
                               </div>
                               <p className="mt-1 text-xs leading-5 text-brand-muted">
-                                {option.carrierName
-                                  ? `${option.carrierName} · cotação real por CEP e medidas`
-                                  : option.description ??
-                                    'Método configurado pela loja.'}
+                                {option.carrierName ??
+                                  option.description ??
+                                  'Entrega para o endereço informado.'}
                               </p>
                               <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold text-brand-muted">
                                 <span className="rounded-full border border-white/10 px-2 py-1">
                                   {deliveryWindow}
                                 </span>
                                 <span className="rounded-full border border-white/10 px-2 py-1">
-                                  {option.kind === 'pickup'
-                                    ? 'Retirada'
-                                    : option.providerKey === 'superfrete'
-                                      ? 'SuperFrete quote-only'
-                                      : 'Entrega'}
+                                  {option.kind === 'pickup' ? 'Retirada' : 'Entrega'}
                                 </span>
                               </div>
                             </div>
