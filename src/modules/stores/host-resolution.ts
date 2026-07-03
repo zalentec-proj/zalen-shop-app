@@ -93,3 +93,21 @@ export function getPlatformAppOriginFromHost(
 
   return `${currentUrl.protocol}//app.${rootDomain}`;
 }
+
+export function getStorefrontOriginFromHost(
+  currentUrl: URL,
+  storeSlug: string,
+  rootDomain = DEFAULT_PLATFORM_ROOT_DOMAIN
+) {
+  const hostname = normalizeHostname(currentUrl.host);
+
+  if (
+    !hostname ||
+    isLocalhostName(hostname) ||
+    hostname.endsWith(`.${DEFAULT_LOCAL_STORE_ROOT_DOMAIN}`)
+  ) {
+    return currentUrl.origin;
+  }
+
+  return `${currentUrl.protocol}//${storeSlug}.${rootDomain}`;
+}

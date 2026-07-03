@@ -2,6 +2,10 @@ import Link from 'next/link';
 import { Clock3 } from 'lucide-react';
 import { noindexMetadata } from '@/modules/seo/seo.service';
 import {
+  getCurrentStorefrontOrigin,
+  resolveCurrentStoreFromHeaders,
+} from '@/modules/stores/store-resolution';
+import {
   type MercadoPagoReturnSearchParams,
   processMercadoPagoReturn,
 } from '../mercado-pago-return';
@@ -21,9 +25,11 @@ export default async function MercadoPagoPendingPage({
   const result = searchParams
     ? await processMercadoPagoReturn(searchParams)
     : null;
+  const store = await resolveCurrentStoreFromHeaders();
+  const storefrontOrigin = await getCurrentStorefrontOrigin(store);
   const accountHref = result?.orderId
-    ? `/conta/entrar?next=${encodeURIComponent(`/conta/pedidos/${result.orderId}`)}`
-    : '/conta/entrar?next=/conta/pedidos';
+    ? `${storefrontOrigin}/conta/entrar?next=${encodeURIComponent(`/conta/pedidos/${result.orderId}`)}`
+    : `${storefrontOrigin}/conta/entrar?next=/conta/pedidos`;
 
   return (
     <main className="min-h-screen bg-brand-bg px-4 py-16 text-white">
@@ -51,7 +57,7 @@ export default async function MercadoPagoPendingPage({
             Acompanhar pedido
           </Link>
           <Link
-            href="/"
+            href={storefrontOrigin}
             className="flex h-12 items-center justify-center rounded-xl border border-white/10 px-4 text-sm font-bold text-white transition hover:border-white/20"
           >
             Voltar para a loja

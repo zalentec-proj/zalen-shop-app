@@ -5,7 +5,10 @@ import { MarketingDataLayer } from '@/modules/marketing/MarketingDataLayer';
 import { MarketingScripts } from '@/modules/marketing/MarketingScripts';
 import { getMarketingRuntimeConfig } from '@/modules/marketing/marketing.service';
 import { noindexMetadata } from '@/modules/seo/seo.service';
-import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
+import {
+  getCurrentStorefrontOrigin,
+  resolveCurrentStoreFromHeaders,
+} from '@/modules/stores/store-resolution';
 import { ClearCartOnApproved } from '../ClearCartOnApproved';
 import {
   type MercadoPagoReturnSearchParams,
@@ -30,6 +33,7 @@ export default async function MercadoPagoSuccessPage({
   const isApproved = result?.status === 'approved';
   const isPending = result?.status === 'pending';
   const store = await resolveCurrentStoreFromHeaders();
+  const storefrontOrigin = await getCurrentStorefrontOrigin(store);
   const [marketingConfig, order] = await Promise.all([
     getMarketingRuntimeConfig(store),
     isApproved && result?.orderId
@@ -37,8 +41,8 @@ export default async function MercadoPagoSuccessPage({
       : Promise.resolve(null),
   ]);
   const accountHref = result?.orderId
-    ? `/conta/entrar?next=${encodeURIComponent(`/conta/pedidos/${result.orderId}`)}`
-    : '/conta/entrar?next=/conta/pedidos';
+    ? `${storefrontOrigin}/conta/entrar?next=${encodeURIComponent(`/conta/pedidos/${result.orderId}`)}`
+    : `${storefrontOrigin}/conta/entrar?next=/conta/pedidos`;
 
   return (
     <>
@@ -102,7 +106,7 @@ export default async function MercadoPagoSuccessPage({
             Acompanhar pedido
           </Link>
           <Link
-            href="/"
+            href={storefrontOrigin}
             className="flex h-12 items-center justify-center rounded-xl border border-white/10 px-4 text-sm font-bold text-white transition hover:border-white/20"
           >
             Continuar comprando

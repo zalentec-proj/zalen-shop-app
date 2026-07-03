@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { createHash } from 'node:crypto';
-import { cookies, headers } from 'next/headers';
+import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { createOrder } from '@/modules/orders/order.service';
 import { isValidCpfOrCnpj, onlyDigits } from '@/modules/customers/br-document';
@@ -19,9 +19,11 @@ import {
 } from '@/modules/customer-account/customer-auth.service';
 import { findCustomerByAuthUserId } from '@/modules/customers/customer.service';
 import { lookupBrazilianPostalCode } from '@/modules/address/postal-code.service';
-import { getServerEnv } from '@/lib/env/server';
 import { parseMarketingContextCookie } from '@/modules/marketing/marketing.service';
-import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
+import {
+  getCurrentStorefrontOrigin,
+  resolveCurrentStoreFromHeaders,
+} from '@/modules/stores/store-resolution';
 import {
   MercadoPagoPreferenceError,
   createCheckoutPreference,
@@ -450,16 +452,6 @@ function getCheckoutAttemptFingerprint(input: CheckoutInput) {
   };
 }
 
-async function getCheckoutBaseUrl() {
-  const requestHeaders = await headers();
-
-  return (
-    requestHeaders.get('origin') ??
-    getServerEnv().APP_URL ??
-    'http://localhost:3000'
-  );
-}
-
 function assertCheckoutEmailLooksIntentional(email: string) {
   const suggestion = getCommonEmailTypoSuggestion(email);
 
@@ -595,7 +587,7 @@ export async function requestCheckoutEmailCodeAction(
       storeId: store.id,
       storeName: store.name,
       email,
-      baseUrl: await getCheckoutBaseUrl(),
+      baseUrl: await getCurrentStorefrontOrigin(store),
       next: '/carrinho',
     });
 
@@ -684,7 +676,7 @@ export async function requestCheckoutAccountCodeAction(
       storeId: store.id,
       storeName: store.name,
       email,
-      baseUrl: await getCheckoutBaseUrl(),
+      baseUrl: await getCurrentStorefrontOrigin(store),
       next: '/carrinho',
     });
 
@@ -862,7 +854,7 @@ export async function checkoutCartAction(
         email: verifiedEmail.email,
       },
     } satisfies CheckoutInput;
-    const baseUrl = await getCheckoutBaseUrl();
+    const baseUrl = await getCurrentStorefrontOrigin(store);
     const fingerprint = getCheckoutAttemptFingerprint(checkoutInput);
 
     await ensureMercadoPagoCheckoutReady(store.id);

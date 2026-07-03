@@ -1,30 +1,21 @@
 'use server';
 
-import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
-import { getServerEnv } from '@/lib/env/server';
 import { createOptionalClient } from '@/lib/supabase/server';
 import { getCustomerOrderForUser } from '@/modules/customer-account/customer-account.service';
 import {
   MercadoPagoPreferenceError,
   createCheckoutPreference,
 } from '@/modules/integrations/mercado-pago/mercado-pago.connector';
-import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
+import {
+  getCurrentStorefrontOrigin,
+  resolveCurrentStoreFromHeaders,
+} from '@/modules/stores/store-resolution';
 
 const retryPaymentSchema = z.object({
   orderId: z.string().trim().uuid(),
 });
-
-async function getBaseUrl() {
-  const requestHeaders = await headers();
-
-  return (
-    requestHeaders.get('origin') ??
-    getServerEnv().APP_URL ??
-    'http://localhost:3000'
-  );
-}
 
 function redirectToOrder(orderId: string, paymentState: string): never {
   redirect(
@@ -86,7 +77,7 @@ export async function retryCustomerOrderPaymentAction(formData: FormData) {
   try {
     const payment = await createCheckoutPreference({
       order,
-      baseUrl: await getBaseUrl(),
+      baseUrl: await getCurrentStorefrontOrigin(store),
     });
 
     checkoutUrl = payment.checkoutUrl;

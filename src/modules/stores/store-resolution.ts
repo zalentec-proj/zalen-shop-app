@@ -5,6 +5,7 @@ import type { NextRequest } from 'next/server';
 import { getServerEnv } from '@/lib/env/server';
 import {
   getStoreSlugFromHostname,
+  getStorefrontOriginFromHost,
   isReservedPlatformSubdomain,
   normalizeHostname,
 } from './host-resolution';
@@ -48,6 +49,40 @@ export class StoreNotFoundError extends Error {
 
 function getRootDomain() {
   return getServerEnv().PLATFORM_ROOT_DOMAIN ?? 'zalenshop.com.br';
+}
+
+function getOriginFromHeaders(
+  headerStore: Awaited<ReturnType<typeof headers>>
+) {
+  const origin = headerStore.get('origin');
+
+  if (origin) {
+    return origin;
+  }
+
+  const host = headerStore.get('x-forwarded-host') ?? headerStore.get('host');
+  const protocol = headerStore.get('x-forwarded-proto') ?? 'http';
+
+  if (host) {
+    return `${protocol}://${host}`;
+  }
+
+  return getServerEnv().APP_URL ?? 'http://localhost:3000';
+}
+
+export async function getCurrentStorefrontOrigin(store: Pick<StoreContext, 'slug'>) {
+  const headerStore = await headers();
+  const currentOrigin = getOriginFromHeaders(headerStore);
+
+  try {
+    return getStorefrontOriginFromHost(
+      new URL(currentOrigin),
+      store.slug,
+      getRootDomain()
+    );
+  } catch {
+    return getServerEnv().APP_URL ?? 'http://localhost:3000';
+  }
 }
 
 export function getStoreFromResolution(resolution: StoreResolution) {
