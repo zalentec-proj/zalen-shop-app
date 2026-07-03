@@ -1,6 +1,9 @@
 import 'server-only';
 
-import { upsertIntegrationProductInRepository } from '@/modules/catalog/product.repository';
+import {
+  upsertIntegrationCategoryInRepository,
+  upsertIntegrationProductInRepository,
+} from '@/modules/catalog/product.repository';
 import { BlingApiClientError, createBlingApiClientForStore } from '../bling.api-client';
 import type { BlingApiClient } from '../bling.api-client';
 import type { BlingEnvironment } from '../bling.types';
@@ -13,6 +16,8 @@ import {
 } from '../bling.repository';
 import { mapBlingProductToCatalogInput } from './bling-product.mapper';
 import type {
+  BlingProductCategoryItem,
+  BlingProductCategoryListResponse,
   BlingProductCategoryResponse,
   BlingProductDetail,
   BlingProductDetailResponse,
@@ -25,6 +30,13 @@ import type {
 const pageLimit = 100;
 const requestIntervalMs = 400;
 const diagnosticsLimit = 30;
+const rootBlingCategoryParentId = 0;
+
+type FlattenedBlingProductCategory = {
+  id: number;
+  name: string;
+  parentId?: number;
+};
 
 function sleep(ms: number) {
   return new Promise((resolve) => {
@@ -55,6 +67,7 @@ function createInitialSummary(startedAt: string): BlingProductSyncSummary {
     productsCreated: 0,
     productsUpdated: 0,
     productsSkipped: 0,
+    categoriesSynced: 0,
     categoriesLinked: 0,
     categoriesCreated: 0,
     categoriesSkipped: 0,
@@ -70,6 +83,96 @@ function createInitialSummary(startedAt: string): BlingProductSyncSummary {
 function toStock(value: number | string | null | undefined) {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? Math.max(Math.floor(parsed), 0) : 0;
+}
+
+function getBlingCategoryId(category: BlingProductCategoryItem) {
+  return category.id ?? category.codigo ?? category.idCategoria;
+}
+
+function getBlingCategoryName(category: BlingProductCategoryItem) {
+  return (category.descricao ?? category.nome ?? category.name)?.trim();
+}
+
+function getBlingCategoryParentId(category: BlingProductCategoryItem) {
+  if (category.__inheritedParentId !== undefined) {
+    return category.__inheritedParentId;
+  }
+
+  if (typeof category.categoriaPai === 'number') {
+    return category.categoriaPai;
+  }
+
+  if (category.categoriaPai?.id !== undefined) {
+    return category.categoriaPai.id;
+  }
+
+  return category.idCategoriaPai ?? rootBlingCategoryParentId;
+}
+
+function getBlingCategoryChildren(category: BlingProductCategoryItem) {
+  return category.filhos ?? category.subcategorias ?? category.categorias ?? [];
+}
+
+function getBlingCategoryListItems(response: BlingProductCategoryListResponse) {
+  if (Array.isArray(response)) {
+    return response;
+  }
+
+  if (Array.isArray(response.data)) {
+    return response.data;
+  }
+
+  if (Array.isArray(response.categorias)) {
+    return response.categorias;
+  }
+
+  return [];
+}
+
+function flattenBlingCategories(
+  items: BlingProductCategoryItem[],
+  inheritedParentId = rootBlingCategoryParentId
+) {
+  const flattened: FlattenedBlingProductCategory[] = [];
+
+  for (const item of items) {
+    const id = getBlingCategoryId(item);
+    const name = getBlingCategoryName(item);
+    const explicitParentId = getBlingCategoryParentId(item);
+    const parentId =
+      explicitParentId !== rootBlingCategoryParentId
+        ? explicitParentId
+        : inheritedParentId;
+
+    if (id && name) {
+      flattened.push({
+        id,
+        name,
+        parentId:
+          parentId !== rootBlingCategoryParentId && parentId !== id
+            ? parentId
+            : undefined,
+      });
+    }
+
+    const children = getBlingCategoryChildren(item);
+
+    if (children.length > 0) {
+      flattened.push(
+        ...flattenBlingCategories(children, id ?? parentId)
+      );
+    }
+  }
+
+  const seen = new Set<number>();
+  return flattened.filter((category) => {
+    if (seen.has(category.id)) {
+      return false;
+    }
+
+    seen.add(category.id);
+    return true;
+  });
 }
 
 function getBlingProductIds(product: BlingProductDetail) {
@@ -232,6 +335,64 @@ export async function runBlingProductSync(
       }
     };
 
+    const syncCategoriesFromBling = async () => {
+      const categoriesByExternalId = new Map<number, FlattenedBlingProductCategory>();
+      let categoryPage = 1;
+
+      while (true) {
+        const response = await request<BlingProductCategoryListResponse>(
+          '/categorias/produtos',
+          {
+            pagina: categoryPage,
+            limite: pageLimit,
+          }
+        );
+        const items = getBlingCategoryListItems(response);
+
+        for (const category of flattenBlingCategories(items)) {
+          if (!categoriesByExternalId.has(category.id)) {
+            categoriesByExternalId.set(category.id, category);
+          }
+        }
+
+        if (items.length === 0 || items.length < pageLimit) {
+          break;
+        }
+
+        categoryPage += 1;
+      }
+
+      const pending = Array.from(categoriesByExternalId.values());
+      const localIdByExternalId = new Map<number, string>();
+
+      while (pending.length > 0) {
+        const nextIndex = pending.findIndex(
+          (category) =>
+            !category.parentId || localIdByExternalId.has(category.parentId)
+        );
+        const [category] = pending.splice(nextIndex >= 0 ? nextIndex : 0, 1);
+        const parentId = category.parentId
+          ? localIdByExternalId.get(category.parentId) ?? null
+          : null;
+        const result = await upsertIntegrationCategoryInRepository({
+          storeId,
+          category: {
+            externalId: `bling:${category.id}`,
+            name: category.name,
+            parentId,
+          },
+        });
+
+        localIdByExternalId.set(category.id, result.id);
+        categoryCache.set(category.id, category.name);
+        summary.categoriesSynced += 1;
+
+        if (result.created) {
+          summary.categoriesCreated += 1;
+        }
+      }
+    };
+
     const getStockByProductId = async (product: BlingProductDetail) => {
       const productIds = getBlingProductIds(product);
       const stockByProductId = new Map<string, number>();
@@ -262,6 +423,12 @@ export async function runBlingProductSync(
 
       return stockByProductId;
     };
+
+    try {
+      await syncCategoriesFromBling();
+    } catch {
+      summary.categoriesSkipped += 1;
+    }
 
     const processProduct = async (listProduct: BlingProductDetail) => {
       if (!listProduct.id) {

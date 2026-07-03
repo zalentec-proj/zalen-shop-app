@@ -124,6 +124,7 @@ function EnvironmentCard({ state }: { state: MercadoPagoEnvironmentAdminState })
     ['Conta', state.account?.nickname ?? state.account?.email ?? 'Não informada'],
     ['User ID', state.account?.userId ?? 'Não informado'],
     ['Fonte', state.credentialsSource === 'oauth' ? 'OAuth por loja' : 'ENV legado'],
+    ['Payment Brick', state.publicKeyConfigured ? 'Pronto' : 'Public Key pendente'],
     ['Conectado em', formatOptionalDateTime(state.connectedAt)],
     ['Token expira em', formatOptionalDateTime(state.tokenExpiresAt)],
   ];

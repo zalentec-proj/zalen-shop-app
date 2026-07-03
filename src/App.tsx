@@ -16,7 +16,7 @@ import TechSection from './components/home/TechSection';
 import ProductDetailsView from './components/product/ProductDetailsView';
 import CartSidebar from './components/ecommerce/CartSidebar';
 import Footer from './components/layout/Footer';
-import type { Product } from './types';
+import type { Product, StorefrontCategory } from './types';
 import type { Cart } from './modules/cart/cart.types';
 import {
   addItem,
@@ -34,9 +34,31 @@ import { pushMarketingEvent } from './modules/marketing/marketing.client';
 
 interface AppProps {
   products: Product[];
+  categories: StorefrontCategory[];
 }
 
-export default function App({ products }: AppProps) {
+function normalizeCategoryText(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function findCategorySlug(
+  categories: StorefrontCategory[],
+  candidates: string[]
+) {
+  const normalizedCandidates = candidates.map(normalizeCategoryText);
+
+  return (
+    categories.find((category) => {
+      const haystack = normalizeCategoryText(`${category.name} ${category.slug}`);
+      return normalizedCandidates.some((candidate) => haystack.includes(candidate));
+    })?.slug ?? null
+  );
+}
+
+export default function App({ products, categories }: AppProps) {
   const [currentPage, setCurrentPage] = useState<'home' | 'product_detail'>('home');
   const [selectedProductId, setSelectedProductId] = useState<string>(
     products[0]?.id ?? 'dji-mavic-3-pro'
@@ -159,6 +181,7 @@ export default function App({ products }: AppProps) {
       <div className="absolute top-[40%] right-[-10%] w-[500px] h-[500px] rounded-full glow-radial-green pointer-events-none -z-30"></div>
 
       <Navbar
+        categories={categories}
         cartItemsCount={cartItemsCount}
         onCartToggle={() => setCartOpen(!cartOpen)}
         activeCategory={activeCategory}
@@ -176,7 +199,9 @@ export default function App({ products }: AppProps) {
               if (sec) sec.scrollIntoView({ behavior: 'smooth' });
             }}
             onPeasClick={() => {
-              setActiveCategory('Peças');
+              setActiveCategory(
+                findCategorySlug(categories, ['peca', 'pecas', 'componente'])
+              );
               const sec = document.getElementById('catalogo');
               if (sec) sec.scrollIntoView({ behavior: 'smooth' });
             }}
@@ -185,6 +210,7 @@ export default function App({ products }: AppProps) {
           <BenefitsBar />
 
           <Categories
+            categories={categories}
             activeCategory={activeCategory}
             onCategorySelect={setActiveCategory}
           />
@@ -199,6 +225,7 @@ export default function App({ products }: AppProps) {
 
           <BestSellers
             products={products}
+            categories={categories}
             onProductClick={handleProductSelect}
             onAddToCart={(prod) => handleAddToCart(prod, 1)}
             activeCategory={activeCategory}
@@ -220,7 +247,7 @@ export default function App({ products }: AppProps) {
         </main>
       )}
 
-      <Footer />
+      <Footer categories={categories} />
 
       <CartSidebar
         isOpen={cartOpen}

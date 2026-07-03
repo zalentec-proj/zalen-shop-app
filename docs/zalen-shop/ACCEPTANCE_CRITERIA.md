@@ -82,6 +82,8 @@
   do pagamento.
 - Pedido não pago/cancelado mostra opção de retomar pagamento sem duplicar o
   pedido.
+- Nova tentativa com mesmo carrinho, comprador e loja reutiliza pedido pendente
+  pagável em vez de criar outro pedido.
 - Pedido dispara envio ERP server-side e registra erro seguro quando integração
   estiver pendente/incompleta.
 
@@ -124,7 +126,14 @@
 - Admin não exibe token, refresh token ou segredo de webhook.
 - Checkout valida configuração server-side antes de criar pedido.
 - Checkout usa credencial da loja que criou o pedido.
-- Preferência Checkout Pro é criada apenas server-side.
+- Preferência Mercado Pago é criada apenas server-side.
+- Payment Brick renderiza apenas quando `Public Key` da loja/ambiente está
+  disponível.
+- Payment Brick envia `formData` para backend próprio; backend chama Mercado
+  Pago com `Access Token` privado.
+- Checkout Pro fica disponível somente como fallback temporário.
+- Pagamento direto usa `X-Idempotency-Key`.
+- Backend força o total do pagamento a partir de `orders.total`.
 - `notification_url` inclui `store_id` e `environment`.
 - Webhook valida assinatura antes de salvar/processar.
 - Webhook é idempotente.

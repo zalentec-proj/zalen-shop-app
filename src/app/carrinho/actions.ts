@@ -1,10 +1,11 @@
 'use server';
 
 import { z } from 'zod';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { createOrder } from '@/modules/orders/order.service';
+import { getOrderByIdFromRepository } from '@/modules/orders/order.repository';
 import { isValidCpfOrCnpj, onlyDigits } from '@/modules/customers/br-document';
 import { findCheckoutCustomerByIdentifier } from '@/modules/customers/customer.service';
 import { CustomerPersistenceError } from '@/modules/customers/customer.repository';
@@ -27,14 +28,19 @@ import {
 import {
   MercadoPagoPreferenceError,
   createCheckoutPreference,
+  createMercadoPagoBrickPayment,
   ensureMercadoPagoCheckoutReady,
+  getMercadoPagoAccessContext,
 } from '@/modules/integrations/mercado-pago/mercado-pago.connector';
 import {
   CheckoutAttemptPersistenceError,
   completeCheckoutAttempt,
+  findReusableCheckoutAttempt,
   markCheckoutAttemptError,
   reserveCheckoutAttempt,
 } from '@/modules/payments/checkout-attempt.repository';
+import { processMercadoPagoPaymentUpdate } from '@/modules/payments/mercado-pago-payment.service';
+import { getLatestPaymentTransactionByOrderId } from '@/modules/payments/payment-transaction.repository';
 import {
   getCustomerTypeFromDocument,
   isValidDocumentForCustomerType,
@@ -46,6 +52,11 @@ import {
   quoteShipping,
   type ShippingRate,
 } from '@/modules/shipping/shipment.service';
+import type {
+  MercadoPagoBrickPaymentFormData,
+  MercadoPagoEnvironment,
+} from '@/modules/integrations/mercado-pago/mercado-pago.types';
+import type { OrderListItem } from '@/modules/orders/order.types';
 
 const checkoutItemSchema = z.object({
   productId: z.string().trim().min(1),
@@ -138,7 +149,10 @@ const checkoutSchema = z.object({
   shippingQuoteId: z.string().trim().uuid(),
   items: z.array(checkoutItemSchema).min(1).max(50),
   customer: checkoutCustomerSchema,
-  paymentMethod: z.literal('mercado_pago_checkout_pro'),
+  paymentMethod: z.enum([
+    'mercado_pago_checkout_pro',
+    'mercado_pago_payment_brick',
+  ]),
 });
 
 type CheckoutInput = z.infer<typeof checkoutSchema>;
@@ -180,11 +194,52 @@ export type CheckoutCartActionResult =
       ok: true;
       orderNumber: string;
       paymentProvider: 'mercado_pago';
+      paymentMode: 'checkout_pro';
       paymentUrl: string;
+    }
+  | {
+      ok: true;
+      orderNumber: string;
+      paymentProvider: 'mercado_pago';
+      paymentMode: 'payment_brick';
+      orderId: string;
+      amount: number;
+      preferenceId: string;
+      publicKey: string;
+      environment: MercadoPagoEnvironment;
+      paymentAttemptKey: string;
+      fallbackPaymentUrl?: string;
     }
   | {
       ok: false;
       error: string;
+    };
+
+type MercadoPagoBrickActionStatus =
+  | 'approved'
+  | 'pending'
+  | 'rejected'
+  | 'cancelled'
+  | 'refunded'
+  | 'error';
+
+export type MercadoPagoBrickPaymentActionResult =
+  | {
+      ok: true;
+      orderId: string;
+      orderNumber: string;
+      paymentId: string;
+      status: MercadoPagoBrickActionStatus;
+      redirectPath: string;
+      message: string;
+    }
+  | {
+      ok: false;
+      error: string;
+      status?: Extract<
+        MercadoPagoBrickActionStatus,
+        'rejected' | 'cancelled' | 'error'
+      >;
     };
 
 export type IdentifyCheckoutCustomerActionResult =
@@ -541,6 +596,73 @@ async function requireVerifiedCheckoutEmail(input: {
   };
 }
 
+function canReusePaymentOrder(order: OrderListItem) {
+  return order.paymentStatus !== 'paid' && order.status !== 'cancelled';
+}
+
+async function buildMercadoPagoStartResult(input: {
+  storeId: string;
+  order: OrderListItem;
+  orderNumber: string;
+  preferenceId?: string;
+  checkoutUrl?: string;
+  sandboxCheckoutUrl?: string;
+  publicKey?: string;
+  environment?: MercadoPagoEnvironment;
+}): Promise<CheckoutCartActionResult> {
+  const environment =
+    input.environment ?? getDefaultMercadoPagoCheckoutEnvironment();
+  let publicKey = input.publicKey;
+
+  if (!publicKey) {
+    const accessContext = await getMercadoPagoAccessContext({
+      storeId: input.storeId,
+      environment,
+    });
+    publicKey = accessContext.publicKey;
+  }
+
+  if (publicKey && input.preferenceId) {
+    return {
+      ok: true,
+      orderNumber: input.orderNumber,
+      paymentProvider: 'mercado_pago',
+      paymentMode: 'payment_brick',
+      orderId: input.order.id,
+      amount: input.order.total,
+      preferenceId: input.preferenceId,
+      publicKey,
+      environment,
+      paymentAttemptKey: randomUUID(),
+      fallbackPaymentUrl: input.checkoutUrl ?? input.sandboxCheckoutUrl,
+    };
+  }
+
+  const paymentUrl = input.checkoutUrl ?? input.sandboxCheckoutUrl;
+
+  if (!paymentUrl) {
+    throw new Error('mercado_pago_preference_without_checkout_url');
+  }
+
+  return {
+    ok: true,
+    orderNumber: input.orderNumber,
+    paymentProvider: 'mercado_pago',
+    paymentMode: 'checkout_pro',
+    paymentUrl,
+  };
+}
+
+function getDefaultMercadoPagoCheckoutEnvironment(): MercadoPagoEnvironment {
+  return process.env.MERCADO_PAGO_ENV === 'production'
+    ? 'production'
+    : 'test';
+}
+
+function getPaymentRedirectPath(orderId: string, status: string) {
+  return `/conta/pedidos/${orderId}?payment=${encodeURIComponent(status)}`;
+}
+
 const checkoutEmailCodeRequestSchema = z.object({
   email: z.string().trim().email(),
 });
@@ -774,6 +896,12 @@ const checkoutPostalCodeLookupSchema = z.object({
   postalCode: z.string().trim().min(8),
 });
 
+const mercadoPagoBrickPaymentSchema = z.object({
+  orderId: z.string().trim().uuid(),
+  idempotencyKey: z.string().trim().uuid(),
+  formData: z.record(z.string(), z.unknown()),
+});
+
 function getPostalCodeLookupErrorMessage(errorCode: string) {
   if (errorCode === 'invalid_postal_code') {
     return 'Informe um CEP válido com 8 dígitos.';
@@ -788,6 +916,59 @@ function getPostalCodeLookupErrorMessage(errorCode: string) {
   }
 
   return 'Não foi possível consultar o CEP agora. Preencha o endereço manualmente.';
+}
+
+function getBrickPaymentStatus(
+  status: string | undefined
+): MercadoPagoBrickActionStatus {
+  if (
+    status === 'approved' ||
+    status === 'pending' ||
+    status === 'rejected' ||
+    status === 'cancelled' ||
+    status === 'refunded'
+  ) {
+    return status;
+  }
+
+  if (
+    status === 'in_process' ||
+    status === 'authorized' ||
+    status === 'in_mediation'
+  ) {
+    return 'pending';
+  }
+
+  if (status === 'charged_back') {
+    return 'cancelled';
+  }
+
+  return 'error';
+}
+
+function getBrickPaymentMessage(status: string) {
+  switch (status) {
+    case 'approved':
+      return 'Pagamento aprovado. Estamos preparando seu pedido.';
+    case 'pending':
+      return 'Pagamento gerado. Acompanhe a confirmação na área do pedido.';
+    case 'rejected':
+      return 'Pagamento recusado. Revise os dados e tente novamente.';
+    case 'cancelled':
+      return 'Pagamento cancelado. Você pode tentar novamente.';
+    default:
+      return 'Não foi possível confirmar o pagamento agora.';
+  }
+}
+
+function getPaymentEnvironmentFromTransaction(
+  transaction: Awaited<ReturnType<typeof getLatestPaymentTransactionByOrderId>>
+) {
+  const environment = transaction?.metadata?.environment;
+
+  return environment === 'production' || environment === 'test'
+    ? environment
+    : undefined;
 }
 
 export async function lookupCheckoutPostalCodeAction(
@@ -859,6 +1040,29 @@ export async function checkoutCartAction(
 
     await ensureMercadoPagoCheckoutReady(store.id);
 
+    const reusableAttempt = await findReusableCheckoutAttempt({
+      storeId: store.id,
+      ...fingerprint,
+    });
+
+    if (reusableAttempt?.orderId) {
+      const reusableOrder = await getOrderByIdFromRepository(
+        store.id,
+        reusableAttempt.orderId
+      );
+
+      if (reusableOrder && canReusePaymentOrder(reusableOrder)) {
+        return buildMercadoPagoStartResult({
+          storeId: store.id,
+          order: reusableOrder,
+          orderNumber: reusableAttempt.orderNumber ?? reusableOrder.orderNumber,
+          preferenceId: reusableAttempt.providerReference,
+          checkoutUrl: reusableAttempt.checkoutUrl,
+          sandboxCheckoutUrl: reusableAttempt.sandboxCheckoutUrl,
+        });
+      }
+    }
+
     const reservation = await reserveCheckoutAttempt({
       storeId: store.id,
       attemptKey: parsed.data.checkoutAttemptId,
@@ -866,12 +1070,23 @@ export async function checkoutCartAction(
     });
 
     if (reservation.state === 'completed' && reservation.attempt.checkoutUrl) {
-      return {
-        ok: true,
-        orderNumber: reservation.attempt.orderNumber ?? 'Pedido',
-        paymentProvider: 'mercado_pago',
-        paymentUrl: reservation.attempt.checkoutUrl,
-      };
+      const existingOrder = reservation.attempt.orderId
+        ? await getOrderByIdFromRepository(store.id, reservation.attempt.orderId)
+        : null;
+
+      if (existingOrder && canReusePaymentOrder(existingOrder)) {
+        return buildMercadoPagoStartResult({
+          storeId: store.id,
+          order: existingOrder,
+          orderNumber:
+            reservation.attempt.orderNumber ?? existingOrder.orderNumber,
+          preferenceId: reservation.attempt.providerReference,
+          checkoutUrl: reservation.attempt.checkoutUrl,
+          sandboxCheckoutUrl: reservation.attempt.sandboxCheckoutUrl,
+        });
+      }
+
+      throw new Error('checkout_attempt_completed_without_payable_order');
     }
 
     if (reservation.state === 'in_progress') {
@@ -931,12 +1146,16 @@ export async function checkoutCartAction(
       baseUrl,
     }).catch(() => undefined);
 
-    return {
-      ok: true,
+    return buildMercadoPagoStartResult({
+      storeId: store.id,
+      order,
       orderNumber: order.orderNumber,
-      paymentProvider: payment.provider,
-      paymentUrl: payment.checkoutUrl,
-    };
+      preferenceId: payment.preferenceId,
+      checkoutUrl: payment.checkoutUrl,
+      sandboxCheckoutUrl: payment.sandboxInitPoint,
+      publicKey: payment.publicKey,
+      environment: payment.environment,
+    });
   } catch (error) {
     if (reservedAttempt) {
       await markCheckoutAttemptError({
@@ -950,6 +1169,131 @@ export async function checkoutCartAction(
     return {
       ok: false,
       error: getSafeCheckoutError(error),
+    };
+  }
+}
+
+export async function processMercadoPagoBrickPaymentAction(
+  rawInput: unknown
+): Promise<MercadoPagoBrickPaymentActionResult> {
+  const parsed = mercadoPagoBrickPaymentSchema.safeParse(rawInput);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: 'Revise os dados de pagamento e tente novamente.',
+      status: 'error',
+    };
+  }
+
+  try {
+    const store = await resolveCurrentStoreFromHeaders();
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.getUser();
+
+    if (error || !data.user) {
+      return {
+        ok: false,
+        error: 'Entre na sua conta para concluir o pagamento.',
+        status: 'error',
+      };
+    }
+
+    const customer = await findCustomerByAuthUserId({
+      storeId: store.id,
+      authUserId: data.user.id,
+    });
+    const order = await getOrderByIdFromRepository(
+      store.id,
+      parsed.data.orderId
+    );
+
+    if (!customer || !order) {
+      return {
+        ok: false,
+        error: 'Não encontramos este pedido para pagamento.',
+        status: 'error',
+      };
+    }
+
+    const sessionEmail = normalizeEmailAddress(data.user.email ?? '');
+    const orderEmail = normalizeEmailAddress(order.customerEmail ?? '');
+    const belongsToCustomer =
+      order.customerId === customer.id ||
+      (sessionEmail && orderEmail && sessionEmail === orderEmail);
+
+    if (!belongsToCustomer) {
+      return {
+        ok: false,
+        error: 'Não encontramos este pedido para pagamento.',
+        status: 'error',
+      };
+    }
+
+    if (!canReusePaymentOrder(order)) {
+      return {
+        ok: false,
+        error: 'Este pedido não está mais disponível para pagamento.',
+        status: 'error',
+      };
+    }
+
+    const latestTransaction = await getLatestPaymentTransactionByOrderId({
+      storeId: store.id,
+      orderId: order.id,
+    });
+    const baseUrl = await getCurrentStorefrontOrigin(store);
+    const environment = getPaymentEnvironmentFromTransaction(latestTransaction);
+    const formData =
+      parsed.data.formData as MercadoPagoBrickPaymentFormData;
+    const idempotencyKey = formData.token
+      ? parsed.data.idempotencyKey
+      : `${order.id}:mercado-pago-brick`;
+    const payment = await createMercadoPagoBrickPayment({
+      order,
+      baseUrl,
+      formData,
+      idempotencyKey,
+      providerReference: latestTransaction?.providerReference,
+      environment,
+    });
+    const reconciliation = await processMercadoPagoPaymentUpdate({
+      storeId: store.id,
+      paymentId: payment.id,
+      environment,
+      source: 'return',
+    });
+    const status = getBrickPaymentStatus(
+      reconciliation.ok ? reconciliation.status : payment.status
+    );
+    const redirectPath = getPaymentRedirectPath(order.id, status);
+    const message = getBrickPaymentMessage(status);
+
+    if (status === 'rejected' || status === 'cancelled' || status === 'error') {
+      return {
+        ok: false,
+        error:
+          reconciliation.errorCode === 'payment_amount_mismatch'
+            ? 'O Mercado Pago retornou um valor diferente do pedido. Tente novamente.'
+            : message,
+        status,
+      };
+    }
+
+    return {
+      ok: true,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      paymentId: payment.id,
+      status,
+      redirectPath,
+      message,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: getSafeCheckoutError(error),
+      status: 'error',
     };
   }
 }

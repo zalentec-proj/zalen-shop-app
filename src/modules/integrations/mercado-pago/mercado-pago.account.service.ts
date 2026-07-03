@@ -129,6 +129,8 @@ function toEnvironmentState(input: {
     tokenExpiresAt,
   });
   const warnings: string[] = [];
+  const account = toAccount(settings);
+  const publicKeyConfigured = Boolean(account?.publicKey);
 
   if (status === 'expired') {
     warnings.push('Token vencido; a próxima operação tentará renovar com refresh token.');
@@ -142,14 +144,19 @@ function toEnvironmentState(input: {
     warnings.push('Segredo de webhook deste ambiente ainda não está configurado.');
   }
 
+  if (status === 'connected' && !publicKeyConfigured) {
+    warnings.push('Public Key ausente; o Payment Brick usará fallback Checkout Pro até reconectar a loja.');
+  }
+
   return {
     environment: input.environment,
     status,
     enabled,
     configured: Boolean(input.integration?.credentialsEncrypted && webhookSecretConfigured),
+    publicKeyConfigured,
     credentialsSource,
     integrationStatus: input.integration?.status,
-    account: toAccount(settings),
+    account,
     connectedAt: toOptionalString(settings.connectedAt),
     tokenExpiresAt,
     lastUpdatedAt: input.integration?.updatedAt,

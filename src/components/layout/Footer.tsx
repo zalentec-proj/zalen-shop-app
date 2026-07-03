@@ -2,10 +2,24 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, ShieldCheck } from 'lucide-react';
 import Logo from '../ui/Logo';
+import type { StorefrontCategory } from '../../types';
 
-export default function Footer() {
+const fallbackCategories = [
+  { name: 'Drones', slug: 'drones' },
+  { name: 'Peças e Componentes', slug: 'pecas' },
+  { name: 'Baterias', slug: 'baterias' },
+  { name: 'Acessórios', slug: 'acessorios' },
+  { name: 'Kits e Combos', slug: 'kits-e-combos' },
+];
+
+export default function Footer({
+  categories = [],
+}: {
+  categories?: Array<Pick<StorefrontCategory, 'name' | 'slug'>>;
+}) {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+  const categoryLinks = (categories.length ? categories : fallbackCategories).slice(0, 8);
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,11 +49,13 @@ export default function Footer() {
             Categorias
           </h4>
           <ul className="flex flex-col gap-2.5 text-[14px] text-brand-muted">
-            <li><Link href="/categoria/drones" className="hover:text-blue-primary transition-colors">Drones</Link></li>
-            <li><Link href="/categoria/pecas" className="hover:text-blue-primary transition-colors">Peças e Componentes</Link></li>
-            <li><Link href="/categoria/baterias" className="hover:text-blue-primary transition-colors">Baterias</Link></li>
-            <li><Link href="/categoria/acessorios" className="hover:text-blue-primary transition-colors">Acessórios</Link></li>
-            <li><Link href="/categoria/kits-e-combos" className="hover:text-blue-primary transition-colors">Kits e Combos</Link></li>
+            {categoryLinks.map((category) => (
+              <li key={category.slug}>
+                <Link href={`/categoria/${category.slug}`} className="hover:text-blue-primary transition-colors">
+                  {category.name}
+                </Link>
+              </li>
+            ))}
           </ul>
         </div>
 

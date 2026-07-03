@@ -29,13 +29,18 @@
 | Portal do desenvolvedor | https://www.mercadopago.com.br/developers/pt |
 | Documentação geral | https://www.mercadopago.com.br/developers/pt/docs |
 | Checkout Pro — Visão geral | https://www.mercadopago.com.br/developers/pt/docs/checkout-pro/overview |
+| Checkout Bricks — inicialização | https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/common-initialization |
+| Payment Brick — renderização | https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/payment-brick/default-rendering |
+| Payment Brick — submissão | https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/payment-brick/payment-submission |
 | Checkout Transparente (API) | https://www.mercadopago.com.br/developers/pt/docs/checkout-api/landing |
+| API Pagamentos — criar pagamento | https://www.mercadopago.com.br/developers/pt/reference/payments/_payments/post |
 | Notificações de pagamento | https://www.mercadopago.com.br/developers/pt/docs/checkout-pro/payment-notifications |
 | OAuth — criação de access token | https://www.mercadopago.com.br/developers/pt/docs/security/oauth/creation |
 | OAuth — renovação de token | https://www.mercadopago.com.br/developers/pt/docs/security/oauth/renewal |
 
 **Notas:**
-- Verificar se o projeto usará Checkout Pro ou Checkout Transparente.
+- O caminho preferencial atual é Payment Brick + API Pagamentos; Checkout Pro
+  permanece como fallback temporário.
 - Notificações (webhooks) devem ser validadas antes de atualizar status de pedido.
 - Ambiente sandbox disponível para testes.
 - O modelo multi-lojista usa uma aplicação OAuth da Zalen e credenciais

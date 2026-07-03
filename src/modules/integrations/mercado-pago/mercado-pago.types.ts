@@ -1,7 +1,9 @@
 import type { Order } from '@/modules/orders/order.types';
 import type { StoreIntegrationStatus } from '@/modules/integrations/core/store-integration.types';
 
-export type PaymentMethod = 'mercado_pago_checkout_pro';
+export type PaymentMethod =
+  | 'mercado_pago_checkout_pro'
+  | 'mercado_pago_payment_brick';
 
 export type MercadoPagoRuntimeStatus =
   | 'connected'
@@ -78,11 +80,12 @@ export interface MercadoPagoConnectedAccount {
 
 export interface MercadoPagoRuntimeState {
   provider: 'mercado_pago';
-  checkoutMode: 'checkout_pro';
+  checkoutMode: 'checkout_pro' | 'payment_brick';
   credentialsSource: MercadoPagoCredentialsSource;
   status: MercadoPagoRuntimeStatus;
   enabled: boolean;
   configured: boolean;
+  publicKeyConfigured: boolean;
   environment: MercadoPagoEnvironment;
   missingEnv: string[];
   integrationStatus?: StoreIntegrationStatus;
@@ -99,6 +102,41 @@ export interface MercadoPagoCheckoutPreferenceResult {
   checkoutUrl: string;
   initPoint?: string;
   sandboxInitPoint?: string;
+  environment: MercadoPagoEnvironment;
+  credentialsSource: MercadoPagoCredentialsSource;
+  publicKey?: string;
+}
+
+export interface MercadoPagoBrickPaymentFormData {
+  token?: string;
+  issuer_id?: string | number;
+  payment_method_id?: string;
+  payment_method_option_id?: string | null;
+  processing_mode?: string | null;
+  installments?: number | string;
+  transaction_amount?: number | string;
+  description?: string;
+  payer?: {
+    email?: string;
+    first_name?: string;
+    last_name?: string;
+    identification?: {
+      type?: string;
+      number?: string;
+    };
+    address?: Record<string, unknown>;
+  };
+  transaction_details?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+}
+
+export interface MercadoPagoBrickPaymentResult {
+  id: string;
+  status?: string;
+  statusDetail?: string;
+  paymentMethodId?: string;
+  paymentTypeId?: string;
+  transactionAmount?: number;
 }
 
 export interface MercadoPagoPaymentLookupResult {
@@ -117,6 +155,7 @@ export interface MercadoPagoEnvironmentAdminState {
   status: MercadoPagoRuntimeStatus;
   enabled: boolean;
   configured: boolean;
+  publicKeyConfigured: boolean;
   credentialsSource: MercadoPagoCredentialsSource;
   integrationStatus?: StoreIntegrationStatus;
   account?: MercadoPagoConnectedAccount;

@@ -206,6 +206,7 @@ Endpoints oficiais usados:
 ```txt
 GET https://api.bling.com.br/Api/v3/produtos
 GET https://api.bling.com.br/Api/v3/produtos/{idProduto}
+GET https://api.bling.com.br/Api/v3/categorias/produtos
 GET https://api.bling.com.br/Api/v3/categorias/produtos/{idCategoriaProduto}
 GET https://api.bling.com.br/Api/v3/estoques/saldos
 ```
@@ -221,6 +222,9 @@ Regras implementadas:
 - Produto existente só é atualizado por `store_id + external_provider + external_id`.
 - Produtos nativos sem vínculo externo não são sobrescritos por nome, slug ou SKU.
 - Slug conflitante recebe sufixo seguro para preservar URLs nativas.
+- A lista de categorias de produto do Bling é sincronizada antes dos produtos,
+  somando categorias externas às categorias nativas da loja e mantendo
+  reconciliação por slug/`external_id`.
 - `sync_jobs` registra execução com resumo sanitizado e sem payload bruto.
 - `store_integrations.last_sync_at` e `settings_json.productSync` guardam o
   último resumo operacional.

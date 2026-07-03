@@ -119,6 +119,7 @@ Endpoints oficiais usados:
 ```txt
 GET https://api.bling.com.br/Api/v3/produtos
 GET https://api.bling.com.br/Api/v3/produtos/{idProduto}
+GET https://api.bling.com.br/Api/v3/categorias/produtos
 GET https://api.bling.com.br/Api/v3/categorias/produtos/{idCategoriaProduto}
 GET https://api.bling.com.br/Api/v3/estoques/saldos
 ```
@@ -132,6 +133,9 @@ Regras da v1:
 - variante padrão é criada/atualizada com SKU, preço e estoque;
 - variações são mapeadas para múltiplas `product_variants`;
 - após o primeiro sync, `dataAlteracaoInicial` usa o último sync bem-sucedido;
+- categorias cadastradas no Bling são sincronizadas para `categories` antes do
+  processamento dos produtos, preservando `external_id = bling:{id}` e
+  hierarquia quando o payload trouxer pai/filhos;
 - categoria é vinculada quando `categoria.id` resolve para descrição clara;
 - saldos usam `/estoques/saldos` quando o escopo de estoque está disponível.
 - o resumo do sync registra diagnóstico sanitizado dos últimos produtos

@@ -99,6 +99,7 @@ export interface BlingAdminState {
       productsCreated?: number;
       productsUpdated?: number;
       productsSkipped?: number;
+      categoriesSynced?: number;
       categoriesLinked?: number;
       categoriesCreated?: number;
       categoriesSkipped?: number;

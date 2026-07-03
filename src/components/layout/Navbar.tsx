@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { ReceiptText, Search, User, ShoppingCart, Menu, X } from 'lucide-react';
 import Logo from '../ui/Logo';
+import type { StorefrontCategory } from '../../types';
 
 interface NavbarProps {
+  categories: StorefrontCategory[];
   cartItemsCount: number;
   onCartToggle: () => void;
   activeCategory: string | null;
@@ -14,6 +16,7 @@ interface NavbarProps {
 }
 
 export default function Navbar({
+  categories,
   cartItemsCount,
   onCartToggle,
   activeCategory,
@@ -38,14 +41,14 @@ export default function Navbar({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const navLinks = [
-    { label: 'Todos', value: null },
-    { label: 'Drones', value: 'Drones' },
-    { label: 'Peças', value: 'Peças' },
-    { label: 'Acessórios', value: 'Acessórios' },
-    { label: 'Baterias', value: 'Baterias' },
-    { label: 'Kits', value: 'Kits e Combos' },
-  ];
+  const navLinks = useMemo(() => {
+    const dynamicLinks = categories.slice(0, 6).map((category) => ({
+      label: category.name,
+      value: category.slug,
+    }));
+
+    return [{ label: 'Todos', value: null }, ...dynamicLinks];
+  }, [categories]);
 
   const handleLinkClick = (categoryValue: string | null) => {
     onCategorySelect(categoryValue);

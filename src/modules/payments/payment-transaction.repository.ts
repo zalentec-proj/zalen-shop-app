@@ -88,30 +88,56 @@ export async function upsertPaymentTransaction(
     throw new Error('Unable to save payment transaction.');
   }
 
-  const { error } = await supabase.from('payment_transactions').upsert(
-    {
-      store_id: input.storeId,
-      order_id: input.orderId,
-      provider: input.provider,
-      provider_reference: input.providerReference,
-      external_payment_id: input.externalPaymentId,
-      external_reference: input.externalReference,
-      status: input.status,
-      amount: input.amount,
-      checkout_url: input.checkoutUrl,
-      sandbox_checkout_url: input.sandboxCheckoutUrl,
-      raw_status: input.rawStatus,
-      raw_status_detail: input.rawStatusDetail,
-      approved_at: input.approvedAt,
-      processed_at: input.processedAt,
-      last_error: input.lastError,
-      metadata_json: input.metadata ?? {},
-      updated_at: new Date().toISOString(),
-    },
-    {
-      onConflict: 'store_id,order_id,provider',
-    }
-  );
+  const payload: Record<string, unknown> = {
+    store_id: input.storeId,
+    order_id: input.orderId,
+    provider: input.provider,
+    external_reference: input.externalReference,
+    status: input.status,
+    amount: input.amount,
+    metadata_json: input.metadata ?? {},
+    updated_at: new Date().toISOString(),
+  };
+
+  if (input.providerReference !== undefined) {
+    payload.provider_reference = input.providerReference;
+  }
+
+  if (input.externalPaymentId !== undefined) {
+    payload.external_payment_id = input.externalPaymentId;
+  }
+
+  if (input.checkoutUrl !== undefined) {
+    payload.checkout_url = input.checkoutUrl;
+  }
+
+  if (input.sandboxCheckoutUrl !== undefined) {
+    payload.sandbox_checkout_url = input.sandboxCheckoutUrl;
+  }
+
+  if (input.rawStatus !== undefined) {
+    payload.raw_status = input.rawStatus;
+  }
+
+  if (input.rawStatusDetail !== undefined) {
+    payload.raw_status_detail = input.rawStatusDetail;
+  }
+
+  if (input.approvedAt !== undefined) {
+    payload.approved_at = input.approvedAt;
+  }
+
+  if (input.processedAt !== undefined) {
+    payload.processed_at = input.processedAt;
+  }
+
+  if (input.lastError !== undefined) {
+    payload.last_error = input.lastError;
+  }
+
+  const { error } = await supabase.from('payment_transactions').upsert(payload, {
+    onConflict: 'store_id,order_id,provider',
+  });
 
   if (error) {
     throw new Error('Unable to save payment transaction.');

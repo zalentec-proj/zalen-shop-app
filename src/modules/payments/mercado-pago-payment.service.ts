@@ -189,6 +189,7 @@ async function persistPaymentState(input: {
   approvedAt?: string;
   currencyId?: string;
   liveMode?: boolean;
+  environment?: MercadoPagoEnvironment;
 }) {
   const processedAt = new Date().toISOString();
 
@@ -208,6 +209,7 @@ async function persistPaymentState(input: {
     metadata: {
       source: input.source,
       order_number: input.order.orderNumber,
+      environment: input.environment,
       currency_id: input.currencyId,
       live_mode: input.liveMode,
     },
@@ -287,6 +289,7 @@ export async function processMercadoPagoPaymentUpdate(input: {
       lastError: 'payment_amount_mismatch',
       currencyId: payment.currencyId,
       liveMode: payment.liveMode,
+      environment: input.environment,
     });
 
     return {
@@ -312,6 +315,7 @@ export async function processMercadoPagoPaymentUpdate(input: {
       lastError: reconciliationError,
       currencyId: payment.currencyId,
       liveMode: payment.liveMode,
+      environment: input.environment,
     });
 
     return {
@@ -342,6 +346,7 @@ export async function processMercadoPagoPaymentUpdate(input: {
     lastError: mapping.lastError,
     currencyId: payment.currencyId,
     liveMode: payment.liveMode,
+    environment: input.environment,
   });
 
   let transitionedToPaid = false;

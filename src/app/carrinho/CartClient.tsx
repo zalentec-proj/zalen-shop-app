@@ -24,6 +24,7 @@ import {
   checkoutCartAction,
   identifyCheckoutCustomerAction,
   lookupCheckoutPostalCodeAction,
+  processMercadoPagoBrickPaymentAction,
   previewCheckoutCartAction,
   quoteCheckoutShippingAction,
   requestCheckoutAccountCodeAction,
@@ -139,6 +140,49 @@ type PostalCodeLookupState = {
   status: 'idle' | 'loading' | 'found' | 'error';
   message?: string;
 };
+
+type MercadoPagoBrickSession = {
+  orderId: string;
+  orderNumber: string;
+  amount: number;
+  preferenceId: string;
+  publicKey: string;
+  environment: 'test' | 'production';
+  paymentAttemptKey: string;
+  fallbackPaymentUrl?: string;
+};
+
+type MercadoPagoBrickController = {
+  unmount: () => void;
+};
+
+type MercadoPagoBrickCallbacks = {
+  onReady?: () => void;
+  onSubmit?: (data: { formData: Record<string, unknown> }) => Promise<void>;
+  onError?: (error: unknown) => void;
+};
+
+type MercadoPagoInstance = {
+  bricks: () => {
+    create: (
+      type: 'payment',
+      containerId: string,
+      settings: Record<string, unknown> & { callbacks?: MercadoPagoBrickCallbacks }
+    ) => Promise<MercadoPagoBrickController>;
+  };
+};
+
+type MercadoPagoConstructor = new (
+  publicKey: string,
+  options?: { locale?: string }
+) => MercadoPagoInstance;
+
+declare global {
+  interface Window {
+    MercadoPago?: MercadoPagoConstructor;
+    paymentBrickController?: MercadoPagoBrickController;
+  }
+}
 
 const steps: Array<{ id: CheckoutStep; label: string; title: string }> = [
   { id: 'identificacao', label: '1', title: 'Identificação' },
@@ -403,6 +447,12 @@ export default function CartClient({ customerSession }: Props) {
   const [checkoutDone, setCheckoutDone] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [paymentSession, setPaymentSession] =
+    useState<MercadoPagoBrickSession | null>(null);
+  const [brickStatus, setBrickStatus] = useState<
+    'idle' | 'loading' | 'ready' | 'processing' | 'error' | 'done'
+  >('idle');
+  const [isBrickScriptLoaded, setIsBrickScriptLoaded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [isQuotingShipping, setIsQuotingShipping] = useState(false);
@@ -551,6 +601,168 @@ export default function CartClient({ customerSession }: Props) {
 
     return () => window.clearTimeout(timeoutId);
   }, [customer.postalCode]);
+
+  useEffect(() => {
+    if (!paymentSession) {
+      setBrickStatus('idle');
+      return;
+    }
+
+    if (window.MercadoPago) {
+      setIsBrickScriptLoaded(true);
+      return;
+    }
+
+    const existingScript = document.querySelector<HTMLScriptElement>(
+      'script[src="https://sdk.mercadopago.com/js/v2"]'
+    );
+
+    if (existingScript) {
+      existingScript.addEventListener('load', () => {
+        setIsBrickScriptLoaded(Boolean(window.MercadoPago));
+      });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://sdk.mercadopago.com/js/v2';
+    script.async = true;
+    script.onload = () => setIsBrickScriptLoaded(Boolean(window.MercadoPago));
+    script.onerror = () => {
+      setBrickStatus('error');
+      setCheckoutError(
+        'Não foi possível carregar o Mercado Pago. Tente novamente em instantes.'
+      );
+    };
+    document.body.appendChild(script);
+  }, [paymentSession]);
+
+  useEffect(() => {
+    if (!paymentSession || !isBrickScriptLoaded || !window.MercadoPago) {
+      return;
+    }
+
+    let isMounted = true;
+    const container = document.getElementById('paymentBrick_container');
+
+    if (!container) {
+      return;
+    }
+
+    setBrickStatus('loading');
+    window.paymentBrickController?.unmount();
+    container.innerHTML = '';
+
+    const [firstName = customer.name, ...lastNameParts] = customer.name
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    const documentDigits = onlyDigits(customer.document);
+    const mp = new window.MercadoPago(paymentSession.publicKey, {
+      locale: 'pt-BR',
+    });
+
+    mp.bricks()
+      .create('payment', 'paymentBrick_container', {
+        initialization: {
+          amount: paymentSession.amount,
+          preferenceId: paymentSession.preferenceId,
+          payer: {
+            email: normalizeEmailAddress(customer.email),
+            firstName,
+            lastName: lastNameParts.join(' '),
+            identification: {
+              type: documentDigits.length === 14 ? 'CNPJ' : 'CPF',
+              number: documentDigits,
+            },
+            address: {
+              zipCode: onlyDigits(customer.postalCode),
+              streetName: customer.street,
+              streetNumber: customer.number,
+              neighborhood: customer.district,
+              city: customer.city,
+              federalUnit: customer.state.toUpperCase(),
+            },
+          },
+        },
+        customization: {
+          visual: {
+            style: {
+              theme: 'dark',
+            },
+          },
+          paymentMethods: {
+            creditCard: 'all',
+            debitCard: 'all',
+            bankTransfer: 'all',
+            ticket: 'all',
+            mercadoPago: 'all',
+          },
+        },
+        callbacks: {
+          onReady: () => {
+            if (isMounted) {
+              setBrickStatus('ready');
+            }
+          },
+          onSubmit: async ({ formData }) => {
+            setCheckoutError(null);
+            setBrickStatus('processing');
+
+            const result = await processMercadoPagoBrickPaymentAction({
+              orderId: paymentSession.orderId,
+              idempotencyKey: paymentSession.paymentAttemptKey,
+              formData,
+            });
+
+            if (!result.ok) {
+              setBrickStatus('ready');
+              setCheckoutError(result.error);
+              throw new Error(result.error);
+            }
+
+            setBrickStatus('done');
+            setCheckoutError(result.message);
+            resetCheckoutAttempt();
+            setCart(createEmptyCart());
+            clearStoredCart();
+            window.location.href = result.redirectPath;
+          },
+          onError: () => {
+            if (!isMounted) {
+              return;
+            }
+
+            setBrickStatus('error');
+            setCheckoutError(
+              'Mercado Pago não conseguiu montar o pagamento. Tente novamente.'
+            );
+          },
+        },
+      })
+      .then((controller) => {
+        if (!isMounted) {
+          controller.unmount();
+          return;
+        }
+
+        window.paymentBrickController = controller;
+      })
+      .catch(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        setBrickStatus('error');
+        setCheckoutError(
+          'Não foi possível preparar o Mercado Pago. Tente novamente.'
+        );
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [customer, isBrickScriptLoaded, paymentSession]);
 
   function resetCheckoutAttempt() {
     checkoutAttemptIdRef.current = null;
@@ -1162,6 +1374,8 @@ export default function CartClient({ customerSession }: Props) {
     }
 
     setCheckoutError(null);
+    setPaymentSession(null);
+    setBrickStatus('idle');
     setIsSubmitting(true);
 
     const currentType = getCustomerTypeFromDocumentInput(
@@ -1196,7 +1410,7 @@ export default function CartClient({ customerSession }: Props) {
         },
       },
       items: actionItems,
-      paymentMethod: 'mercado_pago_checkout_pro',
+      paymentMethod: 'mercado_pago_payment_brick',
     });
 
     setIsSubmitting(false);
@@ -1206,17 +1420,25 @@ export default function CartClient({ customerSession }: Props) {
       return;
     }
 
-    if (result.paymentUrl) {
+    if (result.paymentMode === 'checkout_pro') {
       resetCheckoutAttempt();
       window.location.href = result.paymentUrl;
       return;
     }
 
-    resetCheckoutAttempt();
-    setCart(createEmptyCart());
-    clearStoredCart();
-    setOrderNumber(result.orderNumber);
-    setCheckoutDone(true);
+    setPaymentSession({
+      orderId: result.orderId,
+      orderNumber: result.orderNumber,
+      amount: result.amount,
+      preferenceId: result.preferenceId,
+      publicKey: result.publicKey,
+      environment: result.environment,
+      paymentAttemptKey: result.paymentAttemptKey,
+      fallbackPaymentUrl: result.fallbackPaymentUrl,
+    });
+    setBrickStatus('loading');
+    setCheckoutError(null);
+    return;
   }
 
   if (checkoutDone) {
@@ -1944,20 +2166,77 @@ export default function CartClient({ customerSession }: Props) {
                           Mercado Pago
                         </h3>
                         <p className="mt-1 text-xs leading-5 text-brand-muted">
-                          Escolha Pix, cartão ou boleto no checkout do Mercado
-                          Pago. Seus dados de pagamento não passam pela Zalen.
+                          Escolha Pix, cartão ou boleto no ambiente seguro do
+                          Mercado Pago, sem refazer os dados do pedido.
                         </p>
                       </div>
                     </div>
                   </div>
-                  <CheckoutActionBar
-                    onBack={() => setCheckoutStep('envio')}
-                    onNext={handleCheckout}
-                    nextLabel={
-                      isSubmitting ? 'Iniciando pagamento...' : 'Pagar com Mercado Pago'
-                    }
-                    disabled={isSubmitting || !isCheckoutEmailVerified}
-                  />
+                  {paymentSession ? (
+                    <div className="rounded-2xl border border-brand-border-soft bg-[#050A14]/80 p-4">
+                      <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <h3 className="text-sm font-bold text-white">
+                            Pedido {paymentSession.orderNumber}
+                          </h3>
+                          <p className="mt-1 text-xs text-brand-muted">
+                            Total a pagar: {formatCurrency(paymentSession.amount)}
+                          </p>
+                        </div>
+                        <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-brand-muted">
+                          {paymentSession.environment === 'test'
+                            ? 'Sandbox'
+                            : 'Produção'}
+                        </span>
+                      </div>
+                      <div
+                        id="paymentBrick_container"
+                        className="min-h-[360px] overflow-hidden rounded-xl bg-white p-2 text-brand-bg"
+                      />
+                      <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <p className="text-xs font-semibold text-brand-muted">
+                          {brickStatus === 'loading'
+                            ? 'Preparando Mercado Pago...'
+                            : brickStatus === 'processing'
+                              ? 'Processando pagamento...'
+                              : brickStatus === 'error'
+                                ? 'Não foi possível abrir o pagamento embutido.'
+                                : 'Se a tentativa falhar, você poderá pagar este mesmo pedido novamente.'}
+                        </p>
+                        {paymentSession.fallbackPaymentUrl ? (
+                          <a
+                            href={paymentSession.fallbackPaymentUrl}
+                            className="inline-flex h-10 items-center justify-center rounded-xl border border-blue-primary/40 px-4 text-xs font-black text-blue-primary transition hover:bg-blue-primary/10"
+                          >
+                            Abrir Mercado Pago
+                          </a>
+                        ) : null}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPaymentSession(null);
+                          setBrickStatus('idle');
+                          setCheckoutStep('envio');
+                        }}
+                        disabled={brickStatus === 'processing'}
+                        className="mt-4 h-10 rounded-xl border border-white/10 px-4 text-sm font-bold text-brand-muted transition hover:border-white/25 hover:text-white disabled:cursor-wait disabled:opacity-60"
+                      >
+                        Voltar ao envio
+                      </button>
+                    </div>
+                  ) : (
+                    <CheckoutActionBar
+                      onBack={() => setCheckoutStep('envio')}
+                      onNext={handleCheckout}
+                      nextLabel={
+                        isSubmitting
+                          ? 'Preparando pagamento...'
+                          : 'Pagar com Mercado Pago'
+                      }
+                      disabled={isSubmitting || !isCheckoutEmailVerified}
+                    />
+                  )}
                 </div>
               ) : null}
             </div>

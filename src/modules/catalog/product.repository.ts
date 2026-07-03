@@ -29,6 +29,10 @@ import {
   mockProducts,
   toProductSummary,
 } from './product.mock';
+import {
+  getCategoryGroupKey,
+  isCategoryGroupRoot,
+} from './category-groups';
 
 export type CatalogDataSource = 'supabase' | 'mock';
 
@@ -71,6 +75,7 @@ export interface MarkIntegrationProductInactiveInput {
 export interface UpsertIntegrationCategoryInput {
   externalId: string;
   name: string;
+  parentId?: string | null;
 }
 
 export interface UpsertIntegrationProductInput {
@@ -377,6 +382,17 @@ function getPreferredCategoryMatch(
   }
 
   return undefined;
+}
+
+function hasCategoryParent(category: UpsertIntegrationCategoryInput) {
+  return Object.prototype.hasOwnProperty.call(category, 'parentId');
+}
+
+function buildCategoryUpdatePayload(category: UpsertIntegrationCategoryInput) {
+  return {
+    name: category.name,
+    ...(hasCategoryParent(category) ? { parent_id: category.parentId ?? null } : {}),
+  };
 }
 
 async function getCatalogReadClients(
@@ -768,27 +784,56 @@ async function fetchSupabaseProductsByCategorySlug(
   let lastError: RepositoryError | null = null;
 
   for (const supabase of clients) {
-    const { data: categoryRow, error: categoryError } = await supabase
+    const { data: categoryRows, error: categoryError } = await supabase
       .from('categories')
       .select('*')
-      .eq('store_id', storeId)
-      .eq('slug', categorySlug)
-      .maybeSingle();
+      .eq('store_id', storeId);
 
-    if (categoryError) {
+    if (categoryError || !categoryRows) {
       lastError = categoryError;
       continue;
     }
 
+    const categories = categoryRows as CategoryRow[];
+    const categoryRow = categories.find((category) => category.slug === categorySlug);
+
     if (!categoryRow) {
       return [];
+    }
+
+    const collectCategoryIds = (parentId: string): string[] => {
+      const children = categories.filter((category) => category.parent_id === parentId);
+
+      return children.flatMap((child) => [
+        child.id,
+        ...collectCategoryIds(child.id),
+      ]);
+    };
+
+    const categoryIds = new Set([
+      categoryRow.id,
+      ...collectCategoryIds(categoryRow.id),
+    ]);
+    const syntheticGroupKey = isCategoryGroupRoot(categoryRow)
+      ? getCategoryGroupKey(categoryRow)
+      : null;
+
+    if (syntheticGroupKey) {
+      categories.forEach((category) => {
+        if (
+          category.id !== categoryRow.id &&
+          getCategoryGroupKey(category) === syntheticGroupKey
+        ) {
+          categoryIds.add(category.id);
+        }
+      });
     }
 
     const { data: productCategoryRows, error: productCategoriesError } =
       await supabase
         .from('product_categories')
         .select('product_id, category_id')
-        .eq('category_id', (categoryRow as CategoryRow).id);
+        .in('category_id', Array.from(categoryIds));
 
     if (productCategoriesError || !productCategoryRows) {
       lastError = productCategoriesError;
@@ -1067,7 +1112,7 @@ async function upsertIntegrationCategory(
   if (hasExternalIdConflict && existing) {
     const { error } = await supabase
       .from('categories')
-      .update({ name: category.name })
+      .update(buildCategoryUpdatePayload(category))
       .eq('store_id', storeId)
       .eq('id', existing.id);
 
@@ -1089,7 +1134,10 @@ async function upsertIntegrationCategory(
     if (shouldAttachExternalId) {
       const { error } = await supabase
         .from('categories')
-        .update({ external_id: category.externalId })
+        .update({
+          external_id: category.externalId,
+          ...(hasCategoryParent(category) ? { parent_id: category.parentId ?? null } : {}),
+        })
         .eq('store_id', storeId)
         .eq('id', existingBySlug.id);
 
@@ -1109,7 +1157,7 @@ async function upsertIntegrationCategory(
   if (existing) {
     const { error } = await supabase
       .from('categories')
-      .update({ name: category.name })
+      .update(buildCategoryUpdatePayload(category))
       .eq('store_id', storeId)
       .eq('id', existing.id);
 
@@ -1129,6 +1177,7 @@ async function upsertIntegrationCategory(
     .from('categories')
     .insert({
       store_id: storeId,
+      parent_id: category.parentId ?? null,
       external_id: category.externalId,
       name: category.name,
       slug: uniqueSlug,
@@ -1146,6 +1195,19 @@ async function upsertIntegrationCategory(
     created: true,
     duplicateCategoryIds: [],
   };
+}
+
+export async function upsertIntegrationCategoryInRepository(input: {
+  storeId: string;
+  category: UpsertIntegrationCategoryInput;
+}): Promise<UpsertIntegrationCategoryResult> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    throw new Error('Supabase admin client is not configured.');
+  }
+
+  return upsertIntegrationCategory(supabase, input.storeId, input.category);
 }
 
 export async function listProductsFromRepository(storeId: string) {

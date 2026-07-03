@@ -3,8 +3,14 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import App from '@/App';
 import { getServerEnv } from '@/lib/env/server';
-import { listStorefrontProducts } from '@/modules/catalog/product.service';
-import { toStorefrontProducts } from '@/modules/catalog/storefront-product.adapter';
+import {
+  listCategories,
+  listStorefrontProducts,
+} from '@/modules/catalog/product.service';
+import {
+  toStorefrontCategories,
+  toStorefrontProducts,
+} from '@/modules/catalog/storefront-product.adapter';
 import { MarketingDataLayer } from '@/modules/marketing/MarketingDataLayer';
 import { MarketingScripts } from '@/modules/marketing/MarketingScripts';
 import { getMarketingRuntimeConfig } from '@/modules/marketing/marketing.service';
@@ -97,8 +103,12 @@ export default async function HomePage() {
     return <StoreNotFound />;
   }
 
-  const catalogProducts = await listStorefrontProducts(store.id);
+  const [catalogProducts, catalogCategories] = await Promise.all([
+    listStorefrontProducts(store.id),
+    listCategories(store.id),
+  ]);
   const products = toStorefrontProducts(catalogProducts);
+  const categories = toStorefrontCategories(catalogCategories, catalogProducts);
   const [origin, marketingConfig] = await Promise.all([
     getCurrentOrigin(),
     getMarketingRuntimeConfig(store),
@@ -131,7 +141,7 @@ export default async function HomePage() {
           },
         }}
       />
-      <App products={products} />
+      <App products={products} categories={categories} />
     </>
   );
 }

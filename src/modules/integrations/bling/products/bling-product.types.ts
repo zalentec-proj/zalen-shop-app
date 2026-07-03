@@ -9,10 +9,27 @@ export interface BlingProductDetailResponse {
 }
 
 export interface BlingProductCategoryResponse {
-  data?: {
-    id?: number;
-    descricao?: string;
-  };
+  data?: BlingProductCategoryItem;
+}
+
+export interface BlingProductCategoryListResponse {
+  data?: BlingProductCategoryItem[];
+  categorias?: BlingProductCategoryItem[];
+}
+
+export interface BlingProductCategoryItem {
+  id?: number;
+  codigo?: number;
+  idCategoria?: number;
+  descricao?: string;
+  nome?: string;
+  name?: string;
+  categoriaPai?: { id?: number } | number;
+  idCategoriaPai?: number;
+  filhos?: BlingProductCategoryItem[];
+  subcategorias?: BlingProductCategoryItem[];
+  categorias?: BlingProductCategoryItem[];
+  __inheritedParentId?: number;
 }
 
 export interface BlingProductListItem {
@@ -114,6 +131,7 @@ export interface BlingProductSyncSummary {
   productsCreated: number;
   productsUpdated: number;
   productsSkipped: number;
+  categoriesSynced: number;
   categoriesLinked: number;
   categoriesCreated: number;
   categoriesSkipped: number;

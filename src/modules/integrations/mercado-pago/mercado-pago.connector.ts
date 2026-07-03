@@ -18,6 +18,8 @@ import {
   saveMercadoPagoRefreshedCredentialsInRepository,
 } from './mercado-pago.repository';
 import type {
+  MercadoPagoBrickPaymentFormData,
+  MercadoPagoBrickPaymentResult,
   MercadoPagoCredentials,
   MercadoPagoCredentialsSource,
   MercadoPagoCheckoutPreferenceInput,
@@ -44,6 +46,8 @@ interface MercadoPagoPaymentResponse {
   currency_id?: string;
   live_mode?: boolean;
   metadata?: unknown;
+  payment_method_id?: string;
+  payment_type_id?: string;
 }
 
 export class MercadoPagoPreferenceError extends Error {
@@ -66,6 +70,7 @@ export class MercadoPagoPaymentLookupError extends Error {
 
 interface MercadoPagoAccessContext {
   accessToken: string;
+  publicKey?: string;
   environment: MercadoPagoEnvironment;
   credentialsSource: MercadoPagoCredentialsSource;
 }
@@ -85,6 +90,23 @@ function getLegacyEnvFallbackAccessToken(input: {
   }
 
   return env.MERCADO_PAGO_ACCESS_TOKEN;
+}
+
+function getLegacyEnvFallbackPublicKey(input: {
+  storeId: string;
+  environment: MercadoPagoEnvironment;
+}) {
+  const env = getServerEnv();
+
+  if (input.storeId !== ACTIVE_STORE_ID) {
+    return undefined;
+  }
+
+  if (input.environment !== getDefaultMercadoPagoEnvironment()) {
+    return undefined;
+  }
+
+  return env.MERCADO_PAGO_PUBLIC_KEY;
 }
 
 function normalizeBaseUrl(baseUrl: string) {
@@ -195,6 +217,16 @@ function toConnectedAccount(settings: Record<string, unknown> | undefined) {
   };
 }
 
+function getPublicKeyFromIntegration(input: {
+  integration?: Awaited<ReturnType<typeof getMercadoPagoIntegrationFromRepository>>;
+  credentials?: MercadoPagoCredentials;
+}) {
+  return (
+    input.credentials?.publicKey ??
+    toConnectedAccount(input.integration?.settings)?.publicKey
+  );
+}
+
 function toRuntimeStatus(input: {
   enabled: boolean;
   credentialsEncrypted?: string;
@@ -280,6 +312,10 @@ export async function getMercadoPagoAccessContext(input: {
 
     return {
       accessToken: credentials.accessToken,
+      publicKey: getPublicKeyFromIntegration({
+        integration,
+        credentials,
+      }),
       environment,
       credentialsSource: 'oauth',
     };
@@ -297,6 +333,10 @@ export async function getMercadoPagoAccessContext(input: {
   if (legacyAccessToken) {
     return {
       accessToken: legacyAccessToken,
+      publicKey: getLegacyEnvFallbackPublicKey({
+        storeId: input.storeId,
+        environment,
+      }),
       environment,
       credentialsSource: 'env',
     };
@@ -347,6 +387,14 @@ export async function getMercadoPagoRuntimeState(
         mercadoPagoIntegration?.settings.credentialsSource,
         legacyFallbackConfigured ? 'env' : 'oauth'
       );
+  const account = toConnectedAccount(mercadoPagoIntegration?.settings);
+  const publicKeyConfigured = Boolean(
+    account?.publicKey ||
+      getLegacyEnvFallbackPublicKey({
+        storeId,
+        environment,
+      })
+  );
   const warnings: string[] = [];
 
   if (!enabled) {
@@ -359,19 +407,20 @@ export async function getMercadoPagoRuntimeState(
 
   return {
     provider: 'mercado_pago',
-    checkoutMode: 'checkout_pro',
+    checkoutMode: publicKeyConfigured ? 'payment_brick' : 'checkout_pro',
     credentialsSource,
     status:
       configured && status === 'pending_credentials' ? 'connected' : status,
     enabled,
     configured,
+    publicKeyConfigured,
     environment,
     missingEnv,
     integrationStatus: mercadoPagoIntegration?.status,
     connectedAt: toOptionalString(mercadoPagoIntegration?.settings.connectedAt),
     tokenExpiresAt,
     lastUpdatedAt: mercadoPagoIntegration?.updatedAt,
-    account: toConnectedAccount(mercadoPagoIntegration?.settings),
+    account,
     warnings,
   };
 }
@@ -439,6 +488,30 @@ async function createPreferenceOnMercadoPago(
   }
 
   return (await response.json()) as MercadoPagoPreferenceResponse;
+}
+
+async function createPaymentOnMercadoPago(input: {
+  body: Record<string, unknown>;
+  accessToken: string;
+  idempotencyKey: string;
+}): Promise<MercadoPagoPaymentResponse> {
+  const response = await fetch('https://api.mercadopago.com/v1/payments', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${input.accessToken}`,
+      'Content-Type': 'application/json',
+      'X-Idempotency-Key': input.idempotencyKey,
+    },
+    body: JSON.stringify(input.body),
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    const reason = await getMercadoPagoErrorReason(response);
+    throw new MercadoPagoPreferenceError(response.status, reason);
+  }
+
+  return (await response.json()) as MercadoPagoPaymentResponse;
 }
 
 export async function createCheckoutPreference(
@@ -567,6 +640,117 @@ export async function createCheckoutPreference(
     checkoutUrl,
     initPoint: preference.init_point,
     sandboxInitPoint: preference.sandbox_init_point,
+    environment: accessContext.environment,
+    credentialsSource: accessContext.credentialsSource,
+    publicKey: accessContext.publicKey,
+  };
+}
+
+export async function createMercadoPagoBrickPayment(input: {
+  order: MercadoPagoCheckoutPreferenceInput['order'];
+  baseUrl: string;
+  formData: MercadoPagoBrickPaymentFormData;
+  idempotencyKey: string;
+  providerReference?: string;
+  environment?: MercadoPagoEnvironment;
+}): Promise<MercadoPagoBrickPaymentResult> {
+  const accessContext = await getMercadoPagoAccessContext({
+    storeId: input.order.storeId,
+    environment: input.environment,
+  });
+  const { order } = input;
+  const baseUrl = normalizeBaseUrl(input.baseUrl);
+  const documentType = getDocumentType(order.customer?.document);
+  const documentNumber = order.customer?.document?.replace(/\D/g, '');
+  const payerName = splitName(order.customer?.name);
+  const notificationUrl = baseUrl.startsWith('https://')
+    ? (() => {
+        const url = new URL('/api/webhooks/mercado-pago', baseUrl);
+        url.searchParams.set('store_id', order.storeId);
+        url.searchParams.set('environment', accessContext.environment);
+        return url.toString();
+      })()
+    : undefined;
+  const payer = {
+    ...(input.formData.payer ?? {}),
+    email: order.customer?.email ?? input.formData.payer?.email,
+    first_name: payerName.name ?? input.formData.payer?.first_name,
+    last_name: payerName.surname ?? input.formData.payer?.last_name,
+    identification:
+      documentType && documentNumber
+        ? {
+            type: documentType,
+            number: documentNumber,
+          }
+        : input.formData.payer?.identification,
+  };
+  const body = {
+    ...input.formData,
+    transaction_amount: order.total,
+    description: `Pedido ${order.orderNumber}`,
+    external_reference: order.id,
+    notification_url: notificationUrl,
+    metadata: {
+      ...(input.formData.metadata ?? {}),
+      store_id: order.storeId,
+      order_id: order.id,
+      order_number: order.orderNumber,
+      environment: accessContext.environment,
+      checkout_mode: 'payment_brick',
+    },
+    payer,
+  };
+  const payment = await createPaymentOnMercadoPago({
+    body,
+    accessToken: accessContext.accessToken,
+    idempotencyKey: input.idempotencyKey,
+  });
+
+  if (!payment.id) {
+    throw new Error('mercado_pago_payment_without_id');
+  }
+
+  const transactionAmount =
+    payment.transaction_amount === undefined ||
+    payment.transaction_amount === null
+      ? order.total
+      : (toNumber(payment.transaction_amount) ?? order.total);
+
+  await upsertPaymentTransaction({
+    storeId: order.storeId,
+    orderId: order.id,
+    provider: 'mercado_pago',
+    providerReference: input.providerReference,
+    externalPaymentId: String(payment.id),
+    externalReference: order.id,
+    status:
+      payment.status === 'approved'
+        ? 'approved'
+        : payment.status === 'rejected'
+          ? 'rejected'
+          : payment.status === 'cancelled'
+            ? 'cancelled'
+            : 'pending',
+    amount: transactionAmount,
+    rawStatus: payment.status,
+    rawStatusDetail: payment.status_detail,
+    metadata: {
+      order_number: order.orderNumber,
+      checkout_mode: 'payment_brick',
+      environment: accessContext.environment,
+      credentials_source: accessContext.credentialsSource,
+      payment_method_id: payment.payment_method_id,
+      payment_type_id: payment.payment_type_id,
+    },
+  });
+
+  return {
+    id: String(payment.id),
+    status: payment.status,
+    statusDetail: payment.status_detail,
+    paymentMethodId: payment.payment_method_id,
+    paymentTypeId: payment.payment_type_id,
+    transactionAmount,
   };
 }
 

@@ -5,7 +5,7 @@ import { FilterState } from '../../types';
 interface FilterPanelProps {
   initialFilter: FilterState;
   onFilterChange: (filters: FilterState) => void;
-  categories: { label: string; count: number }[];
+  categories: { label: string; value: string; count: number }[];
 }
 
 export default function FilterPanel({ initialFilter, onFilterChange, categories }: FilterPanelProps) {
@@ -61,25 +61,23 @@ export default function FilterPanel({ initialFilter, onFilterChange, categories 
         </span>
         <div className="flex flex-col gap-2">
           {categories.map((cat) => {
-            const isSelected = selectedCategory === cat.label || (cat.label === 'Kits e Combos' && selectedCategory === 'Kits e Combos') || (cat.label === 'Peças' && selectedCategory === 'Peças');
-            // Support partial matching
-            const isActive = selectedCategory ? (cat.label.toLowerCase().includes(selectedCategory.toLowerCase()) || selectedCategory.toLowerCase().includes(cat.label.toLowerCase())) : false;
+            const isSelected = selectedCategory === cat.value;
 
             return (
               <button
-                key={cat.label}
-                onClick={() => setSelectedCategory(selectedCategory === cat.label ? null : cat.label)}
+                key={cat.value}
+                onClick={() => setSelectedCategory(isSelected ? null : cat.value)}
                 className="w-full h-11 px-3 rounded-xl flex items-center justify-between transition-colors text-[13px] text-brand-white hover:bg-white/5 cursor-pointer text-left focus:outline-none"
               >
                 <div className="flex items-center gap-3">
                   <div className={`w-4 h-4 rounded-md flex items-center justify-center border transition-all ${
-                    isSelected || isActive
+                    isSelected
                       ? 'bg-blue-primary border-blue-primary text-white shadow-[0_0_8px_rgba(30,61,255,0.4)]'
                       : 'border-white/20 bg-transparent'
                   }`}>
-                    {(isSelected || isActive) && <Check className="w-3 h-3" />}
+                    {isSelected && <Check className="w-3 h-3" />}
                   </div>
-                  <span className={`${isSelected || isActive ? 'text-white font-semibold' : 'text-brand-white'}`}>
+                  <span className={`${isSelected ? 'text-white font-semibold' : 'text-brand-white'}`}>
                     {cat.label}
                   </span>
                 </div>

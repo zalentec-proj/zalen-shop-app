@@ -196,6 +196,42 @@ export async function reserveCheckoutAttempt(input: {
   };
 }
 
+export async function findReusableCheckoutAttempt(input: {
+  storeId: string;
+  cartHash: string;
+  customerHash: string;
+  maxAgeMinutes?: number;
+}): Promise<CheckoutAttemptRecord | null> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    throwPersistenceError('supabase_admin_unavailable');
+  }
+
+  const minCreatedAt = new Date(
+    Date.now() - (input.maxAgeMinutes ?? 180) * 60 * 1000
+  ).toISOString();
+  const { data, error } = await supabase
+    .from('checkout_attempts')
+    .select('*')
+    .eq('store_id', input.storeId)
+    .eq('cart_hash', input.cartHash)
+    .eq('customer_hash', input.customerHash)
+    .eq('status', 'preference_created')
+    .gte('created_at', minCreatedAt)
+    .not('order_id', 'is', null)
+    .not('checkout_url', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throwPersistenceError('reuse_lookup_failed');
+  }
+
+  return data ? toCheckoutAttempt(data as CheckoutAttemptRow) : null;
+}
+
 export async function completeCheckoutAttempt(input: {
   storeId: string;
   attemptId: string;

@@ -1,6 +1,6 @@
 # Pesquisa Técnica — Mercado Pago
 
-> Status: **Checkout Pro multi-lojista — OAuth por loja, fallback ENV legado e conciliação inicial**
+> Status: **Payment Brick beta — OAuth por loja, Checkout Pro fallback e conciliação inicial**
 > Fonte de verdade: documentação oficial Mercado Pago Developers.
 
 ## Fontes oficiais consultadas
@@ -11,6 +11,10 @@
 - https://www.mercadopago.com.br/developers/pt/docs/checkout-pro/overview
 - https://www.mercadopago.com.br/developers/pt/docs/checkout-pro/create-payment-preference
 - https://www.mercadopago.com.br/developers/pt/docs/checkout-pro/payment-notifications
+- https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/common-initialization
+- https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/payment-brick/default-rendering
+- https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/payment-brick/payment-submission
+- https://www.mercadopago.com.br/developers/pt/reference/payments/_payments/post
 - https://www.mercadopago.com.br/developers/pt/reference/payments/_payments_id/get
 - https://www.mercadopago.com.br/developers/pt/docs/your-integrations/credentials
 - https://www.mercadopago.com.br/developers/pt/docs/security/oauth/creation
@@ -22,16 +26,20 @@
 
 ## Decisão de produto
 
-Primeira versão usa **Checkout Pro**.
+O caminho preferencial da Brasil Drones passa a ser **Payment Brick + API
+Pagamentos**, mantendo Checkout Pro como fallback temporário.
 
 Motivos:
 
-- menor exposição PCI para a Zalen;
-- Pix, cartão e boleto ficam no ambiente seguro do Mercado Pago;
-- checkout convidado da loja continua sem exigir conta;
-- backend cria uma preferência por pedido e retorna somente a URL pública de pagamento.
+- comprador não precisa sair do checkout da Zalen nem redigitar dados já
+  coletados;
+- SDK do Mercado Pago tokeniza dados sensíveis no frontend com `Public Key`;
+- backend da Zalen continua dono do total, pedido, loja, idempotência e chamada
+  privada com `Access Token`;
+- Checkout Pro permanece disponível quando a loja ainda não possui `Public Key`
+  ou em caso de fallback operacional.
 
-Checkout Transparente fica fora desta fase.
+Checkout Transparente puro fica fora desta fase.
 
 ## Autenticação e credenciais
 
@@ -53,7 +61,8 @@ Modelo atual:
 - credenciais ficam criptografadas em `store_integrations.credentials_encrypted`
   por `store_id + provider_key + environment`;
 - `settings_json` guarda apenas metadados seguros, como fonte da credencial,
-  conta conectada, datas e status do Checkout Pro;
+  conta conectada, datas, status do Checkout Pro e disponibilidade do Payment
+  Brick;
 - o runtime prefere OAuth da loja e só usa ENV como fallback legado da Brasil
   Drones enquanto ela não reconectar.
 
@@ -86,9 +95,9 @@ MERCADO_PAGO_PUBLIC_KEY=
 MERCADO_PAGO_WEBHOOK_SECRET=
 ```
 
-`Public Key` fica reservado para Checkout Transparente/Bricks. O ambiente deve
-ser definido por `MERCADO_PAGO_ENV`, porque credenciais de teste podem não usar
-prefixo `TEST-`.
+`Public Key` é necessária para renderizar o Payment Brick no frontend. O
+ambiente deve ser definido por `MERCADO_PAGO_ENV`, porque credenciais de teste
+podem não usar prefixo `TEST-`.
 
 ## Checkout Pro
 
@@ -124,7 +133,51 @@ Campos usados pela Zalen:
 - `notification_url`: rota de webhook quando houver URL HTTPS, sempre com
   `store_id` e `environment`.
 
-A resposta da preferência contém `id`, `init_point` e `sandbox_init_point`. Tokens de acesso não aparecem na resposta ao frontend.
+A resposta da preferência contém `id`, `init_point` e `sandbox_init_point`.
+Tokens de acesso não aparecem na resposta ao frontend.
+
+## Payment Brick
+
+O frontend inicializa o SDK oficial com a `Public Key` da loja/ambiente:
+
+```ts
+const mp = new MercadoPago(publicKey, { locale: 'pt-BR' });
+
+mp.bricks().create('payment', 'paymentBrick_container', {
+  initialization: {
+    amount,
+    preferenceId,
+  },
+  callbacks: {
+    onSubmit: ({ formData }) => {
+      return fetch('/server-action', {
+        method: 'POST',
+        body: JSON.stringify(formData),
+      });
+    },
+  },
+});
+```
+
+Regras implementadas:
+
+- a Zalen cria pedido e preferência server-side antes de renderizar o Brick;
+- frontend recebe apenas `publicKey`, `preferenceId`, `orderId`, valor e URL de
+  fallback pública;
+- `formData` do Brick é enviado para server action própria;
+- backend ignora valor vindo do navegador e força `transaction_amount =
+  orders.total`;
+- backend chama `POST /v1/payments` com `Authorization: Bearer ACCESS_TOKEN` e
+  `X-Idempotency-Key`;
+- `external_reference` é sempre `orders.id`;
+- `metadata` inclui `store_id`, `order_id`, `order_number`, `environment` e
+  `checkout_mode = payment_brick`;
+- resposta pública nunca inclui `Access Token`, `refresh_token` ou payload bruto
+  sensível.
+
+Para Pix/boleto, a idempotência usa chave estável por pedido para não gerar
+pagamentos duplicados em reenvio. Para cartão, usa chave por tentativa para
+permitir nova tentativa quando a anterior foi recusada.
 
 ## Webhooks
 
@@ -245,15 +298,16 @@ A primeira versão usa estratégia híbrida:
 
 - rotas `/pagamento/mercado-pago/{sucesso,pendente,falha}` consultam o pagamento
   quando o Mercado Pago retorna com `payment_id` ou `collection_id`;
+- Payment Brick processa a resposta server-side e usa a mesma conciliação por
+  `GET /v1/payments/{payment_id}`;
 - `/api/webhooks/mercado-pago` valida assinatura e processa eventos `payment`;
 - ambos usam o mesmo service server-side de conciliação;
 - checkout valida configuração do Mercado Pago antes de criar pedido local;
-- carrinho local só é limpo no retorno aprovado.
+- carrinho local só é limpo quando o pagamento fica aprovado ou pendente e o
+  pedido passa a ser rastreável na área do comprador.
 
 ## Fora desta fase
 
-- Checkout Transparente/Bricks;
-- tokenização de cartão no frontend;
 - captura manual;
 - reembolso automático;
 - split/marketplace financeiro;

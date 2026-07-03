@@ -178,7 +178,7 @@ export default function CategoryClient({ category, products, categories }: Props
         )}
       </main>
 
-      <Footer />
+      <Footer categories={categories} />
     </div>
   );
 }

@@ -14,8 +14,9 @@ A Zalen processa pagamento via conector, inicialmente Mercado Pago.
 
 ## 2. Mercado Pago
 
-É o primeiro conector de pagamento em beta, porque o cliente já possui conta e a
-primeira versão usa Checkout Pro com menor exposição PCI.
+É o primeiro conector de pagamento em beta. A experiência preferencial usa
+Payment Brick dentro do checkout da Zalen, com Checkout Pro mantido como
+fallback temporário quando a loja ainda não possui `Public Key` configurada.
 
 ## 3. Autenticação
 
@@ -24,19 +25,22 @@ primeira versão usa Checkout Pro com menor exposição PCI.
 - Tokens ficam criptografados em `store_integrations.credentials_encrypted` por
   `store_id + provider_key + environment`.
 - `settings_json` guarda apenas metadados seguros, como conta conectada,
-  `credentialsSource`, datas e status do Checkout Pro.
+  `credentialsSource`, datas, status do Checkout Pro e disponibilidade do
+  Payment Brick.
 - `MERCADO_PAGO_ACCESS_TOKEN` e `MERCADO_PAGO_WEBHOOK_SECRET` permanecem como
   fallback legado temporário para Brasil Drones até a reconexão OAuth.
 - Nenhum token no frontend.
 
-## 4. Fluxo futuro com Mercado Pago
+## 4. Fluxo com Mercado Pago
 
 ```txt
 Cliente compra na Zalen
 ↓
 Zalen cria pedido local
 ↓
-Mercado Pago gera pagamento
+Mercado Pago gera preferência/sessão
+↓
+Cliente paga no Payment Brick ou fallback Checkout Pro
 ↓
 Mercado Pago envia webhook
 ↓
@@ -55,10 +59,19 @@ Fase atual:
   validado na sessão Supabase Auth.
 - Backend cria ou reutiliza `customers` vinculado por `auth_user_id`.
 - Backend valida se Mercado Pago está ativo/configurado antes de criar pedido.
-- Backend cria pedido local no Supabase.
-- Backend cria preferência Checkout Pro no Mercado Pago.
-- Frontend recebe apenas a URL pública de checkout e redireciona o comprador.
+- Backend reutiliza pedido pendente pagável quando encontra mesmo `store_id`,
+  `cart_hash` e `customer_hash`.
+- Backend cria pedido local no Supabase quando não há pedido pendente
+  reutilizável.
+- Backend cria preferência no Mercado Pago.
+- Frontend recebe `Public Key`, `preferenceId` e `orderId` para Payment Brick
+  quando disponíveis; tokens privados nunca chegam ao navegador.
+- Frontend recebe URL pública de Checkout Pro apenas como fallback.
 - Preferência inclui `store_id` e `environment` na `notification_url`.
+- Backend processa `formData` do Brick por server action própria e chama
+  `POST /v1/payments` com `X-Idempotency-Key`.
+- Backend força `transaction_amount = orders.total`; valor vindo do navegador
+  nunca é fonte de verdade.
 
 Fase atual de conciliação:
 
@@ -70,12 +83,15 @@ Fase atual de conciliação:
 - conciliação valida `metadata.store_id`, `external_reference` e loja do pedido;
 - `payment_transactions` registra preferência, pagamento externo, status bruto e
   status normalizado;
+- `payment_transactions` preserva preferência e ambiente do pedido para novas
+  tentativas de pagamento;
 - `approved` marca o pedido como `payment_status = paid` e `status = confirmed`;
 - somente após pagamento aprovado a Zalen tenta enviar o pedido ao Bling;
 - o envio ao Bling só dispara na transição real de não pago para pago;
 - falhas no envio ao Bling não cancelam o pedido pago: ficam como erro
   operacional para retry no admin;
-- Checkout Transparente/Bricks fica reservado para uma fase posterior.
+- tentativas recusadas mantêm o pedido acessível para novo pagamento, sem criar
+  segundo pedido.
 
 ## 6. Regras de segurança
 
@@ -84,6 +100,8 @@ Fase atual de conciliação:
 - Webhook validado.
 - Pagamento idempotente.
 - Transações registradas.
+- Public Key pode ir ao frontend; Access Token, refresh token e segredo de
+  webhook nunca podem ir.
 
 ## 7. Tabelas futuras
 

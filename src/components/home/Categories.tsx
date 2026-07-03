@@ -5,55 +5,99 @@ import {
   catMotorPistonImage,
   catSmartControllerImage,
   catWaterproofCaseImage,
+  droneAccessoriesImage,
   mavic3ProImage,
 } from '../../assets/images';
+import type { StorefrontCategory } from '../../types';
 
 interface CategoriesProps {
+  categories: StorefrontCategory[];
   onCategorySelect: (category: string | null) => void;
   activeCategory: string | null;
 }
 
-export default function Categories({ onCategorySelect, activeCategory }: CategoriesProps) {
-  const categoriesList = [
-    {
-      name: 'Drones',
-      value: 'Drones',
-      image: mavic3ProImage,
-      lineColor: 'bg-blue-primary shadow-[0_0_8px_rgba(30,61,255,0.5)]',
-      glowColor: 'from-blue-primary/10 to-transparent',
-    },
-    {
-      name: 'Peças e Componentes',
-      value: 'Peças',
-      image: catMotorPistonImage,
-      lineColor: 'bg-[#00D4FF] shadow-[0_0_8px_rgba(0,212,255,0.5)]',
-      glowColor: 'from-[#00D4FF]/10 to-transparent',
-    },
-    {
-      name: 'Baterias',
-      value: 'Baterias',
-      image: catBatteryPackImage,
-      lineColor: 'bg-[#00E676] shadow-[0_0_8px_rgba(0,230,118,0.5)]',
-      glowColor: 'from-[#00E676]/10 to-transparent',
-    },
-    {
-      name: 'Acessórios',
-      value: 'Acessórios',
-      image: catSmartControllerImage,
-      lineColor: 'bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.5)]',
-      glowColor: 'from-indigo-400/10 to-transparent',
-    },
-    {
-      name: 'Kits e Combos',
-      value: 'Kits e Combos',
-      image: catWaterproofCaseImage,
-      lineColor: 'bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.5)]',
-      glowColor: 'from-sky-400/10 to-transparent',
-    },
-  ];
+const fallbackCategories: StorefrontCategory[] = [
+  { id: 'drones', name: 'Drones', slug: 'drones', productCount: 0 },
+  { id: 'pecas', name: 'Peças e Componentes', slug: 'pecas', productCount: 0 },
+  { id: 'baterias', name: 'Baterias', slug: 'baterias', productCount: 0 },
+  { id: 'acessorios', name: 'Acessórios', slug: 'acessorios', productCount: 0 },
+  { id: 'kits-e-combos', name: 'Kits e Combos', slug: 'kits-e-combos', productCount: 0 },
+];
 
-  const handleCategoryClick = (val: string) => {
-    onCategorySelect(activeCategory === val ? null : val);
+const visualPresets = [
+  {
+    lineColor: 'bg-blue-primary shadow-[0_0_8px_rgba(30,61,255,0.5)]',
+    glowColor: 'from-blue-primary/10 to-transparent',
+  },
+  {
+    lineColor: 'bg-[#00D4FF] shadow-[0_0_8px_rgba(0,212,255,0.5)]',
+    glowColor: 'from-[#00D4FF]/10 to-transparent',
+  },
+  {
+    lineColor: 'bg-[#00E676] shadow-[0_0_8px_rgba(0,230,118,0.5)]',
+    glowColor: 'from-[#00E676]/10 to-transparent',
+  },
+  {
+    lineColor: 'bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.5)]',
+    glowColor: 'from-indigo-400/10 to-transparent',
+  },
+  {
+    lineColor: 'bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.5)]',
+    glowColor: 'from-sky-400/10 to-transparent',
+  },
+];
+
+function normalizeText(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function getCategoryImage(category: StorefrontCategory) {
+  const text = normalizeText(`${category.name} ${category.slug}`);
+
+  if (text.includes('bateria')) return catBatteryPackImage;
+  if (text.includes('controle') || text.includes('acessor')) return catSmartControllerImage;
+  if (text.includes('kit') || text.includes('combo') || text.includes('case')) {
+    return catWaterproofCaseImage;
+  }
+  if (
+    text.includes('peca') ||
+    text.includes('componente') ||
+    text.includes('helice') ||
+    text.includes('motor') ||
+    text.includes('braco') ||
+    text.includes('frame') ||
+    text.includes('carcaca')
+  ) {
+    return catMotorPistonImage;
+  }
+  if (text.includes('drone') || text.includes('dji')) return mavic3ProImage;
+
+  return droneAccessoriesImage;
+}
+
+export default function Categories({
+  categories,
+  onCategorySelect,
+  activeCategory,
+}: CategoriesProps) {
+  const categoriesList = (categories.length ? categories : fallbackCategories).map(
+    (category, index) => {
+      const preset = visualPresets[index % visualPresets.length];
+
+      return {
+        ...category,
+        image: getCategoryImage(category),
+        lineColor: preset.lineColor,
+        glowColor: preset.glowColor,
+      };
+    }
+  );
+
+  const handleCategoryClick = (slug: string) => {
+    onCategorySelect(activeCategory === slug ? null : slug);
     const section = document.getElementById('catalogo');
     if (section) {
       section.scrollIntoView({ behavior: 'smooth' });
@@ -84,11 +128,11 @@ export default function Categories({ onCategorySelect, activeCategory }: Categor
         {/* Categories Grid - 5 Columns for high-end feel */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
           {categoriesList.map((cat) => {
-            const isCurrent = activeCategory === cat.value;
+            const isCurrent = activeCategory === cat.slug;
             return (
               <div
-                key={cat.name}
-                onClick={() => handleCategoryClick(cat.value)}
+                key={cat.id}
+                onClick={() => handleCategoryClick(cat.slug)}
                 className={`group rounded-3xl p-6 relative flex flex-col justify-end overflow-hidden cursor-pointer transition-all duration-500 h-[380px] hover:-translate-y-2 border ${
                   isCurrent 
                     ? 'border-blue-primary/60 bg-blue-primary/[0.04] shadow-[0_0_40px_rgba(30,61,255,0.25)]' 
@@ -117,9 +161,16 @@ export default function Categories({ onCategorySelect, activeCategory }: Categor
                   
                   {/* Row for Title + Inline Arrow */}
                   <div className="flex items-center justify-between w-full gap-3">
-                    <h3 className="text-base sm:text-[17px] font-bold text-[#F5F7FA] tracking-tight group-hover:text-white transition-colors leading-snug">
-                      {cat.name}
-                    </h3>
+                    <div className="min-w-0">
+                      <h3 className="text-base sm:text-[17px] font-bold text-[#F5F7FA] tracking-tight group-hover:text-white transition-colors leading-snug">
+                        {cat.name}
+                      </h3>
+                      {cat.productCount > 0 ? (
+                        <p className="mt-1 text-[11px] font-mono text-brand-muted">
+                          {cat.productCount} produtos
+                        </p>
+                      ) : null}
+                    </div>
                     <div className="w-10 h-10 rounded-full border border-white/10 group-hover:border-teal-400/40 group-hover:bg-teal-400/5 flex items-center justify-center transition-all duration-300 shrink-0">
                       <ArrowRight className="w-4 h-4 text-brand-muted group-hover:text-white transition-colors" />
                     </div>

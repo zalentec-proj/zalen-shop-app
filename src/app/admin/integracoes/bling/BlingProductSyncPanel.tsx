@@ -130,7 +130,11 @@ export function BlingProductSyncPanel({
         <Metric label="Saldos" value={summary?.stockBalancesSynced ?? 0} />
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <Metric label="Categorias" value={summary?.categoriesLinked ?? 0} />
+        <Metric label="Categorias ERP" value={summary?.categoriesSynced ?? 0} />
+        <Metric label="Vínculos" value={summary?.categoriesLinked ?? 0} />
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <Metric label="Criadas" value={summary?.categoriesCreated ?? 0} />
         <Metric label="Erros" value={summary?.errors ?? 0} />
       </div>
 

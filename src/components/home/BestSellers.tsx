@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { Product, FilterState } from '../../types';
+import { Product, FilterState, StorefrontCategory } from '../../types';
 import ProductCard from '../ecommerce/ProductCard';
 import FilterPanel from '../ecommerce/FilterPanel';
 import { HelpCircle, Star, Sparkles } from 'lucide-react';
 
 interface BestSellersProps {
   products: Product[];
+  categories: StorefrontCategory[];
   onProductClick: (productId: string) => void;
   onAddToCart: (product: Product) => void;
   activeCategory: string | null;
@@ -15,6 +16,7 @@ interface BestSellersProps {
 
 export default function BestSellers({
   products,
+  categories,
   onProductClick,
   onAddToCart,
   activeCategory,
@@ -40,43 +42,62 @@ export default function BestSellers({
     onCategorySelect(newFilters.category);
   };
 
-  // Categories helper list counting
   const categoriesList = useMemo(() => {
-    const list = [
-      { label: 'Drones', count: 0 },
-      { label: 'Peças', count: 0 },
-      { label: 'Acessórios', count: 0 },
-      { label: 'Baterias', count: 0 },
-      { label: 'Kits e Combos', count: 0 },
-    ];
+    const categoryMap = new Map<string, { label: string; value: string; count: number }>();
 
-    products.forEach((p) => {
-      const match = list.find((item) => {
-        if (p.category === 'Kits e Combos' && item.label === 'Kits e Combos') return true;
-        return p.category.toLowerCase().includes(item.label.toLowerCase()) || item.label.toLowerCase().includes(p.category.toLowerCase());
+    categories.forEach((category) => {
+      categoryMap.set(category.slug, {
+        label: category.name,
+        value: category.slug,
+        count: category.productCount,
       });
-      if (match) {
-        match.count += 1;
-      }
     });
 
-    return list;
-  }, [products]);
+    products.forEach((product) => {
+      const productCategories = product.categories?.length
+        ? product.categories
+        : product.categorySlug
+          ? [{ id: product.categorySlug, name: product.category, slug: product.categorySlug }]
+          : [];
+
+      productCategories.forEach((category) => {
+        if (categoryMap.has(category.slug)) {
+          return;
+        }
+
+        const current = categoryMap.get(category.slug) ?? {
+          label: category.name,
+          value: category.slug,
+          count: 0,
+        };
+
+        categoryMap.set(category.slug, {
+          ...current,
+          count: current.count + 1,
+        });
+      });
+    });
+
+    return Array.from(categoryMap.values());
+  }, [categories, products]);
 
   // Filter products locally based on multiple states
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
       // Category filter comparison
       if (localFilters.category) {
-        const catTarget = localFilters.category.toLowerCase();
-        const pTarget = p.category.toLowerCase();
-        
-        // Support cross match like 'Peças' matching 'Peças' or 'Peças e Componentes'
-        const contains1 = pTarget.includes(catTarget);
-        const contains2 = catTarget.includes(pTarget);
-        const contains3 = (catTarget === 'peças' && pTarget.startsWith('peç'));
-        
-        if (!contains1 && !contains2 && !contains3) {
+        const activeCategoryOption = categories.find(
+          (category) => category.slug === localFilters.category
+        );
+        const acceptedSlugs = new Set([
+          localFilters.category,
+          ...(activeCategoryOption?.descendantSlugs ?? []),
+        ]);
+        const categoryMatches =
+          (p.categorySlug ? acceptedSlugs.has(p.categorySlug) : false) ||
+          p.categories?.some((category) => acceptedSlugs.has(category.slug));
+
+        if (!categoryMatches) {
           return false;
         }
       }
@@ -92,14 +113,18 @@ export default function BestSellers({
         const nameMatch = p.name.toLowerCase().includes(q);
         const descMatch = p.description.toLowerCase().includes(q);
         const catMatch = p.category.toLowerCase().includes(q);
-        if (!nameMatch && !descMatch && !catMatch) {
+        const categoriesMatch =
+          p.categories?.some((category) =>
+            `${category.name} ${category.slug}`.toLowerCase().includes(q)
+          ) ?? false;
+        if (!nameMatch && !descMatch && !catMatch && !categoriesMatch) {
           return false;
         }
       }
 
       return true;
     });
-  }, [products, localFilters, searchQuery]);
+  }, [products, categories, localFilters, searchQuery]);
 
   return (
     <section className="w-full px-4 md:px-8 py-12 bg-transparent" id="catalogo">
