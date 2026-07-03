@@ -224,6 +224,15 @@ export type CheckoutAccountCodeVerificationActionResult =
       error: string;
     };
 
+export type SwitchCheckoutAccountActionResult =
+  | {
+      ok: true;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
 export type CheckoutPreviewActionResult =
   | {
       ok: true;
@@ -750,6 +759,22 @@ export async function verifyCheckoutAccountCodeAction(
     message: 'Conta validada. Seus dados foram carregados.',
     customer: mapCheckoutCustomerSnapshot(hydratedCustomer),
   };
+}
+
+export async function switchCheckoutAccountAction(): Promise<SwitchCheckoutAccountActionResult> {
+  try {
+    const supabase = await createClient();
+    await supabase.auth.signOut();
+
+    return {
+      ok: true,
+    };
+  } catch {
+    return {
+      ok: false,
+      error: 'Não foi possível trocar a conta agora. Tente novamente.',
+    };
+  }
 }
 
 const checkoutPostalCodeLookupSchema = z.object({

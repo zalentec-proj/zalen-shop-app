@@ -28,6 +28,7 @@ import {
   quoteCheckoutShippingAction,
   requestCheckoutAccountCodeAction,
   requestCheckoutEmailCodeAction,
+  switchCheckoutAccountAction,
   type CheckoutPreviewActionResult,
   type CheckoutShippingQuoteActionResult,
   verifyCheckoutAccountCodeAction,
@@ -408,6 +409,7 @@ export default function CartClient({ customerSession }: Props) {
   const [isVerifyingAccountCode, setIsVerifyingAccountCode] = useState(false);
   const [isSendingEmailCode, setIsSendingEmailCode] = useState(false);
   const [isVerifyingEmailCode, setIsVerifyingEmailCode] = useState(false);
+  const [isSwitchingAccount, setIsSwitchingAccount] = useState(false);
   const checkoutAttemptIdRef = useRef<string | null>(null);
   const lastPostalCodeLookupRef = useRef<string | null>(null);
   const currentPostalCodeRef = useRef('');
@@ -852,6 +854,34 @@ export default function CartClient({ customerSession }: Props) {
       ...result.customer,
       email: result.email,
     });
+  }
+
+  async function handleSwitchCheckoutAccount() {
+    setIsSwitchingAccount(true);
+    const result = await switchCheckoutAccountAction();
+    setIsSwitchingAccount(false);
+
+    if (!result.ok) {
+      setCheckoutError(result.error);
+      return;
+    }
+
+    resetCheckoutAttempt();
+    clearShippingSelection();
+    setCheckoutPreview(null);
+    setIdentifier('');
+    setCustomer(getInitialCustomerState(null));
+    setEmailVerification({
+      email: '',
+      status: 'idle',
+      token: '',
+    });
+    setAccountValidation({
+      identifier: '',
+      token: '',
+    });
+    setCheckoutError(null);
+    setCheckoutStep('identificacao');
   }
 
   function validateCustomerData() {
@@ -1426,6 +1456,27 @@ export default function CartClient({ customerSession }: Props) {
                       Cadastrar como Pessoa Jurídica
                     </label>
                   </div>
+
+                  {customer.email ? (
+                    <div className="flex flex-col gap-3 rounded-2xl border border-brand-border-soft bg-white/[0.03] p-4 md:flex-row md:items-center md:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-muted">
+                          Conta do checkout
+                        </p>
+                        <p className="mt-1 truncate text-sm font-bold text-white">
+                          {customer.email}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleSwitchCheckoutAccount}
+                        disabled={isSwitchingAccount}
+                        className="h-10 rounded-xl border border-brand-border-soft px-4 text-xs font-bold text-brand-muted transition hover:border-blue-primary/60 hover:text-white disabled:cursor-wait disabled:opacity-60"
+                      >
+                        {isSwitchingAccount ? 'Saindo...' : 'Sair ou trocar'}
+                      </button>
+                    </div>
+                  ) : null}
 
                   <div className="grid gap-3 md:grid-cols-2">
                     <CheckoutInput
