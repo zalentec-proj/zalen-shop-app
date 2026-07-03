@@ -6,6 +6,7 @@ import {
   isLocalhostName,
   normalizeHostname,
 } from '@/modules/stores/host-resolution';
+import { activeStore } from '@/modules/stores/current-store';
 
 const placeholderFragments = [
   '${',
@@ -82,7 +83,7 @@ function getRequestOrigin(request: NextRequest) {
   return `${protocol}://${host}`;
 }
 
-function shouldRedirectAdminToPlatformHost(
+function shouldRedirectAdminToStoreHost(
   request: NextRequest,
   rootDomain: string
 ) {
@@ -100,7 +101,24 @@ function shouldRedirectAdminToPlatformHost(
     return false;
   }
 
-  return hostname !== `app.${rootDomain}`;
+  return hostname !== `${activeStore.slug}.${rootDomain}`;
+}
+
+function getStoreAdminOriginFromHost(
+  currentUrl: URL,
+  rootDomain: string
+) {
+  const hostname = normalizeHostname(currentUrl.host);
+
+  if (
+    !hostname ||
+    isLocalhostName(hostname) ||
+    hostname.endsWith(`.${DEFAULT_LOCAL_STORE_ROOT_DOMAIN}`)
+  ) {
+    return currentUrl.origin;
+  }
+
+  return `${currentUrl.protocol}//${activeStore.slug}.${rootDomain}`;
 }
 
 function redirectWithCookies(
@@ -132,11 +150,11 @@ export async function proxy(request: NextRequest) {
   const rootDomain =
     normalizeEnvValue(process.env.PLATFORM_ROOT_DOMAIN) ?? 'zalenshop.com.br';
 
-  if (pathname.startsWith('/admin') && shouldRedirectAdminToPlatformHost(request, rootDomain)) {
+  if (pathname.startsWith('/admin') && shouldRedirectAdminToStoreHost(request, rootDomain)) {
     const requestOrigin = new URL(getRequestOrigin(request));
     const storeAdminUrl = new URL(
       `${pathname}${request.nextUrl.search}`,
-      getPlatformAppOriginFromHost(requestOrigin, rootDomain)
+      getStoreAdminOriginFromHost(requestOrigin, rootDomain)
     );
 
     return NextResponse.redirect(storeAdminUrl);

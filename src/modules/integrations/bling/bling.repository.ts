@@ -398,6 +398,24 @@ async function hasRunningBlingSyncJobInRepository(
     return false;
   }
 
+  const staleBefore = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+
+  await supabase
+    .from('sync_jobs')
+    .update({
+      status: 'error',
+      last_error: `${jobType}_stale_running_job_released`,
+      processed_at: new Date().toISOString(),
+      locked_at: null,
+      next_attempt_at: null,
+    })
+    .eq('store_id', storeId)
+    .eq('provider', BLING_PROVIDER_KEY)
+    .eq('job_type', jobType)
+    .eq('status', 'running')
+    .is('processed_at', null)
+    .lte('created_at', staleBefore);
+
   let query = supabase
     .from('sync_jobs')
     .select('id')
