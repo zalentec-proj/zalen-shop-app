@@ -25,6 +25,15 @@ export interface MercadoPagoIntegrationRecord extends StoreIntegration {
   credentialsEncrypted?: string;
 }
 
+export interface MercadoPagoStorePreferenceRecord {
+  storeId: string;
+  providerKey: 'mercado_pago';
+  activeEnvironment: MercadoPagoEnvironment;
+  activeEnvironmentUpdatedAt?: string;
+  activeEnvironmentUpdatedBy?: string;
+  updatedAt: string;
+}
+
 const fallbackDate = new Date(0).toISOString();
 
 function requireAdminClient() {
@@ -55,6 +64,12 @@ function toStatus(value: string): StoreIntegration['status'] {
 
 function toEnvironment(value: string): MercadoPagoEnvironment {
   return value === 'production' ? 'production' : 'test';
+}
+
+function getActiveEnvironmentFromSettings(
+  settings: Record<string, unknown> | null | undefined
+): MercadoPagoEnvironment {
+  return settings?.activeEnvironment === 'production' ? 'production' : 'test';
 }
 
 function mapIntegration(
@@ -146,13 +161,105 @@ export async function listMercadoPagoIntegrationsFromRepository(
       'id, store_id, provider_key, environment, status, credentials_encrypted, settings_json, last_sync_at, created_at, updated_at'
     )
     .eq('store_id', storeId)
-    .eq('provider_key', MERCADO_PAGO_PROVIDER_KEY);
+    .eq('provider_key', MERCADO_PAGO_PROVIDER_KEY)
+    .in('environment', ['test', 'production']);
 
   if (error || !data) {
     return [];
   }
 
   return (data as MercadoPagoIntegrationRow[]).map(mapIntegration);
+}
+
+export async function getMercadoPagoStorePreferenceFromRepository(
+  storeId: string
+): Promise<MercadoPagoStorePreferenceRecord> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return {
+      storeId,
+      providerKey: MERCADO_PAGO_PROVIDER_KEY,
+      activeEnvironment: 'test',
+      updatedAt: fallbackDate,
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('store_integrations')
+    .select('store_id, provider_key, settings_json, updated_at')
+    .eq('store_id', storeId)
+    .eq('provider_key', MERCADO_PAGO_PROVIDER_KEY)
+    .eq('environment', 'shared')
+    .maybeSingle();
+
+  if (error || !data) {
+    return {
+      storeId,
+      providerKey: MERCADO_PAGO_PROVIDER_KEY,
+      activeEnvironment: 'test',
+      updatedAt: fallbackDate,
+    };
+  }
+
+  const settings = (data.settings_json ?? {}) as Record<string, unknown>;
+
+  return {
+    storeId: data.store_id as string,
+    providerKey: MERCADO_PAGO_PROVIDER_KEY,
+    activeEnvironment: getActiveEnvironmentFromSettings(settings),
+    activeEnvironmentUpdatedAt:
+      typeof settings.activeEnvironmentUpdatedAt === 'string'
+        ? settings.activeEnvironmentUpdatedAt
+        : undefined,
+    activeEnvironmentUpdatedBy:
+      typeof settings.activeEnvironmentUpdatedBy === 'string'
+        ? settings.activeEnvironmentUpdatedBy
+        : undefined,
+    updatedAt: (data.updated_at as string | null) ?? fallbackDate,
+  };
+}
+
+export async function saveMercadoPagoStoreActiveEnvironmentInRepository(input: {
+  storeId: string;
+  environment: MercadoPagoEnvironment;
+  userId?: string;
+}) {
+  const supabase = requireAdminClient();
+  const now = new Date().toISOString();
+
+  const { data: current } = await supabase
+    .from('store_integrations')
+    .select('settings_json')
+    .eq('store_id', input.storeId)
+    .eq('provider_key', MERCADO_PAGO_PROVIDER_KEY)
+    .eq('environment', 'shared')
+    .maybeSingle();
+  const settings =
+    (current?.settings_json as Record<string, unknown> | null) ?? {};
+
+  const { error } = await supabase.from('store_integrations').upsert(
+    {
+      store_id: input.storeId,
+      provider_key: MERCADO_PAGO_PROVIDER_KEY,
+      environment: 'shared',
+      status: 'connected',
+      settings_json: {
+        ...settings,
+        activeEnvironment: input.environment,
+        activeEnvironmentUpdatedAt: now,
+        activeEnvironmentUpdatedBy: input.userId,
+      },
+      updated_at: now,
+    },
+    {
+      onConflict: 'store_id,provider_key,environment',
+    }
+  );
+
+  if (error) {
+    throw new Error('Unable to update Mercado Pago active environment.');
+  }
 }
 
 export async function markMercadoPagoConnectionAttemptInRepository(input: {

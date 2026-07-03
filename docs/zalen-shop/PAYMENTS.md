@@ -24,11 +24,15 @@ fallback temporário quando a loja ainda não possui `Public Key` configurada.
 - Cada loja autoriza sua própria conta Mercado Pago em `/admin/integracoes/mercado-pago`.
 - Tokens ficam criptografados em `store_integrations.credentials_encrypted` por
   `store_id + provider_key + environment`.
+- O ambiente ativo do Mercado Pago é uma preferência por loja salva em
+  `store_integrations` com `environment = shared`; o padrão seguro é `test`.
 - `settings_json` guarda apenas metadados seguros, como conta conectada,
   `credentialsSource`, datas, status do Checkout Pro e disponibilidade do
   Payment Brick.
 - `MERCADO_PAGO_ACCESS_TOKEN` e `MERCADO_PAGO_WEBHOOK_SECRET` permanecem como
   fallback legado temporário para Brasil Drones até a reconexão OAuth.
+- `MERCADO_PAGO_ENV` fica apenas como fallback técnico legado, não como fonte
+  principal para decidir se a loja cobra em teste ou produção.
 - Nenhum token no frontend.
 
 ## 4. Fluxo com Mercado Pago
@@ -59,6 +63,8 @@ Fase atual:
   validado na sessão Supabase Auth.
 - Backend cria ou reutiliza `customers` vinculado por `auth_user_id`.
 - Backend valida se Mercado Pago está ativo/configurado antes de criar pedido.
+- Backend usa o ambiente ativo configurado para a loja, exceto quando um pedido
+  ou webhook já carrega ambiente explícito.
 - Backend reutiliza pedido pendente pagável quando encontra mesmo `store_id`,
   `cart_hash` e `customer_hash`.
 - Backend cria pedido local no Supabase quando não há pedido pendente

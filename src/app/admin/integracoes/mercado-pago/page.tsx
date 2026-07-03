@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ExternalLink,
   PlugZap,
+  Power,
   RotateCw,
   ShieldCheck,
   Unplug,
@@ -29,6 +30,7 @@ import {
 } from '@/modules/stores/store-resolution';
 import {
   disconnectMercadoPagoAction,
+  setMercadoPagoActiveEnvironmentAction,
   testMercadoPagoConnectionAction,
 } from './actions';
 
@@ -69,6 +71,8 @@ const errorLabel: Record<string, string> = {
   provider_denied: 'Autorização negada no Mercado Pago.',
   test_failed_test: 'Teste de conexão falhou no ambiente de teste.',
   test_failed_production: 'Teste de conexão falhou no ambiente de produção.',
+  activation_blocked_test: 'Não foi possível ativar teste. Configure as credenciais de teste antes.',
+  activation_blocked_production: 'Produção ainda não pode ser ativada. Conecte OAuth, Public Key e webhook primeiro.',
 };
 
 const dateTimeFormatter = new Intl.DateTimeFormat('pt-BR', {
@@ -138,6 +142,11 @@ function EnvironmentCard({ state }: { state: MercadoPagoEnvironmentAdminState })
             <h2 className="text-base font-semibold">
               Ambiente {environmentLabel[state.environment]}
             </h2>
+            {state.active ? (
+              <span className="rounded-full border border-[#1E3DFF]/35 bg-[#1E3DFF]/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9DBAFF]">
+                Em uso
+              </span>
+            ) : null}
           </div>
           <p className="mt-1 text-xs leading-5 text-slate-400">
             Autorização Mercado Pago separada para {environmentLabel[state.environment].toLowerCase()}.
@@ -193,6 +202,20 @@ function EnvironmentCard({ state }: { state: MercadoPagoEnvironmentAdminState })
             </button>
           </form>
 
+          <form action={setMercadoPagoActiveEnvironmentAction}>
+            <input type="hidden" name="environment" value={state.environment} />
+            <button
+              type="submit"
+              disabled={state.active || !state.canActivate}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/30 bg-[#1E3DFF]/15 px-3 py-2 text-xs font-semibold text-[#BFD0FF] transition hover:border-[#1E3DFF]/55 hover:text-white disabled:cursor-not-allowed disabled:border-white/8 disabled:bg-white/5 disabled:text-slate-500"
+            >
+              {state.active
+                ? 'Ambiente em uso'
+                : `Usar ${environmentLabel[state.environment].toLowerCase()}`}
+              <Power className="h-3.5 w-3.5" />
+            </button>
+          </form>
+
           <form action={disconnectMercadoPagoAction}>
             <input type="hidden" name="environment" value={state.environment} />
             <button
@@ -204,6 +227,12 @@ function EnvironmentCard({ state }: { state: MercadoPagoEnvironmentAdminState })
               <Unplug className="h-3.5 w-3.5" />
             </button>
           </form>
+
+          {!state.active && state.activationBlockedReason ? (
+            <p className="rounded-lg border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs leading-5 text-amber-100">
+              {state.activationBlockedReason}
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -250,6 +279,7 @@ export default async function MercadoPagoIntegrationPage({
   const connected = firstParam(params.connected);
   const tested = firstParam(params.tested);
   const disconnected = firstParam(params.disconnected);
+  const activated = firstParam(params.activated);
 
   return (
     <div className="min-h-screen bg-[#050A14] text-white">
@@ -279,7 +309,7 @@ export default async function MercadoPagoIntegrationPage({
                   Mercado Pago
                 </h1>
                 <p className="mt-1 max-w-2xl text-sm text-slate-400">
-                  Checkout Pro com OAuth por loja. Tokens e refresh tokens ficam criptografados no servidor.
+                  Payment Brick com OAuth por loja. Tokens e refresh tokens ficam criptografados no servidor.
                 </p>
               </div>
 
@@ -326,6 +356,32 @@ export default async function MercadoPagoIntegrationPage({
                 </div>
               ) : null}
 
+              {activated ? (
+                <div className="flex items-center gap-2 rounded-lg border border-[#1E3DFF]/25 bg-[#1E3DFF]/15 px-3 py-2 text-xs text-[#BFD0FF]">
+                  <Power className="h-3.5 w-3.5" />
+                  Ambiente ativo alterado para {environmentLabel[activated as MercadoPagoEnvironment] ?? activated}.
+                </div>
+              ) : null}
+
+              <section className="rounded-lg border border-white/8 bg-[#0A1730]/95 p-4">
+                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-[#7EC3FF]">
+                  Ambiente ativo
+                </p>
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold">
+                      {environmentLabel[state.activeEnvironment]}
+                    </h2>
+                    <p className="mt-1 text-xs text-slate-400">
+                      A loja permanece em teste até alguém ativar produção explicitamente.
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-white/8 bg-[#081225] px-3 py-2 text-xs text-slate-300">
+                    Atualizado em {formatOptionalDateTime(state.activeEnvironmentUpdatedAt)}
+                  </div>
+                </div>
+              </section>
+
               {state.warnings.length > 0 ? (
                 <div className="space-y-2">
                   {state.warnings.map((warning) => (
@@ -353,7 +409,7 @@ export default async function MercadoPagoIntegrationPage({
                 <h2 className="mt-3 text-base font-semibold">Runtime multi-loja</h2>
                 <div className="mt-3 grid gap-2 text-xs md:grid-cols-3">
                   {[
-                    'Checkout cria preferência com token da loja autorizada.',
+                    'Checkout cria pagamento com o ambiente ativo desta loja.',
                     'Webhook valida assinatura por ambiente e processa pelo store_id recebido.',
                     'Fallback ENV fica restrito à Brasil Drones até reconectar via OAuth.',
                   ].map((item) => (

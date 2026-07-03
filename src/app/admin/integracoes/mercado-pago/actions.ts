@@ -8,11 +8,14 @@ import {
   parseMercadoPagoEnvironment,
 } from '@/modules/integrations/mercado-pago/mercado-pago.config';
 import { getMercadoPagoAccessContext } from '@/modules/integrations/mercado-pago/mercado-pago.connector';
-import { disconnectMercadoPagoIntegration } from '@/modules/integrations/mercado-pago/mercado-pago.account.service';
+import {
+  disconnectMercadoPagoIntegration,
+  setMercadoPagoActiveEnvironment,
+} from '@/modules/integrations/mercado-pago/mercado-pago.account.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 
 function redirectWithParam(
-  key: 'error' | 'tested' | 'disconnected',
+  key: 'error' | 'tested' | 'disconnected' | 'activated',
   value: string
 ): never {
   redirect(`${MERCADO_PAGO_ADMIN_DETAIL_PATH}?${key}=${encodeURIComponent(value)}`);
@@ -32,7 +35,7 @@ async function assertCanManageMercadoPago() {
     redirectWithParam('error', 'access_denied');
   }
 
-  return store;
+  return { store, user: role.user };
 }
 
 function getEnvironment(formData: FormData) {
@@ -46,7 +49,7 @@ export async function testMercadoPagoConnectionAction(formData: FormData) {
     redirectWithParam('error', 'invalid_environment');
   }
 
-  const store = await assertCanManageMercadoPago();
+  const { store } = await assertCanManageMercadoPago();
 
   try {
     await getMercadoPagoAccessContext({
@@ -68,7 +71,7 @@ export async function disconnectMercadoPagoAction(formData: FormData) {
     redirectWithParam('error', 'invalid_environment');
   }
 
-  const store = await assertCanManageMercadoPago();
+  const { store } = await assertCanManageMercadoPago();
 
   await disconnectMercadoPagoIntegration({
     storeId: store.id,
@@ -77,4 +80,27 @@ export async function disconnectMercadoPagoAction(formData: FormData) {
 
   revalidatePath(MERCADO_PAGO_ADMIN_DETAIL_PATH);
   redirectWithParam('disconnected', environment);
+}
+
+export async function setMercadoPagoActiveEnvironmentAction(formData: FormData) {
+  const environment = getEnvironment(formData);
+
+  if (!environment) {
+    redirectWithParam('error', 'invalid_environment');
+  }
+
+  const { store, user } = await assertCanManageMercadoPago();
+
+  try {
+    await setMercadoPagoActiveEnvironment({
+      storeId: store.id,
+      environment,
+      userId: user?.id,
+    });
+  } catch {
+    redirectWithParam('error', `activation_blocked_${environment}`);
+  }
+
+  revalidatePath(MERCADO_PAGO_ADMIN_DETAIL_PATH);
+  redirectWithParam('activated', environment);
 }

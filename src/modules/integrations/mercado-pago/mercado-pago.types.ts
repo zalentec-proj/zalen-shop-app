@@ -156,6 +156,9 @@ export interface MercadoPagoEnvironmentAdminState {
   enabled: boolean;
   configured: boolean;
   publicKeyConfigured: boolean;
+  active: boolean;
+  canActivate: boolean;
+  activationBlockedReason?: string;
   credentialsSource: MercadoPagoCredentialsSource;
   integrationStatus?: StoreIntegrationStatus;
   account?: MercadoPagoConnectedAccount;
@@ -172,6 +175,9 @@ export interface MercadoPagoAdminState {
   providerKey: 'mercado_pago';
   isOAuthConfigured: boolean;
   isEncryptionConfigured: boolean;
+  activeEnvironment: MercadoPagoEnvironment;
+  activeEnvironmentUpdatedAt?: string;
+  activeEnvironmentUpdatedBy?: string;
   warnings: string[];
   environments: MercadoPagoEnvironmentAdminState[];
 }

@@ -96,8 +96,18 @@ MERCADO_PAGO_WEBHOOK_SECRET=
 ```
 
 `Public Key` é necessária para renderizar o Payment Brick no frontend. O
-ambiente deve ser definido por `MERCADO_PAGO_ENV`, porque credenciais de teste
-podem não usar prefixo `TEST-`.
+ambiente ativo deve ser definido por loja no admin da Zalen; `MERCADO_PAGO_ENV`
+permanece apenas como fallback técnico legado para Brasil Drones enquanto a loja
+não reconecta por OAuth.
+
+Preferência por loja:
+
+- `store_integrations.provider_key = mercado_pago`;
+- `store_integrations.environment = shared`;
+- `settings_json.activeEnvironment = test | production`;
+- default seguro: `test`;
+- produção só pode ser ativada quando OAuth, `Public Key` e segredo de webhook
+  de produção estiverem prontos.
 
 ## Checkout Pro
 

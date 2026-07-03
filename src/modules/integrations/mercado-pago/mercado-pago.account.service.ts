@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { getServerEnv } from '@/lib/env/server';
+import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
 import {
   decryptIntegrationCredentials,
   encryptIntegrationCredentials,
@@ -13,10 +15,12 @@ import {
 } from './mercado-pago.config';
 import {
   disconnectMercadoPagoIntegrationInRepository,
+  getMercadoPagoStorePreferenceFromRepository,
   listMercadoPagoIntegrationsFromRepository,
   markMercadoPagoConnectionAttemptInRepository,
   markMercadoPagoConnectionErrorInRepository,
   saveMercadoPagoCredentialsInRepository,
+  saveMercadoPagoStoreActiveEnvironmentInRepository,
 } from './mercado-pago.repository';
 import type {
   MercadoPagoAdminState,
@@ -77,6 +81,28 @@ function isCheckoutEnabled(settings: Record<string, unknown>) {
   return getSettingsRecord(settings, 'checkoutPro').enabled !== false;
 }
 
+function hasLegacyEnvFallback(input: {
+  storeId: string;
+  environment: MercadoPagoEnvironment;
+}) {
+  const env = getServerEnv();
+
+  return (
+    input.storeId === ACTIVE_STORE_ID &&
+    input.environment === getDefaultMercadoPagoEnvironment() &&
+    Boolean(env.MERCADO_PAGO_ACCESS_TOKEN)
+  );
+}
+
+function hasLegacyEnvPublicKey(input: {
+  storeId: string;
+  environment: MercadoPagoEnvironment;
+}) {
+  const env = getServerEnv();
+
+  return hasLegacyEnvFallback(input) && Boolean(env.MERCADO_PAGO_PUBLIC_KEY);
+}
+
 function isExpired(value: string | undefined) {
   return value ? new Date(value).getTime() < Date.now() : false;
 }
@@ -109,6 +135,7 @@ function getStatus(input: {
 function toEnvironmentState(input: {
   storeId: string;
   environment: MercadoPagoEnvironment;
+  activeEnvironment: MercadoPagoEnvironment;
   integration?: Awaited<ReturnType<typeof listMercadoPagoIntegrationsFromRepository>>[number];
   canStartOAuth: boolean;
 }): MercadoPagoEnvironmentAdminState {
@@ -119,24 +146,54 @@ function toEnvironmentState(input: {
   );
   const enabled =
     input.integration?.status !== 'disabled' &&
-    input.integration?.status !== 'disconnected' &&
+      input.integration?.status !== 'disconnected' &&
     isCheckoutEnabled(settings);
-  const credentialsSource = toCredentialsSource(settings.credentialsSource, 'oauth');
+  const legacyFallbackConfigured = hasLegacyEnvFallback({
+    storeId: input.storeId,
+    environment: input.environment,
+  });
+  const credentialsEncrypted = input.integration?.credentialsEncrypted;
+  const credentialsSource = credentialsEncrypted
+    ? 'oauth'
+    : toCredentialsSource(
+        settings.credentialsSource,
+        legacyFallbackConfigured ? 'env' : 'oauth'
+      );
   const status = getStatus({
     integrationStatus: input.integration?.status,
-    credentialsEncrypted: input.integration?.credentialsEncrypted,
+    credentialsEncrypted: credentialsEncrypted ?? (legacyFallbackConfigured ? 'env' : undefined),
     enabled,
     tokenExpiresAt,
   });
   const warnings: string[] = [];
   const account = toAccount(settings);
-  const publicKeyConfigured = Boolean(account?.publicKey);
+  const publicKeyConfigured = Boolean(
+    account?.publicKey ||
+      hasLegacyEnvPublicKey({
+        storeId: input.storeId,
+        environment: input.environment,
+      })
+  );
+  const configured = Boolean(
+    enabled &&
+      webhookSecretConfigured &&
+      (credentialsEncrypted || legacyFallbackConfigured)
+  );
+  const canActivate =
+    input.environment === 'production'
+      ? Boolean(credentialsEncrypted && webhookSecretConfigured && publicKeyConfigured)
+      : configured;
+  const activationBlockedReason = canActivate
+    ? undefined
+    : input.environment === 'production'
+      ? 'Conecte Produção por OAuth, confirme Public Key e webhook antes de ativar.'
+      : 'Configure credenciais ou fallback de teste antes de ativar.';
 
   if (status === 'expired') {
     warnings.push('Token vencido; a próxima operação tentará renovar com refresh token.');
   }
 
-  if (status === 'pending_credentials') {
+  if (status === 'pending_credentials' && !legacyFallbackConfigured) {
     warnings.push('Ambiente ainda não autorizado por OAuth.');
   }
 
@@ -152,8 +209,11 @@ function toEnvironmentState(input: {
     environment: input.environment,
     status,
     enabled,
-    configured: Boolean(input.integration?.credentialsEncrypted && webhookSecretConfigured),
+    configured,
     publicKeyConfigured,
+    active: input.environment === input.activeEnvironment,
+    canActivate,
+    activationBlockedReason,
     credentialsSource,
     integrationStatus: input.integration?.status,
     account,
@@ -161,7 +221,7 @@ function toEnvironmentState(input: {
     tokenExpiresAt,
     lastUpdatedAt: input.integration?.updatedAt,
     canStartOAuth: input.canStartOAuth,
-    canTestConnection: Boolean(input.integration?.credentialsEncrypted),
+    canTestConnection: Boolean(credentialsEncrypted || legacyFallbackConfigured),
     connectPath: getMercadoPagoConnectPath(input.environment),
     warnings,
   };
@@ -181,6 +241,7 @@ export async function getMercadoPagoAdminState(
   storeId: string
 ): Promise<MercadoPagoAdminState> {
   const config = getMercadoPagoOAuthConfig();
+  const preference = await getMercadoPagoStorePreferenceFromRepository(storeId);
   const integrations = await listMercadoPagoIntegrationsFromRepository(storeId);
   const byEnvironment = new Map(
     integrations.map((integration) => [
@@ -202,12 +263,16 @@ export async function getMercadoPagoAdminState(
     providerKey: 'mercado_pago',
     isOAuthConfigured: config.isConfigured,
     isEncryptionConfigured: config.isEncryptionConfigured,
+    activeEnvironment: preference.activeEnvironment,
+    activeEnvironmentUpdatedAt: preference.activeEnvironmentUpdatedAt,
+    activeEnvironmentUpdatedBy: preference.activeEnvironmentUpdatedBy,
     warnings,
     environments: (['test', 'production'] as MercadoPagoEnvironment[]).map(
       (environment) =>
         toEnvironmentState({
           storeId,
           environment,
+          activeEnvironment: preference.activeEnvironment,
           integration: byEnvironment.get(environment),
           canStartOAuth: config.isConfigured && config.isEncryptionConfigured,
         })
@@ -276,6 +341,27 @@ export async function disconnectMercadoPagoIntegration(input: {
   environment: MercadoPagoEnvironment;
 }) {
   await disconnectMercadoPagoIntegrationInRepository(input);
+}
+
+export async function setMercadoPagoActiveEnvironment(input: {
+  storeId: string;
+  environment: MercadoPagoEnvironment;
+  userId?: string;
+}) {
+  const adminState = await getMercadoPagoAdminState(input.storeId);
+  const target = adminState.environments.find(
+    (environmentState) => environmentState.environment === input.environment
+  );
+
+  if (!target || !target.canActivate) {
+    throw new Error('mercado_pago_environment_not_ready');
+  }
+
+  await saveMercadoPagoStoreActiveEnvironmentInRepository({
+    storeId: input.storeId,
+    environment: input.environment,
+    userId: input.userId,
+  });
 }
 
 export function decryptMercadoPagoCredentials(

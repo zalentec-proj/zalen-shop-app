@@ -121,11 +121,14 @@
 ## 7.2 Mercado Pago
 
 - Cada loja pode conectar Mercado Pago por OAuth em teste e produção.
+- Cada loja escolhe manualmente o ambiente ativo: teste ou produção.
+- O ambiente inicial seguro é teste; produção só ativa com credenciais,
+  `Public Key` e segredo de webhook configurados.
 - Tokens OAuth ficam criptografados em `store_integrations`.
 - Brasil Drones pode usar fallback ENV apenas enquanto não houver OAuth conectado.
 - Admin não exibe token, refresh token ou segredo de webhook.
 - Checkout valida configuração server-side antes de criar pedido.
-- Checkout usa credencial da loja que criou o pedido.
+- Checkout usa o ambiente ativo e a credencial da loja que criou o pedido.
 - Preferência Mercado Pago é criada apenas server-side.
 - Payment Brick renderiza apenas quando `Public Key` da loja/ambiente está
   disponível.

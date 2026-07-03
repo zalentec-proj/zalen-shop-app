@@ -113,7 +113,8 @@ export async function listStoreIntegrationsWithSourceFromRepository(
     .select(
       'id, store_id, provider_key, environment, status, settings_json, last_sync_at, created_at, updated_at'
     )
-    .eq('store_id', storeId);
+    .eq('store_id', storeId)
+    .neq('environment', 'shared');
 
   if (error || !data) {
     logDevOnce('store-integration.repository', 'using provider-only fallback', {

@@ -620,16 +620,16 @@ async function buildMercadoPagoStartResult(input: {
   publicKey?: string;
   environment?: MercadoPagoEnvironment;
 }): Promise<CheckoutCartActionResult> {
-  const environment =
-    input.environment ?? getDefaultMercadoPagoCheckoutEnvironment();
+  let environment = input.environment;
   let publicKey = input.publicKey;
 
-  if (!publicKey) {
+  if (!publicKey || !environment) {
     const accessContext = await getMercadoPagoAccessContext({
       storeId: input.storeId,
       environment,
     });
-    publicKey = accessContext.publicKey;
+    environment = accessContext.environment;
+    publicKey = publicKey ?? accessContext.publicKey;
   }
 
   if (publicKey && input.preferenceId) {
@@ -661,12 +661,6 @@ async function buildMercadoPagoStartResult(input: {
     paymentMode: 'checkout_pro',
     paymentUrl,
   };
-}
-
-function getDefaultMercadoPagoCheckoutEnvironment(): MercadoPagoEnvironment {
-  return process.env.MERCADO_PAGO_ENV === 'production'
-    ? 'production'
-    : 'test';
 }
 
 function getPaymentRedirectPath(orderId: string, status: string) {
