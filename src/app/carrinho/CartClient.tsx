@@ -26,9 +26,11 @@ import {
   lookupCheckoutPostalCodeAction,
   previewCheckoutCartAction,
   quoteCheckoutShippingAction,
+  requestCheckoutAccountCodeAction,
   requestCheckoutEmailCodeAction,
   type CheckoutPreviewActionResult,
   type CheckoutShippingQuoteActionResult,
+  verifyCheckoutAccountCodeAction,
   verifyCheckoutEmailCodeAction,
 } from './actions';
 import { isValidCnpj, isValidCpf, isValidCpfOrCnpj, onlyDigits } from '@/modules/customers/br-document';
@@ -80,6 +82,7 @@ interface Props {
 
 type CheckoutStep =
   | 'identificacao'
+  | 'validacao'
   | 'cadastro'
   | 'entrega'
   | 'envio'
@@ -121,6 +124,14 @@ type EmailVerificationState = {
   error?: string;
 };
 
+type AccountValidationState = {
+  identifier: string;
+  emailHint?: string;
+  token: string;
+  message?: string;
+  error?: string;
+};
+
 type PostalCodeLookupState = {
   postalCode?: string;
   status: 'idle' | 'loading' | 'found' | 'error';
@@ -129,10 +140,11 @@ type PostalCodeLookupState = {
 
 const steps: Array<{ id: CheckoutStep; label: string; title: string }> = [
   { id: 'identificacao', label: '1', title: 'Identificação' },
-  { id: 'cadastro', label: '2', title: 'Dados' },
-  { id: 'entrega', label: '3', title: 'Entrega' },
-  { id: 'envio', label: '4', title: 'Envio' },
-  { id: 'pagamento', label: '5', title: 'Pagamento' },
+  { id: 'validacao', label: '2', title: 'Conta' },
+  { id: 'cadastro', label: '3', title: 'Dados' },
+  { id: 'entrega', label: '4', title: 'Entrega' },
+  { id: 'envio', label: '5', title: 'Envio' },
+  { id: 'pagamento', label: '6', title: 'Pagamento' },
 ];
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', {
@@ -369,6 +381,11 @@ export default function CartClient({ customerSession }: Props) {
       token: '',
       message: initialVerifiedEmail ? 'E-mail validado.' : undefined,
     });
+  const [accountValidation, setAccountValidation] =
+    useState<AccountValidationState>({
+      identifier: '',
+      token: '',
+    });
   const [postalCodeLookup, setPostalCodeLookup] =
     useState<PostalCodeLookupState>({
       status: 'idle',
@@ -387,6 +404,8 @@ export default function CartClient({ customerSession }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [isQuotingShipping, setIsQuotingShipping] = useState(false);
+  const [isSendingAccountCode, setIsSendingAccountCode] = useState(false);
+  const [isVerifyingAccountCode, setIsVerifyingAccountCode] = useState(false);
   const [isSendingEmailCode, setIsSendingEmailCode] = useState(false);
   const [isVerifyingEmailCode, setIsVerifyingEmailCode] = useState(false);
   const checkoutAttemptIdRef = useRef<string | null>(null);
@@ -551,6 +570,50 @@ export default function CartClient({ customerSession }: Props) {
     clearShippingSelection();
   }
 
+  function getCustomerFromSnapshot(snapshot: CheckoutSessionCustomer): CustomerState {
+    const document = snapshot.document ?? '';
+    const customerType = getCustomerTypeFromDocumentInput(
+      document,
+      snapshot.customerType ?? 'pf'
+    );
+
+    return {
+      name: snapshot.name ?? '',
+      email: snapshot.email ?? '',
+      phone: snapshot.phone ?? '',
+      document,
+      customerType,
+      legalName: snapshot.legalName ?? '',
+      stateRegistration: snapshot.stateRegistration ?? '',
+      stateRegistrationExempt: snapshot.stateRegistrationExempt ?? false,
+      acceptsMarketing: snapshot.acceptsMarketing ?? false,
+      postalCode: snapshot.shippingAddress?.postalCode ?? '',
+      street: snapshot.shippingAddress?.street ?? '',
+      number: snapshot.shippingAddress?.number ?? '',
+      complement: snapshot.shippingAddress?.complement ?? '',
+      district: snapshot.shippingAddress?.district ?? '',
+      city: snapshot.shippingAddress?.city ?? '',
+      state: snapshot.shippingAddress?.state ?? '',
+    };
+  }
+
+  async function applyHydratedCustomer(snapshot: CheckoutSessionCustomer) {
+    const nextCustomer = getCustomerFromSnapshot(snapshot);
+
+    resetCheckoutAttempt();
+    setCustomer(nextCustomer);
+    setIdentifier(nextCustomer.document || nextCustomer.email);
+    setCheckoutError(null);
+    setEmailVerification({
+      email: normalizeEmailAddress(nextCustomer.email),
+      status: 'verified',
+      token: '',
+      message: 'E-mail validado.',
+    });
+    await refreshPreview(nextCustomer);
+    setCheckoutStep('cadastro');
+  }
+
   function persistCart(nextCart: Cart) {
     setCheckoutPreview(null);
     clearShippingSelection();
@@ -653,30 +716,63 @@ export default function CartClient({ customerSession }: Props) {
       return;
     }
 
+    if (result.status === 'authenticated_customer' && result.customer) {
+      await applyHydratedCustomer(result.customer);
+      return;
+    }
+
+    if (result.status === 'existing_customer_requires_code') {
+      const baseAccountValidation = {
+        identifier: value,
+        emailHint: result.emailHint,
+        token: '',
+        message:
+          result.message ??
+          'Identificamos seu cadastro. Envie o código para continuar.',
+      };
+
+      setAccountValidation(baseAccountValidation);
+      setCustomer((current) => ({
+        ...current,
+        document: isDocument ? digits : current.document,
+        customerType:
+          result.customerType ??
+          getCustomerTypeFromDocumentInput(
+            isDocument ? digits : current.document,
+            current.customerType
+          ),
+      }));
+      setCheckoutStep('validacao');
+      setIsSendingAccountCode(true);
+
+      const codeResult = await requestCheckoutAccountCodeAction({
+        identifier: value,
+      });
+
+      setIsSendingAccountCode(false);
+
+      setAccountValidation((current) => ({
+        ...current,
+        emailHint: codeResult.ok ? codeResult.emailHint : current.emailHint,
+        message: codeResult.ok ? codeResult.message : undefined,
+        error: codeResult.ok ? undefined : codeResult.error,
+      }));
+      return;
+    }
+
     const nextCustomer: CustomerState = {
       ...customer,
-      email: result.customer?.email ?? (isEmail(value) ? value.toLowerCase() : customer.email),
-      document: result.customer?.document ?? (isDocument ? digits : customer.document),
+      email:
+        result.customer?.email ??
+        (isEmail(value) ? normalizeEmailAddress(value) : customer.email),
+      document:
+        result.customer?.document ?? (isDocument ? digits : customer.document),
       customerType:
         result.customerType ??
-        getCustomerTypeFromDocumentInput(isDocument ? digits : customer.document, customer.customerType),
-      name: result.customer?.name ?? customer.name,
-      phone: result.customer?.phone ?? customer.phone,
-      legalName: result.customer?.legalName ?? customer.legalName,
-      stateRegistration:
-        result.customer?.stateRegistration ?? customer.stateRegistration,
-      stateRegistrationExempt:
-        result.customer?.stateRegistrationExempt ??
-        customer.stateRegistrationExempt,
-      postalCode:
-        result.customer?.shippingAddress?.postalCode ?? customer.postalCode,
-      street: result.customer?.shippingAddress?.street ?? customer.street,
-      number: result.customer?.shippingAddress?.number ?? customer.number,
-      complement:
-        result.customer?.shippingAddress?.complement ?? customer.complement,
-      district: result.customer?.shippingAddress?.district ?? customer.district,
-      city: result.customer?.shippingAddress?.city ?? customer.city,
-      state: result.customer?.shippingAddress?.state ?? customer.state,
+        getCustomerTypeFromDocumentInput(
+          isDocument ? digits : customer.document,
+          customer.customerType
+        ),
     };
 
     resetCheckoutAttempt();
@@ -684,6 +780,78 @@ export default function CartClient({ customerSession }: Props) {
     syncEmailVerificationForEmail(nextCustomer.email);
     await refreshPreview(nextCustomer);
     setCheckoutStep('cadastro');
+  }
+
+  async function handleSendAccountCode() {
+    if (!accountValidation.identifier) {
+      setCheckoutStep('identificacao');
+      return;
+    }
+
+    setIsSendingAccountCode(true);
+
+    const result = await requestCheckoutAccountCodeAction({
+      identifier: accountValidation.identifier,
+    });
+
+    setIsSendingAccountCode(false);
+
+    if (!result.ok) {
+      setAccountValidation((current) => ({
+        ...current,
+        error: result.error,
+        message: undefined,
+      }));
+      return;
+    }
+
+    setAccountValidation((current) => ({
+      ...current,
+      emailHint: result.emailHint,
+      message: result.message,
+      error: undefined,
+    }));
+  }
+
+  async function handleVerifyAccountCode() {
+    const token = accountValidation.token.trim();
+
+    if (!accountValidation.identifier || token.length < 4) {
+      setAccountValidation((current) => ({
+        ...current,
+        error: 'Informe o código recebido por e-mail.',
+      }));
+      return;
+    }
+
+    setIsVerifyingAccountCode(true);
+
+    const result = await verifyCheckoutAccountCodeAction({
+      identifier: accountValidation.identifier,
+      token,
+    });
+
+    setIsVerifyingAccountCode(false);
+
+    if (!result.ok) {
+      setAccountValidation((current) => ({
+        ...current,
+        error: result.error,
+        message: undefined,
+      }));
+      return;
+    }
+
+    setAccountValidation((current) => ({
+      ...current,
+      token: '',
+      message: result.message,
+      error: undefined,
+    }));
+    await applyHydratedCustomer({
+      ...result.customer,
+      email: result.email,
+    });
   }
 
   function validateCustomerData() {
@@ -1085,7 +1253,7 @@ export default function CartClient({ customerSession }: Props) {
               </p>
             </div>
 
-            <div className="mt-5 grid gap-2 md:grid-cols-5">
+            <div className="mt-5 grid gap-2 md:grid-cols-6">
               {steps.map((step, index) => (
                 <StepCard
                   key={step.id}
@@ -1114,6 +1282,10 @@ export default function CartClient({ customerSession }: Props) {
                         value={identifier}
                         onChange={(value) => {
                           setCheckoutError(null);
+                          setAccountValidation({
+                            identifier: '',
+                            token: '',
+                          });
                           setIdentifier(value);
                         }}
                         validationState={
@@ -1143,6 +1315,86 @@ export default function CartClient({ customerSession }: Props) {
                         className="mt-auto h-11 rounded-xl bg-blue-primary px-5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(30,61,255,0.3)] transition hover:opacity-95 disabled:cursor-wait disabled:opacity-60"
                       >
                         {isLookingUp ? 'Verificando...' : 'Continuar'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {checkoutStep === 'validacao' ? (
+                <div className="grid gap-5">
+                  <div className="rounded-2xl border border-blue-primary/25 bg-blue-primary/8 p-5">
+                    <div className="flex flex-col gap-2">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-blue-primary">
+                        Conta encontrada
+                      </p>
+                      <h2 className="text-lg font-black text-white">
+                        Valide seu acesso para continuar
+                      </h2>
+                      <p className="max-w-2xl text-sm leading-6 text-brand-muted">
+                        Encontramos um cadastro para os dados informados. Para
+                        proteger seus dados salvos, confirme o código enviado
+                        para {accountValidation.emailHint ?? 'o e-mail cadastrado'}.
+                      </p>
+                    </div>
+
+                    <div className="mt-5 grid gap-3 md:grid-cols-[1fr_180px]">
+                      <input
+                        value={accountValidation.token}
+                        onChange={(event) =>
+                          setAccountValidation((current) => ({
+                            ...current,
+                            token: event.target.value
+                              .replace(/\D/g, '')
+                              .slice(0, 12),
+                            error: undefined,
+                          }))
+                        }
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        placeholder="Código de acesso"
+                        className="h-11 w-full rounded-xl border border-brand-border-soft bg-[#050A14]/80 px-3 text-center text-lg font-black tracking-[0.24em] text-white outline-none transition placeholder:text-sm placeholder:font-semibold placeholder:tracking-normal placeholder:text-brand-muted focus:border-green-accent/60"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleVerifyAccountCode}
+                        disabled={
+                          isVerifyingAccountCode ||
+                          accountValidation.token.trim().length < 4
+                        }
+                        className="h-11 rounded-xl bg-green-accent px-5 text-sm font-black text-brand-bg transition hover:opacity-95 disabled:cursor-wait disabled:opacity-60"
+                      >
+                        {isVerifyingAccountCode ? 'Validando...' : 'Validar'}
+                      </button>
+                    </div>
+
+                    {accountValidation.message || accountValidation.error ? (
+                      <p
+                        className={`mt-3 text-xs font-semibold ${
+                          accountValidation.error
+                            ? 'text-red-200'
+                            : 'text-green-accent'
+                        }`}
+                      >
+                        {accountValidation.error ?? accountValidation.message}
+                      </p>
+                    ) : null}
+
+                    <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-brand-border-soft pt-4">
+                      <button
+                        type="button"
+                        onClick={() => setCheckoutStep('identificacao')}
+                        className="h-10 rounded-xl border border-brand-border-soft px-4 text-xs font-bold text-brand-muted transition hover:text-white"
+                      >
+                        Alterar e-mail/CPF/CNPJ
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSendAccountCode}
+                        disabled={isSendingAccountCode}
+                        className="h-10 rounded-xl border border-blue-primary/40 px-4 text-xs font-bold text-blue-primary transition hover:bg-blue-primary hover:text-white disabled:cursor-wait disabled:opacity-60"
+                      >
+                        {isSendingAccountCode ? 'Enviando...' : 'Enviar código'}
                       </button>
                     </div>
                   </div>

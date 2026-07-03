@@ -17,6 +17,7 @@ import {
   requestCustomerLoginCode,
   verifyCustomerLoginCode,
 } from '@/modules/customer-account/customer-auth.service';
+import { findCustomerByAuthUserId } from '@/modules/customers/customer.service';
 import { lookupBrazilianPostalCode } from '@/modules/address/postal-code.service';
 import { getServerEnv } from '@/lib/env/server';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
@@ -139,6 +140,27 @@ const checkoutSchema = z.object({
 
 type CheckoutInput = z.infer<typeof checkoutSchema>;
 
+type CheckoutCustomerSnapshot = {
+  name?: string;
+  email?: string;
+  phone?: string;
+  document?: string;
+  customerType?: CustomerType;
+  legalName?: string;
+  stateRegistration?: string;
+  stateRegistrationExempt?: boolean;
+  acceptsMarketing?: boolean;
+  shippingAddress?: {
+    postalCode?: string;
+    street?: string;
+    number?: string;
+    complement?: string;
+    district?: string;
+    city?: string;
+    state?: string;
+  };
+};
+
 export type CheckoutEmailCodeActionResult =
   | {
       ok: true;
@@ -165,27 +187,37 @@ export type CheckoutCartActionResult =
 export type IdentifyCheckoutCustomerActionResult =
   | {
       ok: true;
-      found: boolean;
+      status:
+        | 'new_customer'
+        | 'existing_customer_requires_code'
+        | 'authenticated_customer';
       customerType?: CustomerType;
-      customer?: {
-        name?: string;
-        email?: string;
-        phone?: string;
-        document?: string;
-        customerType?: CustomerType;
-        legalName?: string;
-        stateRegistration?: string;
-        stateRegistrationExempt?: boolean;
-        shippingAddress?: {
-          postalCode?: string;
-          street?: string;
-          number?: string;
-          complement?: string;
-          district?: string;
-          city?: string;
-          state?: string;
-        };
-      };
+      emailHint?: string;
+      message?: string;
+      customer?: CheckoutCustomerSnapshot;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
+export type CheckoutAccountCodeActionResult =
+  | {
+      ok: true;
+      emailHint: string;
+      message: string;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
+export type CheckoutAccountCodeVerificationActionResult =
+  | {
+      ok: true;
+      email: string;
+      message: string;
+      customer: CheckoutCustomerSnapshot;
     }
   | {
       ok: false;
@@ -426,6 +458,62 @@ function assertCheckoutEmailLooksIntentional(email: string) {
   }
 }
 
+function maskEmail(email: string) {
+  const normalizedEmail = normalizeEmailAddress(email);
+  const [localPart = '', domain = ''] = normalizedEmail.split('@');
+  const visiblePrefix = localPart.slice(0, Math.min(3, localPart.length));
+  const maskedLocal =
+    localPart.length <= 3 ? `${visiblePrefix}***` : `${visiblePrefix}***`;
+
+  return domain ? `${maskedLocal}@${domain}` : `${maskedLocal}@***`;
+}
+
+function mapCheckoutCustomerSnapshot(
+  customer: NonNullable<Awaited<ReturnType<typeof findCheckoutCustomerByIdentifier>>>
+): CheckoutCustomerSnapshot {
+  return {
+    name: customer.name,
+    email: customer.email,
+    phone: customer.phone,
+    document: customer.document,
+    customerType: customer.customerType,
+    legalName: customer.legalName,
+    stateRegistration: customer.stateRegistration,
+    stateRegistrationExempt: customer.stateRegistrationExempt,
+    acceptsMarketing: customer.acceptsMarketing,
+    shippingAddress: customer.defaultAddress
+      ? {
+          postalCode: customer.defaultAddress.postalCode,
+          street: customer.defaultAddress.street,
+          number: customer.defaultAddress.number,
+          complement: customer.defaultAddress.complement,
+          district: customer.defaultAddress.district,
+          city: customer.defaultAddress.city,
+          state: customer.defaultAddress.state,
+        }
+      : undefined,
+  };
+}
+
+async function findCheckoutCustomerForIdentifier(identifier: string) {
+  const store = await resolveCurrentStoreFromHeaders();
+  const customer = await findCheckoutCustomerByIdentifier({
+    storeId: store.id,
+    identifier,
+  });
+
+  return {
+    store,
+    customer,
+  };
+}
+
+function getCustomerEmailForCode(customer: { email?: string } | null) {
+  const email = normalizeEmailAddress(customer?.email ?? '');
+
+  return email || null;
+}
+
 async function requireVerifiedCheckoutEmail(input: {
   email: string;
 }) {
@@ -458,6 +546,15 @@ const checkoutEmailCodeRequestSchema = z.object({
 const checkoutEmailCodeVerificationSchema = checkoutEmailCodeRequestSchema.extend({
   token: z.string().trim().min(4).max(12),
 });
+
+const checkoutAccountIdentifierSchema = z.object({
+  identifier: z.string().trim().min(3),
+});
+
+const checkoutAccountCodeVerificationSchema =
+  checkoutAccountIdentifierSchema.extend({
+    token: z.string().trim().min(4).max(12),
+  });
 
 export async function requestCheckoutEmailCodeAction(
   rawInput: unknown
@@ -545,6 +642,113 @@ export async function verifyCheckoutEmailCodeAction(
     ok: true,
     email,
     message: 'E-mail validado.',
+  };
+}
+
+export async function requestCheckoutAccountCodeAction(
+  rawInput: unknown
+): Promise<CheckoutAccountCodeActionResult> {
+  const parsed = checkoutAccountIdentifierSchema.safeParse(rawInput);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: 'Informe um e-mail, CPF ou CNPJ válido.',
+    };
+  }
+
+  const { store, customer } = await findCheckoutCustomerForIdentifier(
+    parsed.data.identifier
+  );
+  const email = getCustomerEmailForCode(customer);
+
+  if (!customer || !email) {
+    return {
+      ok: false,
+      error: 'Não encontramos um e-mail validável para este cadastro.',
+    };
+  }
+
+  try {
+    await requestCustomerLoginCode({
+      storeId: store.id,
+      storeName: store.name,
+      email,
+      baseUrl: await getCheckoutBaseUrl(),
+      next: '/carrinho',
+    });
+
+    return {
+      ok: true,
+      emailHint: maskEmail(email),
+      message: 'Enviamos um código para o e-mail cadastrado.',
+    };
+  } catch {
+    return {
+      ok: false,
+      error: 'Não foi possível enviar o código agora. Tente novamente em instantes.',
+    };
+  }
+}
+
+export async function verifyCheckoutAccountCodeAction(
+  rawInput: unknown
+): Promise<CheckoutAccountCodeVerificationActionResult> {
+  const parsed = checkoutAccountCodeVerificationSchema.safeParse(rawInput);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: 'Informe o código recebido por e-mail.',
+    };
+  }
+
+  const { store, customer } = await findCheckoutCustomerForIdentifier(
+    parsed.data.identifier
+  );
+  const email = getCustomerEmailForCode(customer);
+
+  if (!customer || !email) {
+    return {
+      ok: false,
+      error: 'Não encontramos um e-mail validável para este cadastro.',
+    };
+  }
+
+  const result = await verifyCustomerLoginCode({
+    storeId: store.id,
+    email,
+    token: parsed.data.token,
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      error: 'Código inválido ou expirado. Solicite um novo código.',
+    };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getUser();
+
+  if (error || !data.user) {
+    return {
+      ok: false,
+      error: 'Não foi possível carregar sua sessão validada.',
+    };
+  }
+
+  const hydratedCustomer =
+    (await findCustomerByAuthUserId({
+      storeId: store.id,
+      authUserId: data.user.id,
+    })) ?? customer;
+
+  return {
+    ok: true,
+    email,
+    message: 'Conta validada. Seus dados foram carregados.',
+    customer: mapCheckoutCustomerSnapshot(hydratedCustomer),
   };
 }
 
@@ -748,28 +952,37 @@ export async function identifyCheckoutCustomerAction(
   const identifier = parsed.data.identifier;
   const digits = onlyDigits(identifier);
   const isDocumentLookup = digits.length >= 11;
+  const isEmailLookup = isEmailLike(identifier);
   const customerType =
     isDocumentLookup && isValidCpfOrCnpj(identifier)
       ? getCustomerTypeFromDocument(identifier)
       : undefined;
 
-  if (isDocumentLookup && !customerType) {
+  if (!isEmailLookup && (!isDocumentLookup || !customerType)) {
     return {
       ok: false,
-      error: 'CPF/CNPJ inválido.',
+      error: 'Informe um e-mail, CPF ou CNPJ válido.',
     };
   }
 
-  const store = await resolveCurrentStoreFromHeaders();
-  const customer = await findCheckoutCustomerByIdentifier({
-    storeId: store.id,
-    identifier,
-  });
+  if (isEmailLookup) {
+    const email = normalizeEmailAddress(identifier);
+    const typoMessage = getEmailTypoErrorMessage(email);
+
+    if (typoMessage) {
+      return {
+        ok: false,
+        error: typoMessage,
+      };
+    }
+  }
+
+  const { customer } = await findCheckoutCustomerForIdentifier(identifier);
 
   if (!customer) {
     return {
       ok: true,
-      found: false,
+      status: 'new_customer',
       customerType,
       customer: isDocumentLookup
         ? {
@@ -777,18 +990,20 @@ export async function identifyCheckoutCustomerAction(
             customerType,
           }
         : {
-            email: identifier.includes('@') ? identifier.toLowerCase() : undefined,
+            email: isEmailLookup ? normalizeEmailAddress(identifier) : undefined,
           },
     };
   }
 
-  if (!isDocumentLookup) {
+  const email = getCustomerEmailForCode(customer);
+
+  if (!email) {
     return {
       ok: true,
-      found: true,
+      status: 'new_customer',
       customerType: customer.customerType,
       customer: {
-        email: customer.email,
+        document: isDocumentLookup ? digits : customer.document,
         customerType: customer.customerType,
       },
     };
@@ -796,30 +1011,15 @@ export async function identifyCheckoutCustomerAction(
 
   return {
     ok: true,
-    found: true,
+    status: 'existing_customer_requires_code',
     customerType: customer.customerType,
-    customer: {
-      name: customer.name,
-      email: customer.email,
-      phone: customer.phone,
-      document: customer.document,
-      customerType: customer.customerType,
-      legalName: customer.legalName,
-      stateRegistration: customer.stateRegistration,
-      stateRegistrationExempt: customer.stateRegistrationExempt,
-      shippingAddress: customer.defaultAddress
-        ? {
-            postalCode: customer.defaultAddress.postalCode,
-            street: customer.defaultAddress.street,
-            number: customer.defaultAddress.number,
-            complement: customer.defaultAddress.complement,
-            district: customer.defaultAddress.district,
-            city: customer.defaultAddress.city,
-            state: customer.defaultAddress.state,
-          }
-        : undefined,
-    },
+    emailHint: maskEmail(email),
+    message: 'Identificamos um cadastro. Valide o e-mail para carregar seus dados.',
   };
+}
+
+function isEmailLike(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
 const checkoutPreviewSchema = z.object({
