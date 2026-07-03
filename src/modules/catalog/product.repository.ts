@@ -1777,6 +1777,33 @@ export async function upsertIntegrationProductInRepository(
       throw new Error('Unable to link integration product category.');
     }
 
+    const { data: staleCategoryRows, error: staleCategoriesError } = await supabase
+      .from('product_categories')
+      .select('category_id, categories!inner(external_id)')
+      .eq('product_id', productId)
+      .neq('category_id', category.id)
+      .like('categories.external_id', `${input.externalProvider}:%`);
+
+    if (staleCategoriesError) {
+      throw new Error('Unable to inspect stale integration product categories.');
+    }
+
+    const staleCategoryIds = (
+      staleCategoryRows as unknown as Array<{ category_id: string }>
+    ).map((row) => row.category_id);
+
+    if (staleCategoryIds.length > 0) {
+      const { error: unlinkStaleError } = await supabase
+        .from('product_categories')
+        .delete()
+        .eq('product_id', productId)
+        .in('category_id', staleCategoryIds);
+
+      if (unlinkStaleError) {
+        throw new Error('Unable to unlink stale integration product categories.');
+      }
+    }
+
     if (category.duplicateCategoryIds.length > 0) {
       const { error: unlinkError } = await supabase
         .from('product_categories')

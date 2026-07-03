@@ -1,4 +1,5 @@
 node_modules/
+tools/spreadsheets/node_modules
 build/
 dist/
 coverage/
@@ -7,6 +8,12 @@ tsconfig.tsbuildinfo
 .vscode/
 .DS_Store
 *.log
+*.pyc
+*.pyo
+__pycache__/
+scripts/bling/logs/*.json
+scripts/bling/logs/*.log
+saida_bling/
 .env*
 !.env.example
 supabase/.branches/
