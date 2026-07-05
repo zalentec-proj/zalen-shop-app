@@ -4,7 +4,10 @@ import {
   MercadoPagoPaymentLookupError,
   getMercadoPagoPayment,
 } from '@/modules/integrations/mercado-pago/mercado-pago.connector';
-import type { MercadoPagoEnvironment } from '@/modules/integrations/mercado-pago/mercado-pago.types';
+import type {
+  MercadoPagoEnvironment,
+  MercadoPagoPaymentInstructions,
+} from '@/modules/integrations/mercado-pago/mercado-pago.types';
 import { tryAutoSendOrderToBling } from '@/modules/integrations/bling/orders/bling-order-send.service';
 import {
   getStaticActiveStoreContext,
@@ -190,6 +193,7 @@ async function persistPaymentState(input: {
   currencyId?: string;
   liveMode?: boolean;
   environment?: MercadoPagoEnvironment;
+  paymentInstructions?: MercadoPagoPaymentInstructions;
 }) {
   const processedAt = new Date().toISOString();
 
@@ -212,6 +216,7 @@ async function persistPaymentState(input: {
       environment: input.environment,
       currency_id: input.currencyId,
       live_mode: input.liveMode,
+      payment_instructions: input.paymentInstructions,
     },
   });
 }
@@ -290,6 +295,7 @@ export async function processMercadoPagoPaymentUpdate(input: {
       currencyId: payment.currencyId,
       liveMode: payment.liveMode,
       environment: input.environment,
+      paymentInstructions: payment.paymentInstructions,
     });
 
     return {
@@ -316,6 +322,7 @@ export async function processMercadoPagoPaymentUpdate(input: {
       currencyId: payment.currencyId,
       liveMode: payment.liveMode,
       environment: input.environment,
+      paymentInstructions: payment.paymentInstructions,
     });
 
     return {
@@ -347,6 +354,7 @@ export async function processMercadoPagoPaymentUpdate(input: {
     currencyId: payment.currencyId,
     liveMode: payment.liveMode,
     environment: input.environment,
+    paymentInstructions: payment.paymentInstructions,
   });
 
   let transitionedToPaid = false;

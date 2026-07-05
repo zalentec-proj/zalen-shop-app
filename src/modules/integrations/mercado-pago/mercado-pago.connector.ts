@@ -26,6 +26,7 @@ import type {
   MercadoPagoCheckoutPreferenceInput,
   MercadoPagoCheckoutPreferenceResult,
   MercadoPagoEnvironment,
+  MercadoPagoPaymentInstructions,
   MercadoPagoPaymentLookupResult,
   MercadoPagoRuntimeState,
   PaymentIntent,
@@ -49,6 +50,17 @@ interface MercadoPagoPaymentResponse {
   metadata?: unknown;
   payment_method_id?: string;
   payment_type_id?: string;
+  point_of_interaction?: {
+    transaction_data?: {
+      qr_code?: string;
+      qr_code_base64?: string;
+      ticket_url?: string;
+      expires_at?: string;
+    };
+  };
+  transaction_details?: {
+    external_resource_url?: string;
+  };
 }
 
 export class MercadoPagoPreferenceError extends Error {
@@ -171,6 +183,34 @@ function toRecord(value: unknown): Record<string, unknown> | undefined {
   }
 
   return value as Record<string, unknown>;
+}
+
+function getMercadoPagoPaymentInstructions(
+  payment: MercadoPagoPaymentResponse
+): MercadoPagoPaymentInstructions | undefined {
+  const transactionData = payment.point_of_interaction?.transaction_data;
+  const pix =
+    transactionData?.qr_code ||
+    transactionData?.qr_code_base64 ||
+    transactionData?.ticket_url
+      ? {
+          qrCode: transactionData.qr_code,
+          qrCodeBase64: transactionData.qr_code_base64,
+          ticketUrl: transactionData.ticket_url,
+          expiresAt: transactionData.expires_at,
+        }
+      : undefined;
+  const externalResourceUrl =
+    payment.transaction_details?.external_resource_url;
+
+  if (!pix && !externalResourceUrl) {
+    return undefined;
+  }
+
+  return {
+    pix,
+    externalResourceUrl,
+  };
 }
 
 function isCheckoutEnabled(settings: Record<string, unknown> | undefined) {
@@ -726,6 +766,7 @@ export async function createMercadoPagoBrickPayment(input: {
     payment.transaction_amount === null
       ? order.total
       : (toNumber(payment.transaction_amount) ?? order.total);
+  const paymentInstructions = getMercadoPagoPaymentInstructions(payment);
 
   await upsertPaymentTransaction({
     storeId: order.storeId,
@@ -752,6 +793,7 @@ export async function createMercadoPagoBrickPayment(input: {
       credentials_source: accessContext.credentialsSource,
       payment_method_id: payment.payment_method_id,
       payment_type_id: payment.payment_type_id,
+      payment_instructions: paymentInstructions,
     },
   });
 
@@ -762,6 +804,7 @@ export async function createMercadoPagoBrickPayment(input: {
     paymentMethodId: payment.payment_method_id,
     paymentTypeId: payment.payment_type_id,
     transactionAmount,
+    paymentInstructions,
   };
 }
 
@@ -833,5 +876,6 @@ export async function getMercadoPagoPayment(
     currencyId: payment.currency_id,
     liveMode: payment.live_mode,
     metadata: toRecord(payment.metadata),
+    paymentInstructions: getMercadoPagoPaymentInstructions(payment),
   };
 }

@@ -137,6 +137,7 @@ export interface MercadoPagoBrickPaymentResult {
   paymentMethodId?: string;
   paymentTypeId?: string;
   transactionAmount?: number;
+  paymentInstructions?: MercadoPagoPaymentInstructions;
 }
 
 export interface MercadoPagoPaymentLookupResult {
@@ -148,6 +149,17 @@ export interface MercadoPagoPaymentLookupResult {
   currencyId?: string;
   liveMode?: boolean;
   metadata?: Record<string, unknown>;
+  paymentInstructions?: MercadoPagoPaymentInstructions;
+}
+
+export interface MercadoPagoPaymentInstructions {
+  pix?: {
+    qrCode?: string;
+    qrCodeBase64?: string;
+    ticketUrl?: string;
+    expiresAt?: string;
+  };
+  externalResourceUrl?: string;
 }
 
 export interface MercadoPagoEnvironmentAdminState {

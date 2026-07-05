@@ -94,6 +94,8 @@ function paymentNoticeLabel(value: string | undefined) {
     unavailable: 'Este pedido não permite novo pagamento.',
     mercado_pago_error:
       'O Mercado Pago não conseguiu gerar um novo checkout agora.',
+    pending:
+      'Pagamento Pix gerado. Conclua o pagamento pelo Mercado Pago ou use a opção abaixo para continuar.',
     retry_error: 'Não foi possível iniciar um novo pagamento agora.',
   };
 
@@ -107,6 +109,62 @@ function shippingMetadataString(
   const value = metadata?.[key];
 
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function getMetadataRecord(
+  metadata: Record<string, unknown> | undefined,
+  key: string
+) {
+  const value = metadata?.[key];
+
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function getMetadataString(
+  metadata: Record<string, unknown> | undefined,
+  key: string
+) {
+  const value = metadata?.[key];
+
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function getPaymentInstructions(payment: CustomerOrderDetailPagePayment | undefined) {
+  const instructions = getMetadataRecord(payment?.metadata, 'payment_instructions');
+  const pix = getMetadataRecord(instructions, 'pix');
+  const qrCode = getMetadataString(pix, 'qrCode');
+  const qrCodeBase64 = getMetadataString(pix, 'qrCodeBase64');
+  const ticketUrl =
+    getMetadataString(pix, 'ticketUrl') ??
+    getMetadataString(instructions, 'externalResourceUrl');
+
+  if (!qrCode && !qrCodeBase64 && !ticketUrl) {
+    return undefined;
+  }
+
+  return {
+    qrCode,
+    qrCodeBase64,
+    ticketUrl,
+  };
+}
+
+type CustomerOrderDetailPagePayment = NonNullable<
+  Awaited<ReturnType<typeof getCustomerOrderForUser>>
+>['payment'];
+
+function getPaymentContinuationUrl(payment: CustomerOrderDetailPagePayment | undefined) {
+  if (!payment) {
+    return undefined;
+  }
+
+  const environment = getMetadataString(payment.metadata, 'environment');
+
+  return environment === 'test'
+    ? payment.sandboxCheckoutUrl ?? payment.checkoutUrl
+    : payment.checkoutUrl ?? payment.sandboxCheckoutUrl;
 }
 
 export default async function CustomerOrderDetailPage({
@@ -155,6 +213,8 @@ export default async function CustomerOrderDetailPage({
     order.paymentStatus !== 'refunded' &&
     order.payment?.status !== 'refunded';
   const paymentNotice = paymentNoticeLabel(search?.payment);
+  const paymentInstructions = getPaymentInstructions(order.payment);
+  const paymentContinuationUrl = getPaymentContinuationUrl(order.payment);
 
   return (
     <main className="min-h-screen bg-brand-bg px-4 py-8 text-white">
@@ -221,24 +281,66 @@ export default async function CustomerOrderDetailPage({
 
         {canRetryPayment ? (
           <section className="rounded-2xl border border-blue-primary/30 bg-blue-primary/10 p-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-lg font-black">Pagamento pendente</h2>
                 <p className="mt-1 text-sm text-brand-muted">
-                  Você pode abrir um novo checkout do Mercado Pago para este
-                  mesmo pedido.
+                  Este pedido já está salvo. Continue o pagamento pendente ou
+                  gere uma nova tentativa para o mesmo pedido.
                 </p>
               </div>
-              <form action={retryCustomerOrderPaymentAction}>
-                <input type="hidden" name="orderId" value={order.id} />
-                <button
-                  type="submit"
-                  className="inline-flex h-11 items-center justify-center rounded-xl bg-blue-primary px-5 text-sm font-black text-white shadow-[0_8px_24px_rgba(30,61,255,0.28)] transition hover:opacity-95"
-                >
-                  Pagar com Mercado Pago
-                </button>
-              </form>
+              <div className="flex flex-col gap-2 sm:items-end">
+                {paymentContinuationUrl ? (
+                  <a
+                    href={paymentContinuationUrl}
+                    className="inline-flex h-11 items-center justify-center rounded-xl bg-blue-primary px-5 text-sm font-black text-white shadow-[0_8px_24px_rgba(30,61,255,0.28)] transition hover:opacity-95"
+                  >
+                    Continuar pagamento
+                  </a>
+                ) : null}
+                <form action={retryCustomerOrderPaymentAction}>
+                  <input type="hidden" name="orderId" value={order.id} />
+                  <button
+                    type="submit"
+                    className="inline-flex h-11 items-center justify-center rounded-xl border border-blue-primary/40 px-5 text-sm font-black text-blue-primary transition hover:bg-blue-primary/10"
+                  >
+                    Gerar nova tentativa
+                  </button>
+                </form>
+              </div>
             </div>
+            {paymentInstructions ? (
+              <div className="mt-5 grid gap-4 rounded-2xl border border-white/10 bg-[#050A14]/70 p-4 md:grid-cols-[180px_1fr]">
+                {paymentInstructions.qrCodeBase64 ? (
+                  <img
+                    src={`data:image/png;base64,${paymentInstructions.qrCodeBase64}`}
+                    alt="QR Code Pix"
+                    className="h-44 w-44 rounded-xl bg-white p-2"
+                  />
+                ) : null}
+                <div>
+                  <h3 className="text-sm font-black">Pix aguardando pagamento</h3>
+                  <p className="mt-1 text-sm text-brand-muted">
+                    Copie o código Pix ou continue pelo Mercado Pago.
+                  </p>
+                  {paymentInstructions.qrCode ? (
+                    <textarea
+                      readOnly
+                      value={paymentInstructions.qrCode}
+                      className="mt-3 h-24 w-full rounded-xl border border-white/10 bg-[#090E17] p-3 font-mono text-xs text-white"
+                    />
+                  ) : null}
+                  {paymentInstructions.ticketUrl ? (
+                    <a
+                      href={paymentInstructions.ticketUrl}
+                      className="mt-3 inline-flex h-10 items-center justify-center rounded-xl border border-white/10 px-4 text-xs font-black text-white transition hover:border-blue-primary/40"
+                    >
+                      Abrir Pix no Mercado Pago
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
           </section>
         ) : null}
 
