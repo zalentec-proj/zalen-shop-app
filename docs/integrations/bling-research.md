@@ -138,6 +138,10 @@ Regras da v1:
   hierarquia quando o payload trouxer pai/filhos;
 - categoria é vinculada quando `categoria.id` resolve para descrição clara;
 - saldos usam `/estoques/saldos` quando o escopo de estoque está disponível.
+- o filtro incremental `dataAlteracaoInicial` segue o OpenAPI oficial da
+  referência do Bling, com `datetime` no formato `YYYY-MM-DD HH:mm:ss` (exemplo
+  oficial `2020-01-01 10:00:00`); a Zalen converte `last_sync_at` para
+  `America/Sao_Paulo` e aplica pequena sobreposição para não perder alterações.
 - o resumo do sync registra diagnóstico sanitizado dos últimos produtos
   processados, sem payload bruto.
 - produto individual pode ser reprocessado pela rota interna usando `productId`

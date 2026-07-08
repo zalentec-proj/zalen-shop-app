@@ -31,6 +31,8 @@ const pageLimit = 100;
 const requestIntervalMs = 400;
 const diagnosticsLimit = 30;
 const rootBlingCategoryParentId = 0;
+const incrementalOverlapMs = 5 * 60 * 1000;
+const blingDateTimeFormatTimeZone = 'America/Sao_Paulo';
 
 type FlattenedBlingProductCategory = {
   id: number;
@@ -83,6 +85,47 @@ function createInitialSummary(startedAt: string): BlingProductSyncSummary {
 function toStock(value: number | string | null | undefined) {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? Math.max(Math.floor(parsed), 0) : 0;
+}
+
+function formatBlingDateTime(value: string | undefined) {
+  if (!value) {
+    return undefined;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return undefined;
+  }
+
+  const safeDate = new Date(date.getTime() - incrementalOverlapMs);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: blingDateTimeFormatTimeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    hourCycle: 'h23',
+  })
+    .formatToParts(safeDate)
+    .reduce<Record<string, string>>((acc, part) => {
+      if (part.type !== 'literal') {
+        acc[part.type] = part.value;
+      }
+
+      return acc;
+    }, {});
+  const year = parts.year ?? '1970';
+  const month = parts.month ?? '01';
+  const day = parts.day ?? '01';
+  const hour = parts.hour ?? '00';
+  const minute = parts.minute ?? '00';
+  const second = parts.second ?? '00';
+
+  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
 }
 
 function getBlingCategoryId(category: BlingProductCategoryItem) {
@@ -264,7 +307,9 @@ export async function runBlingProductSync(
     const activeClient = clientContext.client;
     const integration = await getBlingIntegrationFromRepository(storeId);
     const syncSince =
-      options.mode === 'full' || options.productId ? undefined : integration?.lastSyncAt;
+      options.mode === 'full' || options.productId
+        ? undefined
+        : formatBlingDateTime(integration?.lastSyncAt);
 
     if (options.productId) {
       summary = {
