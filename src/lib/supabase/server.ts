@@ -40,9 +40,18 @@ export async function createClient() {
         },
         setAll(cookiesToSet) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
+            cookiesToSet.forEach(({ name, value, options }) => {
+              if (authCookieDomain) {
+                cookieStore.set(name, '', {
+                  ...options,
+                  domain: undefined,
+                  expires: new Date(0),
+                  maxAge: 0,
+                });
+              }
+
+              cookieStore.set(name, value, options);
+            });
           } catch {
             // Server Component — cookies só podem ser setados em Route Handlers/Actions
           }
