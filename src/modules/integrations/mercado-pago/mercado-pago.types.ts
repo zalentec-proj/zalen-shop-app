@@ -148,6 +148,8 @@ export interface MercadoPagoPaymentLookupResult {
   transactionAmount?: number;
   currencyId?: string;
   liveMode?: boolean;
+  paymentMethodId?: string;
+  paymentTypeId?: string;
   metadata?: Record<string, unknown>;
   paymentInstructions?: MercadoPagoPaymentInstructions;
 }

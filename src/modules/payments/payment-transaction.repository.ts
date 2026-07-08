@@ -79,6 +79,34 @@ function mapPaymentTransaction(row: PaymentTransactionRow): PaymentTransaction {
   };
 }
 
+function removeUndefinedMetadataValues(metadata: Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.entries(metadata).filter(([, value]) => value !== undefined)
+  );
+}
+
+async function getExistingPaymentMetadata(input: {
+  storeId: string;
+  orderId: string;
+  provider: PaymentProvider;
+}) {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return {};
+  }
+
+  const { data } = await supabase
+    .from('payment_transactions')
+    .select('metadata_json')
+    .eq('store_id', input.storeId)
+    .eq('order_id', input.orderId)
+    .eq('provider', input.provider)
+    .maybeSingle();
+
+  return ((data?.metadata_json as Record<string, unknown> | null) ?? {});
+}
+
 export async function upsertPaymentTransaction(
   input: UpsertPaymentTransactionInput
 ) {
@@ -88,6 +116,15 @@ export async function upsertPaymentTransaction(
     throw new Error('Unable to save payment transaction.');
   }
 
+  const existingMetadata = await getExistingPaymentMetadata({
+    storeId: input.storeId,
+    orderId: input.orderId,
+    provider: input.provider,
+  });
+  const metadata = {
+    ...existingMetadata,
+    ...removeUndefinedMetadataValues(input.metadata ?? {}),
+  };
   const payload: Record<string, unknown> = {
     store_id: input.storeId,
     order_id: input.orderId,
@@ -95,7 +132,7 @@ export async function upsertPaymentTransaction(
     external_reference: input.externalReference,
     status: input.status,
     amount: input.amount,
-    metadata_json: input.metadata ?? {},
+    metadata_json: metadata,
     updated_at: new Date().toISOString(),
   };
 

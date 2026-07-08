@@ -95,7 +95,7 @@ function paymentNoticeLabel(value: string | undefined) {
     mercado_pago_error:
       'O Mercado Pago não conseguiu gerar um novo checkout agora.',
     pending:
-      'Pagamento Pix gerado. Conclua o pagamento pelo Mercado Pago ou use a opção abaixo para continuar.',
+      'Pagamento gerado. Conclua pelo Mercado Pago ou use a opção abaixo para continuar.',
     retry_error: 'Não foi possível iniciar um novo pagamento agora.',
   };
 
@@ -131,6 +131,10 @@ function getMetadataString(
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
 
+function normalizeMetadataString(value: string | undefined) {
+  return value?.trim().toLowerCase();
+}
+
 function getPaymentInstructions(payment: CustomerOrderDetailPagePayment | undefined) {
   const instructions = getMetadataRecord(payment?.metadata, 'payment_instructions');
   const pix = getMetadataRecord(instructions, 'pix');
@@ -139,16 +143,91 @@ function getPaymentInstructions(payment: CustomerOrderDetailPagePayment | undefi
   const ticketUrl =
     getMetadataString(pix, 'ticketUrl') ??
     getMetadataString(instructions, 'externalResourceUrl');
+  const paymentMethodId = normalizeMetadataString(
+    getMetadataString(payment?.metadata, 'payment_method_id')
+  );
+  const paymentTypeId = normalizeMetadataString(
+    getMetadataString(payment?.metadata, 'payment_type_id')
+  );
+  const isPix = Boolean(
+    qrCode ||
+      qrCodeBase64 ||
+      paymentMethodId === 'pix'
+  );
+  const isTicket = Boolean(
+    paymentTypeId === 'ticket' ||
+      paymentMethodId?.startsWith('bol') ||
+      (ticketUrl && !isPix)
+  );
 
   if (!qrCode && !qrCodeBase64 && !ticketUrl) {
     return undefined;
   }
 
   return {
+    method: isPix ? 'pix' : isTicket ? 'ticket' : 'external',
     qrCode,
     qrCodeBase64,
     ticketUrl,
   };
+}
+
+function getPaymentPendingTitle(payment: CustomerOrderDetailPagePayment | undefined) {
+  const instructions = getPaymentInstructions(payment);
+  const paymentMethodId = normalizeMetadataString(
+    getMetadataString(payment?.metadata, 'payment_method_id')
+  );
+  const paymentTypeId = normalizeMetadataString(
+    getMetadataString(payment?.metadata, 'payment_type_id')
+  );
+
+  if (instructions?.method === 'pix' || paymentMethodId === 'pix') {
+    return 'Pix aguardando pagamento';
+  }
+
+  if (
+    instructions?.method === 'ticket' ||
+    paymentTypeId === 'ticket' ||
+    paymentMethodId?.startsWith('bol')
+  ) {
+    return 'Boleto aguardando pagamento';
+  }
+
+  if (paymentTypeId === 'credit_card' || paymentTypeId === 'debit_card') {
+    return 'Pagamento com cartão em análise';
+  }
+
+  return 'Pagamento pendente';
+}
+
+function getPaymentPendingDescription(
+  payment: CustomerOrderDetailPagePayment | undefined
+) {
+  const instructions = getPaymentInstructions(payment);
+  const paymentMethodId = normalizeMetadataString(
+    getMetadataString(payment?.metadata, 'payment_method_id')
+  );
+  const paymentTypeId = normalizeMetadataString(
+    getMetadataString(payment?.metadata, 'payment_type_id')
+  );
+
+  if (instructions?.method === 'pix' || paymentMethodId === 'pix') {
+    return 'Use o QR Code, copie o código Pix ou continue pelo Mercado Pago.';
+  }
+
+  if (
+    instructions?.method === 'ticket' ||
+    paymentTypeId === 'ticket' ||
+    paymentMethodId?.startsWith('bol')
+  ) {
+    return 'Abra o boleto pelo Mercado Pago para copiar ou imprimir.';
+  }
+
+  if (paymentTypeId === 'credit_card' || paymentTypeId === 'debit_card') {
+    return 'O Mercado Pago ainda está analisando a cobrança. A confirmação chegará automaticamente.';
+  }
+
+  return 'Continue pelo Mercado Pago ou gere uma nova tentativa para o mesmo pedido.';
 }
 
 type CustomerOrderDetailPagePayment = NonNullable<
@@ -215,6 +294,8 @@ export default async function CustomerOrderDetailPage({
   const paymentNotice = paymentNoticeLabel(search?.payment);
   const paymentInstructions = getPaymentInstructions(order.payment);
   const paymentContinuationUrl = getPaymentContinuationUrl(order.payment);
+  const paymentPendingTitle = getPaymentPendingTitle(order.payment);
+  const paymentPendingDescription = getPaymentPendingDescription(order.payment);
 
   return (
     <main className="min-h-screen bg-brand-bg px-4 py-8 text-white">
@@ -283,10 +364,9 @@ export default async function CustomerOrderDetailPage({
           <section className="rounded-2xl border border-blue-primary/30 bg-blue-primary/10 p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h2 className="text-lg font-black">Pagamento pendente</h2>
+                <h2 className="text-lg font-black">{paymentPendingTitle}</h2>
                 <p className="mt-1 text-sm text-brand-muted">
-                  Este pedido já está salvo. Continue o pagamento pendente ou
-                  gere uma nova tentativa para o mesmo pedido.
+                  {paymentPendingDescription}
                 </p>
               </div>
               <div className="flex flex-col gap-2 sm:items-end">
@@ -311,7 +391,7 @@ export default async function CustomerOrderDetailPage({
             </div>
             {paymentInstructions ? (
               <div className="mt-5 grid gap-4 rounded-2xl border border-white/10 bg-[#050A14]/70 p-4 md:grid-cols-[180px_1fr]">
-                {paymentInstructions.qrCodeBase64 ? (
+                {paymentInstructions.method === 'pix' && paymentInstructions.qrCodeBase64 ? (
                   <img
                     src={`data:image/png;base64,${paymentInstructions.qrCodeBase64}`}
                     alt="QR Code Pix"
@@ -319,11 +399,21 @@ export default async function CustomerOrderDetailPage({
                   />
                 ) : null}
                 <div>
-                  <h3 className="text-sm font-black">Pix aguardando pagamento</h3>
+                  <h3 className="text-sm font-black">
+                    {paymentInstructions.method === 'pix'
+                      ? 'Pix aguardando pagamento'
+                      : paymentInstructions.method === 'ticket'
+                        ? 'Boleto aguardando pagamento'
+                        : 'Pagamento aguardando conclusão'}
+                  </h3>
                   <p className="mt-1 text-sm text-brand-muted">
-                    Copie o código Pix ou continue pelo Mercado Pago.
+                    {paymentInstructions.method === 'pix'
+                      ? 'Use o QR Code, copie o código Pix ou continue pelo Mercado Pago.'
+                      : paymentInstructions.method === 'ticket'
+                        ? 'Abra o boleto pelo Mercado Pago para copiar ou imprimir.'
+                        : 'Abra as instruções no Mercado Pago para concluir.'}
                   </p>
-                  {paymentInstructions.qrCode ? (
+                  {paymentInstructions.method === 'pix' && paymentInstructions.qrCode ? (
                     <textarea
                       readOnly
                       value={paymentInstructions.qrCode}
@@ -335,7 +425,11 @@ export default async function CustomerOrderDetailPage({
                       href={paymentInstructions.ticketUrl}
                       className="mt-3 inline-flex h-10 items-center justify-center rounded-xl border border-white/10 px-4 text-xs font-black text-white transition hover:border-blue-primary/40"
                     >
-                      Abrir Pix no Mercado Pago
+                      {paymentInstructions.method === 'pix'
+                        ? 'Abrir Pix no Mercado Pago'
+                        : paymentInstructions.method === 'ticket'
+                          ? 'Abrir boleto no Mercado Pago'
+                          : 'Abrir instruções no Mercado Pago'}
                     </a>
                   ) : null}
                 </div>

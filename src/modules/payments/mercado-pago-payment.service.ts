@@ -193,6 +193,8 @@ async function persistPaymentState(input: {
   currencyId?: string;
   liveMode?: boolean;
   environment?: MercadoPagoEnvironment;
+  paymentMethodId?: string;
+  paymentTypeId?: string;
   paymentInstructions?: MercadoPagoPaymentInstructions;
 }) {
   const processedAt = new Date().toISOString();
@@ -216,6 +218,8 @@ async function persistPaymentState(input: {
       environment: input.environment,
       currency_id: input.currencyId,
       live_mode: input.liveMode,
+      payment_method_id: input.paymentMethodId,
+      payment_type_id: input.paymentTypeId,
       payment_instructions: input.paymentInstructions,
     },
   });
@@ -295,6 +299,8 @@ export async function processMercadoPagoPaymentUpdate(input: {
       currencyId: payment.currencyId,
       liveMode: payment.liveMode,
       environment: input.environment,
+      paymentMethodId: payment.paymentMethodId,
+      paymentTypeId: payment.paymentTypeId,
       paymentInstructions: payment.paymentInstructions,
     });
 
@@ -322,6 +328,8 @@ export async function processMercadoPagoPaymentUpdate(input: {
       currencyId: payment.currencyId,
       liveMode: payment.liveMode,
       environment: input.environment,
+      paymentMethodId: payment.paymentMethodId,
+      paymentTypeId: payment.paymentTypeId,
       paymentInstructions: payment.paymentInstructions,
     });
 
@@ -354,6 +362,8 @@ export async function processMercadoPagoPaymentUpdate(input: {
     currencyId: payment.currencyId,
     liveMode: payment.liveMode,
     environment: input.environment,
+    paymentMethodId: payment.paymentMethodId,
+    paymentTypeId: payment.paymentTypeId,
     paymentInstructions: payment.paymentInstructions,
   });
 

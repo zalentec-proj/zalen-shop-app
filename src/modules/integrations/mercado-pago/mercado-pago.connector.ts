@@ -875,6 +875,8 @@ export async function getMercadoPagoPayment(
     transactionAmount: toNumber(payment.transaction_amount),
     currencyId: payment.currency_id,
     liveMode: payment.live_mode,
+    paymentMethodId: payment.payment_method_id,
+    paymentTypeId: payment.payment_type_id,
     metadata: toRecord(payment.metadata),
     paymentInstructions: getMercadoPagoPaymentInstructions(payment),
   };

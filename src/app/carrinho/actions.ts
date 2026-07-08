@@ -993,6 +993,31 @@ function getPaymentEnvironmentFromTransaction(
     : undefined;
 }
 
+function getStableBrickIdempotencyKey(input: {
+  orderId: string;
+  formData: MercadoPagoBrickPaymentFormData;
+}) {
+  const paymentMethodId =
+    typeof input.formData.payment_method_id === 'string' &&
+    input.formData.payment_method_id.trim()
+      ? input.formData.payment_method_id.trim().toLowerCase()
+      : 'payment_method_unknown';
+  const paymentMethodOptionId =
+    typeof input.formData.payment_method_option_id === 'string' &&
+    input.formData.payment_method_option_id.trim()
+      ? input.formData.payment_method_option_id.trim().toLowerCase()
+      : undefined;
+
+  return [
+    input.orderId,
+    'mercado-pago-brick',
+    paymentMethodId,
+    paymentMethodOptionId,
+  ]
+    .filter(Boolean)
+    .join(':');
+}
+
 export async function lookupCheckoutPostalCodeAction(
   rawInput: unknown
 ): Promise<CheckoutPostalCodeLookupActionResult> {
@@ -1270,7 +1295,10 @@ export async function processMercadoPagoBrickPaymentAction(
       parsed.data.formData as MercadoPagoBrickPaymentFormData;
     const idempotencyKey = formData.token
       ? parsed.data.idempotencyKey
-      : `${order.id}:mercado-pago-brick`;
+      : getStableBrickIdempotencyKey({
+          orderId: order.id,
+          formData,
+        });
     const payment = await createMercadoPagoBrickPayment({
       order,
       baseUrl,
