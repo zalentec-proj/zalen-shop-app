@@ -91,6 +91,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
 }
 
+function getIntegrationSettings(
+  integration: BlingIntegrationRow | null | undefined
+) {
+  return isRecord(integration?.settings_json)
+    ? integration.settings_json
+    : {};
+}
+
+function hasConnectedCredentials(
+  integration: BlingIntegrationRow | null | undefined
+) {
+  return (
+    integration?.status === 'connected' &&
+    typeof integration.credentials_encrypted === 'string' &&
+    integration.credentials_encrypted.trim().length > 0
+  );
+}
+
 function isUniqueViolation(error: SupabaseRepositoryError | null | undefined) {
   return error?.code === '23505';
 }
@@ -166,6 +184,34 @@ export async function getBlingIntegrationFromRepository(
   }
 
   return mapBlingIntegration(data as BlingIntegrationRow);
+}
+
+async function getBlingIntegrationForEnvironmentFromRepository(input: {
+  storeId: string;
+  environment: BlingEnvironment;
+}): Promise<BlingIntegrationRow | null> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('store_integrations')
+    .select(
+      'id, store_id, provider_key, environment, status, credentials_encrypted, settings_json, last_sync_at, created_at, updated_at'
+    )
+    .eq('store_id', input.storeId)
+    .eq('provider_key', BLING_PROVIDER_KEY)
+    .eq('environment', input.environment)
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data as BlingIntegrationRow;
 }
 
 export async function getBlingEncryptedCredentialsFromRepository(
@@ -294,11 +340,15 @@ export async function markBlingConnectionAttemptInRepository(input: {
   environment: BlingEnvironment;
   userId: string;
 }) {
+  const current = await getBlingIntegrationForEnvironmentFromRepository(input);
+  const previousSettings = getIntegrationSettings(current);
+
   await upsertBlingIntegration({
     storeId: input.storeId,
     environment: input.environment,
-    status: 'pending_credentials',
+    status: hasConnectedCredentials(current) ? 'connected' : 'pending_credentials',
     settings: {
+      ...previousSettings,
       primary: true,
       lastConnectionAttemptAt: new Date().toISOString(),
       lastConnectionAttemptUserId: input.userId,
@@ -311,11 +361,15 @@ export async function markBlingConnectionErrorInRepository(input: {
   environment: BlingEnvironment;
   errorCode: string;
 }) {
+  const current = await getBlingIntegrationForEnvironmentFromRepository(input);
+  const previousSettings = getIntegrationSettings(current);
+
   await upsertBlingIntegration({
     storeId: input.storeId,
     environment: input.environment,
-    status: 'error',
+    status: hasConnectedCredentials(current) ? 'connected' : 'error',
     settings: {
+      ...previousSettings,
       primary: true,
       lastConnectionErrorAt: new Date().toISOString(),
       lastConnectionErrorCode: input.errorCode,

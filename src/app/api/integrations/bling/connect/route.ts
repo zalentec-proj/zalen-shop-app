@@ -4,12 +4,15 @@ import { canAccessStore, getCurrentUser } from '@/modules/auth/auth.service';
 import { getBlingOAuthConfig } from '@/modules/integrations/bling/bling.config';
 import { buildBlingAuthorizationUrl } from '@/modules/integrations/bling/bling.oauth';
 import {
+  BLING_OAUTH_STATE_COOKIE_NAME,
+  getBlingOAuthStateCookieOptions,
+} from '@/modules/integrations/bling/bling.oauth-state-cookie';
+import {
   recordBlingConnectionAttempt,
   recordBlingConnectionError,
 } from '@/modules/integrations/bling/bling.service';
 import { resolveCurrentStoreFromRequest } from '@/modules/stores/store-resolution';
 
-const stateCookieName = 'zalen_bling_oauth_state';
 const detailPath = '/admin/integracoes/bling';
 
 function redirectToDetail(origin: string, error?: string) {
@@ -66,13 +69,11 @@ export async function GET(request: Request) {
   });
 
   const response = NextResponse.redirect(authorizationUrl);
-  response.cookies.set(stateCookieName, state, {
-    httpOnly: true,
-    maxAge: 60 * 10,
-    path: '/',
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-  });
+  response.cookies.set(
+    BLING_OAUTH_STATE_COOKIE_NAME,
+    state,
+    getBlingOAuthStateCookieOptions(60 * 10)
+  );
 
   return response;
 }
