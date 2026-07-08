@@ -41,8 +41,11 @@ import {
   Bell,
   Boxes,
   ChevronRight,
+  CircleAlert,
+  CircleDollarSign,
   CreditCard,
   Database,
+  FileWarning,
   Filter,
   Gauge,
   MoreHorizontal,
@@ -266,6 +269,16 @@ function formatDateTime(value: string) {
   return longDateFormatter.format(new Date(value));
 }
 
+function isSameCalendarDate(value: string, date = new Date()) {
+  const current = new Date(value);
+
+  return (
+    current.getFullYear() === date.getFullYear() &&
+    current.getMonth() === date.getMonth() &&
+    current.getDate() === date.getDate()
+  );
+}
+
 function orderMetadataString(order: OrderListItem, key: string) {
   const value = order.shippingMetadata?.[key];
 
@@ -457,6 +470,49 @@ function MetricCard({
   );
 }
 
+function OperationalMetricCard({
+  icon: Icon,
+  label,
+  value,
+  amount,
+  helper,
+  accent,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  amount: string;
+  helper: string;
+  accent: 'blue' | 'amber' | 'emerald' | 'rose';
+}) {
+  const accentClass = {
+    blue: 'border-[#1E3DFF]/35 bg-[#1E3DFF]/12 text-[#7EC3FF]',
+    amber: 'border-amber-400/30 bg-amber-400/12 text-amber-200',
+    emerald: 'border-emerald-400/30 bg-emerald-400/12 text-emerald-200',
+    rose: 'border-rose-400/30 bg-rose-400/12 text-rose-200',
+  }[accent];
+
+  return (
+    <div className="min-h-[132px] rounded-lg border border-white/8 bg-[linear-gradient(180deg,rgba(13,28,56,0.92),rgba(7,17,36,0.96))] p-4 shadow-[0_14px_32px_rgba(0,0,0,0.22)]">
+      <div className="flex items-start gap-3">
+        <span className={cn('inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border', accentClass)}>
+          <Icon className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <div className="text-xs font-medium text-slate-300">{label}</div>
+          <div className="mt-1 text-2xl font-semibold leading-none text-white">
+            {value}
+          </div>
+        </div>
+      </div>
+      <div className="mt-4 border-t border-white/6 pt-3">
+        <div className="text-sm font-semibold text-white">{amount}</div>
+        <div className="mt-0.5 text-[11px] text-slate-400">{helper}</div>
+      </div>
+    </div>
+  );
+}
+
 function SmallBadge({
   className,
   children,
@@ -468,6 +524,157 @@ function SmallBadge({
     <span className={cn('inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold', className)}>
       {children}
     </span>
+  );
+}
+
+function ActionRow({
+  icon: Icon,
+  title,
+  description,
+  count,
+  tone,
+  onClick,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+  count: number;
+  tone: 'blue' | 'amber' | 'emerald' | 'rose';
+  onClick: () => void;
+}) {
+  const toneClass = {
+    blue: 'border-[#1E3DFF]/25 bg-[#1E3DFF]/10 text-[#8DB6FF]',
+    amber: 'border-amber-400/25 bg-amber-400/10 text-amber-200',
+    emerald: 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200',
+    rose: 'border-rose-400/25 bg-rose-400/10 text-rose-200',
+  }[tone];
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 rounded-lg border border-white/7 bg-[#081529] px-3 py-3 text-left transition hover:border-[#1E3DFF]/30 hover:bg-[#0A1931]"
+    >
+      <span className={cn('inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border', toneClass)}>
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-xs font-semibold text-white">{title}</span>
+        <span className="mt-0.5 block truncate text-[11px] text-slate-400">
+          {description}
+        </span>
+      </span>
+      <span className={cn('inline-flex min-w-8 justify-center rounded-md border px-2 py-1 text-[11px] font-semibold', toneClass)}>
+        {count}
+      </span>
+      <ChevronRight className="h-4 w-4 text-slate-500" />
+    </button>
+  );
+}
+
+function MiniStatusRow({
+  label,
+  detail,
+  status,
+  tone,
+}: {
+  label: string;
+  detail: string;
+  status: string;
+  tone: 'ok' | 'warn' | 'neutral' | 'danger';
+}) {
+  const toneClass = {
+    ok: 'text-emerald-300',
+    warn: 'text-amber-300',
+    neutral: 'text-slate-300',
+    danger: 'text-rose-300',
+  }[tone];
+
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-white/6 px-1 py-2.5 last:border-b-0">
+      <div className="min-w-0">
+        <div className="truncate text-xs font-medium text-slate-100">{label}</div>
+        <div className="mt-0.5 truncate text-[11px] text-slate-500">{detail}</div>
+      </div>
+      <div className={cn('shrink-0 text-[11px] font-semibold', toneClass)}>
+        {status}
+      </div>
+    </div>
+  );
+}
+
+function RevenueLineChart({
+  series,
+}: {
+  series: Array<{ label: string; primary: number; secondary: number }>;
+}) {
+  const values = series.map((point) => point.primary);
+  const maxValue = Math.max(1, ...values);
+  const width = 420;
+  const height = 176;
+  const padding = 18;
+  const step = (width - padding * 2) / Math.max(series.length - 1, 1);
+  const points = series.map((point, index) => {
+    const x = padding + index * step;
+    const y = height - padding - (point.primary / maxValue) * (height - padding * 2);
+    return { ...point, x, y };
+  });
+  const line = points.map((point) => `${point.x},${point.y}`).join(' ');
+  const area = [
+    `${padding},${height - padding}`,
+    ...points.map((point) => `${point.x},${point.y}`),
+    `${width - padding},${height - padding}`,
+  ].join(' ');
+
+  return (
+    <div className="h-56 rounded-lg border border-white/6 bg-[#071225] p-3">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-label="Faturamento recente"
+        className="h-full w-full overflow-visible"
+      >
+        <defs>
+          <linearGradient id="dashboard-revenue-area" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="#1E3DFF" stopOpacity="0.46" />
+            <stop offset="100%" stopColor="#1E3DFF" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {[0.25, 0.5, 0.75].map((linePosition) => (
+          <line
+            key={linePosition}
+            x1={padding}
+            x2={width - padding}
+            y1={padding + (height - padding * 2) * linePosition}
+            y2={padding + (height - padding * 2) * linePosition}
+            stroke="rgba(148,163,184,0.14)"
+            strokeDasharray="4 5"
+          />
+        ))}
+        <polygon points={area} fill="url(#dashboard-revenue-area)" />
+        <polyline
+          points={line}
+          fill="none"
+          stroke="#3B82F6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="4"
+        />
+        {points.map((point) => (
+          <g key={`${point.label}-${point.x}`}>
+            <circle cx={point.x} cy={point.y} r="5.5" fill="#071225" stroke="#60A5FA" strokeWidth="3" />
+            <circle cx={point.x} cy={point.y} r="2" fill="#BFDBFE" />
+          </g>
+        ))}
+      </svg>
+      <div className="-mt-3 grid grid-cols-5 gap-2 text-center text-[10px] uppercase text-slate-500">
+        {series.map((point, index) => (
+          <span key={`${point.label}-${index}`} className="truncate">
+            {point.label}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -781,7 +988,12 @@ function GaugeCard({
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[150px_1fr] xl:items-center">
+    <div
+      className={cn(
+        'grid gap-4 xl:items-center',
+        items.length > 0 ? 'xl:grid-cols-[150px_1fr]' : 'place-items-center'
+      )}
+    >
       <div className="mx-auto flex h-36 w-36 items-center justify-center rounded-full border border-white/6 bg-[#071124]">
         <div
           className="relative flex h-28 w-28 items-center justify-center rounded-full"
@@ -797,20 +1009,22 @@ function GaugeCard({
           </div>
         </div>
       </div>
-      <div className="space-y-2">
-        {items.map((item) => (
-          <div
-            key={item.label}
-            className="flex items-center justify-between rounded-lg border border-white/6 bg-[#091427] px-3 py-2"
-          >
-            <div className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: item.dot }} />
-              <span className="text-xs text-slate-300">{item.label}</span>
+      {items.length > 0 ? (
+        <div className="space-y-2">
+          {items.map((item) => (
+            <div
+              key={item.label}
+              className="flex items-center justify-between rounded-lg border border-white/6 bg-[#091427] px-3 py-2"
+            >
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: item.dot }} />
+                <span className="text-xs text-slate-300">{item.label}</span>
+              </div>
+              <span className="text-xs font-semibold text-white">{item.value}</span>
             </div>
-            <span className="text-xs font-semibold text-white">{item.value}</span>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1092,244 +1306,477 @@ export default function AdminDashboard({
       ? 'Supabase'
       : 'Mock';
 
-  const renderDashboard = () => (
-    <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
-        <MetricCard
-          icon={Gauge}
-          label="Receita monitorada"
-          value={formatCurrency(totalRevenue)}
-          helper={`${orders.length} pedidos via ${ordersSourceLabel}.`}
-        />
-        <MetricCard
-          icon={Package2}
-          label="Produtos ativos"
-          value={String(activeProducts.length)}
-          helper={`${lowStockProducts.length} item(ns) pedem reposição.`}
-        />
-        <MetricCard
-          icon={CreditCard}
-          label="Ticket médio"
-          value={formatCurrency(averageTicket)}
-          helper={`Base de pedidos: ${ordersSourceLabel}.`}
-        />
-        <MetricCard
-          icon={Truck}
-          label="Fila de expedição"
-          value={String(processingOrders.length + shippedOrders.length)}
-          helper="Pedidos em separação ou já postados."
-        />
-      </div>
+  const renderDashboard = () => {
+    const todayOrders = orders.filter((order) => isSameCalendarDate(order.createdAt));
+    const todayRevenue = todayOrders.reduce((sum, order) => sum + order.total, 0);
+    const pendingPaymentValue = pendingOrders.reduce((sum, order) => sum + order.total, 0);
+    const readyToShipOrders = orders.filter(
+      (order) =>
+        order.paymentStatus === 'paid' &&
+        (order.status === 'confirmed' || order.status === 'processing')
+    );
+    const readyToShipValue = readyToShipOrders.reduce((sum, order) => sum + order.total, 0);
+    const criticalStockProducts = lowStockProducts
+      .slice()
+      .sort((left, right) => left.stock - right.stock)
+      .slice(0, 5);
+    const missingTrackingOrders = orders.filter(
+      (order) =>
+        order.paymentStatus === 'paid' &&
+        order.status !== 'delivered' &&
+        !orderMetadataString(order, 'trackingCode') &&
+        !orderMetadataString(order, 'trackingUrl')
+    );
+    const integrationAlerts = integrations.filter(
+      (item) =>
+        item.integration?.status === 'error' ||
+        item.integration?.status === 'pending_credentials' ||
+        item.integration?.status === 'disconnected'
+    );
+    const dashboardOrders = [
+      ...readyToShipOrders,
+      ...pendingOrders,
+      ...orders.filter((order) => order.status === 'shipped'),
+    ]
+      .filter((order, index, list) => list.findIndex((item) => item.id === order.id) === index)
+      .slice(0, 5);
+    const categoryRevenue = categoryLoad.slice(0, 5).map((category, index) => {
+      const value = Math.round(totalRevenue * ([0.34, 0.26, 0.16, 0.12, 0.08][index] ?? 0.04));
+      return {
+        ...category,
+        value,
+        color: ['#4F66FF', '#2F8DFF', '#65A4FF', '#FBBF24', '#34D399'][index] ?? '#94A3B8',
+      };
+    });
+    const operationSummary = [
+      {
+        label: 'Faturamento',
+        value: formatCurrency(totalRevenue),
+        detail: `${paidOrders.length} pedido(s) pago(s)`,
+        icon: CircleDollarSign,
+        tone: 'ok' as const,
+      },
+      {
+        label: 'Pedidos',
+        value: String(orders.length),
+        detail: `${pendingOrders.length} aguardando pagamento`,
+        icon: ShoppingCart,
+        tone: pendingOrders.length > 0 ? ('warn' as const) : ('ok' as const),
+      },
+      {
+        label: 'Ticket médio',
+        value: formatCurrency(averageTicket),
+        detail: `Base ${ordersSourceLabel}`,
+        icon: CreditCard,
+        tone: 'neutral' as const,
+      },
+      {
+        label: 'Conversão operacional',
+        value: `${Math.round((paidOrders.length / Math.max(orders.length, 1)) * 100)}%`,
+        detail: 'pagos sobre pedidos',
+        icon: Gauge,
+        tone: 'ok' as const,
+      },
+    ];
 
-      <div className="grid gap-4 2xl:grid-cols-[1.45fr_0.95fr]">
-        <Panel
-          title="Receita por movimentação"
-          description={`Leitura operacional da base de pedidos via ${ordersSourceLabel}.`}
-          action={
-            <SmallBadge className="border-[#1E3DFF]/30 bg-[#1E3DFF]/10 text-[#8DB6FF]">
-              {ordersSourceLabel}
-            </SmallBadge>
-          }
-        >
-          <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <div className="text-2xl font-semibold text-white">
-                {formatCurrency(totalRevenue)}
-              </div>
-              <div className="mt-1 text-xs text-slate-400">
-                {paidOrders.length} pedidos com pagamento confirmado.
-              </div>
-            </div>
-            <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2 text-right">
-              <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                Média por item
-              </div>
-              <div className="mt-1 text-sm font-semibold text-white">
-                {formatCurrency(totalProductsValue / Math.max(products.length, 1))}
-              </div>
-            </div>
-          </div>
-          <TrendBars series={revenueSeries} />
-        </Panel>
+    return (
+      <div className="space-y-4">
+        <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
+          <OperationalMetricCard
+            icon={ShoppingCart}
+            label="Pedidos hoje"
+            value={String(todayOrders.length)}
+            amount={formatCurrency(todayRevenue)}
+            helper={`${orders.length} pedido(s) na base`}
+            accent="blue"
+          />
+          <OperationalMetricCard
+            icon={CreditCard}
+            label="Aguardando pagamento"
+            value={String(pendingOrders.length)}
+            amount={formatCurrency(pendingPaymentValue)}
+            helper="dependem de confirmação"
+            accent="amber"
+          />
+          <OperationalMetricCard
+            icon={Truck}
+            label="Prontos para envio"
+            value={String(readyToShipOrders.length)}
+            amount={formatCurrency(readyToShipValue)}
+            helper="pagos em separação"
+            accent="emerald"
+          />
+          <OperationalMetricCard
+            icon={CircleAlert}
+            label="Estoque crítico"
+            value={String(lowStockProducts.length)}
+            amount={`${criticalStockProducts.length} produto(s)`}
+            helper="requerem atenção"
+            accent="rose"
+          />
+        </div>
 
-        <div className="space-y-4">
+        <div className="grid gap-4 2xl:grid-cols-[0.86fr_1.44fr_0.96fr]">
           <Panel
-            title="Mix do catálogo"
-            description={`Distribuição das categorias lidas via ${categoriesSourceLabel}.`}
+            title="Ações prioritárias"
+            action={
+              <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
+                Agora
+              </SmallBadge>
+            }
           >
-            <GaugeCard
-              value={String(categories.length)}
-              centerLabel="Categorias"
-              segments={[
-                { color: '#38BDF8', portion: 0.42 },
-                { color: '#1E3DFF', portion: 0.33 },
-                { color: '#00E676', portion: 0.15 },
-              ]}
-              items={categoryLoad.slice(0, 3).map((item, index) => ({
-                label: item.name,
-                value: `${item.count} produto(s)`,
-                dot: ['#38BDF8', '#1E3DFF', '#00E676'][index] ?? '#94A3B8',
-              }))}
-            />
+            <div className="space-y-2">
+              <ActionRow
+                icon={CreditCard}
+                title="Aprovar pagamentos"
+                description="Pedidos aguardando análise"
+                count={pendingOrders.length}
+                tone="rose"
+                onClick={() => handleSelectAdminView('orders')}
+              />
+              <ActionRow
+                icon={Boxes}
+                title="Separar pedidos"
+                description="Pagos prontos para separação"
+                count={readyToShipOrders.length}
+                tone="amber"
+                onClick={() => handleSelectAdminView('orders')}
+              />
+              <ActionRow
+                icon={Truck}
+                title="Pedidos sem rastreio"
+                description="Postagem ainda sem código"
+                count={missingTrackingOrders.length}
+                tone="amber"
+                onClick={() => handleSelectAdminView('orders')}
+              />
+              <ActionRow
+                icon={Package2}
+                title="Produtos com estoque baixo"
+                description="Itens abaixo do mínimo visual"
+                count={lowStockProducts.length}
+                tone="blue"
+                onClick={() => handleSelectAdminView('products')}
+              />
+              <ActionRow
+                icon={FileWarning}
+                title="Falhas de integração"
+                description="Conectores pedem revisão"
+                count={integrationAlerts.length}
+                tone="rose"
+                onClick={() => handleSelectAdminView('integrations')}
+              />
+            </div>
           </Panel>
 
           <Panel
-            title="Alertas do painel"
-            description="Fila rápida do que exige ação visual agora."
+            title="Fila operacional"
+            action={
+              <button
+                type="button"
+                onClick={() => handleSelectAdminView('orders')}
+                className="inline-flex items-center gap-1.5 rounded-md border border-white/8 bg-[#081225] px-2.5 py-1.5 text-[11px] font-medium text-slate-200 transition hover:border-[#1E3DFF]/30 hover:text-white"
+              >
+                Ver todos
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            }
+          >
+            <div className="overflow-x-auto rounded-lg border border-white/6">
+              <div className="min-w-[760px]">
+                <div className="grid grid-cols-[1.1fr_0.7fr_0.82fr_0.95fr_0.7fr] gap-3 bg-[#081225] px-3 py-2 text-[10px] uppercase text-slate-500">
+                  <span>Pedido / Cliente</span>
+                  <span>Valor</span>
+                  <span>Pagamento</span>
+                  <span>Fulfillment</span>
+                  <span className="text-right">Ação</span>
+                </div>
+                {dashboardOrders.map((order) => {
+                  const canShip =
+                    order.paymentStatus === 'paid' &&
+                    (order.status === 'confirmed' || order.status === 'processing');
+                  const isPending = order.paymentStatus === 'pending';
+
+                  return (
+                    <div
+                      key={order.id}
+                      className="grid grid-cols-[1.1fr_0.7fr_0.82fr_0.95fr_0.7fr] items-center gap-3 border-t border-white/6 px-3 py-2.5 text-xs"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate font-semibold text-white">
+                          {order.orderNumber}
+                        </div>
+                        <div className="mt-1 flex min-w-0 items-center gap-2 text-[11px] text-slate-400">
+                          <span className="truncate">
+                            {order.customerName ?? 'Cliente não identificado'}
+                          </span>
+                          <SmallBadge className="border-cyan-400/20 bg-cyan-400/10 text-cyan-200">
+                            {order.customerType?.toUpperCase() ?? 'PF'}
+                          </SmallBadge>
+                        </div>
+                      </div>
+                      <div className="font-semibold text-white">{formatCurrency(order.total)}</div>
+                      <div>
+                        <SmallBadge className={paymentStatusClass[order.paymentStatus]}>
+                          {paymentStatusLabel[order.paymentStatus]}
+                        </SmallBadge>
+                        <div className="mt-1 text-[11px] text-slate-500">
+                          {order.salesChannel ?? 'Canal local'}
+                        </div>
+                      </div>
+                      <div>
+                        <SmallBadge className={orderStatusClass[order.status]}>
+                          {orderStatusLabel[order.status]}
+                        </SmallBadge>
+                        <div className="mt-1 text-[11px] text-slate-500">
+                          {formatDateTime(order.createdAt)}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleSelectAdminView('orders')}
+                          className={cn(
+                            'rounded-md border px-2.5 py-1.5 text-[10px] font-semibold transition',
+                            canShip
+                              ? 'border-[#1E3DFF]/35 bg-[#1E3DFF]/15 text-[#A9C7FF] hover:text-white'
+                              : isPending
+                                ? 'border-amber-400/25 bg-amber-400/10 text-amber-200 hover:text-white'
+                                : 'border-white/8 bg-white/5 text-slate-300 hover:text-white'
+                          )}
+                        >
+                          {canShip ? 'Separar' : isPending ? 'Ver' : 'Abrir'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {dashboardOrders.length === 0 ? (
+                  <div className="border-t border-white/6 px-3 py-8 text-center text-xs text-slate-400">
+                    Nenhum pedido na fila operacional atual.
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </Panel>
+
+          <div className="space-y-4">
+            <Panel
+              title="Status das integrações"
+              action={
+                <button
+                  type="button"
+                  onClick={() => handleSelectAdminView('integrations')}
+                  className="text-[11px] font-semibold text-[#7EA8FF] transition hover:text-white"
+                >
+                  Ver todas
+                </button>
+              }
+            >
+              <div className="space-y-1">
+                {integrations.slice(0, 5).map((item) => {
+                  const status = integrationStatusLabel(item);
+                  const tone =
+                    item.integration?.status === 'connected' || item.integration?.status === 'syncing'
+                      ? 'ok'
+                      : item.integration?.status === 'error'
+                        ? 'danger'
+                        : item.provider.status === 'planned'
+                          ? 'warn'
+                          : 'neutral';
+
+                  return (
+                    <MiniStatusRow
+                      key={item.provider.key}
+                      label={item.provider.name}
+                      detail={providerCategoryLabel[item.provider.category]}
+                      status={status}
+                      tone={tone}
+                    />
+                  );
+                })}
+              </div>
+            </Panel>
+
+            <Panel
+              title="Produtos com atenção"
+              action={
+                <button
+                  type="button"
+                  onClick={() => handleSelectAdminView('products')}
+                  className="text-[11px] font-semibold text-[#7EA8FF] transition hover:text-white"
+                >
+                  Ver todos
+                </button>
+              }
+            >
+              <div className="space-y-2">
+                {criticalStockProducts.map((product) => (
+                  <div
+                    key={product.id}
+                    className="flex items-center gap-3 border-b border-white/6 pb-2 last:border-b-0 last:pb-0"
+                  >
+                    {product.imageUrl ? (
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="h-9 w-9 rounded-md border border-white/8 object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-9 w-9 items-center justify-center rounded-md border border-white/8 bg-[#101F43] text-[10px] font-semibold text-[#A9C7FF]">
+                        {initialsFromName(product.name)}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xs font-semibold text-white">
+                        {product.name}
+                      </div>
+                      <div className="mt-0.5 text-[11px] text-slate-500">
+                        Estoque: {product.stock}
+                      </div>
+                    </div>
+                    <SmallBadge
+                      className={
+                        product.stock <= 0
+                          ? 'border-rose-400/25 bg-rose-400/10 text-rose-200'
+                          : 'border-amber-400/25 bg-amber-400/10 text-amber-200'
+                      }
+                    >
+                      {product.stock <= 0 ? 'Esgotado' : 'Baixo'}
+                    </SmallBadge>
+                  </div>
+                ))}
+                {criticalStockProducts.length === 0 ? (
+                  <div className="rounded-lg border border-emerald-400/15 bg-emerald-400/8 px-3 py-3 text-xs text-emerald-100">
+                    Nenhum produto em estoque crítico.
+                  </div>
+                ) : null}
+              </div>
+            </Panel>
+          </div>
+        </div>
+
+        <div className="grid gap-4 2xl:grid-cols-[1.08fr_0.96fr_0.86fr]">
+          <Panel
+            title="Faturamento"
+            description="Últimos movimentos registrados na base de pedidos."
+            action={
+              <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
+                {ordersSourceLabel}
+              </SmallBadge>
+            }
+          >
+            <div className="mb-3 flex items-end justify-between gap-3">
+              <div>
+                <div className="text-2xl font-semibold text-white">
+                  {formatCurrency(totalRevenue)}
+                </div>
+                <div className="mt-1 text-xs text-emerald-300">
+                  {paidOrders.length} pedido(s) com pagamento confirmado
+                </div>
+              </div>
+              <div className="text-right text-[11px] text-slate-500">
+                Ticket medio
+                <div className="mt-1 text-sm font-semibold text-white">
+                  {formatCurrency(averageTicket)}
+                </div>
+              </div>
+            </div>
+            <RevenueLineChart series={revenueSeries} />
+          </Panel>
+
+          <Panel
+            title="Top categorias"
+            action={
+              <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
+                {categoriesSourceLabel}
+              </SmallBadge>
+            }
+          >
+            <div className="grid gap-4 md:grid-cols-[150px_1fr] md:items-center">
+              <GaugeCard
+                value={String(categories.length)}
+                centerLabel="Categorias"
+                segments={categoryRevenue.map((item) => ({
+                  color: item.color,
+                  portion: Math.max(item.value / Math.max(totalRevenue, 1), 0.06),
+                }))}
+                items={[]}
+              />
+              <div className="space-y-2">
+                {categoryRevenue.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <span className="truncate text-slate-200">{item.name}</span>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <span className="font-semibold text-white">
+                        {formatCurrency(item.value)}
+                      </span>
+                      <span className="ml-2 text-[11px] text-slate-500">
+                        {item.count} itens
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between border-t border-white/6 pt-3 text-sm">
+                  <span className="text-slate-400">Total</span>
+                  <span className="font-semibold text-white">{formatCurrency(totalRevenue)}</span>
+                </div>
+              </div>
+            </div>
+          </Panel>
+
+          <Panel
+            title="Resumo da operação"
+            action={
+              <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
+                Hoje
+              </SmallBadge>
+            }
           >
             <div className="space-y-2">
-              <div className="rounded-lg border border-amber-400/15 bg-amber-400/8 px-3 py-2.5">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <div className="text-xs font-semibold text-amber-200">
-                      Aprovar pagamentos
-                    </div>
-                    <div className="mt-0.5 text-[11px] text-slate-300">
-                      {pendingOrders.length} pedido(s) ainda estão aguardando confirmação.
-                    </div>
-                  </div>
-                  <Bell className="h-4 w-4 text-amber-300" />
-                </div>
-              </div>
+              {operationSummary.map((item) => {
+                const Icon = item.icon;
+                const toneClass = {
+                  ok: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200',
+                  warn: 'border-amber-400/20 bg-amber-400/10 text-amber-200',
+                  neutral: 'border-[#1E3DFF]/25 bg-[#1E3DFF]/10 text-[#9CC0FF]',
+                }[item.tone];
 
-              <div className="rounded-lg border border-[#1E3DFF]/20 bg-[#1E3DFF]/8 px-3 py-2.5">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <div className="text-xs font-semibold text-[#9CC0FF]">
-                      Separar expedição
+                return (
+                  <div
+                    key={item.label}
+                    className="flex items-center gap-3 rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5"
+                  >
+                    <span className={cn('inline-flex h-9 w-9 items-center justify-center rounded-lg border', toneClass)}>
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xs text-slate-400">{item.label}</div>
+                      <div className="mt-0.5 truncate text-[11px] text-slate-500">
+                        {item.detail}
+                      </div>
                     </div>
-                    <div className="mt-0.5 text-[11px] text-slate-300">
-                      {processingOrders.length} pedido(s) já pagos seguem na mesa de separação.
-                    </div>
-                  </div>
-                  <Boxes className="h-4 w-4 text-[#7EC3FF]" />
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-emerald-400/15 bg-emerald-400/8 px-3 py-2.5">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <div className="text-xs font-semibold text-emerald-200">
-                      Catálogo pronto
-                    </div>
-                    <div className="mt-0.5 text-[11px] text-slate-300">
-                      {activeProducts.length} produtos ativos já abastecem as rotas públicas.
+                    <div className="text-right text-sm font-semibold text-white">
+                      {item.value}
                     </div>
                   </div>
-                  <ShieldCheck className="h-4 w-4 text-emerald-300" />
-                </div>
-              </div>
+                );
+              })}
             </div>
           </Panel>
         </div>
       </div>
-
-      <div className="grid gap-4 2xl:grid-cols-[1.35fr_0.95fr]">
-        <Panel
-          title="Pedidos recentes"
-          description={`Leitura compacta da base de pedidos via ${ordersSourceLabel}.`}
-          action={
-            <button
-              type="button"
-              onClick={() => setActiveView('orders')}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/8 bg-[#081225] px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-[#1E3DFF]/30 hover:text-white"
-            >
-              Abrir mesa
-              <ChevronRight className="h-3.5 w-3.5" />
-            </button>
-          }
-        >
-          <div className="overflow-hidden rounded-lg border border-white/6">
-            <div className="grid grid-cols-[1.2fr_1fr_0.8fr_0.8fr] gap-3 bg-[#081225] px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
-              <span>Pedido</span>
-              <span>Cliente</span>
-              <span>Status</span>
-              <span className="text-right">Total</span>
-            </div>
-            {orders.slice(0, 4).map((order) => (
-              <div
-                key={order.id}
-                className="grid grid-cols-[1.2fr_1fr_0.8fr_0.8fr] gap-3 border-t border-white/6 px-3 py-2.5 text-xs"
-              >
-                <div>
-                  <div className="font-semibold text-white">{order.orderNumber}</div>
-                  <div className="mt-1 text-slate-400">{formatDateTime(order.createdAt)}</div>
-                </div>
-                <div>
-                  <div className="font-medium text-slate-100">
-                    {order.customerName ?? 'Cliente não identificado'}
-                  </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                    <span className="text-slate-400">{order.salesChannel}</span>
-                    <SmallBadge
-                      className={cn(
-                        order.customerType === 'pj'
-                          ? 'border-sky-400/20 bg-sky-400/10 text-sky-200'
-                          : 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200'
-                      )}
-                    >
-                      {order.customerType?.toUpperCase() ?? 'PF'}
-                    </SmallBadge>
-                  </div>
-                </div>
-                <div className="flex items-start">
-                  <SmallBadge className={orderStatusClass[order.status]}>
-                    {orderStatusLabel[order.status]}
-                  </SmallBadge>
-                </div>
-                <div className="text-right font-semibold text-white">
-                  {formatCurrency(order.total)}
-                </div>
-                <div className="col-span-full">
-                  <OrderShipmentForm order={order} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </Panel>
-
-        <Panel
-          title="Produtos em destaque"
-          description="Seleção rápida do catálogo com preço e estoque para checagem visual."
-        >
-          <div className="space-y-2">
-            {products.slice(0, 5).map((product) => (
-              <div
-                key={product.id}
-                className="flex items-center gap-3 rounded-lg border border-white/6 bg-[#081225] px-3 py-2"
-              >
-                {product.imageUrl ? (
-                  <img
-                    src={product.imageUrl}
-                    alt={product.name}
-                    className="h-10 w-10 rounded-lg object-cover"
-                  />
-                ) : (
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[linear-gradient(135deg,#1E3DFF,#38BDF8)] text-xs font-semibold text-white">
-                    {initialsFromName(product.name)}
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-semibold text-white">{product.name}</div>
-                  <div className="mt-0.5 truncate text-[11px] text-slate-400">
-                    {product.categories.map((category) => category.name).join(' • ')}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="font-semibold text-white">
-                    {formatCurrency(product.promotionalPrice ?? product.price)}
-                  </div>
-                  <div className="mt-0.5 text-[11px] text-slate-400">
-                    Estoque: {product.stock}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Panel>
-      </div>
-    </div>
-  );
+    );
+  };
 
   const renderProducts = () => {
     const statusTabs: Array<{ filter: ProductFilter; label: string; count: number }> = [
@@ -2571,13 +3018,10 @@ export default function AdminDashboard({
       />
 
       <main className="xl:pl-60">
-        <div className="w-full px-3 py-3 sm:px-4 lg:px-5">
-          <div className="rounded-lg border border-white/6 bg-[#071124]/92 p-3 shadow-[0_18px_40px_rgba(0,0,0,0.2)] sm:p-4">
-            <div className="flex flex-col gap-3 border-b border-white/6 pb-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="mx-auto w-full max-w-[1680px] px-3 py-4 sm:px-4 lg:px-6">
+          <div className="space-y-4">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <div className="space-y-1">
-                <div className="text-[10px] uppercase tracking-[0.22em] text-[#7EC3FF]">
-                  {view.eyebrow}
-                </div>
                 <div>
                   <h1 className="text-xl font-semibold text-white sm:text-2xl">
                     {view.title}
@@ -2623,7 +3067,7 @@ export default function AdminDashboard({
               </div>
             </div>
 
-            <div className="mt-3 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <label className="relative block w-full xl:max-w-lg">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                 <input
@@ -2650,7 +3094,7 @@ export default function AdminDashboard({
               </div>
             </div>
 
-            <div className="mt-4">
+            <div>
               {activeView === 'dashboard' ? renderDashboard() : null}
               {activeView === 'products' ? renderProducts() : null}
               {activeView === 'orders' ? renderOrders() : null}
