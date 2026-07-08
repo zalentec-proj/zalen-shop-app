@@ -174,8 +174,12 @@ type MercadoPagoBrickController = {
 
 type MercadoPagoBrickCallbacks = {
   onReady?: () => void;
-  onSubmit?: (data: { formData: Record<string, unknown> }) => Promise<void>;
+  onSubmit?: (data: MercadoPagoBrickSubmitData) => Promise<void>;
   onError?: (error: unknown) => void;
+};
+
+type MercadoPagoBrickSubmitData = Record<string, unknown> & {
+  formData?: Record<string, unknown> | null;
 };
 
 type MercadoPagoInstance = {
@@ -216,6 +220,24 @@ const currencyFormatter = new Intl.NumberFormat('pt-BR', {
 
 function formatCurrency(value: number) {
   return currencyFormatter.format(value);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function getMercadoPagoBrickFormData(
+  data: MercadoPagoBrickSubmitData
+): Record<string, unknown> {
+  if (isRecord(data.formData)) {
+    return data.formData;
+  }
+
+  if ('selectedPaymentMethod' in data || 'paymentMethod' in data) {
+    return {};
+  }
+
+  return data;
 }
 
 function formatDeliveryWindow(option: CheckoutShippingOption) {
@@ -803,10 +825,11 @@ export default function CartClient({ customerSession }: Props) {
               setBrickStatus('ready');
             }
           },
-          onSubmit: async ({ formData }) => {
+          onSubmit: async (submitData) => {
             setCheckoutError(null);
             setBrickStatus('processing');
 
+            const formData = getMercadoPagoBrickFormData(submitData);
             const result = await processMercadoPagoBrickPaymentAction({
               orderId: paymentSession.orderId,
               idempotencyKey: paymentSession.paymentAttemptKey,

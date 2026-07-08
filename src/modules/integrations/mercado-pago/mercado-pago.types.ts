@@ -111,6 +111,7 @@ export interface MercadoPagoBrickPaymentFormData {
   token?: string;
   issuer_id?: string | number;
   payment_method_id?: string;
+  payment_type_id?: string;
   payment_method_option_id?: string | null;
   processing_mode?: string | null;
   installments?: number | string;

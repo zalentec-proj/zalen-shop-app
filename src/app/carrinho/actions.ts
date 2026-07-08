@@ -369,6 +369,11 @@ function getSafeCheckoutError(error: unknown) {
       'reason' in error)
   ) {
     const mercadoPagoError = error as MercadoPagoPreferenceError;
+    const reason = mercadoPagoError.reason.toLowerCase();
+
+    if (reason.includes('card token')) {
+      return 'Não foi possível validar os dados do cartão no Mercado Pago. Revise o cartão e tente novamente.';
+    }
 
     return `Mercado Pago recusou a preferência (${mercadoPagoError.status}: ${mercadoPagoError.reason}).`;
   }
@@ -1018,6 +1023,55 @@ function getStableBrickIdempotencyKey(input: {
     .join(':');
 }
 
+function getBrickFormDataString(
+  formData: MercadoPagoBrickPaymentFormData,
+  key: keyof MercadoPagoBrickPaymentFormData
+) {
+  const value = formData[key];
+
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function isCardBrickPayment(formData: MercadoPagoBrickPaymentFormData) {
+  const paymentTypeId = getBrickFormDataString(formData, 'payment_type_id');
+  const paymentMethodId = getBrickFormDataString(
+    formData,
+    'payment_method_id'
+  )?.toLowerCase();
+  const hasCardInstallments =
+    formData.installments !== undefined && formData.installments !== null;
+
+  return (
+    paymentTypeId === 'credit_card' ||
+    paymentTypeId === 'debit_card' ||
+    Boolean(formData.token) ||
+    (hasCardInstallments &&
+      Boolean(
+        paymentMethodId &&
+          !['pix', 'bolbradesco', 'pec', 'rapipago', 'pagofacil'].includes(
+            paymentMethodId
+          )
+      ))
+  );
+}
+
+function validateBrickPaymentFormData(
+  formData: MercadoPagoBrickPaymentFormData
+) {
+  if (!getBrickFormDataString(formData, 'payment_method_id')) {
+    return 'Escolha uma forma de pagamento e tente novamente.';
+  }
+
+  if (
+    isCardBrickPayment(formData) &&
+    !getBrickFormDataString(formData, 'token')
+  ) {
+    return 'Não foi possível validar os dados do cartão. Revise as informações e tente novamente.';
+  }
+
+  return undefined;
+}
+
 export async function lookupCheckoutPostalCodeAction(
   rawInput: unknown
 ): Promise<CheckoutPostalCodeLookupActionResult> {
@@ -1293,6 +1347,16 @@ export async function processMercadoPagoBrickPaymentAction(
     const environment = getPaymentEnvironmentFromTransaction(latestTransaction);
     const formData =
       parsed.data.formData as MercadoPagoBrickPaymentFormData;
+    const formDataError = validateBrickPaymentFormData(formData);
+
+    if (formDataError) {
+      return {
+        ok: false,
+        error: formDataError,
+        status: 'error',
+      };
+    }
+
     const idempotencyKey = formData.token
       ? parsed.data.idempotencyKey
       : getStableBrickIdempotencyKey({
