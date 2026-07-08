@@ -4,7 +4,12 @@ import {
   getCategoryBySlug,
   listCategories,
   listCategoryProducts,
+  listStorefrontProducts,
 } from '@/modules/catalog/product.service';
+import {
+  toStorefrontCategories,
+} from '@/modules/catalog/storefront-product.adapter';
+import { getStorefrontNavigation } from '@/modules/catalog/storefront-navigation';
 import { MarketingDataLayer } from '@/modules/marketing/MarketingDataLayer';
 import { MarketingScripts } from '@/modules/marketing/MarketingScripts';
 import { getMarketingRuntimeConfig } from '@/modules/marketing/marketing.service';
@@ -56,17 +61,21 @@ export default async function CategoryPage({ params }: Props) {
 
   if (!store) notFound();
 
-  const [category, products, categories] = await Promise.all([
+  const [category, products, categories, catalogProducts] = await Promise.all([
     getCategoryBySlug(store.id, slug),
     listCategoryProducts(store.id, slug),
     listCategories(store.id),
+    listStorefrontProducts(store.id),
   ]);
 
   if (!category) notFound();
 
-  const [origin, marketingConfig] = await Promise.all([
+  const storefrontCategories = toStorefrontCategories(categories, catalogProducts);
+
+  const [origin, marketingConfig, navigation] = await Promise.all([
     getCurrentOrigin(),
     getMarketingRuntimeConfig(store),
+    getStorefrontNavigation(store.id, storefrontCategories),
   ]);
 
   return (
@@ -99,6 +108,8 @@ export default async function CategoryPage({ params }: Props) {
         category={category}
         products={products}
         categories={categories}
+        storefrontCategories={storefrontCategories}
+        navigation={navigation}
       />
     </>
   );

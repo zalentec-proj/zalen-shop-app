@@ -1,28 +1,65 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-  ArrowLeft,
   ShoppingCart,
   Star,
   SlidersHorizontal,
-  ChevronRight,
   ArrowUpRight,
 } from 'lucide-react';
 import Footer from '@/components/layout/Footer';
+import Navbar from '@/components/layout/Navbar';
+import { getItemCount } from '@/modules/cart/cart.utils';
+import {
+  getStoredCart,
+  subscribeToStoredCart,
+} from '@/modules/cart/cart.storage';
 import type { Category, Product } from '@/modules/catalog/product.types';
+import type { StorefrontNavigation } from '@/modules/catalog/storefront-navigation';
+import type { StorefrontCategory } from '@/types';
 
 interface Props {
   category: Category;
   products: Product[];
   categories: Category[];
+  storefrontCategories: StorefrontCategory[];
+  navigation: StorefrontNavigation;
 }
 
-export default function CategoryClient({ category, products, categories }: Props) {
+export default function CategoryClient({
+  category,
+  products,
+  categories,
+  storefrontCategories,
+  navigation,
+}: Props) {
   const [sortBy, setSortBy] = useState<'relevance' | 'price-asc' | 'price-desc'>('relevance');
+  const [cartItemsCount, setCartItemsCount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const sorted = [...products].sort((a, b) => {
+  useEffect(() => {
+    setCartItemsCount(getItemCount(getStoredCart()));
+    return subscribeToStoredCart(() => {
+      setCartItemsCount(getItemCount(getStoredCart()));
+    });
+  }, []);
+
+  const filteredProducts = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+
+    if (!normalizedQuery) {
+      return products;
+    }
+
+    return products.filter((product) => {
+      return `${product.name} ${product.brand ?? ''} ${product.variants[0]?.sku ?? ''}`
+        .toLowerCase()
+        .includes(normalizedQuery);
+    });
+  }, [products, searchQuery]);
+
+  const sorted = [...filteredProducts].sort((a, b) => {
     const pa = a.variants[0]?.price ?? 0;
     const pb = b.variants[0]?.price ?? 0;
     if (sortBy === 'price-asc') return pa - pb;
@@ -34,26 +71,21 @@ export default function CategoryClient({ category, products, categories }: Props
     <div className="min-h-screen bg-brand-bg relative">
       <div className="absolute top-[5%] left-[15%] w-[500px] h-[500px] rounded-full glow-radial pointer-events-none -z-10 opacity-30" />
 
-      {/* Top nav */}
-      <header className="fixed top-0 left-0 right-0 z-50 px-4 md:px-8 py-4 bg-transparent">
-        <nav className="max-w-7xl mx-auto h-[72px] px-6 rounded-full flex items-center justify-between navbar-glass shadow-[0_12px_32px_rgba(0,0,0,0.55)]">
-          <Link href="/" className="flex items-center gap-2 text-brand-muted hover:text-white transition-colors text-sm font-medium">
-            <ArrowLeft className="w-4 h-4" />
-            Voltar
-          </Link>
-          <div className="hidden md:flex items-center gap-1.5 text-xs text-brand-muted">
-            <Link href="/" className="hover:text-white transition-colors">Início</Link>
-            <ChevronRight className="w-3 h-3" />
-            <span className="text-brand-white">{category.name}</span>
-          </div>
-          <Link
-            href="/carrinho"
-            className="text-sm font-medium text-brand-muted hover:text-white transition-colors"
-          >
-            Carrinho
-          </Link>
-        </nav>
-      </header>
+      <Navbar
+        categories={storefrontCategories}
+        navigation={navigation}
+        cartItemsCount={cartItemsCount}
+        onCartToggle={() => {
+          window.location.href = '/carrinho';
+        }}
+        activeCategory={category.slug}
+        onCategorySelect={() => undefined}
+        onNavigateToHome={() => {
+          window.location.href = '/';
+        }}
+        onSearchChange={setSearchQuery}
+        searchQuery={searchQuery}
+      />
 
       <main className="max-w-7xl mx-auto px-4 md:px-8 pt-32 pb-20">
         {/* Header */}
@@ -94,7 +126,7 @@ export default function CategoryClient({ category, products, categories }: Props
                     : 'border-brand-border-soft bg-white/[0.02] text-brand-muted hover:text-white hover:border-white/20'
                 }`}
               >
-                {item.name}
+              {item.name}
               </Link>
             );
           })}
@@ -178,7 +210,7 @@ export default function CategoryClient({ category, products, categories }: Props
         )}
       </main>
 
-      <Footer categories={categories} />
+      <Footer categories={storefrontCategories} />
     </div>
   );
 }

@@ -127,7 +127,7 @@ function buildSidebarGroups(counts?: AdminSidebarCounts): AdminSidebarGroup[] {
           label: 'Loja online',
           icon: Store,
           count: 'ON',
-          href: '/',
+          href: '/admin/configuracoes/loja-online',
         },
         {
           key: 'marketplaces',

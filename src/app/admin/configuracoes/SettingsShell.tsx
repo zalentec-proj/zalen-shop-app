@@ -61,6 +61,7 @@ function cn(...classes: Array<string | false | null | undefined>) {
 }
 
 function getSettingsSidebarKey(pathname: string): AdminSidebarKey {
+  if (pathname.startsWith('/admin/configuracoes/loja-online')) return 'storefront';
   if (pathname.startsWith('/admin/configuracoes/pagamentos')) return 'payments';
   if (pathname.startsWith('/admin/configuracoes/envios')) return 'shipping';
   if (pathname.startsWith('/admin/configuracoes/dominios')) return 'domains';
@@ -69,6 +70,13 @@ function getSettingsSidebarKey(pathname: string): AdminSidebarKey {
 }
 
 function getSettingsPageMeta(pathname: string) {
+  if (pathname.startsWith('/admin/configuracoes/loja-online')) {
+    return {
+      title: 'Loja online',
+      description: 'Categorias, navbar e experiência pública da loja ativa.',
+    };
+  }
+
   if (pathname.startsWith('/admin/configuracoes/pagamentos')) {
     return {
       title: 'Meios de pagamento',

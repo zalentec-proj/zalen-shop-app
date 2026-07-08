@@ -18,6 +18,7 @@ import CartSidebar from './components/ecommerce/CartSidebar';
 import Footer from './components/layout/Footer';
 import type { Product, StorefrontCategory } from './types';
 import type { Cart } from './modules/cart/cart.types';
+import type { StorefrontNavigation } from './modules/catalog/storefront-navigation';
 import {
   addItem,
   createEmptyCart,
@@ -35,6 +36,7 @@ import { pushMarketingEvent } from './modules/marketing/marketing.client';
 interface AppProps {
   products: Product[];
   categories: StorefrontCategory[];
+  navigation?: StorefrontNavigation;
 }
 
 function normalizeCategoryText(value: string) {
@@ -58,7 +60,7 @@ function findCategorySlug(
   );
 }
 
-export default function App({ products, categories }: AppProps) {
+export default function App({ products, categories, navigation }: AppProps) {
   const [currentPage, setCurrentPage] = useState<'home' | 'product_detail'>('home');
   const [selectedProductId, setSelectedProductId] = useState<string>(
     products[0]?.id ?? 'dji-mavic-3-pro'
@@ -201,6 +203,7 @@ export default function App({ products, categories }: AppProps) {
 
       <Navbar
         categories={categories}
+        navigation={navigation}
         cartItemsCount={cartItemsCount}
         onCartToggle={() => setCartOpen(!cartOpen)}
         activeCategory={activeCategory}

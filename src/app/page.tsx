@@ -11,6 +11,7 @@ import {
   toStorefrontCategories,
   toStorefrontProducts,
 } from '@/modules/catalog/storefront-product.adapter';
+import { getStorefrontNavigation } from '@/modules/catalog/storefront-navigation';
 import { MarketingDataLayer } from '@/modules/marketing/MarketingDataLayer';
 import { MarketingScripts } from '@/modules/marketing/MarketingScripts';
 import { getMarketingRuntimeConfig } from '@/modules/marketing/marketing.service';
@@ -109,9 +110,10 @@ export default async function HomePage() {
   ]);
   const products = toStorefrontProducts(catalogProducts);
   const categories = toStorefrontCategories(catalogCategories, catalogProducts);
-  const [origin, marketingConfig] = await Promise.all([
+  const [origin, marketingConfig, navigation] = await Promise.all([
     getCurrentOrigin(),
     getMarketingRuntimeConfig(store),
+    getStorefrontNavigation(store.id, categories),
   ]);
 
   return (
@@ -141,7 +143,7 @@ export default async function HomePage() {
           },
         }}
       />
-      <App products={products} categories={categories} />
+      <App products={products} categories={categories} navigation={navigation} />
     </>
   );
 }

@@ -1,12 +1,25 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { ReceiptText, Search, User, ShoppingCart, Menu, X } from 'lucide-react';
+import {
+  ChevronDown,
+  ReceiptText,
+  Search,
+  User,
+  ShoppingCart,
+  Menu,
+  X,
+} from 'lucide-react';
 import Logo from '../ui/Logo';
 import type { StorefrontCategory } from '../../types';
 import { getPrimaryStorefrontCategories } from '../home/category-display';
+import type {
+  StorefrontNavigation,
+  StorefrontNavigationItem,
+} from '@/modules/catalog/storefront-navigation';
 
 interface NavbarProps {
   categories: StorefrontCategory[];
+  navigation?: StorefrontNavigation;
   cartItemsCount: number;
   onCartToggle: () => void;
   activeCategory: string | null;
@@ -18,6 +31,7 @@ interface NavbarProps {
 
 export default function Navbar({
   categories,
+  navigation,
   cartItemsCount,
   onCartToggle,
   activeCategory,
@@ -43,11 +57,24 @@ export default function Navbar({
   }, []);
 
   const navLinks = useMemo(() => {
+    if (navigation?.navbarItems.length) {
+      return navigation.navbarItems;
+    }
+
     return getPrimaryStorefrontCategories(categories).map((category) => ({
+      id: category.slug,
       label: category.name,
-      value: category.slug,
+      type: 'category' as const,
+      categorySlug: category.slug,
+      href: `/categoria/${category.slug}`,
+      position: 0,
+      enabled: true,
+      showInNavbar: true,
+      showInCategoriesDropdown: false,
+      opensInDropdown: false,
+      children: [],
     }));
-  }, [categories]);
+  }, [categories, navigation]);
 
   const handleLinkClick = (categoryValue: string | null) => {
     onCategorySelect(categoryValue);
@@ -57,6 +84,75 @@ export default function Navbar({
     if (section) {
       section.scrollIntoView({ behavior: 'smooth' });
     }
+  };
+
+  const renderDesktopItem = (item: StorefrontNavigationItem) => {
+    const isActive = activeCategory === item.categorySlug;
+    const hasChildren = item.children.length > 0;
+    const className = `inline-flex items-center gap-1 text-[14px] font-medium tracking-wide transition-all duration-300 relative py-1 cursor-pointer hover:text-white ${
+      isActive ? 'text-white' : 'text-brand-muted'
+    }`;
+    const content = (
+      <>
+        <span>{item.label}</span>
+        {hasChildren ? <ChevronDown className="h-3.5 w-3.5" /> : null}
+        {isActive && (
+          <span className="absolute bottom-0 left-0 w-full h-[2px] bg-blue-primary rounded-full shadow-[0_0_8px_#1E3DFF]"></span>
+        )}
+      </>
+    );
+
+    return (
+      <div key={item.id} className="group relative">
+        {item.href ? (
+          <Link href={item.href} className={className}>
+            {content}
+          </Link>
+        ) : (
+          <button
+            type="button"
+            className={className}
+            onClick={() => handleLinkClick(item.categorySlug ?? null)}
+          >
+            {content}
+          </button>
+        )}
+
+        {hasChildren ? (
+          <div className="invisible absolute left-1/2 top-full z-50 mt-4 w-[min(720px,calc(100vw-64px))] -translate-x-1/2 rounded-2xl border border-white/10 bg-[#071124]/95 p-4 opacity-0 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl transition duration-200 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {item.children.map((child) => (
+                child.href ? (
+                  <Link
+                    key={child.id}
+                    href={child.href}
+                    className="group/link rounded-xl border border-white/6 bg-white/[0.03] px-4 py-3 transition hover:border-blue-primary/35 hover:bg-blue-primary/10"
+                  >
+                    <span className="block text-sm font-semibold text-white">
+                      {child.label}
+                    </span>
+                    {child.children.length > 0 ? (
+                      <span className="mt-1 block text-[11px] text-brand-muted">
+                        {child.children.length} subcategorias
+                      </span>
+                    ) : null}
+                  </Link>
+                ) : (
+                  <div
+                    key={child.id}
+                    className="rounded-xl border border-white/6 bg-white/[0.03] px-4 py-3"
+                  >
+                    <span className="block text-sm font-semibold text-white">
+                      {child.label}
+                    </span>
+                  </div>
+                )
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
   };
 
   return (
@@ -76,23 +172,7 @@ export default function Navbar({
 
         {/* Desktop Nav Links */}
         <div className="hidden lg:flex items-center gap-6 xl:gap-8">
-          {navLinks.map((link) => {
-            const isActive = activeCategory === link.value;
-            return (
-              <button
-                key={link.label}
-                onClick={() => handleLinkClick(link.value)}
-                className={`text-[14px] font-medium tracking-wide transition-all duration-300 relative py-1 cursor-pointer hover:text-white ${
-                  isActive ? 'text-white' : 'text-brand-muted'
-                }`}
-              >
-                {link.label}
-                {isActive && (
-                  <span className="absolute bottom-0 left-0 w-full h-[2px] bg-blue-primary rounded-full shadow-[0_0_8px_#1E3DFF]"></span>
-                )}
-              </button>
-            );
-          })}
+          {navLinks.map(renderDesktopItem)}
         </div>
 
         {/* Right Nav Utilities */}
@@ -162,14 +242,57 @@ export default function Navbar({
               Categorias
             </span>
             {navLinks.map((link) => {
-              const isActive = activeCategory === link.value;
-              return (
+              const isActive = activeCategory === link.categorySlug;
+              const itemClassName = `w-full text-left py-3 px-4 rounded-xl text-[15px] font-medium transition-colors ${
+                isActive ? 'bg-blue-primary/15 text-white border-l-4 border-blue-primary' : 'text-brand-white hover:bg-white/5'
+              }`;
+
+              if (link.children.length > 0) {
+                return (
+                  <details key={link.id} className="rounded-xl bg-white/[0.02]">
+                    <summary className={`${itemClassName} flex cursor-pointer list-none items-center justify-between`}>
+                      <span>{link.label}</span>
+                      <ChevronDown className="h-4 w-4" />
+                    </summary>
+                    <div className="grid gap-1 px-3 pb-3">
+                      {link.children.map((child) => (
+                        child.href ? (
+                          <Link
+                            key={child.id}
+                            href={child.href}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="rounded-lg px-4 py-2.5 text-sm font-medium text-brand-muted transition hover:bg-white/5 hover:text-white"
+                          >
+                            {child.label}
+                          </Link>
+                        ) : (
+                          <span
+                            key={child.id}
+                            className="rounded-lg px-4 py-2.5 text-sm font-medium text-brand-muted"
+                          >
+                            {child.label}
+                          </span>
+                        )
+                      ))}
+                    </div>
+                  </details>
+                );
+              }
+
+              return link.href ? (
+                <Link
+                  key={link.id}
+                  href={link.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={itemClassName}
+                >
+                  {link.label}
+                </Link>
+              ) : (
                 <button
-                  key={link.label}
-                  onClick={() => handleLinkClick(link.value)}
-                  className={`w-full text-left py-3 px-4 rounded-xl text-[15px] font-medium transition-colors ${
-                    isActive ? 'bg-blue-primary/15 text-white border-l-4 border-blue-primary' : 'text-brand-white hover:bg-white/5'
-                  }`}
+                  key={link.id}
+                  onClick={() => handleLinkClick(link.categorySlug ?? null)}
+                  className={itemClassName}
                 >
                   {link.label}
                 </button>

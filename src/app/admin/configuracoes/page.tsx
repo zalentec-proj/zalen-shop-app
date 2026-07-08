@@ -4,6 +4,7 @@ import {
   ChevronRight,
   CreditCard,
   Globe2,
+  Store,
   PackageCheck,
   ReceiptText,
   ShieldCheck,
@@ -17,6 +18,13 @@ import {
 } from './SettingsShell';
 
 const setupAreas = [
+  {
+    title: 'Loja online',
+    description: 'Navbar, categorias públicas e visibilidade do storefront.',
+    href: '/admin/configuracoes/loja-online',
+    icon: Store,
+    status: 'Ativo',
+  },
   {
     title: 'Pagamentos',
     description: 'Gateways, Pix manual e opções de pagamento offline.',
@@ -55,7 +63,7 @@ export default function SettingsIndexPage() {
         description="Arquitetura organizada para operar a loja dentro da Zalen, com conectores externos ativados somente quando houver implementação aprovada."
         action={<SettingsBadge tone="info">Zalen Shop</SettingsBadge>}
       >
-        <div className="grid gap-3 lg:grid-cols-3">
+        <div className="grid gap-3 lg:grid-cols-4">
           {setupAreas.map((area) => {
             const Icon = area.icon;
 

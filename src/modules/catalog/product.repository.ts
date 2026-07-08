@@ -221,6 +221,14 @@ const catalogImageMap: Record<string, string> = {
   'asset:drone_accessories': droneAccessoriesImage,
 };
 
+const syntheticCategoryLabelBySlug: Record<string, string> = {
+  drones: 'Drones',
+  pecas: 'Peças',
+  baterias: 'Baterias',
+  acessorios: 'Acessórios',
+  'kits-e-combos': 'Kits e combos',
+};
+
 function toNumber(value: number | string | null | undefined): number | undefined {
   if (value === null || value === undefined) {
     return undefined;
@@ -796,8 +804,17 @@ async function fetchSupabaseProductsByCategorySlug(
 
     const categories = categoryRows as CategoryRow[];
     const categoryRow = categories.find((category) => category.slug === categorySlug);
+    const syntheticGroupKey = isCategoryGroupRoot({
+      name: syntheticCategoryLabelBySlug[categorySlug] ?? categorySlug,
+      slug: categorySlug,
+    })
+      ? getCategoryGroupKey({
+          name: syntheticCategoryLabelBySlug[categorySlug] ?? categorySlug,
+          slug: categorySlug,
+        })
+      : null;
 
-    if (!categoryRow) {
+    if (!categoryRow && !syntheticGroupKey) {
       return [];
     }
 
@@ -810,23 +827,26 @@ async function fetchSupabaseProductsByCategorySlug(
       ]);
     };
 
-    const categoryIds = new Set([
-      categoryRow.id,
-      ...collectCategoryIds(categoryRow.id),
-    ]);
-    const syntheticGroupKey = isCategoryGroupRoot(categoryRow)
+    const categoryIds = new Set(
+      categoryRow ? [categoryRow.id, ...collectCategoryIds(categoryRow.id)] : []
+    );
+    const categoryGroupKey = categoryRow && isCategoryGroupRoot(categoryRow)
       ? getCategoryGroupKey(categoryRow)
-      : null;
+      : syntheticGroupKey;
 
-    if (syntheticGroupKey) {
+    if (categoryGroupKey) {
       categories.forEach((category) => {
         if (
-          category.id !== categoryRow.id &&
-          getCategoryGroupKey(category) === syntheticGroupKey
+          category.id !== categoryRow?.id &&
+          getCategoryGroupKey(category) === categoryGroupKey
         ) {
           categoryIds.add(category.id);
         }
       });
+    }
+
+    if (categoryIds.size === 0) {
+      return [];
     }
 
     const { data: productCategoryRows, error: productCategoriesError } =
@@ -1328,7 +1348,23 @@ export async function getCategoryBySlugFromRepository(
   const supabaseCategories = await fetchSupabaseCategories(storeId);
 
   if (supabaseCategories) {
-    return supabaseCategories.find((category) => category.slug === slug) ?? null;
+    const category = supabaseCategories.find((item) => item.slug === slug);
+
+    if (category) {
+      return category;
+    }
+
+    if (isCategoryGroupRoot({ name: syntheticCategoryLabelBySlug[slug] ?? slug, slug })) {
+      return {
+        id: slug,
+        storeId,
+        name: syntheticCategoryLabelBySlug[slug] ?? slug,
+        slug,
+        position: 0,
+      };
+    }
+
+    return null;
   }
 
   return getMockCategoryBySlug(slug) ?? null;
