@@ -30,7 +30,7 @@ export default function Footer({
   };
 
   return (
-    <footer className="w-full relative bg-brand-bg/80 border-t border-brand-border-soft overflow-hidden mt-20">
+    <footer id="contato" className="w-full relative bg-brand-bg/80 border-t border-brand-border-soft overflow-hidden mt-20">
       {/* Decorative cosmic glow */}
       <div className="absolute -bottom-60 left-1/2 -translate-x-1/2 w-[600px] h-[300px] glow-radial pointer-events-none rounded-full blur-3xl opacity-40"></div>
 
