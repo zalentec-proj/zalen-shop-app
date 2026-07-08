@@ -50,6 +50,7 @@ export interface CustomerListItem extends Customer {
 }
 
 export interface CustomerAddressInput {
+  label?: string;
   recipientName?: string;
   phone?: string;
   postalCode?: string;

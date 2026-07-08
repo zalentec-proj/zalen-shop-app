@@ -2,16 +2,26 @@ import 'server-only';
 
 import { z } from 'zod';
 import {
+  deleteCustomerAddressInRepository,
   findCustomerByAuthUserIdFromRepository,
   findCustomerByCheckoutIdentifierFromRepository,
   findCustomerByEmailFromRepository,
   linkCustomerAuthUserInRepository,
+  listCustomerAddressesFromRepository,
   listCustomersFromRepository,
+  setDefaultCustomerAddressInRepository,
+  upsertCustomerAddressInRepository,
   upsertCustomerInRepository,
 } from './customer.repository';
 import { isValidCpfOrCnpj } from './br-document';
 import { getCustomerTypeFromDocument } from '@/modules/pricing/pricing.service';
-import type { Customer, CustomerInput, CustomerListItem } from './customer.types';
+import type {
+  Customer,
+  CustomerAddress,
+  CustomerAddressInput,
+  CustomerInput,
+  CustomerListItem,
+} from './customer.types';
 
 const optionalTrimmedString = z
   .string()
@@ -20,6 +30,7 @@ const optionalTrimmedString = z
   .transform((value) => (value ? value : undefined));
 
 const customerAddressInputSchema = z.object({
+  label: optionalTrimmedString,
   recipientName: optionalTrimmedString,
   phone: optionalTrimmedString,
   postalCode: optionalTrimmedString,
@@ -49,6 +60,20 @@ const customerInputSchema = z.object({
   address: customerAddressInputSchema.optional(),
 });
 
+const customerAddressRequiredInputSchema = customerAddressInputSchema.extend({
+  label: optionalTrimmedString,
+  recipientName: optionalTrimmedString,
+  phone: optionalTrimmedString,
+  postalCode: z.string().trim().min(8),
+  street: z.string().trim().min(2),
+  number: z.string().trim().min(1),
+  complement: optionalTrimmedString,
+  district: z.string().trim().min(2),
+  city: z.string().trim().min(2),
+  state: z.string().trim().min(2).max(2),
+  country: optionalTrimmedString,
+});
+
 const checkoutCustomerInputSchema = customerInputSchema.extend({
   email: z.string().trim().email(),
   phone: z.string().trim().min(8),
@@ -69,6 +94,49 @@ export function parseCheckoutCustomerInput(input: CustomerInput): CustomerInput 
 
 export async function listCustomers(storeId: string): Promise<CustomerListItem[]> {
   return listCustomersFromRepository(storeId);
+}
+
+export async function listCustomerAddresses(input: {
+  storeId: string;
+  customerId: string;
+}): Promise<CustomerAddress[]> {
+  return listCustomerAddressesFromRepository(input);
+}
+
+export async function upsertCustomerAddress(input: {
+  storeId: string;
+  customer: Customer;
+  addressId?: string;
+  address: CustomerAddressInput;
+  isDefault?: boolean;
+}): Promise<CustomerAddress> {
+  const parsedAddress = customerAddressRequiredInputSchema.parse(input.address);
+
+  return upsertCustomerAddressInRepository({
+    storeId: input.storeId,
+    customerId: input.customer.id,
+    customerName: input.customer.name,
+    customerPhone: input.customer.phone,
+    addressId: input.addressId,
+    address: parsedAddress,
+    isDefault: input.isDefault,
+  });
+}
+
+export async function setDefaultCustomerAddress(input: {
+  storeId: string;
+  customerId: string;
+  addressId: string;
+}): Promise<boolean> {
+  return setDefaultCustomerAddressInRepository(input);
+}
+
+export async function deleteCustomerAddress(input: {
+  storeId: string;
+  customerId: string;
+  addressId: string;
+}): Promise<boolean> {
+  return deleteCustomerAddressInRepository(input);
 }
 
 export async function upsertCustomer(input: CustomerInput): Promise<Customer> {

@@ -260,11 +260,12 @@ function buildAddressPayload(input: {
   name: string;
   phone?: string;
   address: CustomerAddressInput;
+  isDefault?: boolean;
 }) {
   return {
     store_id: input.storeId,
     customer_id: input.customerId,
-    label: 'Principal',
+    label: cleanText(input.address.label) ?? 'Principal',
     recipient_name: cleanText(input.address.recipientName) ?? input.name,
     phone: cleanDigits(input.address.phone) ?? cleanDigits(input.phone) ?? null,
     postal_code: cleanDigits(input.address.postalCode) ?? null,
@@ -275,7 +276,7 @@ function buildAddressPayload(input: {
     city: cleanText(input.address.city) ?? null,
     state: cleanText(input.address.state)?.toUpperCase() ?? null,
     country: cleanText(input.address.country) ?? 'BR',
-    is_default: true,
+    is_default: input.isDefault ?? true,
     updated_at: new Date().toISOString(),
   };
 }
@@ -316,6 +317,223 @@ async function getDefaultAddressesByCustomerId(
 
     return accumulator;
   }, new Map<string, CustomerAddress>());
+}
+
+export async function listCustomerAddressesFromRepository(input: {
+  storeId: string;
+  customerId: string;
+}): Promise<CustomerAddress[]> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('customer_addresses')
+    .select('*')
+    .eq('store_id', input.storeId)
+    .eq('customer_id', input.customerId)
+    .order('is_default', { ascending: false })
+    .order('updated_at', { ascending: false });
+
+  if (error || !data) {
+    if (error) {
+      logCustomerRepositoryError('list_customer_addresses', error);
+    }
+
+    return [];
+  }
+
+  return (data as CustomerAddressRow[]).map(mapAddress);
+}
+
+export async function upsertCustomerAddressInRepository(input: {
+  storeId: string;
+  customerId: string;
+  customerName: string;
+  customerPhone?: string;
+  addressId?: string;
+  address: CustomerAddressInput;
+  isDefault?: boolean;
+}): Promise<CustomerAddress> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    throw new CustomerPersistenceError('supabase_admin_unavailable');
+  }
+
+  const existingAddresses = await listCustomerAddressesFromRepository({
+    storeId: input.storeId,
+    customerId: input.customerId,
+  });
+  const shouldBeDefault = input.isDefault ?? existingAddresses.length === 0;
+  const payload = buildAddressPayload({
+    storeId: input.storeId,
+    customerId: input.customerId,
+    name: input.customerName,
+    phone: input.customerPhone,
+    address: input.address,
+    isDefault: shouldBeDefault,
+  });
+
+  if (shouldBeDefault) {
+    const { error } = await supabase
+      .from('customer_addresses')
+      .update({
+        is_default: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('store_id', input.storeId)
+      .eq('customer_id', input.customerId);
+
+    if (error) {
+      logCustomerRepositoryError('clear_default_customer_address', error);
+      throw new CustomerPersistenceError('clear_default_customer_address', error);
+    }
+  }
+
+  const result = input.addressId
+    ? await supabase
+        .from('customer_addresses')
+        .update(payload)
+        .eq('id', input.addressId)
+        .eq('store_id', input.storeId)
+        .eq('customer_id', input.customerId)
+        .select('*')
+        .single()
+    : await supabase
+        .from('customer_addresses')
+        .insert(payload)
+        .select('*')
+        .single();
+
+  if (result.error || !result.data) {
+    logCustomerRepositoryError('upsert_customer_address', result.error);
+    throw new CustomerPersistenceError('upsert_customer_address', result.error);
+  }
+
+  return mapAddress(result.data as CustomerAddressRow);
+}
+
+export async function setDefaultCustomerAddressInRepository(input: {
+  storeId: string;
+  customerId: string;
+  addressId: string;
+}): Promise<boolean> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return false;
+  }
+
+  const { data: address, error: addressError } = await supabase
+    .from('customer_addresses')
+    .select('id')
+    .eq('id', input.addressId)
+    .eq('store_id', input.storeId)
+    .eq('customer_id', input.customerId)
+    .maybeSingle();
+
+  if (addressError || !address) {
+    if (addressError) {
+      logCustomerRepositoryError('lookup_default_customer_address', addressError);
+    }
+
+    return false;
+  }
+
+  const { error: clearError } = await supabase
+    .from('customer_addresses')
+    .update({
+      is_default: false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('store_id', input.storeId)
+    .eq('customer_id', input.customerId);
+
+  if (clearError) {
+    logCustomerRepositoryError('clear_default_customer_address', clearError);
+    return false;
+  }
+
+  const { error: setError } = await supabase
+    .from('customer_addresses')
+    .update({
+      is_default: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', input.addressId)
+    .eq('store_id', input.storeId)
+    .eq('customer_id', input.customerId);
+
+  if (setError) {
+    logCustomerRepositoryError('set_default_customer_address', setError);
+    return false;
+  }
+
+  return true;
+}
+
+export async function deleteCustomerAddressInRepository(input: {
+  storeId: string;
+  customerId: string;
+  addressId: string;
+}): Promise<boolean> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return false;
+  }
+
+  const { data: address, error: lookupError } = await supabase
+    .from('customer_addresses')
+    .select('id,is_default')
+    .eq('id', input.addressId)
+    .eq('store_id', input.storeId)
+    .eq('customer_id', input.customerId)
+    .maybeSingle();
+
+  if (lookupError || !address) {
+    if (lookupError) {
+      logCustomerRepositoryError('lookup_delete_customer_address', lookupError);
+    }
+
+    return false;
+  }
+
+  const { error } = await supabase
+    .from('customer_addresses')
+    .delete()
+    .eq('id', input.addressId)
+    .eq('store_id', input.storeId)
+    .eq('customer_id', input.customerId);
+
+  if (error) {
+    logCustomerRepositoryError('delete_customer_address', error);
+    return false;
+  }
+
+  if (address.is_default) {
+    const { data: fallbackAddress } = await supabase
+      .from('customer_addresses')
+      .select('id')
+      .eq('store_id', input.storeId)
+      .eq('customer_id', input.customerId)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (fallbackAddress?.id) {
+      await setDefaultCustomerAddressInRepository({
+        storeId: input.storeId,
+        customerId: input.customerId,
+        addressId: String(fallbackAddress.id),
+      });
+    }
+  }
+
+  return true;
 }
 
 export async function listCustomersFromRepository(

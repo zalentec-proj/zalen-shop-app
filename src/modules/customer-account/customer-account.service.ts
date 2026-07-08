@@ -4,9 +4,10 @@ import {
   findCustomerByAuthUserId,
   findCustomerByEmail,
   linkCustomerAuthUser,
+  listCustomerAddresses,
   upsertCustomer,
 } from '@/modules/customers/customer.service';
-import type { Customer } from '@/modules/customers/customer.types';
+import type { Customer, CustomerAddress } from '@/modules/customers/customer.types';
 import {
   getOrderByIdForCustomer,
   listOrdersByCustomerId,
@@ -30,6 +31,7 @@ export interface CustomerOrderWithDetails extends OrderListItem {
 
 export interface CustomerAccount {
   customer: Customer;
+  addresses: CustomerAddress[];
   orders: CustomerOrderWithDetails[];
 }
 
@@ -111,6 +113,10 @@ export async function getCustomerAccountForUser(input: {
     return null;
   }
 
+  const addresses = await listCustomerAddresses({
+    storeId: input.storeId,
+    customerId: customer.id,
+  });
   const orders = await listOrdersByCustomerId({
     storeId: input.storeId,
     customerId: customer.id,
@@ -131,6 +137,7 @@ export async function getCustomerAccountForUser(input: {
 
   return {
     customer,
+    addresses,
     orders: orders.map((order) => ({
       ...order,
       payment: paymentsByOrderId.get(order.id),

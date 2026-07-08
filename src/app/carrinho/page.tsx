@@ -1,5 +1,5 @@
 import { getCurrentUser } from '@/modules/auth/auth.service';
-import { linkOrCreateCustomerAccount } from '@/modules/customer-account/customer-account.service';
+import { getCustomerAccountForUser } from '@/modules/customer-account/customer-account.service';
 import { MarketingDataLayer } from '@/modules/marketing/MarketingDataLayer';
 import { MarketingScripts } from '@/modules/marketing/MarketingScripts';
 import { getMarketingRuntimeConfig } from '@/modules/marketing/marketing.service';
@@ -20,9 +20,9 @@ export default async function CartPage() {
     resolveCurrentStoreFromHeaders(),
   ]);
   const marketingConfig = await getMarketingRuntimeConfig(store);
-  const customer =
+  const account =
     user && store
-      ? await linkOrCreateCustomerAccount({
+      ? await getCustomerAccountForUser({
           storeId: store.id,
           authUserId: user.id,
           email: user.email,
@@ -38,27 +38,41 @@ export default async function CartPage() {
           user
             ? {
                 email: user.email,
-                customer: customer
+                customer: account?.customer
                   ? {
-                      name: customer.name,
-                      email: user.email ?? customer.email,
-                      phone: customer.phone,
-                      document: customer.document,
-                      customerType: customer.customerType,
-                      legalName: customer.legalName,
-                      stateRegistration: customer.stateRegistration,
+                      name: account.customer.name,
+                      email: user.email ?? account.customer.email,
+                      phone: account.customer.phone,
+                      document: account.customer.document,
+                      customerType: account.customer.customerType,
+                      legalName: account.customer.legalName,
+                      stateRegistration: account.customer.stateRegistration,
                       stateRegistrationExempt:
-                        customer.stateRegistrationExempt,
-                      acceptsMarketing: customer.acceptsMarketing,
-                      shippingAddress: customer.defaultAddress
+                        account.customer.stateRegistrationExempt,
+                      acceptsMarketing: account.customer.acceptsMarketing,
+                      addresses: account.addresses.map((address) => ({
+                        id: address.id,
+                        label: address.label,
+                        recipientName: address.recipientName,
+                        phone: address.phone,
+                        postalCode: address.postalCode,
+                        street: address.street,
+                        number: address.number,
+                        complement: address.complement,
+                        district: address.district,
+                        city: address.city,
+                        state: address.state,
+                        isDefault: address.isDefault,
+                      })),
+                      shippingAddress: account.customer.defaultAddress
                         ? {
-                            postalCode: customer.defaultAddress.postalCode,
-                            street: customer.defaultAddress.street,
-                            number: customer.defaultAddress.number,
-                            complement: customer.defaultAddress.complement,
-                            district: customer.defaultAddress.district,
-                            city: customer.defaultAddress.city,
-                            state: customer.defaultAddress.state,
+                            postalCode: account.customer.defaultAddress.postalCode,
+                            street: account.customer.defaultAddress.street,
+                            number: account.customer.defaultAddress.number,
+                            complement: account.customer.defaultAddress.complement,
+                            district: account.customer.defaultAddress.district,
+                            city: account.customer.defaultAddress.city,
+                            state: account.customer.defaultAddress.state,
                           }
                         : undefined,
                     }

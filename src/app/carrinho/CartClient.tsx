@@ -65,6 +65,7 @@ type CheckoutSessionCustomer = {
   stateRegistration?: string;
   stateRegistrationExempt?: boolean;
   acceptsMarketing?: boolean;
+  addresses?: CheckoutSessionAddress[];
   shippingAddress?: {
     postalCode?: string;
     street?: string;
@@ -74,6 +75,21 @@ type CheckoutSessionCustomer = {
     city?: string;
     state?: string;
   };
+};
+
+type CheckoutSessionAddress = {
+  id: string;
+  label: string;
+  recipientName?: string;
+  phone?: string;
+  postalCode?: string;
+  street?: string;
+  number?: string;
+  complement?: string;
+  district?: string;
+  city?: string;
+  state?: string;
+  isDefault: boolean;
 };
 
 interface Props {
@@ -256,7 +272,13 @@ function getDocumentValidationState(document: string, customerType: CustomerType
 function getInitialCheckoutStep(
   customerSession: Props['customerSession']
 ): CheckoutStep {
-  return customerSession?.email ? 'cadastro' : 'identificacao';
+  if (!customerSession?.email) {
+    return 'identificacao';
+  }
+
+  const initialCustomer = getInitialCustomerState(customerSession);
+
+  return hasRequiredCustomerData(initialCustomer) ? 'entrega' : 'cadastro';
 }
 
 function getInitialCustomerState(
@@ -288,6 +310,70 @@ function getInitialCustomerState(
     city: sessionCustomer?.shippingAddress?.city ?? '',
     state: sessionCustomer?.shippingAddress?.state ?? '',
   };
+}
+
+function getAddressPatch(address: CheckoutSessionAddress) {
+  return {
+    postalCode: address.postalCode ?? '',
+    street: address.street ?? '',
+    number: address.number ?? '',
+    complement: address.complement ?? '',
+    district: address.district ?? '',
+    city: address.city ?? '',
+    state: address.state ?? '',
+  };
+}
+
+function formatSavedAddress(address: CheckoutSessionAddress) {
+  return [
+    [address.street, address.number].filter(Boolean).join(', '),
+    address.district,
+    [address.city, address.state].filter(Boolean).join('/'),
+    address.postalCode ? `CEP ${address.postalCode}` : undefined,
+  ]
+    .filter(Boolean)
+    .join(' • ');
+}
+
+function hasRequiredCustomerData(customer: CustomerState) {
+  const currentType = getCustomerTypeFromDocumentInput(
+    customer.document,
+    customer.customerType
+  );
+
+  if (customer.name.trim().length < 2) {
+    return false;
+  }
+
+  if (!isEmail(customer.email) || getEmailTypoErrorMessage(customer.email)) {
+    return false;
+  }
+
+  if (onlyDigits(customer.phone).length < 10) {
+    return false;
+  }
+
+  if (
+    currentType === 'pj'
+      ? !isValidCnpj(customer.document)
+      : !isValidCpf(customer.document)
+  ) {
+    return false;
+  }
+
+  if (currentType === 'pj' && customer.legalName.trim().length < 2) {
+    return false;
+  }
+
+  if (
+    currentType === 'pj' &&
+    !customer.stateRegistrationExempt &&
+    customer.stateRegistration.trim().length < 2
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 function getGenericValidationState(
@@ -416,6 +502,18 @@ export default function CartClient({ customerSession }: Props) {
   );
   const [customer, setCustomer] = useState<CustomerState>(() =>
     getInitialCustomerState(customerSession)
+  );
+  const [savedAddresses] = useState<CheckoutSessionAddress[]>(
+    () => customerSession?.customer?.addresses ?? []
+  );
+  const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<
+    string | null
+  >(
+    () =>
+      customerSession?.customer?.addresses?.find((address) => address.isDefault)
+        ?.id ??
+      customerSession?.customer?.addresses?.[0]?.id ??
+      null
   );
   const initialVerifiedEmail = customerSession?.email
     ? normalizeEmailAddress(customerSession.email)
@@ -808,6 +906,11 @@ export default function CartClient({ customerSession }: Props) {
     clearShippingSelection();
   }
 
+  function applySavedAddress(address: CheckoutSessionAddress) {
+    setSelectedSavedAddressId(address.id);
+    updateCustomer(getAddressPatch(address));
+  }
+
   function getCustomerFromSnapshot(snapshot: CheckoutSessionCustomer): CustomerState {
     const document = snapshot.document ?? '';
     const customerType = getCustomerTypeFromDocumentInput(
@@ -849,7 +952,9 @@ export default function CartClient({ customerSession }: Props) {
       message: 'E-mail validado.',
     });
     await refreshPreview(nextCustomer);
-    setCheckoutStep('cadastro');
+    setCheckoutStep(
+      hasRequiredCustomerData(nextCustomer) ? 'entrega' : 'cadastro'
+    );
   }
 
   function persistCart(nextCart: Cart) {
@@ -1888,6 +1993,60 @@ export default function CartClient({ customerSession }: Props) {
                       Usaremos o mesmo endereço para cobrança nesta primeira versão.
                     </p>
                   </div>
+                  {savedAddresses.length > 0 ? (
+                    <div className="grid gap-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <h3 className="text-sm font-black text-white">
+                          Endereços salvos
+                        </h3>
+                        <Link
+                          href="/conta/enderecos"
+                          className="text-xs font-bold text-blue-primary hover:text-white"
+                        >
+                          Gerenciar endereços
+                        </Link>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {savedAddresses.map((address) => {
+                          const checked = address.id === selectedSavedAddressId;
+
+                          return (
+                            <label
+                              key={address.id}
+                              className={`rounded-2xl border p-4 transition ${
+                                checked
+                                  ? 'border-green-accent/40 bg-green-accent/10'
+                                  : 'border-brand-border-soft bg-white/[0.02] hover:border-blue-primary/40'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name="savedAddress"
+                                className="sr-only"
+                                checked={checked}
+                                onChange={() => applySavedAddress(address)}
+                              />
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <div className="text-sm font-black text-white">
+                                    {address.label}
+                                  </div>
+                                  <p className="mt-1 text-xs leading-5 text-brand-muted">
+                                    {formatSavedAddress(address)}
+                                  </p>
+                                </div>
+                                {address.isDefault ? (
+                                  <span className="rounded-full border border-green-accent/30 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-green-accent">
+                                    Padrão
+                                  </span>
+                                ) : null}
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="grid gap-3 md:grid-cols-2">
                     <CheckoutInput
                       label="CEP"

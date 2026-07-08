@@ -26,6 +26,9 @@ export default function CustomerAccountHeader({
           <Link href="/conta/pedidos" className="hover:text-white">
             Meus pedidos
           </Link>
+          <Link href="/conta/enderecos" className="hover:text-white">
+            Endereços
+          </Link>
         </nav>
         {email ? (
           <span className="hidden max-w-[220px] truncate rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-brand-muted md:inline">
