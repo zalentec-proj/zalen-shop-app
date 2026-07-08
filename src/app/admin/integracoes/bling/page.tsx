@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { ArrowLeft, ExternalLink, ShieldCheck, Wifi } from 'lucide-react';
 import { AdminSidebar } from '@/app/admin/AdminSidebar';
+import { AdminPageFrame } from '@/components/admin/AdminLayout';
 import { logoutAction } from '@/app/login/actions';
 import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import { platformBrand } from '@/lib/branding/platform-brand';
@@ -125,7 +126,7 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
       />
 
       <main className="xl:pl-60">
-        <section className="w-full px-3 py-3 sm:px-4 lg:px-5">
+        <AdminPageFrame>
           <div className="rounded-lg border border-white/8 bg-[#07101F] shadow-[0_24px_90px_rgba(0,0,0,0.32)]">
             <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/8 px-4 py-4">
               <div>
@@ -276,7 +277,7 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
               </div>
             </div>
           </div>
-        </section>
+        </AdminPageFrame>
       </main>
     </div>
   );

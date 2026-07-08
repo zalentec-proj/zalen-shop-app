@@ -34,6 +34,13 @@ import {
 import { createAdminCustomerAction } from '@/app/admin/customers/actions';
 import { upsertOrderShipmentAction } from '@/app/admin/orders/actions';
 import { AdminSidebar } from '@/app/admin/AdminSidebar';
+import {
+  AdminContentGrid,
+  AdminKpiGrid,
+  AdminModal,
+  AdminPageFrame,
+  AdminSectionCard,
+} from '@/components/admin/AdminLayout';
 import type { AdminVariantPriceSummary } from '@/modules/pricing/pricing.types';
 import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import { platformBrand } from '@/lib/branding/platform-brand';
@@ -423,25 +430,14 @@ function Panel({
   children: ReactNode;
 }) {
   return (
-    <section
-      className={cn(
-        'rounded-xl border border-white/6 bg-[#0A1730]/95 shadow-[0_14px_34px_rgba(0,0,0,0.22)]',
-        className
-      )}
+    <AdminSectionCard
+      title={title}
+      description={description}
+      action={action}
+      className={className}
     >
-      {(title || description || action) && (
-        <header className="flex flex-wrap items-start justify-between gap-3 border-b border-white/6 px-4 py-3">
-          <div className="space-y-1">
-            {title ? <h3 className="text-sm font-semibold text-white">{title}</h3> : null}
-            {description ? (
-              <p className="max-w-2xl text-xs text-slate-400">{description}</p>
-            ) : null}
-          </div>
-          {action ? <div className="shrink-0">{action}</div> : null}
-        </header>
-      )}
-      <div className="px-4 py-3">{children}</div>
-    </section>
+      {children}
+    </AdminSectionCard>
   );
 }
 
@@ -1110,6 +1106,7 @@ export default function AdminDashboard({
     useState<SettingsSection>('profile');
   const [customerSection, setCustomerSection] =
     useState<CustomerSection>('list');
+  const [customerCreateOpen, setCustomerCreateOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [productFilter, setProductFilter] = useState<ProductFilter>('all');
   const [productCategoryFilter, setProductCategoryFilter] = useState('all');
@@ -1381,7 +1378,7 @@ export default function AdminDashboard({
 
     return (
       <div className="space-y-4">
-        <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
+        <AdminKpiGrid>
           <OperationalMetricCard
             icon={ShoppingCart}
             label="Pedidos hoje"
@@ -1414,7 +1411,7 @@ export default function AdminDashboard({
             helper="requerem atenção"
             accent="rose"
           />
-        </div>
+        </AdminKpiGrid>
 
         <div className="grid gap-4 2xl:grid-cols-[0.86fr_1.44fr_0.96fr]">
           <Panel
@@ -1844,6 +1841,104 @@ export default function AdminDashboard({
           </div>
         </div>
 
+        <AdminContentGrid
+          sidebarWidth="300px"
+          sidebar={
+            <>
+              <Panel title="Filtros ativos" description="Recorte atual da lista.">
+                <div className="space-y-2">
+                  {[
+                    ['Categoria', activeCategory?.name ?? 'Todas'],
+                    ['Fonte', sourceFilterLabel],
+                    [
+                      'Status',
+                      productFilter === 'all'
+                        ? 'Todos'
+                        : productStatusLabel[productFilter],
+                    ],
+                    ['Resultado', `${filteredProducts.length} produto(s)`],
+                  ].map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-white/6 bg-[#081225] px-3 py-2 text-xs"
+                    >
+                      <span className="text-slate-400">{label}</span>
+                      <span className="truncate font-semibold text-white">{value}</span>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setProductCategoryFilter('all');
+                      setProductSourceFilter('all');
+                      setProductFilter('all');
+                    }}
+                    disabled={!hasActiveProductFilters}
+                    className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs font-semibold text-slate-200 transition hover:border-[#1E3DFF]/35 hover:text-white disabled:cursor-not-allowed disabled:text-slate-500"
+                  >
+                    <Filter className="h-3.5 w-3.5" />
+                    Limpar filtros
+                  </button>
+                </div>
+              </Panel>
+
+              <Panel title="Estoque crítico" description="Itens que pedem revisão.">
+                <div className="space-y-2">
+                  {lowStockProducts.slice(0, 5).map((product) => (
+                    <div
+                      key={product.id}
+                      className="flex items-center justify-between gap-3 border-b border-white/6 pb-2 last:border-b-0 last:pb-0"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate text-xs font-semibold text-white">
+                          {product.name}
+                        </div>
+                        <div className="mt-0.5 text-[11px] text-slate-500">
+                          {productSourceLabel(product)}
+                        </div>
+                      </div>
+                      <SmallBadge
+                        className={
+                          product.stock <= 0
+                            ? 'border-rose-400/25 bg-rose-400/10 text-rose-200'
+                            : 'border-amber-400/25 bg-amber-400/10 text-amber-200'
+                        }
+                      >
+                        {product.stock}
+                      </SmallBadge>
+                    </div>
+                  ))}
+                  {lowStockProducts.length === 0 ? (
+                    <div className="rounded-lg border border-emerald-400/15 bg-emerald-400/8 px-3 py-3 text-xs text-emerald-100">
+                      Sem estoque crítico.
+                    </div>
+                  ) : null}
+                </div>
+              </Panel>
+
+              <Panel title="Categorias" description="Carga operacional.">
+                <div className="space-y-2">
+                  {categoryLoad.slice(0, 6).map((category) => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      onClick={() => setProductCategoryFilter(category.slug)}
+                      className="flex w-full items-center justify-between gap-3 rounded-lg border border-white/6 bg-[#081225] px-3 py-2 text-left text-xs transition hover:border-[#1E3DFF]/30"
+                    >
+                      <span className="truncate font-medium text-slate-200">
+                        {category.name}
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        {category.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </Panel>
+            </>
+          }
+        >
         <Panel
           title="Lista de produtos"
           description="Busca, edição rápida e revisão do catálogo em uma tabela única."
@@ -2102,13 +2197,14 @@ export default function AdminDashboard({
             </div>
           </div>
         </Panel>
+        </AdminContentGrid>
       </div>
     );
   };
 
   const renderOrders = () => (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+      <AdminKpiGrid>
         <MetricCard
           icon={ShoppingCart}
           label="Pedidos no painel"
@@ -2133,7 +2229,7 @@ export default function AdminDashboard({
           value={String(shippedOrders.length)}
           helper="Pedidos já liberados para entrega."
         />
-      </div>
+      </AdminKpiGrid>
 
       <div className="grid gap-4 2xl:grid-cols-[1.38fr_0.92fr]">
         <Panel
@@ -2355,7 +2451,7 @@ export default function AdminDashboard({
 
   const renderCustomers = () => (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+      <AdminKpiGrid>
         <MetricCard
           icon={UsersRound}
           label="Clientes na base"
@@ -2380,56 +2476,91 @@ export default function AdminDashboard({
           value="0"
           helper="Placeholder para comunicação futura."
         />
-      </div>
+      </AdminKpiGrid>
 
-      <div className="grid gap-4 2xl:grid-cols-[220px_1fr]">
-        <Panel title="Clientes" description="Navegação interna do relacionamento.">
-          <div className="space-y-1.5">
-            {[
-              { id: 'list' as CustomerSection, label: 'Lista de clientes', icon: UsersRound },
-              { id: 'messages' as CustomerSection, label: 'Mensagens', icon: Bell },
-            ].map((section) => {
-              const Icon = section.icon;
+      <AdminContentGrid
+        sidebarWidth="300px"
+        sidebar={
+          <>
+            <Panel title="Clientes" description="Navegação e ações rápidas.">
+              <div className="space-y-1.5">
+                {[
+                  { id: 'list' as CustomerSection, label: 'Lista de clientes', icon: UsersRound },
+                  { id: 'messages' as CustomerSection, label: 'Mensagens', icon: Bell },
+                ].map((section) => {
+                  const Icon = section.icon;
 
-              return (
-                <button
-                  key={section.id}
-                  type="button"
-                  onClick={() => setCustomerSection(section.id)}
-                  className={cn(
-                    'flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-xs transition',
-                    customerSection === section.id
-                      ? 'border-[#1E3DFF]/35 bg-[#101F43] text-white'
-                      : 'border-transparent bg-transparent text-slate-400 hover:border-white/6 hover:bg-[#081225] hover:text-slate-200'
-                  )}
-                >
-                  <span className="flex items-center gap-2">
-                    <Icon className="h-3.5 w-3.5" />
-                    {section.label}
-                  </span>
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              );
-            })}
-          </div>
-        </Panel>
-
-        {customerSection === 'list' ? (
-          <div className="space-y-4">
-            <Panel
-              title="Adicionar cliente"
-              description="Cadastro manual simples para operação e pedidos assistidos."
-            >
-              <CustomerCreateForm />
+                  return (
+                    <button
+                      key={section.id}
+                      type="button"
+                      onClick={() => setCustomerSection(section.id)}
+                      className={cn(
+                        'flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-xs transition',
+                        customerSection === section.id
+                          ? 'border-[#1E3DFF]/35 bg-[#101F43] text-white'
+                          : 'border-transparent bg-transparent text-slate-400 hover:border-white/6 hover:bg-[#081225] hover:text-slate-200'
+                      )}
+                    >
+                      <span className="flex items-center gap-2">
+                        <Icon className="h-3.5 w-3.5" />
+                        {section.label}
+                      </span>
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() => setCustomerCreateOpen(true)}
+                className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-3 text-xs font-semibold text-white transition hover:brightness-110"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Adicionar cliente
+              </button>
             </Panel>
 
+            <Panel title="Segmentos" description="Resumo da base atual.">
+              <div className="space-y-2">
+                {[
+                  ['Com compras', customersWithOrders.length],
+                  ['PF', customers.filter((customer) => customer.customerType === 'pf').length],
+                  ['PJ', customers.filter((customer) => customer.customerType === 'pj').length],
+                  ['Sem pedido', customers.length - customersWithOrders.length],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-white/6 bg-[#081225] px-3 py-2 text-xs"
+                  >
+                    <span className="text-slate-400">{label}</span>
+                    <span className="font-semibold text-white">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+          </>
+        }
+      >
+        {customerSection === 'list' ? (
+          <div className="space-y-4">
             <Panel
               title="Lista de clientes"
               description="Busca por nome, e-mail, telefone, CPF/CNPJ ou último pedido."
               action={
-                <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
-                  Mostrando {filteredCustomers.length} de {customers.length}
-                </SmallBadge>
+                <div className="flex flex-wrap items-center gap-2">
+                  <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
+                    Mostrando {filteredCustomers.length} de {customers.length}
+                  </SmallBadge>
+                  <button
+                    type="button"
+                    onClick={() => setCustomerCreateOpen(true)}
+                    className="inline-flex h-8 items-center gap-2 rounded-md border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-2.5 text-[11px] font-semibold text-[#A9C7FF] transition hover:border-[#1E3DFF]/45 hover:text-white"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Novo
+                  </button>
+                </div>
               }
             >
               <div className="overflow-x-auto rounded-lg border border-white/6">
@@ -2524,7 +2655,16 @@ export default function AdminDashboard({
             </div>
           </Panel>
         ) : null}
-      </div>
+      </AdminContentGrid>
+
+      <AdminModal
+        open={customerCreateOpen}
+        title="Adicionar cliente"
+        description="Cadastro manual simples para operação e pedidos assistidos."
+        onClose={() => setCustomerCreateOpen(false)}
+      >
+        <CustomerCreateForm />
+      </AdminModal>
     </div>
   );
 
@@ -2615,90 +2755,97 @@ export default function AdminDashboard({
                 })}
               </div>
 
-              <div className="overflow-x-auto rounded-lg border border-white/6">
-                <div className="min-w-[980px]">
-                  <div className="grid grid-cols-[minmax(300px,1.4fr)_130px_150px_150px_145px_150px] gap-3 bg-[#081225] px-4 py-2.5 text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                    <span>Conector</span>
-                    <span>Categoria</span>
-                    <span>Status</span>
-                    <span>Ambiente</span>
-                    <span>Último sync</span>
-                    <span className="text-right">Ação</span>
-                  </div>
-                  {integrations.map((item) => {
-                    const actionHref = integrationActionHref(item);
-                    const isPrimaryErp = item.provider.key === primaryErpIntegration?.provider.key;
-                    const environment =
-                      item.integration?.environment ??
-                      (item.provider.status === 'planned' ? 'Planejado' : 'Não configurado');
+              <div className="grid gap-3 lg:grid-cols-2">
+                {integrations.map((item) => {
+                  const actionHref = integrationActionHref(item);
+                  const isPrimaryErp = item.provider.key === primaryErpIntegration?.provider.key;
+                  const environment =
+                    item.integration?.environment ??
+                    (item.provider.status === 'planned' ? 'Planejado' : 'Não configurado');
 
-                    return (
-                      <div
-                        key={item.provider.key}
-                        className={cn(
-                          'grid grid-cols-[minmax(300px,1.4fr)_130px_150px_150px_145px_150px] items-center gap-3 border-t border-white/6 px-4 py-3 text-xs transition hover:bg-white/[0.015]',
-                          isPrimaryErp ? 'bg-[#1E3DFF]/[0.035]' : ''
-                        )}
-                      >
-                        <div className="flex min-w-0 items-center gap-3">
+                  return (
+                    <article
+                      key={item.provider.key}
+                      className={cn(
+                        'rounded-lg border border-white/6 bg-[#081225] p-3 transition hover:border-[#1E3DFF]/25 hover:bg-[#0B1831]',
+                        isPrimaryErp ? 'border-[#1E3DFF]/25 bg-[#1E3DFF]/[0.06]' : ''
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex min-w-0 items-start gap-3">
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#1E3DFF]/25 bg-[#101F43] text-xs font-semibold text-[#A9C7FF]">
                             {item.provider.name.slice(0, 2).toUpperCase()}
                           </div>
                           <div className="min-w-0">
                             <div className="flex min-w-0 flex-wrap items-center gap-2">
-                              <span className="truncate font-semibold text-white">
+                              <h3 className="truncate text-sm font-semibold text-white">
                                 {item.provider.name}
-                              </span>
+                              </h3>
                               {isPrimaryErp ? (
                                 <SmallBadge className="border-[#1E3DFF]/30 bg-[#1E3DFF]/10 text-[#A9C7FF]">
                                   ERP principal
                                 </SmallBadge>
                               ) : null}
                             </div>
-                            <div className="mt-1 truncate text-[11px] text-slate-400">
+                            <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-400">
                               {item.provider.description ?? 'Provider global da plataforma.'}
-                            </div>
+                            </p>
                           </div>
                         </div>
+                        <SmallBadge className={integrationStatusClass(item)}>
+                          {integrationStatusLabel(item)}
+                        </SmallBadge>
+                      </div>
 
-                        <div>
-                          <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
+                      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                        <div className="rounded-lg border border-white/6 bg-[#0A1730] px-3 py-2">
+                          <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                            Categoria
+                          </div>
+                          <div className="mt-1 text-xs font-semibold text-white">
                             {providerCategoryLabel[item.provider.category]}
-                          </SmallBadge>
+                          </div>
                         </div>
-
-                        <div>
-                          <SmallBadge className={integrationStatusClass(item)}>
-                            {integrationStatusLabel(item)}
-                          </SmallBadge>
+                        <div className="rounded-lg border border-white/6 bg-[#0A1730] px-3 py-2">
+                          <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                            Ambiente
+                          </div>
+                          <div className="mt-1 truncate text-xs font-semibold text-white">
+                            {environment}
+                          </div>
                         </div>
-
-                        <div className="font-medium text-slate-300">{environment}</div>
-                        <div className="text-slate-300">{integrationLastSyncLabel(item)}</div>
-
-                        <div className="text-right">
-                          {actionHref ? (
-                            <Link
-                              href={actionHref}
-                              className="inline-flex items-center justify-center gap-1.5 rounded-md border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#A9C7FF] transition hover:border-[#1E3DFF]/45 hover:text-white"
-                            >
-                              {integrationActionLabel(item)}
-                              <ChevronRight className="h-3 w-3" />
-                            </Link>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled
-                              className="cursor-not-allowed rounded-md border border-white/8 bg-white/5 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400"
-                            >
-                              {integrationActionLabel(item)}
-                            </button>
-                          )}
+                        <div className="rounded-lg border border-white/6 bg-[#0A1730] px-3 py-2">
+                          <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                            Último sync
+                          </div>
+                          <div className="mt-1 truncate text-xs font-semibold text-white">
+                            {integrationLastSyncLabel(item)}
+                          </div>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
+
+                      <div className="mt-4 flex justify-end">
+                        {actionHref ? (
+                          <Link
+                            href={actionHref}
+                            className="inline-flex items-center justify-center gap-1.5 rounded-md border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#A9C7FF] transition hover:border-[#1E3DFF]/45 hover:text-white"
+                          >
+                            {integrationActionLabel(item)}
+                            <ChevronRight className="h-3 w-3" />
+                          </Link>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            className="cursor-not-allowed rounded-md border border-white/8 bg-white/5 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400"
+                          >
+                            {integrationActionLabel(item)}
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
@@ -3018,7 +3165,7 @@ export default function AdminDashboard({
       />
 
       <main className="xl:pl-60">
-        <div className="mx-auto w-full max-w-[1680px] px-3 py-4 sm:px-4 lg:px-6">
+        <AdminPageFrame>
           <div className="space-y-4">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <div className="space-y-1">
@@ -3103,7 +3250,7 @@ export default function AdminDashboard({
               {activeView === 'settings' ? renderSettings() : null}
             </div>
           </div>
-        </div>
+        </AdminPageFrame>
       </main>
     </div>
   );

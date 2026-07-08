@@ -4,6 +4,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { AdminSidebar, type AdminSidebarKey } from '@/app/admin/AdminSidebar';
+import {
+  AdminPageFrame,
+  AdminSectionCard,
+} from '@/components/admin/AdminLayout';
 import type { PlatformRole, StoreRole } from '@/modules/auth/auth.types';
 import { logoutAction } from '@/app/login/actions';
 import {
@@ -109,7 +113,7 @@ export function SettingsShell({ adminUser, children }: SettingsShellProps) {
       />
 
       <main className="xl:pl-60">
-        <div className="w-full px-3 py-3 sm:px-4 lg:px-5">
+        <AdminPageFrame>
             <header className="flex flex-col gap-3 border-b border-white/6 pb-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="space-y-1">
                 <Link
@@ -168,7 +172,7 @@ export function SettingsShell({ adminUser, children }: SettingsShellProps) {
             </header>
 
             <section className="pt-4">{children}</section>
-        </div>
+        </AdminPageFrame>
       </main>
     </div>
   );
@@ -188,20 +192,14 @@ export function SettingsPanel({
   className?: string;
 }) {
   return (
-    <section className={cn('rounded-lg border border-white/6 bg-[#0A1730]/95', className)}>
-      {(title || description || action) && (
-        <header className="flex flex-wrap items-start justify-between gap-3 border-b border-white/6 px-4 py-3">
-          <div className="space-y-1">
-            {title ? <h2 className="text-sm font-semibold text-white">{title}</h2> : null}
-            {description ? (
-              <p className="max-w-2xl text-xs leading-5 text-slate-400">{description}</p>
-            ) : null}
-          </div>
-          {action ? <div className="shrink-0">{action}</div> : null}
-        </header>
-      )}
-      <div className="px-4 py-3">{children}</div>
-    </section>
+    <AdminSectionCard
+      title={title}
+      description={description}
+      action={action}
+      className={className}
+    >
+      {children}
+    </AdminSectionCard>
   );
 }
 

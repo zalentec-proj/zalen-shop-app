@@ -10,6 +10,7 @@ import {
   SettingsBadge,
   SettingsPanel,
 } from '../SettingsShell';
+import { AdminContentGrid } from '@/components/admin/AdminLayout';
 import {
   getShippingConfiguration,
   type ShippingMethod,
@@ -89,98 +90,105 @@ export default async function ShippingSettingsPage() {
         </div>
       </SettingsPanel>
 
-      <SettingsPanel
-        title="Origem de envio"
-        description="Usada para retirada local e, no futuro, para cotações externas. No MVP há uma origem por loja."
-      >
-        <form action={upsertShippingOriginAction} className="grid gap-3">
-          <div className="grid gap-3 md:grid-cols-3">
-            <Field
-              label="Remetente"
-              name="senderName"
-              defaultValue={origin?.senderName ?? ''}
-              required
-            />
-            <Field
-              label="CEP origem"
-              name="postalCode"
-              defaultValue={origin?.postalCode ?? ''}
-              required
-            />
-            <Field
-              label="Telefone"
-              name="phone"
-              defaultValue={origin?.phone ?? ''}
-            />
-          </div>
-          <div className="grid gap-3 md:grid-cols-[1fr_120px_1fr]">
-            <Field
-              label="Rua/Avenida"
-              name="street"
-              defaultValue={origin?.street ?? ''}
-              required
-            />
-            <Field
-              label="Número"
-              name="number"
-              defaultValue={origin?.number ?? ''}
-              required
-            />
-            <Field
-              label="Complemento"
-              name="complement"
-              defaultValue={origin?.complement ?? ''}
-            />
-          </div>
-          <div className="grid gap-3 md:grid-cols-[1fr_1fr_90px_90px]">
-            <Field
-              label="Bairro"
-              name="district"
-              defaultValue={origin?.district ?? ''}
-              required
-            />
-            <Field
-              label="Cidade"
-              name="city"
-              defaultValue={origin?.city ?? ''}
-              required
-            />
-            <Field
-              label="UF"
-              name="state"
-              defaultValue={origin?.state ?? ''}
-              required
-            />
-            <Field
-              label="País"
-              name="country"
-              defaultValue={origin?.country ?? 'BR'}
-              required
-            />
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <label className="grid gap-1 text-xs font-semibold text-slate-300">
-              Status
-              <select
-                name="status"
-                defaultValue={origin?.status ?? 'active'}
-                className="h-9 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs text-white outline-none"
+      <AdminContentGrid
+        sidebarWidth="340px"
+        sidebar={
+          <SettingsPanel
+            title="Origem de envio"
+            description="Uma origem por loja no MVP."
+            action={
+              <SettingsBadge tone={origin?.status === 'active' ? 'success' : 'warning'}>
+                {origin?.status === 'active' ? 'Ativa' : 'Pendente'}
+              </SettingsBadge>
+            }
+          >
+            <form action={upsertShippingOriginAction} className="grid gap-3">
+              <Field
+                label="Remetente"
+                name="senderName"
+                defaultValue={origin?.senderName ?? ''}
+                required
+              />
+              <div className="grid gap-2 sm:grid-cols-[1fr_120px]">
+                <Field
+                  label="CEP origem"
+                  name="postalCode"
+                  defaultValue={origin?.postalCode ?? ''}
+                  required
+                />
+                <Field
+                  label="UF"
+                  name="state"
+                  defaultValue={origin?.state ?? ''}
+                  required
+                />
+              </div>
+              <Field
+                label="Rua/Avenida"
+                name="street"
+                defaultValue={origin?.street ?? ''}
+                required
+              />
+              <div className="grid gap-2 sm:grid-cols-[110px_1fr]">
+                <Field
+                  label="Número"
+                  name="number"
+                  defaultValue={origin?.number ?? ''}
+                  required
+                />
+                <Field
+                  label="Complemento"
+                  name="complement"
+                  defaultValue={origin?.complement ?? ''}
+                />
+              </div>
+              <Field
+                label="Bairro"
+                name="district"
+                defaultValue={origin?.district ?? ''}
+                required
+              />
+              <Field
+                label="Cidade"
+                name="city"
+                defaultValue={origin?.city ?? ''}
+                required
+              />
+              <div className="grid gap-2 sm:grid-cols-[1fr_90px]">
+                <Field
+                  label="Telefone"
+                  name="phone"
+                  defaultValue={origin?.phone ?? ''}
+                />
+                <Field
+                  label="País"
+                  name="country"
+                  defaultValue={origin?.country ?? 'BR'}
+                  required
+                />
+              </div>
+              <label className="grid gap-1 text-xs font-semibold text-slate-300">
+                Status
+                <select
+                  name="status"
+                  defaultValue={origin?.status ?? 'active'}
+                  className="h-9 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs text-white outline-none"
+                >
+                  <option value="active">Ativa</option>
+                  <option value="disabled">Desativada</option>
+                </select>
+              </label>
+              <button
+                type="submit"
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-4 text-xs font-semibold text-white"
               >
-                <option value="active">Ativa</option>
-                <option value="disabled">Desativada</option>
-              </select>
-            </label>
-            <button
-              type="submit"
-              className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-4 text-xs font-semibold text-white"
-            >
-              <MapPin className="h-3.5 w-3.5" />
-              Salvar origem
-            </button>
-          </div>
-        </form>
-      </SettingsPanel>
-
+                <MapPin className="h-3.5 w-3.5" />
+                Salvar origem
+              </button>
+            </form>
+          </SettingsPanel>
+        }
+      >
       <div className="grid gap-3">
         {methods.map((method) => {
           const Icon = methodIconByKind[method.kind];
@@ -312,6 +320,7 @@ export default async function ShippingSettingsPage() {
           );
         })}
       </div>
+      </AdminContentGrid>
     </div>
   );
 }

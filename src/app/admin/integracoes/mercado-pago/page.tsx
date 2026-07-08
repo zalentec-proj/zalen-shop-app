@@ -13,6 +13,10 @@ import {
   WalletCards,
 } from 'lucide-react';
 import { AdminSidebar } from '@/app/admin/AdminSidebar';
+import {
+  AdminContentGrid,
+  AdminPageFrame,
+} from '@/components/admin/AdminLayout';
 import { logoutAction } from '@/app/login/actions';
 import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import { platformBrand } from '@/lib/branding/platform-brand';
@@ -291,7 +295,7 @@ export default async function MercadoPagoIntegrationPage({
       />
 
       <main className="xl:pl-60">
-        <section className="w-full px-3 py-3 sm:px-4 lg:px-5">
+        <AdminPageFrame>
           <div className="rounded-lg border border-white/8 bg-[#07101F] shadow-[0_24px_90px_rgba(0,0,0,0.32)]">
             <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/8 px-4 py-4">
               <div>
@@ -395,36 +399,41 @@ export default async function MercadoPagoIntegrationPage({
                 </div>
               ) : null}
 
-              <section className="grid gap-4 2xl:grid-cols-2">
-                {state.environments.map((environmentState) => (
-                  <EnvironmentCard
-                    key={environmentState.environment}
-                    state={environmentState}
-                  />
-                ))}
-              </section>
-
-              <section className="rounded-lg border border-white/8 bg-[#0A1730]/95 p-4">
-                <PlugZap className="h-5 w-5 text-[#7EC3FF]" />
-                <h2 className="mt-3 text-base font-semibold">Runtime multi-loja</h2>
-                <div className="mt-3 grid gap-2 text-xs md:grid-cols-3">
-                  {[
-                    'Checkout cria pagamento com o ambiente ativo desta loja.',
-                    'Webhook valida assinatura por ambiente e processa pelo store_id recebido.',
-                    'Fallback ENV fica restrito à Brasil Drones até reconectar via OAuth.',
-                  ].map((item) => (
-                    <div
-                      key={item}
-                      className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5 text-slate-300"
-                    >
-                      {item}
+              <AdminContentGrid
+                sidebarWidth="320px"
+                sidebar={
+                  <section className="rounded-lg border border-white/8 bg-[#0A1730]/95 p-4">
+                    <PlugZap className="h-5 w-5 text-[#7EC3FF]" />
+                    <h2 className="mt-3 text-base font-semibold">Runtime multi-loja</h2>
+                    <div className="mt-3 space-y-2 text-xs">
+                      {[
+                        'Checkout cria pagamento com o ambiente ativo desta loja.',
+                        'Webhook valida assinatura por ambiente e processa pelo store_id recebido.',
+                        'Fallback ENV fica restrito à Brasil Drones até reconectar via OAuth.',
+                      ].map((item) => (
+                        <div
+                          key={item}
+                          className="rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5 text-slate-300"
+                        >
+                          {item}
+                        </div>
+                      ))}
                     </div>
+                  </section>
+                }
+              >
+                <section className="grid gap-4 2xl:grid-cols-2">
+                  {state.environments.map((environmentState) => (
+                    <EnvironmentCard
+                      key={environmentState.environment}
+                      state={environmentState}
+                    />
                   ))}
-                </div>
-              </section>
+                </section>
+              </AdminContentGrid>
             </div>
           </div>
-        </section>
+        </AdminPageFrame>
       </main>
     </div>
   );

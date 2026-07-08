@@ -11,6 +11,10 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { AdminSidebar } from '@/app/admin/AdminSidebar';
+import {
+  AdminContentGrid,
+  AdminPageFrame,
+} from '@/components/admin/AdminLayout';
 import { logoutAction } from '@/app/login/actions';
 import { platformBrand } from '@/lib/branding/platform-brand';
 import { canAccessStore, getCurrentUser } from '@/modules/auth/auth.service';
@@ -275,7 +279,8 @@ export default async function MarketingIntegrationsPage({
         footerTitle={store.shortName}
         footerDescription="SEO, feed e mensuração por loja."
       />
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 lg:px-8">
+      <AdminPageFrame>
+      <div className="flex flex-col gap-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <Link
@@ -346,7 +351,7 @@ export default async function MarketingIntegrationsPage({
           ))}
         </section>
 
-        <form action={saveMarketingSettingsAction} className="grid gap-4">
+        <form action={saveMarketingSettingsAction} className="grid gap-4 xl:grid-cols-2">
           <IntegrationPanel
             title="Google Tag Manager"
             description="Container principal para tags do storefront."
@@ -504,7 +509,7 @@ export default async function MarketingIntegrationsPage({
             />
           </IntegrationPanel>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/8 bg-[#0A1730]/95 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/8 bg-[#0A1730]/95 p-4 xl:col-span-2">
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <ShieldCheck className="h-4 w-4 text-blue-200" />
               {state.encryptionReady
@@ -520,25 +525,29 @@ export default async function MarketingIntegrationsPage({
           </div>
         </form>
 
-        <section className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-          <div className="rounded-lg border border-white/8 bg-[#0A1730]/95 p-4">
-            <h2 className="text-base font-semibold">Checklist</h2>
-            <div className="mt-4 space-y-2">
-              {checklist.map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-white/8 bg-[#081225] px-3 py-2 text-xs"
-                >
-                  <span className="text-slate-300">{item.label}</span>
-                  <span
-                    className={item.ready ? 'text-emerald-200' : 'text-amber-200'}
+        <AdminContentGrid
+          sidebarWidth="320px"
+          sidebar={
+            <div className="rounded-lg border border-white/8 bg-[#0A1730]/95 p-4">
+              <h2 className="text-base font-semibold">Checklist</h2>
+              <div className="mt-4 space-y-2">
+                {checklist.map((item) => (
+                  <div
+                    key={item.label}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-white/8 bg-[#081225] px-3 py-2 text-xs"
                   >
-                    {item.ready ? 'OK' : 'Pendente'}
-                  </span>
-                </div>
-              ))}
+                    <span className="text-slate-300">{item.label}</span>
+                    <span
+                      className={item.ready ? 'text-emerald-200' : 'text-amber-200'}
+                    >
+                      {item.ready ? 'OK' : 'Pendente'}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          }
+        >
           <div className="rounded-lg border border-white/8 bg-[#0A1730]/95 p-4">
             <h2 className="text-base font-semibold">Últimos eventos</h2>
             <div className="mt-4 space-y-2">
@@ -553,8 +562,9 @@ export default async function MarketingIntegrationsPage({
               )}
             </div>
           </div>
-        </section>
-      </div>
+        </AdminContentGrid>
+        </div>
+      </AdminPageFrame>
     </main>
   );
 }
