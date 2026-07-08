@@ -1032,6 +1032,43 @@ function getBrickFormDataString(
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
 
+function getBrickRecordString(
+  formData: Record<string, unknown>,
+  key: string
+) {
+  const value = formData[key];
+
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function normalizeMercadoPagoBrickFormData(
+  input: Record<string, unknown>
+): MercadoPagoBrickPaymentFormData {
+  const nestedFormData =
+    input.formData &&
+    typeof input.formData === 'object' &&
+    !Array.isArray(input.formData)
+      ? (input.formData as Record<string, unknown>)
+      : undefined;
+  const formData = {
+    ...input,
+    ...(nestedFormData ?? {}),
+  };
+  delete formData.formData;
+
+  const token =
+    getBrickRecordString(formData, 'token') ??
+    getBrickRecordString(formData, 'card_token') ??
+    getBrickRecordString(formData, 'cardToken') ??
+    getBrickRecordString(formData, 'cardTokenId') ??
+    getBrickRecordString(formData, 'card_token_id');
+
+  return {
+    ...formData,
+    ...(token ? { token } : {}),
+  } as MercadoPagoBrickPaymentFormData;
+}
+
 function isCardBrickPayment(formData: MercadoPagoBrickPaymentFormData) {
   const paymentTypeId = getBrickFormDataString(formData, 'payment_type_id');
   const paymentMethodId = getBrickFormDataString(
@@ -1345,8 +1382,7 @@ export async function processMercadoPagoBrickPaymentAction(
     });
     const baseUrl = await getCurrentStorefrontOrigin(store);
     const environment = getPaymentEnvironmentFromTransaction(latestTransaction);
-    const formData =
-      parsed.data.formData as MercadoPagoBrickPaymentFormData;
+    const formData = normalizeMercadoPagoBrickFormData(parsed.data.formData);
     const formDataError = validateBrickPaymentFormData(formData);
 
     if (formDataError) {

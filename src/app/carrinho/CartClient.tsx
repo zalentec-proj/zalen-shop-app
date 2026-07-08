@@ -230,7 +230,15 @@ function getMercadoPagoBrickFormData(
   data: MercadoPagoBrickSubmitData
 ): Record<string, unknown> {
   if (isRecord(data.formData)) {
-    return data.formData;
+    const rootData = { ...data };
+    delete rootData.formData;
+
+    return Object.fromEntries(
+      Object.entries({
+        ...rootData,
+        ...data.formData,
+      }).filter(([, value]) => value !== undefined)
+    );
   }
 
   if ('selectedPaymentMethod' in data || 'paymentMethod' in data) {
@@ -791,6 +799,8 @@ export default function CartClient({ customerSession }: Props) {
             email: normalizeEmailAddress(customer.email),
             firstName,
             lastName: lastNameParts.join(' '),
+            entityType:
+              documentDigits.length === 14 ? 'association' : 'individual',
             identification: {
               type: documentDigits.length === 14 ? 'CNPJ' : 'CPF',
               number: documentDigits,
