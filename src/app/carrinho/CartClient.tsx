@@ -640,6 +640,7 @@ export default function CartClient({ customerSession }: Props) {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [paymentSession, setPaymentSession] =
     useState<MercadoPagoBrickSession | null>(null);
+  const [brickRenderKey, setBrickRenderKey] = useState(0);
   const [brickStatus, setBrickStatus] = useState<
     'idle' | 'loading' | 'ready' | 'processing' | 'error' | 'done'
   >('idle');
@@ -712,6 +713,7 @@ export default function CartClient({ customerSession }: Props) {
     Boolean(shippingQuoteRequestKey) &&
     shippingQuoteRequestKeyRef.current === shippingQuoteRequestKey &&
     shippingOptions.length > 0;
+  const paymentBrickContainerId = `paymentBrick_container_${brickRenderKey}`;
 
   useEffect(() => {
     setCart(getStoredCart());
@@ -876,7 +878,8 @@ export default function CartClient({ customerSession }: Props) {
     }
 
     let isMounted = true;
-    const container = document.getElementById('paymentBrick_container');
+    let activeController: MercadoPagoBrickController | null = null;
+    const container = document.getElementById(paymentBrickContainerId);
 
     if (!container) {
       return;
@@ -896,7 +899,7 @@ export default function CartClient({ customerSession }: Props) {
     });
 
     mp.bricks()
-      .create('payment', 'paymentBrick_container', {
+      .create('payment', paymentBrickContainerId, {
         initialization: {
           amount: paymentSession.amount,
           preferenceId: paymentSession.preferenceId,
@@ -947,13 +950,14 @@ export default function CartClient({ customerSession }: Props) {
             const formData = getMercadoPagoBrickFormData(submitData);
             const result = await processMercadoPagoBrickPaymentAction({
               orderId: paymentSession.orderId,
-              idempotencyKey: paymentSession.paymentAttemptKey,
+              idempotencyKey: crypto.randomUUID(),
               formData,
             });
 
             if (!result.ok) {
               setBrickStatus('ready');
               setCheckoutError(result.error);
+              setBrickRenderKey((current) => current + 1);
               throw new Error(result.error);
             }
 
@@ -983,6 +987,7 @@ export default function CartClient({ customerSession }: Props) {
         }
 
         window.paymentBrickController = controller;
+        activeController = controller;
       })
       .catch(() => {
         if (!isMounted) {
@@ -997,8 +1002,15 @@ export default function CartClient({ customerSession }: Props) {
 
     return () => {
       isMounted = false;
+      activeController?.unmount();
     };
-  }, [customer, isBrickScriptLoaded, paymentSession]);
+  }, [
+    brickRenderKey,
+    customer,
+    isBrickScriptLoaded,
+    paymentBrickContainerId,
+    paymentSession,
+  ]);
 
   function resetCheckoutAttempt() {
     checkoutAttemptIdRef.current = null;
@@ -2554,7 +2566,7 @@ export default function CartClient({ customerSession }: Props) {
                         </span>
                       </div>
                       <div
-                        id="paymentBrick_container"
+                        id={paymentBrickContainerId}
                         className="min-h-[360px] overflow-hidden rounded-xl bg-white p-2 text-brand-bg"
                       />
                       <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
