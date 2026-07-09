@@ -864,7 +864,7 @@ export default function CartClient({ customerSession }: Props) {
     script.onerror = () => {
       setBrickStatus('error');
       setCheckoutError(
-        'Não foi possível carregar o Mercado Pago. Tente novamente em instantes.'
+        'Não foi possível carregar o pagamento seguro. Tente novamente em instantes.'
       );
     };
     document.body.appendChild(script);
@@ -971,7 +971,7 @@ export default function CartClient({ customerSession }: Props) {
 
             setBrickStatus('error');
             setCheckoutError(
-              'Mercado Pago não conseguiu montar o pagamento. Tente novamente.'
+              'Não foi possível montar o pagamento seguro. Tente novamente.'
             );
           },
         },
@@ -991,7 +991,7 @@ export default function CartClient({ customerSession }: Props) {
 
         setBrickStatus('error');
         setCheckoutError(
-          'Não foi possível preparar o Mercado Pago. Tente novamente.'
+          'Não foi possível preparar o pagamento seguro. Tente novamente.'
         );
       });
 
@@ -2430,7 +2430,7 @@ export default function CartClient({ customerSession }: Props) {
                       Forma de pagamento
                     </h2>
                     <p className="mt-1 text-sm text-brand-muted">
-                      Valide o e-mail antes de seguir para o Mercado Pago.
+                      Valide o e-mail antes de abrir o pagamento seguro.
                     </p>
                   </div>
                   <div
@@ -2527,11 +2527,11 @@ export default function CartClient({ customerSession }: Props) {
                       </div>
                       <div>
                         <h3 className="text-sm font-bold text-white">
-                          Mercado Pago
+                          Pagamento seguro
                         </h3>
                         <p className="mt-1 text-xs leading-5 text-brand-muted">
-                          Escolha Pix, cartão ou boleto no ambiente seguro do
-                          Mercado Pago, sem refazer os dados do pedido.
+                          Escolha Pix, cartão ou boleto na próxima etapa, sem
+                          refazer os dados do pedido.
                         </p>
                       </div>
                     </div>
@@ -2560,7 +2560,7 @@ export default function CartClient({ customerSession }: Props) {
                       <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <p className="text-xs font-semibold text-brand-muted">
                           {brickStatus === 'loading'
-                            ? 'Preparando Mercado Pago...'
+                            ? 'Preparando pagamento seguro...'
                             : brickStatus === 'processing'
                               ? 'Processando pagamento...'
                               : brickStatus === 'error'
@@ -2572,7 +2572,7 @@ export default function CartClient({ customerSession }: Props) {
                             href={paymentSession.fallbackPaymentUrl}
                             className="inline-flex h-10 items-center justify-center rounded-xl border border-blue-primary/40 px-4 text-xs font-black text-blue-primary transition hover:bg-blue-primary/10"
                           >
-                            Abrir Mercado Pago
+                            Abrir pagamento
                           </a>
                         ) : null}
                       </div>
@@ -2596,7 +2596,7 @@ export default function CartClient({ customerSession }: Props) {
                       nextLabel={
                         isSubmitting
                           ? 'Preparando pagamento...'
-                          : 'Pagar com Mercado Pago'
+                          : 'Abrir pagamento'
                       }
                       disabled={isSubmitting || !isCheckoutEmailVerified}
                     />
