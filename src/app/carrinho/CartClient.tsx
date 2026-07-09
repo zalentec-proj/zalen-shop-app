@@ -492,7 +492,7 @@ function StepCard({
 }) {
   return (
     <div
-      className={`rounded-2xl border px-3 py-2 transition ${
+      className={`min-w-0 overflow-hidden rounded-2xl border px-2.5 py-2 transition ${
         active
           ? 'border-blue-primary bg-blue-primary/12 text-white'
           : done
@@ -500,9 +500,9 @@ function StepCard({
             : 'border-brand-border-soft bg-[#050A14]/60 text-brand-muted'
       }`}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         <span
-          className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-black ${
+          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-black ${
             active
               ? 'bg-blue-primary text-white'
               : done
@@ -512,7 +512,7 @@ function StepCard({
         >
           {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : index}
         </span>
-        <span className="text-[11px] font-bold uppercase tracking-[0.12em]">
+        <span className="min-w-0 truncate text-[10px] font-bold uppercase tracking-[0.08em] sm:text-[11px] sm:tracking-[0.1em]">
           {title}
         </span>
       </div>
@@ -1686,7 +1686,7 @@ export default function CartClient({ customerSession }: Props) {
               </p>
             </div>
 
-            <div className="mt-5 grid gap-2 md:grid-cols-6">
+            <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
               {steps.map((step, index) => (
                 <StepCard
                   key={step.id}
