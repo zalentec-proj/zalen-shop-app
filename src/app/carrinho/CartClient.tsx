@@ -132,6 +132,17 @@ type CustomerState = {
   state: string;
 };
 
+type CheckoutActionItem = {
+  productId: string;
+  variantId: string;
+  quantity: number;
+};
+
+type ShippingQuoteRefreshOptions = {
+  force?: boolean;
+  silent?: boolean;
+};
+
 type ValidationState = 'empty' | 'valid' | 'invalid' | 'neutral';
 type EmailVerificationStatus = 'idle' | 'sent' | 'verified';
 
@@ -406,6 +417,58 @@ function hasRequiredCustomerData(customer: CustomerState) {
   return true;
 }
 
+function hasRequiredDeliveryData(customer: CustomerState) {
+  return (
+    onlyDigits(customer.postalCode).length === 8 &&
+    customer.street.trim().length >= 2 &&
+    Boolean(customer.number.trim()) &&
+    customer.district.trim().length >= 2 &&
+    customer.city.trim().length >= 2 &&
+    customer.state.trim().length === 2
+  );
+}
+
+function getShippingQuoteRequestKey(
+  customer: CustomerState,
+  items: CheckoutActionItem[]
+) {
+  if (items.length === 0 || !hasRequiredDeliveryData(customer)) {
+    return null;
+  }
+
+  return JSON.stringify({
+    customerType: getCustomerTypeFromDocumentInput(
+      customer.document,
+      customer.customerType
+    ),
+    document: onlyDigits(customer.document),
+    items,
+    shippingAddress: {
+      postalCode: onlyDigits(customer.postalCode),
+      street: customer.street.trim(),
+      number: customer.number.trim(),
+      complement: customer.complement.trim(),
+      district: customer.district.trim(),
+      city: customer.city.trim(),
+      state: customer.state.trim().toUpperCase(),
+    },
+  });
+}
+
+function isShippingSensitiveCustomerPatch(patch: Partial<CustomerState>) {
+  return (
+    patch.document !== undefined ||
+    patch.customerType !== undefined ||
+    patch.postalCode !== undefined ||
+    patch.street !== undefined ||
+    patch.number !== undefined ||
+    patch.complement !== undefined ||
+    patch.district !== undefined ||
+    patch.city !== undefined ||
+    patch.state !== undefined
+  );
+}
+
 function getGenericValidationState(
   value: string,
   validator: (value: string) => boolean
@@ -590,6 +653,8 @@ export default function CartClient({ customerSession }: Props) {
   const [isVerifyingEmailCode, setIsVerifyingEmailCode] = useState(false);
   const [isSwitchingAccount, setIsSwitchingAccount] = useState(false);
   const checkoutAttemptIdRef = useRef<string | null>(null);
+  const shippingQuoteRequestKeyRef = useRef<string | null>(null);
+  const shippingQuoteRequestIdRef = useRef(0);
   const lastPostalCodeLookupRef = useRef<string | null>(null);
   const currentPostalCodeRef = useRef('');
   const viewCartTrackedRef = useRef(false);
@@ -628,10 +693,50 @@ export default function CartClient({ customerSession }: Props) {
       })),
     [cart.items]
   );
+  const shippingQuoteRequestKey = useMemo(
+    () => getShippingQuoteRequestKey(customer, actionItems),
+    [
+      actionItems,
+      customer.city,
+      customer.complement,
+      customer.customerType,
+      customer.district,
+      customer.document,
+      customer.number,
+      customer.postalCode,
+      customer.state,
+      customer.street,
+    ]
+  );
+  const hasFreshShippingOptions =
+    Boolean(shippingQuoteRequestKey) &&
+    shippingQuoteRequestKeyRef.current === shippingQuoteRequestKey &&
+    shippingOptions.length > 0;
 
   useEffect(() => {
     setCart(getStoredCart());
   }, []);
+
+  useEffect(() => {
+    if (!shippingQuoteRequestKey) {
+      return;
+    }
+
+    if (
+      shippingQuoteRequestKeyRef.current === shippingQuoteRequestKey &&
+      shippingOptions.length > 0
+    ) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void refreshShippingQuotes(customer, {
+        silent: true,
+      });
+    }, 450);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [shippingQuoteRequestKey]);
 
   useEffect(() => {
     if (viewCartTrackedRef.current || cart.items.length === 0) {
@@ -900,6 +1005,9 @@ export default function CartClient({ customerSession }: Props) {
   }
 
   function clearShippingSelection() {
+    shippingQuoteRequestKeyRef.current = null;
+    shippingQuoteRequestIdRef.current += 1;
+    setIsQuotingShipping(false);
     setShippingOptions([]);
     setSelectedShippingQuoteId(null);
   }
@@ -931,12 +1039,17 @@ export default function CartClient({ customerSession }: Props) {
     if (patch.email !== undefined) {
       syncEmailVerificationForEmail(patch.email);
     }
+    const shouldRefreshShipping = isShippingSensitiveCustomerPatch(patch);
+
     setCustomer((current) => ({
       ...current,
       ...patch,
     }));
-    setCheckoutPreview(null);
-    clearShippingSelection();
+
+    if (shouldRefreshShipping) {
+      setCheckoutPreview(null);
+      clearShippingSelection();
+    }
   }
 
   function applySavedAddress(address: CheckoutSessionAddress) {
@@ -1025,11 +1138,36 @@ export default function CartClient({ customerSession }: Props) {
     return result;
   }
 
-  async function refreshShippingQuotes(nextCustomer = customer) {
-    if (actionItems.length === 0) {
+  async function refreshShippingQuotes(
+    nextCustomer = customer,
+    options: ShippingQuoteRefreshOptions = {}
+  ) {
+    const requestKey = getShippingQuoteRequestKey(nextCustomer, actionItems);
+
+    if (!requestKey) {
+      if (!options.silent) {
+        clearShippingSelection();
+      }
       return null;
     }
 
+    if (
+      !options.force &&
+      shippingQuoteRequestKeyRef.current === requestKey &&
+      shippingOptions.length > 0
+    ) {
+      return {
+        ok: true,
+        customerType: activeCustomerType,
+        subtotal: checkoutPreview?.subtotal ?? cart.subtotal,
+        discountTotal: checkoutPreview?.discountTotal ?? 0,
+        shippingOptions,
+      } satisfies CheckoutShippingQuoteActionResult;
+    }
+
+    shippingQuoteRequestKeyRef.current = requestKey;
+    const requestId = shippingQuoteRequestIdRef.current + 1;
+    shippingQuoteRequestIdRef.current = requestId;
     setIsQuotingShipping(true);
 
     const result = await quoteCheckoutShippingAction({
@@ -1047,18 +1185,35 @@ export default function CartClient({ customerSession }: Props) {
       },
     });
 
+    if (
+      shippingQuoteRequestIdRef.current !== requestId ||
+      shippingQuoteRequestKeyRef.current !== requestKey
+    ) {
+      return null;
+    }
+
     setIsQuotingShipping(false);
 
     if (!result.ok) {
-      setCheckoutError(result.error);
+      if (!options.silent) {
+        setCheckoutError(result.error);
+      }
       clearShippingSelection();
       return null;
     }
 
     setShippingOptions(result.shippingOptions);
-    setSelectedShippingQuoteId(
-      result.shippingOptions.find((option) => option.quoteId)?.quoteId ?? null
-    );
+    setSelectedShippingQuoteId((current) => {
+      const currentStillAvailable = result.shippingOptions.some(
+        (option) => option.quoteId && option.quoteId === current
+      );
+
+      if (currentStillAvailable) {
+        return current;
+      }
+
+      return result.shippingOptions.find((option) => option.quoteId)?.quoteId ?? null;
+    });
     return result;
   }
 
@@ -1362,19 +1517,31 @@ export default function CartClient({ customerSession }: Props) {
     }
 
     setCheckoutError(null);
-    const preview = await refreshPreview();
+    setCheckoutStep('envio');
+
+    const previewPromise = refreshPreview();
+    const quotesPromise = hasFreshShippingOptions
+      ? Promise.resolve({
+          ok: true,
+          customerType: activeCustomerType,
+          subtotal: checkoutPreview?.subtotal ?? cart.subtotal,
+          discountTotal: checkoutPreview?.discountTotal ?? 0,
+          shippingOptions,
+        } satisfies CheckoutShippingQuoteActionResult)
+      : refreshShippingQuotes(customer, {
+          force: true,
+        });
+
+    const [preview, quotes] = await Promise.all([previewPromise, quotesPromise]);
 
     if (!preview) {
+      setCheckoutStep('entrega');
       return;
     }
-
-    const quotes = await refreshShippingQuotes();
 
     if (!quotes) {
       return;
     }
-
-    setCheckoutStep('envio');
   }
 
   async function handleContinueFromShipping() {
@@ -2175,7 +2342,9 @@ export default function CartClient({ customerSession }: Props) {
                   </div>
                   {isQuotingShipping ? (
                     <div className="rounded-2xl border border-brand-border-soft bg-white/[0.02] p-4 text-sm font-semibold text-brand-muted">
-                      Calculando opções de envio...
+                      {shippingOptions.length > 0
+                        ? 'Atualizando opções de envio...'
+                        : 'Calculando opções de envio...'}
                     </div>
                   ) : null}
                   <div className="grid gap-3">
@@ -2246,7 +2415,10 @@ export default function CartClient({ customerSession }: Props) {
                     onBack={() => setCheckoutStep('entrega')}
                     onNext={handleContinueFromShipping}
                     nextLabel="Continuar para pagamento"
-                    disabled={!selectedShippingQuoteId || isQuotingShipping}
+                    disabled={
+                      !selectedShippingQuoteId ||
+                      (isQuotingShipping && shippingOptions.length === 0)
+                    }
                   />
                 </div>
               ) : null}
