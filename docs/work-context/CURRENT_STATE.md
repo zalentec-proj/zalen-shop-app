@@ -8,8 +8,9 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-07-11
 - Branch: `refactor/migrate-to-next`
-- Commit: `cea0556` — `Move internal job schedule to Supabase Cron`
-- Working tree no momento deste registro: limpa
+- Commit: `e8e9a5a` — `Fix checkout rate limit persistence`
+- Working tree no momento deste registro: contém apenas automações locais de
+  produto/Bling fora deste commit.
 
 ## Contexto permanente
 
@@ -21,41 +22,32 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
-- O agendamento de jobs internos foi movido para Supabase Cron.
-- O plano de implementação e a pesquisa do Bling foram atualizados.
-- O guia do piloto Brasil Drones foi atualizado.
-- `vercel.json` foi removido.
-- Foi adicionada a migration `supabase/migrations/20260711134815_schedule_internal_jobs_with_supabase_cron.sql`.
+- A função persistente de rate limit foi corrigida pela migration
+  `20260711165637_fix_security_rate_limit_timestamp.sql`.
+- A migration foi aplicada ao Supabase de produção e uma chamada real retornou
+  `allowed = true`.
+- `RATE_LIMIT_HASH_SECRET` foi configurado na Vercel para produção.
+- O deployment de produção do commit `e8e9a5a` está `READY`.
+- Falhas de infraestrutura do rate limit na consulta de CEP agora são enviadas
+  ao Sentry somente com código operacional seguro.
 
 ## Objetivo atual
 
-Corrigir a falha do pré-cadastro no checkout em produção: a consulta de CEP é
-interrompida quando a infraestrutura de rate limit falha. Manter o rate limit
-persistente, configurar o segredo próprio na Vercel e registrar a causa de forma
-segura para diagnóstico.
+Retestar o fluxo de checkout em produção após a correção do rate limit: consulta
+de CEP, preenchimento de endereço e cotação de frete.
 
 ## Em andamento
 
-- Diagnóstico confirmou que `85801210` não falha na SuperFrete: a mensagem
-  exibida vem da proteção de rate limit usada antes da consulta ViaCEP.
-- A causa raiz foi reproduzida no Supabase: a função
-  `consume_security_rate_limit` usava `current_time`, que o PostgreSQL
-  interpretava como uma expressão de hora no `INSERT`, causando erro de tipo no
-  campo `updated_at`.
-- A migration `20260711165637_fix_security_rate_limit_timestamp.sql` substitui
-  essa variável por `request_timestamp` e já foi aplicada no projeto Supabase
-  de produção.
-- `RATE_LIMIT_HASH_SECRET` foi criado como segredo sensível na Vercel para
-  produção. O preview não possui branch independente porque
-  `refactor/migrate-to-next` é o branch de produção configurado na Vercel.
-- O checkout agora envia ao Sentry apenas um código operacional seguro quando a
-  infraestrutura de rate limit falhar; nenhum CEP, IP ou segredo é registrado.
+Nenhuma alteração de código pendente. Aguardando o reteste do checkout em
+produção.
 
 ## Próximo passo exato
 
-1. Commitar e enviar a correção para `refactor/migrate-to-next`.
-2. Confirmar o deployment de produção gerado pela Vercel.
-3. Repetir o fluxo de CEP no checkout e avançar até a cotação de frete.
+1. No checkout, informar o CEP `85801210` e confirmar o preenchimento de
+   endereço.
+2. Avançar para a etapa de envio e verificar as cotações retornadas.
+3. Se o frete ainda falhar, consultar o Sentry pelo código operacional seguro e
+   investigar a integração SuperFrete separadamente.
 
 ## Bloqueios e dúvidas
 
