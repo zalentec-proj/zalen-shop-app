@@ -8,8 +8,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-07-11
 - Branch: `refactor/migrate-to-next`
-- Commit funcional: pendente nesta alteração — usar somente o documento oficial
-  do Mercado Pago para boleto.
+- Commit funcional: `0cdf2f9` — `Use official Mercado Pago boleto document`
 - Working tree no momento deste registro: contém uma alteração local em
   `package.json` e automações de produto/Bling fora destes commits.
 
@@ -50,6 +49,9 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   vencimento e URL externa. A página do pedido permite copiar o código para
   pagamento manual, mas não cria arquivo, PDF ou boleto local: o documento é
   aberto somente pela URL oficial retornada pelo Mercado Pago.
+- O deployment de produção `dpl_E4Mf3FSYHC8euP4C3RukyHnsiy7U` do commit
+  `0cdf2f9` está `READY` e foi associado ao domínio
+  `brasil-drones.zalenshop.com.br`.
 
 ## Objetivo atual
 
@@ -59,11 +61,9 @@ ser conectada.
 
 ## Em andamento
 
-O deployment de produção `dpl_27w5qbDkCJ7vD9GX91geqtFiwdki`, que contém o
-commit funcional `12c989f`, está `READY`. A correção posterior para remover o
-documento local de boleto ainda precisa ser validada e publicada. O sandbox usa
-o e-mail validado no checkout e não pré-preenche CPF/CNPJ do cliente para
-cartões.
+O deployment de produção `dpl_E4Mf3FSYHC8euP4C3RukyHnsiy7U`, que contém o
+commit funcional `0cdf2f9`, está `READY`. O sandbox usa o e-mail validado no
+checkout e não pré-preenche CPF/CNPJ do cliente para cartões.
 
 ## Próximo passo exato
 
