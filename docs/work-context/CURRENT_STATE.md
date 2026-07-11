@@ -56,16 +56,15 @@ tentativa pendente já criada no sandbox.
 
 ## Em andamento
 
-O commit funcional `12c989f` foi validado localmente e aguarda deployment de
-produção. O sandbox usa o e-mail validado no checkout e não pré-preenche
-CPF/CNPJ do cliente para cartões.
+O deployment de produção `dpl_27w5qbDkCJ7vD9GX91geqtFiwdki`, que contém o
+commit funcional `12c989f`, está `READY`. O sandbox usa o e-mail validado no
+checkout e não pré-preenche CPF/CNPJ do cliente para cartões.
 
 ## Próximo passo exato
 
-1. Aguardar o deployment de `12c989f` ficar `READY`.
-2. Reabrir o detalhe do pedido de boleto pendente. O código deve aparecer com
+1. Reabrir o detalhe do pedido de boleto pendente. O código deve aparecer com
    as ações de cópia, impressão/salvar PDF e download de instruções.
-3. Confirmar Pix e cartão: Pix sem campos de cartão, cartão de sandbox sem
+2. Confirmar Pix e cartão: Pix sem campos de cartão, cartão de sandbox sem
    documento do cadastro pré-preenchido.
 
 ## Bloqueios e dúvidas
@@ -129,6 +128,8 @@ Nenhum bloqueio registrado neste handoff inicial.
 - O commit funcional `12c989f` passou nos testes de payload e conector do
   Mercado Pago: 12 testes em 2 arquivos. `npm run lint` e `npm run build`
   também passaram; o build usou o fallback WASM já conhecido para SWC local.
+- O deployment de produção `dpl_27w5qbDkCJ7vD9GX91geqtFiwdki` chegou a
+  `READY` com o commit `231ca62`, que contém a correção funcional `12c989f`.
 
 ## Decisões de continuidade
 
