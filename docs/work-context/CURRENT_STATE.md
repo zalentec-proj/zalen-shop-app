@@ -8,7 +8,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-07-11
 - Branch: `refactor/migrate-to-next`
-- Commit funcional: `745836e` — `Fix Mercado Pago boleto payer address`
+- Commit funcional: `12c989f` — `Display Mercado Pago boleto instructions`
 - Working tree no momento deste registro: contém uma alteração local em
   `package.json` e automações de produto/Bling fora destes commits.
 
@@ -44,23 +44,28 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - O `entityType` do Payment Brick é sempre inicializado como `individual` ou
   `association`, inclusive no sandbox, sem voltar a pré-preencher CPF/CNPJ,
   nome ou endereço nos cartões de teste.
+- O conector agora persiste os dados de instrução de boleto retornados pelo
+  Mercado Pago: código de barras, linha digitável quando disponível, referência,
+  vencimento e URL externa. A página do pedido permite copiar o código, imprimir
+  ou salvar PDF e baixar as instruções locais.
 
 ## Objetivo atual
 
-Retestar boleto no Payment Brick após publicar o endereço obrigatório do
-pagador; confirmar que Pix e cartão continuam com os contratos isolados.
+Retestar a exibição e exportação local do boleto no detalhe do pedido, usando a
+tentativa pendente já criada no sandbox.
 
 ## Em andamento
 
-O deployment de produção `dpl_C11LitsEu9YD9ivA1BZGE3C4LpVe`, que contém o
-commit funcional `745836e`, está `READY`. O sandbox usa o e-mail validado no
-checkout e não pré-preenche CPF/CNPJ do cliente para cartões.
+O commit funcional `12c989f` foi validado localmente e aguarda deployment de
+produção. O sandbox usa o e-mail validado no checkout e não pré-preenche
+CPF/CNPJ do cliente para cartões.
 
 ## Próximo passo exato
 
-1. Recarregar o checkout e testar boleto no sandbox com e-mail diferente do
-   vendedor. A tentativa deve ficar pendente e exibir a instrução/URL do boleto.
-2. Confirmar Pix e cartão: Pix sem campos de cartão, cartão de sandbox sem
+1. Aguardar o deployment de `12c989f` ficar `READY`.
+2. Reabrir o detalhe do pedido de boleto pendente. O código deve aparecer com
+   as ações de cópia, impressão/salvar PDF e download de instruções.
+3. Confirmar Pix e cartão: Pix sem campos de cartão, cartão de sandbox sem
    documento do cadastro pré-preenchido.
 
 ## Bloqueios e dúvidas
@@ -121,6 +126,9 @@ Nenhum bloqueio registrado neste handoff inicial.
   passaram; o build usou o fallback WASM já conhecido para SWC local.
 - O deployment de produção `dpl_C11LitsEu9YD9ivA1BZGE3C4LpVe` chegou a
   `READY` com o commit `454e3e5`, que contém a correção funcional `745836e`.
+- O commit funcional `12c989f` passou nos testes de payload e conector do
+  Mercado Pago: 12 testes em 2 arquivos. `npm run lint` e `npm run build`
+  também passaram; o build usou o fallback WASM já conhecido para SWC local.
 
 ## Decisões de continuidade
 

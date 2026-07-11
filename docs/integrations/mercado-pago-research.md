@@ -222,8 +222,8 @@ O payload é separado por meio:
   vencimento;
 - boleto: sem campos de cartão; o backend envia `payer.address` a partir do
   snapshot imutável e validado do pedido (`zip_code`, rua, número, bairro,
-  cidade e UF). A resposta persiste URL/linha e vencimento quando fornecidos
-  pelo Mercado Pago.
+  cidade e UF). A resposta persiste URL externa, vencimento, referência e
+  código de barras/linha digitável quando fornecidos pelo Mercado Pago.
 
 ### Sandbox
 
@@ -239,6 +239,15 @@ Para boleto, o endereço completo do pedido é enviado somente no backend; ele n
 `entityType` válido (`individual` ou `association`) sem expor o número do
 documento em teste.
 Em produção, o pagador continua sendo sempre o comprador validado.
+
+### Exibição ao comprador
+
+O detalhe do pedido usa os dados persistidos do pagamento para exibir o código
+do boleto, permitir cópia e manter a URL do Mercado Pago como alternativa. Se
+um boleto pendente anterior ainda não tiver o código persistido, a página faz
+uma única consulta server-side autenticada ao Mercado Pago para preenchê-lo,
+sem expor `Access Token` ao navegador. O comprador também pode imprimir/salvar
+em PDF ou baixar um HTML com as instruções locais de pagamento.
 
 ## Webhooks
 
