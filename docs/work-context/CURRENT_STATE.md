@@ -8,9 +8,9 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-07-11
 - Branch: `refactor/migrate-to-next`
-- Commit: `4194e84` — `Use checkout identity for Mercado Pago sandbox`
-- Working tree no momento deste registro: contém apenas automações locais de
-  produto/Bling fora deste commit.
+- Commit funcional: `745836e` — `Fix Mercado Pago boleto payer address`
+- Working tree no momento deste registro: contém uma alteração local em
+  `package.json` e automações de produto/Bling fora destes commits.
 
 ## Contexto permanente
 
@@ -38,25 +38,31 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - O Payment Brick também exige `www.mercadolibre.com` para frame e verificações
   de segurança executadas pelo SDK. A CSP global deve permitir esse host apenas
   em `connect-src` e `frame-src`, mantendo `script-src` restrito ao SDK oficial.
+- O boleto falhava ao criar o pagamento porque o backend descartava o endereço
+  validado do pedido. O payload agora envia `payer.address` com CEP, rua,
+  número, bairro, cidade e UF, como exigido pelo endpoint `/v1/payments`.
+- O `entityType` do Payment Brick é sempre inicializado como `individual` ou
+  `association`, inclusive no sandbox, sem voltar a pré-preencher CPF/CNPJ,
+  nome ou endereço nos cartões de teste.
 
 ## Objetivo atual
 
-Retestar cartão, Pix e boleto no Payment Brick após corrigir a identidade do
-pagador usada no sandbox.
+Retestar boleto no Payment Brick após publicar o endereço obrigatório do
+pagador; confirmar que Pix e cartão continuam com os contratos isolados.
 
 ## Em andamento
 
-Nenhuma alteração de código pendente. O deployment de produção `4194e84` está
-`READY`; o sandbox usa o e-mail validado no checkout e não pré-preenche CPF/CNPJ
-do cliente para cartões.
+O commit funcional `745836e` foi validado localmente e aguarda deployment de
+produção. O sandbox usa o e-mail validado no checkout e não pré-preenche
+CPF/CNPJ do cliente para cartões.
 
 ## Próximo passo exato
 
-1. Recarregar o checkout em aba anônima ou com cache desabilitado.
-2. Confirmar que cartão não mostra CPF/CNPJ pré-preenchido no sandbox e que Pix
-   e boleto continuam disponíveis para criar uma tentativa de sandbox.
-3. Se falhar, registrar no console o próximo host recusado pela CSP e consultar
-   o Sentry pelo código seguro `checkout_start_failed` antes de alterar o fluxo.
+1. Aguardar o deployment de `745836e` ficar `READY`.
+2. Recarregar o checkout e testar boleto no sandbox com e-mail diferente do
+   vendedor. A tentativa deve ficar pendente e exibir a instrução/URL do boleto.
+3. Confirmar Pix e cartão: Pix sem campos de cartão, cartão de sandbox sem
+   documento do cadastro pré-preenchido.
 
 ## Bloqueios e dúvidas
 
@@ -111,6 +117,9 @@ Nenhum bloqueio registrado neste handoff inicial.
   `4194e84` ficou `READY`. Os testes de CSP, payload de cartão/Pix/boleto e
   conector passaram: 12 testes em 3 arquivos; `npm run lint` e `npm run build`
   também passaram.
+- O commit funcional `745836e` passou nos testes de payload e conector do
+  Mercado Pago: 12 testes em 2 arquivos. `npm run build` e `npm run lint`
+  passaram; o build usou o fallback WASM já conhecido para SWC local.
 
 ## Decisões de continuidade
 

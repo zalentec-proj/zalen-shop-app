@@ -14,6 +14,8 @@
 - https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/common-initialization
 - https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/payment-brick/default-rendering
 - https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/payment-brick/payment-submission
+- https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/payment-brick/payment-submission/other-payment-methods
+- https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/payment-brick/advanced-features/initialize-data-on-the-bricks
 - https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/integration-test/test-payment-flow
 - https://www.mercadopago.com.br/developers/pt/reference/payments/_payments/post
 - https://www.mercadopago.com.br/developers/pt/reference/payments/_payments_id/get
@@ -218,8 +220,10 @@ O payload é separado por meio:
 - cartão: token, emissor, parcelas, identificação e e-mail;
 - Pix: sem token ou campos de cartão; resposta persiste QR Code, copia-e-cola e
   vencimento;
-- boleto: sem campos de cartão; resposta persiste URL/linha e vencimento quando
-  fornecidos pelo Mercado Pago.
+- boleto: sem campos de cartão; o backend envia `payer.address` a partir do
+  snapshot imutável e validado do pedido (`zip_code`, rua, número, bairro,
+  cidade e UF). A resposta persiste URL/linha e vencimento quando fornecidos
+  pelo Mercado Pago.
 
 ### Sandbox
 
@@ -230,6 +234,10 @@ de teste. No sandbox, o Brick não pré-preenche CPF/CNPJ, nome ou endereço do
 cadastro; assim, não mistura a identidade real do cliente aos dados de teste.
 No backend, cartões de sandbox não recebem o CPF/CNPJ salvo como fallback, mas
 Pix e boleto preservam os dados validados quando o método exigir identificação.
+Para boleto, o endereço completo do pedido é enviado somente no backend; ele não
+é reutilizado para pré-preencher cartão no sandbox. O Brick recebe sempre
+`entityType` válido (`individual` ou `association`) sem expor o número do
+documento em teste.
 Em produção, o pagador continua sendo sempre o comprador validado.
 
 ## Webhooks
