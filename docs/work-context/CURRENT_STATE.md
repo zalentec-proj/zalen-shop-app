@@ -8,7 +8,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-07-11
 - Branch: `refactor/migrate-to-next`
-- Commit: `e8e9a5a` — `Fix checkout rate limit persistence`
+- Commit: `5f0a0cd` — `Fix checkout shipping quote validation`
 - Working tree no momento deste registro: contém apenas automações locais de
   produto/Bling fora deste commit.
 
@@ -33,23 +33,26 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - A cotação de frete passou a validar apenas o CEP de destino, que é o único
   dado usado pelo cálculo. O endereço completo continua validado antes da
   criação do pedido.
+- A validação completa do endereço agora usa campos obrigatórios explícitos e
+  aceita complemento vazio, evitando bloqueio antes do Mercado Pago.
 
 ## Objetivo atual
 
-Retestar a cotação de frete em produção depois de remover a validação excessiva
-do endereço na Server Action de cotação.
+Retestar a criação do pedido e a abertura do Mercado Pago depois de corrigir o
+schema de endereço opcional.
 
 ## Em andamento
 
-Nenhuma alteração de código pendente. Aguardando o reteste da cotação em
-produção.
+Nenhuma alteração de código pendente. Aguardando o reteste da abertura do
+Mercado Pago em produção.
 
 ## Próximo passo exato
 
-1. No checkout, avançar até a etapa de envio com o CEP `85801210`.
-2. Confirmar que as opções de frete aparecem.
-3. Se a cotação falhar, usar o código seguro no Sentry para investigar o
-   provider ou a configuração de envio, pois o bloqueio de schema foi removido.
+1. Refazer o checkout com complemento vazio ou preenchido.
+2. Confirmar que o botão `Abrir pagamento` cria o pedido e carrega o Mercado
+   Pago.
+3. Se falhar, consultar o Sentry pelo código seguro `checkout_payload_invalid`
+   ou `checkout_start_failed` antes de alterar o fluxo.
 
 ## Bloqueios e dúvidas
 
@@ -68,6 +71,9 @@ Nenhum bloqueio registrado neste handoff inicial.
   arquivos.
 - `npm run lint` e `npm run build` passaram novamente após a correção da
   cotação.
+- Testes de endereço, cotação, frete, CEP e rate limit passaram: 20 testes em
+  5 arquivos.
+- `npm run lint` e `npm run build` passaram após a correção do complemento.
 
 ## Decisões de continuidade
 

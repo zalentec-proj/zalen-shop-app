@@ -63,6 +63,7 @@ import {
   quoteShipping,
   type ShippingRate,
 } from '@/modules/shipping/shipment.service';
+import { shippingAddressSchema } from '@/modules/shipping/shipping-address-input';
 import { shippingQuoteAddressSchema } from '@/modules/shipping/shipping-quote-input';
 import type {
   MercadoPagoBrickPaymentFormData,
@@ -83,18 +84,6 @@ const optionalCheckoutString = z
   .or(z.literal(''))
   .transform((value) => (value ? value : undefined));
 
-const checkoutShippingAddressSchema = z
-  .object({
-    postalCode: z.string().trim().min(8),
-    street: z.string().trim().min(2),
-    number: optionalCheckoutString,
-    complement: optionalCheckoutString,
-    district: optionalCheckoutString,
-    city: z.string().trim().min(2),
-    state: z.string().trim().min(2).max(2),
-  })
-  .required();
-
 const checkoutCustomerSchema = z.object({
   name: z.string().trim().min(2),
   email: z.string().trim().email(),
@@ -109,7 +98,7 @@ const checkoutCustomerSchema = z.object({
   stateRegistration: optionalCheckoutString,
   stateRegistrationExempt: z.boolean().optional(),
   acceptsMarketing: z.boolean().optional(),
-  shippingAddress: checkoutShippingAddressSchema,
+  shippingAddress: shippingAddressSchema,
 }).superRefine((customer, context) => {
   const detectedCustomerType = getCustomerTypeFromDocument(customer.document);
 
@@ -1199,6 +1188,17 @@ export async function checkoutCartAction(
   const parsed = checkoutSchema.safeParse(rawInput);
 
   if (!parsed.success) {
+    const invalidFields = parsed.error.issues
+      .map((issue) => issue.path.join('.'))
+      .filter(Boolean)
+      .slice(0, 12)
+      .join(',');
+    captureOperationalException({
+      error: new Error(`checkout_payload_invalid:${invalidFields || 'root'}`),
+      area: 'checkout',
+      code: 'checkout_payload_invalid',
+    });
+
     return {
       ok: false,
       error: 'Revise os dados do cliente e os itens do carrinho.',
