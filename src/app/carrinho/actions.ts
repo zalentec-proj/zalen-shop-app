@@ -54,6 +54,7 @@ import {
 import { sendOrderReceivedStoreEmail } from '@/modules/email/store-transactional-email.service';
 import {
   enforceRateLimit,
+  getRateLimitFailureCode,
   getRateLimitErrorMessage,
 } from '@/modules/security/rate-limit.service';
 import { captureOperationalException } from '@/modules/observability/monitoring.service';
@@ -1158,6 +1159,12 @@ export async function lookupCheckoutPostalCodeAction(
       subject: parsed.data.postalCode,
     });
   } catch (error) {
+    captureOperationalException({
+      error,
+      area: 'checkout',
+      code: getRateLimitFailureCode(error),
+    });
+
     return {
       ok: false,
       error: getRateLimitErrorMessage(error),

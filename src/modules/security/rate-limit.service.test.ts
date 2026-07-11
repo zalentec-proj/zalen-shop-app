@@ -24,6 +24,7 @@ vi.mock('@/lib/supabase/server', () => ({
 import {
   enforceRateLimit,
   getRateLimitErrorMessage,
+  getRateLimitFailureCode,
   rateLimitPolicies,
   RateLimitExceededError,
 } from './rate-limit.service';
@@ -115,6 +116,18 @@ describe('rate limit', () => {
   it('does not expose storage details for other failures', () => {
     expect(getRateLimitErrorMessage(new Error('database unavailable'))).toBe(
       'Não foi possível concluir esta solicitação agora. Tente novamente em instantes.'
+    );
+  });
+
+  it('classifies rate-limit failures without leaking request details', () => {
+    expect(
+      getRateLimitFailureCode(new Error('rate_limit_hash_secret_missing'))
+    ).toBe('rate_limit_hash_secret_missing');
+    expect(
+      getRateLimitFailureCode(new Error('database unavailable'))
+    ).toBe('rate_limit_unavailable');
+    expect(getRateLimitFailureCode(new RateLimitExceededError(30))).toBe(
+      'rate_limit_exceeded'
     );
   });
 });

@@ -119,3 +119,19 @@ export function getRateLimitErrorMessage(error: unknown) {
 
   return 'Não foi possível concluir esta solicitação agora. Tente novamente em instantes.';
 }
+
+export function getRateLimitFailureCode(error: unknown) {
+  if (error instanceof RateLimitExceededError) {
+    return 'rate_limit_exceeded';
+  }
+
+  if (
+    error instanceof Error &&
+    (error.message === 'rate_limit_hash_secret_missing' ||
+      error.message === 'rate_limit_storage_unavailable')
+  ) {
+    return error.message;
+  }
+
+  return 'rate_limit_unavailable';
+}
