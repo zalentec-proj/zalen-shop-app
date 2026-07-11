@@ -243,11 +243,12 @@ Em produção, o pagador continua sendo sempre o comprador validado.
 ### Exibição ao comprador
 
 O detalhe do pedido usa os dados persistidos do pagamento para exibir o código
-do boleto, permitir cópia e manter a URL do Mercado Pago como alternativa. Se
-um boleto pendente anterior ainda não tiver o código persistido, a página faz
-uma única consulta server-side autenticada ao Mercado Pago para preenchê-lo,
-sem expor `Access Token` ao navegador. O comprador também pode imprimir/salvar
-em PDF ou baixar um HTML com as instruções locais de pagamento.
+do boleto, permitir cópia e abrir exclusivamente a URL oficial devolvida pelo
+Mercado Pago. Se um boleto pendente anterior ainda não tiver o código persistido,
+a página faz uma única consulta server-side autenticada ao Mercado Pago para
+preenchê-lo, sem expor `Access Token` ao navegador. A impressão ou o download,
+quando disponibilizados, são feitos no próprio documento oficial do Mercado
+Pago; a loja não gera uma representação local do boleto.
 
 ## Webhooks
 

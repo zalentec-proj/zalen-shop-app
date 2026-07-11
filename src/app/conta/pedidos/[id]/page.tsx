@@ -317,7 +317,7 @@ function getPaymentPendingDescription(
     paymentTypeId === 'ticket' ||
     paymentMethodId?.startsWith('bol')
   ) {
-    return 'Abra o boleto pelo Mercado Pago para copiar ou imprimir.';
+    return 'Abra o boleto oficial pelo Mercado Pago para visualizar ou pagar.';
   }
 
   if (paymentTypeId === 'credit_card' || paymentTypeId === 'debit_card') {
@@ -517,7 +517,7 @@ export default async function CustomerOrderDetailPage({
                     {paymentInstructions.method === 'pix'
                       ? 'Use o QR Code, copie o código Pix ou continue pelo Mercado Pago.'
                       : paymentInstructions.method === 'ticket'
-                        ? 'Use o código abaixo para pagar, imprimir ou salvar as instruções.'
+                        ? 'Use o código abaixo para pagar ou abra o documento oficial do Mercado Pago.'
                         : 'Abra as instruções no Mercado Pago para concluir.'}
                   </p>
                   {paymentInstructions.method === 'pix' && paymentInstructions.qrCode ? (
@@ -554,19 +554,17 @@ export default async function CustomerOrderDetailPage({
                         </p>
                       ) : null}
                       <BoletoInstructionActions
-                        orderNumber={order.orderNumber}
-                        total={formatCurrency(order.total)}
                         paymentCode={
                           paymentInstructions.digitableLine ??
                           paymentInstructions.barcodeContent
                         }
-                        expiresAt={
-                          paymentInstructions.expiresAt
-                            ? formatDate(paymentInstructions.expiresAt)
-                            : undefined
-                        }
                         ticketUrl={paymentInstructions.ticketUrl}
                       />
+                      {paymentInstructions.ticketUrl ? (
+                        <p className="mt-3 text-xs text-brand-muted">
+                          Para imprimir ou baixar, use as opções do documento oficial do Mercado Pago.
+                        </p>
+                      ) : null}
                     </>
                   ) : paymentInstructions.ticketUrl ? (
                     <a

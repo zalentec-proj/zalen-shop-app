@@ -8,7 +8,8 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-07-11
 - Branch: `refactor/migrate-to-next`
-- Commit funcional: `12c989f` — `Display Mercado Pago boleto instructions`
+- Commit funcional: pendente nesta alteração — usar somente o documento oficial
+  do Mercado Pago para boleto.
 - Working tree no momento deste registro: contém uma alteração local em
   `package.json` e automações de produto/Bling fora destes commits.
 
@@ -46,24 +47,29 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   nome ou endereço nos cartões de teste.
 - O conector agora persiste os dados de instrução de boleto retornados pelo
   Mercado Pago: código de barras, linha digitável quando disponível, referência,
-  vencimento e URL externa. A página do pedido permite copiar o código, imprimir
-  ou salvar PDF e baixar as instruções locais.
+  vencimento e URL externa. A página do pedido permite copiar o código para
+  pagamento manual, mas não cria arquivo, PDF ou boleto local: o documento é
+  aberto somente pela URL oficial retornada pelo Mercado Pago.
 
 ## Objetivo atual
 
-Retestar a exibição e exportação local do boleto no detalhe do pedido, usando a
-tentativa pendente já criada no sandbox.
+Retestar a abertura do boleto oficial no detalhe do pedido, usando a tentativa
+pendente já criada no sandbox e uma tentativa de produção após a conta vendedora
+ser conectada.
 
 ## Em andamento
 
 O deployment de produção `dpl_27w5qbDkCJ7vD9GX91geqtFiwdki`, que contém o
-commit funcional `12c989f`, está `READY`. O sandbox usa o e-mail validado no
-checkout e não pré-preenche CPF/CNPJ do cliente para cartões.
+commit funcional `12c989f`, está `READY`. A correção posterior para remover o
+documento local de boleto ainda precisa ser validada e publicada. O sandbox usa
+o e-mail validado no checkout e não pré-preenche CPF/CNPJ do cliente para
+cartões.
 
 ## Próximo passo exato
 
-1. Reabrir o detalhe do pedido de boleto pendente. O código deve aparecer com
-   as ações de cópia, impressão/salvar PDF e download de instruções.
+1. Reabrir o detalhe do pedido de boleto pendente. O código deve aparecer com a
+   ação de cópia e a ação para abrir o boleto oficial no Mercado Pago, sem
+   impressão, PDF ou download gerados pela loja.
 2. Confirmar Pix e cartão: Pix sem campos de cartão, cartão de sandbox sem
    documento do cadastro pré-preenchido.
 
