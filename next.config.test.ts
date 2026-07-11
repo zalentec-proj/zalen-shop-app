@@ -13,7 +13,7 @@ describe('global security headers', () => {
     expect(headers['Permissions-Policy']).toContain('camera=()');
     expect(headers['Content-Security-Policy']).toContain("frame-ancestors 'none'");
     expect(headers['Content-Security-Policy']).toContain(
-      'connect-src \'self\' https://*.supabase.co https://api.mercadopago.com https://api.mercadolibre.com https://www.mercadolibre.com https://http2.mlstatic.com'
+      'connect-src \'self\' https://*.supabase.co https://api.mercadopago.com https://api-static.mercadopago.com https://secure-fields.mercadopago.com https://secure-fields-stg.mercadopago.com https://api.mercadolibre.com https://www.mercadolibre.com https://http2.mlstatic.com'
     );
     expect(headers['Content-Security-Policy']).toContain(
       'frame-src https://*.mercadopago.com https://www.mercadolibre.com'

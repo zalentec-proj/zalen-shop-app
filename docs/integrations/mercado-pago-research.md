@@ -176,11 +176,17 @@ O Payment Brick é iniciado pelo script oficial em
 `https://sdk.mercadopago.com/js/v2`, mas, durante a renderização, também usa
 `https://www.mercadolibre.com` para frame e verificações de segurança,
 `https://http2.mlstatic.com` para chunks de componentes e
-`https://api.mercadolibre.com` para telemetria operacional.
+`https://api.mercadolibre.com` para telemetria operacional. Para cartão, os
+campos seguros são buscados de `https://api-static.mercadopago.com` e renderizam
+em `https://secure-fields.mercadopago.com` na produção ou
+`https://secure-fields-stg.mercadopago.com` no sandbox.
 A CSP global deve permitir os hosts de Mercado Livre somente nos tipos de
 recurso usados pelo SDK: `www.mercadolibre.com` em `connect-src` e `frame-src`,
 `http2.mlstatic.com` em `script-src` e `connect-src`, e
-`api.mercadolibre.com` em `connect-src`.
+`api.mercadolibre.com` em `connect-src`. Os campos seguros usam
+`api-static.mercadopago.com`, `secure-fields.mercadopago.com` e
+`secure-fields-stg.mercadopago.com` somente em `connect-src`; o `frame-src`
+existente para `*.mercadopago.com` cobre a renderização isolada do cartão.
 As fontes usadas pelo Brick permanecem limitadas a
 `https://fonts.googleapis.com` em `style-src` e
 `https://fonts.gstatic.com` em `font-src`. Não ampliar `script-src` para

@@ -41,20 +41,22 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Objetivo atual
 
-Confirmar o fluxo completo de sandbox do Payment Brick após a correção de CSP
-publicada em produção.
+Concluir a compatibilidade de CSP dos campos seguros de cartão do Payment Brick
+e confirmar Pix e boleto no fluxo de sandbox.
 
 ## Em andamento
 
-Nenhuma alteração de código pendente. O deployment de produção `6b0b679` está
-`READY` e o cabeçalho HTTPS de `/carrinho` confirmou todas as origens atualmente
-recusadas pelo console do Payment Brick.
+O Payment Brick carrega, mas a seleção de cartão ainda bloqueia conexões dos
+campos seguros. A inspeção do SDK público identificou `api-static.mercadopago.com`,
+`secure-fields.mercadopago.com` e `secure-fields-stg.mercadopago.com`; o ajuste
+restrito dessas origens está em andamento.
 
 ## Próximo passo exato
 
-1. Recarregar o checkout em aba anônima ou com cache desabilitado.
-2. Confirmar que o Payment Brick deixa de ficar em branco, carrega os meios de
-   pagamento e permite submeter um pagamento de sandbox.
+1. Recarregar o checkout em aba anônima ou com cache desabilitado após o novo
+   deployment.
+2. Confirmar que os campos de cartão carregam e que Pix e boleto continuam
+   disponíveis para criar uma tentativa de sandbox.
 3. Se falhar, registrar no console o próximo host recusado pela CSP e consultar
    o Sentry pelo código seguro `checkout_start_failed` antes de alterar o fluxo.
 
@@ -92,6 +94,11 @@ Nenhum bloqueio registrado neste handoff inicial.
   `6b0b679` ficou `READY`. A resposta HTTPS de `/carrinho` confirmou
   `http2.mlstatic.com` em `script-src` e `connect-src`, além de
   `api.mercadolibre.com` em `connect-src`.
+- O SDK público do Payment Brick foi inspecionado para cobrir os meios sem
+  depender de tentativa e erro: Pix e boleto usam a API principal já permitida,
+  enquanto cartão usa `api-static.mercadopago.com` e os hosts `secure-fields`
+  de produção e sandbox. Os payloads de Pix e boleto já têm testes que asseguram
+  a ausência de token, emissor e parcelas de cartão.
 
 ## Decisões de continuidade
 
