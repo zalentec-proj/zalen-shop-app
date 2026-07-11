@@ -30,24 +30,26 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - O deployment de produção do commit `e8e9a5a` está `READY`.
 - Falhas de infraestrutura do rate limit na consulta de CEP agora são enviadas
   ao Sentry somente com código operacional seguro.
+- A cotação de frete passou a validar apenas o CEP de destino, que é o único
+  dado usado pelo cálculo. O endereço completo continua validado antes da
+  criação do pedido.
 
 ## Objetivo atual
 
-Retestar o fluxo de checkout em produção após a correção do rate limit: consulta
-de CEP, preenchimento de endereço e cotação de frete.
+Retestar a cotação de frete em produção depois de remover a validação excessiva
+do endereço na Server Action de cotação.
 
 ## Em andamento
 
-Nenhuma alteração de código pendente. Aguardando o reteste do checkout em
+Nenhuma alteração de código pendente. Aguardando o reteste da cotação em
 produção.
 
 ## Próximo passo exato
 
-1. No checkout, informar o CEP `85801210` e confirmar o preenchimento de
-   endereço.
-2. Avançar para a etapa de envio e verificar as cotações retornadas.
-3. Se o frete ainda falhar, consultar o Sentry pelo código operacional seguro e
-   investigar a integração SuperFrete separadamente.
+1. No checkout, avançar até a etapa de envio com o CEP `85801210`.
+2. Confirmar que as opções de frete aparecem.
+3. Se a cotação falhar, usar o código seguro no Sentry para investigar o
+   provider ou a configuração de envio, pois o bloqueio de schema foi removido.
 
 ## Bloqueios e dúvidas
 
@@ -62,6 +64,10 @@ Nenhum bloqueio registrado neste handoff inicial.
 - Testes de rate limit, CEP e frete passaram: 16 testes em 3 arquivos.
 - `npm run build` passou. O Next utilizou o fallback WASM para SWC local, sem
   impacto no resultado do build.
+- Testes de input de cotação, frete, CEP e rate limit passaram: 18 testes em 4
+  arquivos.
+- `npm run lint` e `npm run build` passaram novamente após a correção da
+  cotação.
 
 ## Decisões de continuidade
 

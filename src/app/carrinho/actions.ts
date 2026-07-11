@@ -63,6 +63,7 @@ import {
   quoteShipping,
   type ShippingRate,
 } from '@/modules/shipping/shipment.service';
+import { shippingQuoteAddressSchema } from '@/modules/shipping/shipping-quote-input';
 import type {
   MercadoPagoBrickPaymentFormData,
   MercadoPagoEnvironment,
@@ -1710,7 +1711,7 @@ const checkoutPreviewSchema = z.object({
 });
 
 const checkoutShippingQuoteSchema = checkoutPreviewSchema.extend({
-  shippingAddress: checkoutShippingAddressSchema,
+  shippingAddress: shippingQuoteAddressSchema,
 });
 
 export async function previewCheckoutCartAction(
@@ -1770,6 +1771,12 @@ export async function quoteCheckoutShippingAction(
   const parsed = checkoutShippingQuoteSchema.safeParse(rawInput);
 
   if (!parsed.success) {
+    captureOperationalException({
+      error: new Error('shipping_quote_payload_invalid'),
+      area: 'shipping',
+      code: 'shipping_quote_payload_invalid',
+    });
+
     return {
       ok: false,
       error: 'Revise o endereço de entrega para calcular o frete.',
