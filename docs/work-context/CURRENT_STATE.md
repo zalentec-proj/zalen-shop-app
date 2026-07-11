@@ -52,16 +52,15 @@ pagador; confirmar que Pix e cartão continuam com os contratos isolados.
 
 ## Em andamento
 
-O commit funcional `745836e` foi validado localmente e aguarda deployment de
-produção. O sandbox usa o e-mail validado no checkout e não pré-preenche
-CPF/CNPJ do cliente para cartões.
+O deployment de produção `dpl_C11LitsEu9YD9ivA1BZGE3C4LpVe`, que contém o
+commit funcional `745836e`, está `READY`. O sandbox usa o e-mail validado no
+checkout e não pré-preenche CPF/CNPJ do cliente para cartões.
 
 ## Próximo passo exato
 
-1. Aguardar o deployment de `745836e` ficar `READY`.
-2. Recarregar o checkout e testar boleto no sandbox com e-mail diferente do
+1. Recarregar o checkout e testar boleto no sandbox com e-mail diferente do
    vendedor. A tentativa deve ficar pendente e exibir a instrução/URL do boleto.
-3. Confirmar Pix e cartão: Pix sem campos de cartão, cartão de sandbox sem
+2. Confirmar Pix e cartão: Pix sem campos de cartão, cartão de sandbox sem
    documento do cadastro pré-preenchido.
 
 ## Bloqueios e dúvidas
@@ -120,6 +119,8 @@ Nenhum bloqueio registrado neste handoff inicial.
 - O commit funcional `745836e` passou nos testes de payload e conector do
   Mercado Pago: 12 testes em 2 arquivos. `npm run build` e `npm run lint`
   passaram; o build usou o fallback WASM já conhecido para SWC local.
+- O deployment de produção `dpl_C11LitsEu9YD9ivA1BZGE3C4LpVe` chegou a
+  `READY` com o commit `454e3e5`, que contém a correção funcional `745836e`.
 
 ## Decisões de continuidade
 
