@@ -8,7 +8,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-07-11
 - Branch: `refactor/migrate-to-next`
-- Commit: `6b0b679` — `Load Mercado Pago Brick dynamic assets`
+- Commit: `27b98b8` — `Allow Mercado Pago secure card fields`
 - Working tree no momento deste registro: contém apenas automações locais de
   produto/Bling fora deste commit.
 
@@ -41,20 +41,18 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Objetivo atual
 
-Concluir a compatibilidade de CSP dos campos seguros de cartão do Payment Brick
-e confirmar Pix e boleto no fluxo de sandbox.
+Confirmar o fluxo completo de sandbox do Payment Brick após liberar os campos
+seguros de cartão na CSP.
 
 ## Em andamento
 
-O Payment Brick carrega, mas a seleção de cartão ainda bloqueia conexões dos
-campos seguros. A inspeção do SDK público identificou `api-static.mercadopago.com`,
-`secure-fields.mercadopago.com` e `secure-fields-stg.mercadopago.com`; o ajuste
-restrito dessas origens está em andamento.
+Nenhuma alteração de código pendente. O deployment de produção `27b98b8` está
+`READY` e o cabeçalho HTTPS de `/carrinho` confirmou os hosts dos campos seguros
+de cartão nos ambientes de sandbox e produção.
 
 ## Próximo passo exato
 
-1. Recarregar o checkout em aba anônima ou com cache desabilitado após o novo
-   deployment.
+1. Recarregar o checkout em aba anônima ou com cache desabilitado.
 2. Confirmar que os campos de cartão carregam e que Pix e boleto continuam
    disponíveis para criar uma tentativa de sandbox.
 3. Se falhar, registrar no console o próximo host recusado pela CSP e consultar
@@ -99,6 +97,11 @@ Nenhum bloqueio registrado neste handoff inicial.
   enquanto cartão usa `api-static.mercadopago.com` e os hosts `secure-fields`
   de produção e sandbox. Os payloads de Pix e boleto já têm testes que asseguram
   a ausência de token, emissor e parcelas de cartão.
+- O deployment de produção `dpl_D2BQxqezzjm5ko14d6zig9jZ7ipZ` do commit
+  `27b98b8` ficou `READY`. A resposta HTTPS de `/carrinho` confirmou
+  `api-static.mercadopago.com`, `secure-fields.mercadopago.com` e
+  `secure-fields-stg.mercadopago.com` em `connect-src`. Os testes de CSP,
+  payload de Pix/boleto/cartão e conector passaram: 11 testes em 3 arquivos.
 
 ## Decisões de continuidade
 
