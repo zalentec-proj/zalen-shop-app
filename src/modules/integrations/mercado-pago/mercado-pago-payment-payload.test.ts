@@ -12,6 +12,14 @@ const order = {
   customer: {
     name: 'Cliente Teste',
     document: '085.909.619-07',
+    shippingAddress: {
+      postalCode: '85801-210',
+      street: 'Rua Pio XII',
+      number: '123',
+      district: 'Centro',
+      city: 'Cascavel',
+      state: 'PR',
+    },
   },
 };
 
@@ -70,6 +78,7 @@ describe('Mercado Pago payment payload contract', () => {
     expect(result.body).not.toHaveProperty('token');
     expect(result.body).not.toHaveProperty('issuer_id');
     expect(result.body).not.toHaveProperty('installments');
+    expect((result.body.payer as Record<string, unknown>).address).toBeUndefined();
   });
 
   it('does not send the stored customer document for a sandbox card', () => {
@@ -104,9 +113,45 @@ describe('Mercado Pago payment payload contract', () => {
     expect(result.paymentKind).toBe('ticket');
     expect(result.body).toMatchObject({
       payment_method_id: 'bolbradesco',
-      payer: { identification: { type: 'CPF', number: '08590961907' } },
+      payer: {
+        identification: { type: 'CPF', number: '08590961907' },
+        address: {
+          zip_code: '85801210',
+          street_name: 'Rua Pio XII',
+          street_number: '123',
+          neighborhood: 'Centro',
+          city: 'Cascavel',
+          federal_unit: 'PR',
+        },
+      },
     });
     expect(result.body).not.toHaveProperty('token');
+  });
+
+  it('requires the saved order address before creating boleto', () => {
+    const createBoletoWithoutAddress = () =>
+      buildMercadoPagoBrickPaymentPayload({
+        order: {
+          ...order,
+          customer: {
+            ...order.customer,
+            shippingAddress: undefined,
+          },
+        },
+        payerEmail: 'buyer@example.test',
+        environment: 'test',
+        formData: {
+          payment_method_id: 'bolbradesco',
+          payment_type_id: 'ticket',
+        },
+      });
+
+    expect(createBoletoWithoutAddress).toThrow(MercadoPagoPaymentPayloadError);
+    try {
+      createBoletoWithoutAddress();
+    } catch (error) {
+      expect(error).toMatchObject({ code: 'ticket_payer_address_missing' });
+    }
   });
 
   it('rejects unsupported methods and card submissions without a token', () => {

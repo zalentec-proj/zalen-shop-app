@@ -900,12 +900,12 @@ export default function CartClient({ customerSession }: Props) {
 
     const payer = {
       email: normalizeEmailAddress(customer.email),
+      entityType:
+        documentDigits.length === 14 ? 'association' : 'individual',
       ...(paymentSession.environment === 'production'
         ? {
             firstName,
             lastName: lastNameParts.join(' '),
-            entityType:
-              documentDigits.length === 14 ? 'association' : 'individual',
             identification: {
               type: documentDigits.length === 14 ? 'CNPJ' : 'CPF',
               number: documentDigits,

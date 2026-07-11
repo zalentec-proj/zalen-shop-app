@@ -49,6 +49,14 @@ const order = {
     name: 'Cliente Teste',
     email: 'cliente@real.example',
     document: '08590961907',
+    shippingAddress: {
+      postalCode: '85801-210',
+      street: 'Rua Pio XII',
+      number: '123',
+      district: 'Centro',
+      city: 'Cascavel',
+      state: 'PR',
+    },
   },
 } as never;
 
@@ -141,6 +149,14 @@ describe('Mercado Pago Payment Brick payload', () => {
     expect(body.payment_method_id).toBe('bolbradesco');
     expect(body.token).toBeUndefined();
     expect(body.installments).toBeUndefined();
+    expect(body.payer.address).toEqual({
+      zip_code: '85801210',
+      street_name: 'Rua Pio XII',
+      street_number: '123',
+      neighborhood: 'Centro',
+      city: 'Cascavel',
+      federal_unit: 'PR',
+    });
   });
 
   it('uses the real buyer email only in production', async () => {

@@ -373,6 +373,10 @@ function getSafeCheckoutError(error: unknown) {
     const mercadoPagoError = error as MercadoPagoPreferenceError;
     const reason = mercadoPagoError.reason.toLowerCase();
 
+    if (reason === 'ticket_payer_address_missing') {
+      return 'Revise o endereço de entrega antes de gerar o boleto.';
+    }
+
     if (reason.includes('card token')) {
       return 'Não foi possível validar os dados do cartão no Mercado Pago. Revise o cartão e tente novamente.';
     }

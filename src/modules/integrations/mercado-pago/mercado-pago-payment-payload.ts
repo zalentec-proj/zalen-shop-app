@@ -3,7 +3,12 @@ import type { MercadoPagoBrickPaymentFormData } from './mercado-pago.types';
 export type MercadoPagoBrickPaymentKind = 'card' | 'pix' | 'ticket';
 
 export class MercadoPagoPaymentPayloadError extends Error {
-  constructor(readonly code: 'unsupported_payment_method' | 'card_token_missing') {
+  constructor(
+    readonly code:
+      | 'unsupported_payment_method'
+      | 'card_token_missing'
+      | 'ticket_payer_address_missing'
+  ) {
     super(code);
     this.name = 'MercadoPagoPaymentPayloadError';
   }
@@ -87,13 +92,66 @@ function getPayerIdentification(
   return type && number ? { type, number } : undefined;
 }
 
+function getTicketPayerAddress(input: {
+  customer?: {
+    shippingAddress?: {
+      postalCode?: string;
+      street?: string;
+      number?: string;
+      district?: string;
+      city?: string;
+      state?: string;
+    };
+  };
+}) {
+  const address = input.customer?.shippingAddress;
+  const zipCode = address?.postalCode?.replace(/\D/g, '');
+  const streetName = toOptionalString(address?.street);
+  const streetNumber = toOptionalString(address?.number);
+  const neighborhood = toOptionalString(address?.district);
+  const city = toOptionalString(address?.city);
+  const federalUnit = toOptionalString(address?.state)?.toUpperCase();
+
+  if (
+    !zipCode ||
+    zipCode.length !== 8 ||
+    !streetName ||
+    !streetNumber ||
+    !neighborhood ||
+    !city ||
+    !federalUnit
+  ) {
+    return undefined;
+  }
+
+  return {
+    zip_code: zipCode,
+    street_name: streetName,
+    street_number: streetNumber,
+    neighborhood,
+    city,
+    federal_unit: federalUnit,
+  };
+}
+
 export function buildMercadoPagoBrickPaymentPayload(input: {
   order: {
     id: string;
     storeId: string;
     orderNumber: string;
     total: number;
-    customer?: { name?: string; document?: string };
+    customer?: {
+      name?: string;
+      document?: string;
+      shippingAddress?: {
+        postalCode?: string;
+        street?: string;
+        number?: string;
+        district?: string;
+        city?: string;
+        state?: string;
+      };
+    };
   };
   formData: MercadoPagoBrickPaymentFormData;
   payerEmail: string;
@@ -124,6 +182,13 @@ export function buildMercadoPagoBrickPaymentPayload(input: {
           ? customerIdentification
           : undefined)
       : customerIdentification ?? formPayerIdentification;
+  const ticketPayerAddress =
+    paymentKind === 'ticket' ? getTicketPayerAddress(input.order) : undefined;
+
+  if (paymentKind === 'ticket' && !ticketPayerAddress) {
+    throw new MercadoPagoPaymentPayloadError('ticket_payer_address_missing');
+  }
+
   const payer = {
     email: input.payerEmail,
     first_name:
@@ -135,6 +200,7 @@ export function buildMercadoPagoBrickPaymentPayload(input: {
         ? cardholderName.surname ?? payerName.surname
         : payerName.surname ?? formPayer.last_name,
     identification,
+    ...(ticketPayerAddress ? { address: ticketPayerAddress } : {}),
   };
 
   const body: Record<string, unknown> = {
