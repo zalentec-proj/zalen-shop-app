@@ -130,8 +130,32 @@ describe('Mercado Pago Payment Brick payload', () => {
     expect(body.issuer_id).toBe('123');
   });
 
-  it('does not add a token or card installments to boleto', async () => {
-    await createMercadoPagoBrickPayment({
+  it('persists boleto instructions without card fields', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            id: 'mp-ticket-1',
+            status: 'pending',
+            status_detail: 'pending_waiting_payment',
+            payment_method_id: 'bolbradesco',
+            payment_type_id: 'ticket',
+            transaction_amount: 42.5,
+            barcode: [{ content: '23793380296060054351030006333303799140000020000' }],
+            transaction_details: {
+              external_resource_url: 'https://mp.test/ticket',
+              payment_method_reference_id: '6004835002',
+              verification_code: '1234567890',
+            },
+            date_of_expiration: '2026-07-14T23:59:59.000Z',
+          }),
+          { status: 201 }
+        )
+      )
+    );
+
+    const result = await createMercadoPagoBrickPayment({
       order,
       baseUrl: 'https://loja.example',
       environment: 'test',
@@ -156,6 +180,15 @@ describe('Mercado Pago Payment Brick payload', () => {
       neighborhood: 'Centro',
       city: 'Cascavel',
       federal_unit: 'PR',
+    });
+    expect(result.paymentInstructions).toEqual({
+      ticket: {
+        barcodeContent: '23793380296060054351030006333303799140000020000',
+        reference: '6004835002',
+        verificationCode: '1234567890',
+      },
+      externalResourceUrl: 'https://mp.test/ticket',
+      expiresAt: '2026-07-14T23:59:59.000Z',
     });
   });
 

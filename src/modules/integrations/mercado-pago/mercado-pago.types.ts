@@ -162,6 +162,13 @@ export interface MercadoPagoPaymentInstructions {
     ticketUrl?: string;
     expiresAt?: string;
   };
+  ticket?: {
+    barcodeContent?: string;
+    digitableLine?: string;
+    reference?: string;
+    verificationCode?: string;
+    financialInstitution?: string;
+  };
   externalResourceUrl?: string;
   expiresAt?: string;
 }

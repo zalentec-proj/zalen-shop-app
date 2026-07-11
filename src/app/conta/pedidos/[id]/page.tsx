@@ -10,9 +10,15 @@ import {
 } from 'lucide-react';
 import { createOptionalClient } from '@/lib/supabase/server';
 import { getCustomerOrderForUser } from '@/modules/customer-account/customer-account.service';
+import { getMercadoPagoPayment } from '@/modules/integrations/mercado-pago/mercado-pago.connector';
+import type {
+  MercadoPagoEnvironment,
+  MercadoPagoPaymentInstructions,
+} from '@/modules/integrations/mercado-pago/mercado-pago.types';
 import { noindexMetadata } from '@/modules/seo/seo.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 import CustomerAccountHeader from '../../CustomerAccountHeader';
+import BoletoInstructionActions from './BoletoInstructionActions';
 import { retryCustomerOrderPaymentAction } from './actions';
 
 export const metadata: Metadata = {
@@ -135,41 +141,132 @@ function normalizeMetadataString(value: string | undefined) {
   return value?.trim().toLowerCase();
 }
 
-function getPaymentInstructions(payment: CustomerOrderDetailPagePayment | undefined) {
-  const instructions = getMetadataRecord(payment?.metadata, 'payment_instructions');
-  const pix = getMetadataRecord(instructions, 'pix');
-  const qrCode = getMetadataString(pix, 'qrCode');
-  const qrCodeBase64 = getMetadataString(pix, 'qrCodeBase64');
-  const ticketUrl =
-    getMetadataString(pix, 'ticketUrl') ??
-    getMetadataString(instructions, 'externalResourceUrl');
-  const paymentMethodId = normalizeMetadataString(
-    getMetadataString(payment?.metadata, 'payment_method_id')
-  );
-  const paymentTypeId = normalizeMetadataString(
-    getMetadataString(payment?.metadata, 'payment_type_id')
-  );
-  const isPix = Boolean(
-    qrCode ||
-      qrCodeBase64 ||
-      paymentMethodId === 'pix'
-  );
+type PaymentInstructionsDisplay = {
+  method: 'pix' | 'ticket' | 'external';
+  qrCode?: string;
+  qrCodeBase64?: string;
+  ticketUrl?: string;
+  barcodeContent?: string;
+  digitableLine?: string;
+  reference?: string;
+  financialInstitution?: string;
+  expiresAt?: string;
+};
+
+function toPaymentInstructionsDisplay(
+  instructions: MercadoPagoPaymentInstructions | undefined
+): PaymentInstructionsDisplay | undefined {
+  const pix = instructions?.pix;
+  const ticket = instructions?.ticket;
+  const ticketUrl = pix?.ticketUrl ?? instructions?.externalResourceUrl;
+  const isPix = Boolean(pix?.qrCode || pix?.qrCodeBase64);
   const isTicket = Boolean(
-    paymentTypeId === 'ticket' ||
-      paymentMethodId?.startsWith('bol') ||
+    ticket ||
       (ticketUrl && !isPix)
   );
 
-  if (!qrCode && !qrCodeBase64 && !ticketUrl) {
+  if (!pix?.qrCode && !pix?.qrCodeBase64 && !ticketUrl && !ticket) {
     return undefined;
   }
 
   return {
     method: isPix ? 'pix' : isTicket ? 'ticket' : 'external',
-    qrCode,
-    qrCodeBase64,
+    qrCode: pix?.qrCode,
+    qrCodeBase64: pix?.qrCodeBase64,
     ticketUrl,
+    barcodeContent: ticket?.barcodeContent,
+    digitableLine: ticket?.digitableLine,
+    reference: ticket?.reference,
+    financialInstitution: ticket?.financialInstitution,
+    expiresAt: instructions?.expiresAt ?? pix?.expiresAt,
   };
+}
+
+function getPaymentInstructions(payment: CustomerOrderDetailPagePayment | undefined) {
+  const instructions = getMetadataRecord(payment?.metadata, 'payment_instructions');
+  const pix = getMetadataRecord(instructions, 'pix');
+  const ticket = getMetadataRecord(instructions, 'ticket');
+
+  return toPaymentInstructionsDisplay({
+    pix: pix
+      ? {
+          qrCode: getMetadataString(pix, 'qrCode'),
+          qrCodeBase64: getMetadataString(pix, 'qrCodeBase64'),
+          ticketUrl: getMetadataString(pix, 'ticketUrl'),
+          expiresAt: getMetadataString(pix, 'expiresAt'),
+        }
+      : undefined,
+    ticket: ticket
+      ? {
+          barcodeContent: getMetadataString(ticket, 'barcodeContent'),
+          digitableLine: getMetadataString(ticket, 'digitableLine'),
+          reference: getMetadataString(ticket, 'reference'),
+          financialInstitution: getMetadataString(ticket, 'financialInstitution'),
+        }
+      : undefined,
+    externalResourceUrl: getMetadataString(instructions, 'externalResourceUrl'),
+    expiresAt: getMetadataString(instructions, 'expiresAt'),
+  });
+}
+
+function mergePaymentInstructions(
+  stored: PaymentInstructionsDisplay | undefined,
+  refreshed: PaymentInstructionsDisplay | undefined
+) {
+  if (!stored) return refreshed;
+  if (!refreshed) return stored;
+
+  return {
+    method:
+      stored.method === 'ticket' || refreshed.method === 'ticket'
+        ? 'ticket'
+        : stored.method,
+    qrCode: stored.qrCode ?? refreshed.qrCode,
+    qrCodeBase64: stored.qrCodeBase64 ?? refreshed.qrCodeBase64,
+    ticketUrl: stored.ticketUrl ?? refreshed.ticketUrl,
+    barcodeContent: stored.barcodeContent ?? refreshed.barcodeContent,
+    digitableLine: stored.digitableLine ?? refreshed.digitableLine,
+    reference: stored.reference ?? refreshed.reference,
+    financialInstitution:
+      stored.financialInstitution ?? refreshed.financialInstitution,
+    expiresAt: stored.expiresAt ?? refreshed.expiresAt,
+  } satisfies PaymentInstructionsDisplay;
+}
+
+async function resolvePaymentInstructions(input: {
+  payment: CustomerOrderDetailPagePayment | undefined;
+  storeId: string;
+}) {
+  const stored = getPaymentInstructions(input.payment);
+  const needsBoletoRefresh =
+    stored?.method === 'ticket' &&
+    !stored.barcodeContent &&
+    !stored.digitableLine &&
+    input.payment?.externalPaymentId;
+
+  if (!needsBoletoRefresh || !input.payment?.externalPaymentId) {
+    return stored;
+  }
+
+  const environment: MercadoPagoEnvironment =
+    getMetadataString(input.payment.metadata, 'environment') === 'production'
+      ? 'production'
+      : 'test';
+
+  try {
+    const payment = await getMercadoPagoPayment({
+      paymentId: input.payment.externalPaymentId,
+      storeId: input.storeId,
+      environment,
+    });
+
+    return mergePaymentInstructions(
+      stored,
+      toPaymentInstructionsDisplay(payment.paymentInstructions)
+    );
+  } catch {
+    return stored;
+  }
 }
 
 function getPaymentPendingTitle(payment: CustomerOrderDetailPagePayment | undefined) {
@@ -292,10 +389,14 @@ export default async function CustomerOrderDetailPage({
     order.paymentStatus !== 'refunded' &&
     order.payment?.status !== 'refunded';
   const paymentNotice = paymentNoticeLabel(search?.payment);
-  const paymentInstructions = getPaymentInstructions(order.payment);
+  const paymentInstructions = await resolvePaymentInstructions({
+    payment: order.payment,
+    storeId: store.id,
+  });
   const paymentContinuationUrl = getPaymentContinuationUrl(order.payment);
   const paymentPendingTitle = getPaymentPendingTitle(order.payment);
   const paymentPendingDescription = getPaymentPendingDescription(order.payment);
+  const isTicketPayment = paymentInstructions?.method === 'ticket';
 
   return (
     <main className="min-h-screen bg-brand-bg px-4 py-8 text-white">
@@ -370,7 +471,7 @@ export default async function CustomerOrderDetailPage({
                 </p>
               </div>
               <div className="flex flex-col gap-2 sm:items-end">
-                {paymentContinuationUrl ? (
+                {paymentContinuationUrl && !isTicketPayment ? (
                   <a
                     href={paymentContinuationUrl}
                     className="inline-flex h-11 items-center justify-center rounded-xl bg-blue-primary px-5 text-sm font-black text-white shadow-[0_8px_24px_rgba(30,61,255,0.28)] transition hover:opacity-95"
@@ -390,7 +491,13 @@ export default async function CustomerOrderDetailPage({
               </div>
             </div>
             {paymentInstructions ? (
-              <div className="mt-5 grid gap-4 rounded-2xl border border-white/10 bg-[#050A14]/70 p-4 md:grid-cols-[180px_1fr]">
+              <div
+                className={`mt-5 grid gap-4 rounded-2xl border border-white/10 bg-[#050A14]/70 p-4 ${
+                  paymentInstructions.method === 'pix' && paymentInstructions.qrCodeBase64
+                    ? 'md:grid-cols-[180px_1fr]'
+                    : ''
+                }`}
+              >
                 {paymentInstructions.method === 'pix' && paymentInstructions.qrCodeBase64 ? (
                   <img
                     src={`data:image/png;base64,${paymentInstructions.qrCodeBase64}`}
@@ -410,7 +517,7 @@ export default async function CustomerOrderDetailPage({
                     {paymentInstructions.method === 'pix'
                       ? 'Use o QR Code, copie o código Pix ou continue pelo Mercado Pago.'
                       : paymentInstructions.method === 'ticket'
-                        ? 'Abra o boleto pelo Mercado Pago para copiar ou imprimir.'
+                        ? 'Use o código abaixo para pagar, imprimir ou salvar as instruções.'
                         : 'Abra as instruções no Mercado Pago para concluir.'}
                   </p>
                   {paymentInstructions.method === 'pix' && paymentInstructions.qrCode ? (
@@ -420,16 +527,57 @@ export default async function CustomerOrderDetailPage({
                       className="mt-3 h-24 w-full rounded-xl border border-white/10 bg-[#090E17] p-3 font-mono text-xs text-white"
                     />
                   ) : null}
-                  {paymentInstructions.ticketUrl ? (
+                  {paymentInstructions.method === 'ticket' ? (
+                    <>
+                      {paymentInstructions.digitableLine ||
+                      paymentInstructions.barcodeContent ? (
+                        <div className="mt-4 rounded-xl border border-white/10 bg-[#090E17] p-3">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-brand-muted">
+                            {paymentInstructions.digitableLine
+                              ? 'Linha digitável'
+                              : 'Código de barras'}
+                          </p>
+                          <p className="mt-2 break-all font-mono text-xs font-bold leading-6 text-white">
+                            {paymentInstructions.digitableLine ??
+                              paymentInstructions.barcodeContent}
+                          </p>
+                        </div>
+                      ) : null}
+                      {paymentInstructions.expiresAt ? (
+                        <p className="mt-3 text-xs text-brand-muted">
+                          Vencimento: {formatDate(paymentInstructions.expiresAt)}
+                        </p>
+                      ) : null}
+                      {paymentInstructions.reference ? (
+                        <p className="mt-1 text-xs text-brand-muted">
+                          Referência: {paymentInstructions.reference}
+                        </p>
+                      ) : null}
+                      <BoletoInstructionActions
+                        orderNumber={order.orderNumber}
+                        total={formatCurrency(order.total)}
+                        paymentCode={
+                          paymentInstructions.digitableLine ??
+                          paymentInstructions.barcodeContent
+                        }
+                        expiresAt={
+                          paymentInstructions.expiresAt
+                            ? formatDate(paymentInstructions.expiresAt)
+                            : undefined
+                        }
+                        ticketUrl={paymentInstructions.ticketUrl}
+                      />
+                    </>
+                  ) : paymentInstructions.ticketUrl ? (
                     <a
                       href={paymentInstructions.ticketUrl}
+                      target="_blank"
+                      rel="noreferrer"
                       className="mt-3 inline-flex h-10 items-center justify-center rounded-xl border border-white/10 px-4 text-xs font-black text-white transition hover:border-blue-primary/40"
                     >
                       {paymentInstructions.method === 'pix'
                         ? 'Abrir Pix no Mercado Pago'
-                        : paymentInstructions.method === 'ticket'
-                          ? 'Abrir boleto no Mercado Pago'
-                          : 'Abrir instruções no Mercado Pago'}
+                        : 'Abrir instruções no Mercado Pago'}
                     </a>
                   ) : null}
                 </div>

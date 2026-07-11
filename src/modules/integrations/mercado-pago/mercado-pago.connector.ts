@@ -43,6 +43,14 @@ interface MercadoPagoPreferenceResponse {
   sandbox_init_point?: string;
 }
 
+interface MercadoPagoTransactionDetails {
+  external_resource_url?: string;
+  payment_method_reference_id?: string;
+  verification_code?: string;
+  financial_institution?: string;
+  digitable_line?: string;
+}
+
 interface MercadoPagoPaymentResponse {
   id?: number | string;
   status?: string;
@@ -62,9 +70,10 @@ interface MercadoPagoPaymentResponse {
       expires_at?: string;
     };
   };
-  transaction_details?: {
-    external_resource_url?: string;
-  };
+  barcode?: { content?: string } | Array<{ content?: string }>;
+  transaction_details?:
+    | MercadoPagoTransactionDetails
+    | MercadoPagoTransactionDetails[];
   date_of_expiration?: string;
 }
 
@@ -190,6 +199,18 @@ function toRecord(value: unknown): Record<string, unknown> | undefined {
   return value as Record<string, unknown>;
 }
 
+function getFirstTransactionDetails(
+  value: MercadoPagoPaymentResponse['transaction_details']
+) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function getBarcodeContent(value: MercadoPagoPaymentResponse['barcode']) {
+  const barcode = Array.isArray(value) ? value[0] : value;
+
+  return barcode?.content;
+}
+
 function getMercadoPagoPaymentInstructions(
   payment: MercadoPagoPaymentResponse
 ): MercadoPagoPaymentInstructions | undefined {
@@ -205,15 +226,33 @@ function getMercadoPagoPaymentInstructions(
           expiresAt: transactionData.expires_at,
         }
       : undefined;
+  const transactionDetails = getFirstTransactionDetails(
+    payment.transaction_details
+  );
   const externalResourceUrl =
-    payment.transaction_details?.external_resource_url;
+    transactionDetails?.external_resource_url;
+  const barcodeContent = getBarcodeContent(payment.barcode);
+  const isTicket =
+    payment.payment_type_id === 'ticket' ||
+    payment.payment_method_id?.startsWith('bol') ||
+    Boolean(barcodeContent);
+  const ticket = isTicket
+    ? {
+        barcodeContent,
+        digitableLine: transactionDetails?.digitable_line,
+        reference: transactionDetails?.payment_method_reference_id,
+        verificationCode: transactionDetails?.verification_code,
+        financialInstitution: transactionDetails?.financial_institution,
+      }
+    : undefined;
 
-  if (!pix && !externalResourceUrl) {
+  if (!pix && !ticket && !externalResourceUrl) {
     return undefined;
   }
 
   return {
     pix,
+    ticket,
     externalResourceUrl,
     expiresAt: payment.date_of_expiration,
   };
