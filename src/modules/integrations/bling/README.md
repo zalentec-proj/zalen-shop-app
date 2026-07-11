@@ -13,7 +13,7 @@ Status atual:
 - Envio beta de pedidos implementado com trava por loja e retry admin.
 - Webhook v1 implementado como validar, deduplicar, salvar e enfileirar.
 - Worker de webhooks implementado para produto/estoque, com retry seguro.
-- Cron Vercel implementado para processar webhooks e rodar sync incremental.
+- Supabase Cron implementado para processar webhooks e rodar sync incremental.
 
 Arquivos principais:
 

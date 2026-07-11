@@ -27,8 +27,9 @@ webhook secrets e chaves de criptografia separados por ambiente.
    Drones em teste e produção, preencher Public Key de cada ambiente e salvar
    o segredo de webhook correspondente. Produção fica desativada até a conexão
    OAuth estar `connected` no admin.
-5. No Vercel, usar plano que permita cron de 10 minutos. Verificar que as três
-   rotas do `vercel.json` aparecem no painel antes de abrir o piloto.
+5. No Supabase, confirmar que `pg_cron` e `pg_net` estão ativos, que o segredo
+   `zalen_cron_secret` existe no Vault e que as três rotinas aparecem em
+   `cron.job` antes de abrir o piloto.
 6. Ativar Sentry server-side com `SENTRY_DSN` e confirmar uma exceção sintética
    sem PII antes da homologação.
 

@@ -329,10 +329,12 @@ Regras:
 - as rotas `/api/jobs/*` exigem `Authorization: Bearer <CRON_SECRET>` ou
   `Authorization: Bearer <INTERNAL_JOB_SECRET>`;
 - a rota de admin exige sessão Supabase e acesso à loja ativa;
-- no plano Hobby atual da Vercel, os crons rodam diariamente às 03:00 UTC
-  (webhooks) e 03:30 UTC (sync incremental);
-- quando a conta subir para Pro, a configuração recomendada volta a ser
-  webhooks a cada 5 minutos e sync incremental a cada 30 minutos;
+- Supabase `pg_cron` chama webhooks pendentes, sync incremental e reconciliação
+  Mercado Pago a cada 10 minutos;
+- Supabase `pg_net` envia a chamada HTTP autenticada com o segredo
+  `zalen_cron_secret` guardado no Vault; nenhum valor é incluído na migration;
+- falhas e execuções podem ser auditadas em `cron.job` e
+  `cron.job_run_details`;
 - nenhum token Bling é retornado ao frontend ou salvo em log.
 
 ## Variáveis de ambiente necessárias

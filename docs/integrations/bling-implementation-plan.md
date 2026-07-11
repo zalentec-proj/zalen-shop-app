@@ -45,8 +45,8 @@ está aprovado/publicado no Bling.
   persistência em `webhook_events` e job `webhook_process` pendente.
 - Worker server-side para processar webhooks de produto/estoque fora da request
   pública do Bling.
-- Cron Vercel para processar webhooks pendentes e rodar sync incremental de
-  segurança.
+- Supabase Cron para processar webhooks pendentes e rodar sync incremental de
+  segurança a cada 10 minutos.
 - Admin do Bling com ação manual para processar pendências de webhook.
 
 ## Rotas
@@ -343,12 +343,10 @@ Regras implementadas:
 
 Regras implementadas:
 
-- `vercel.json` agenda `/api/jobs/bling/webhooks/process` diariamente às
-  03:00 UTC enquanto a Vercel estiver no plano Hobby;
-- `vercel.json` agenda `/api/jobs/bling/sync` diariamente às 03:30 UTC enquanto
-  a Vercel estiver no plano Hobby;
-- em plano Pro, os horários recomendados são webhooks a cada 5 minutos e sync
-  incremental a cada 30 minutos;
+- Supabase `pg_cron` agenda `/api/jobs/bling/webhooks/process`,
+  `/api/jobs/bling/sync` e a reconciliação Mercado Pago a cada 10 minutos;
+- Supabase `pg_net` chama as rotas internas com o segredo `zalen_cron_secret`
+  armazenado no Vault; a Vercel não agenda jobs diretamente;
 - os jobs internos exigem `CRON_SECRET` ou `INTERNAL_JOB_SECRET`;
 - o sync agendado lista lojas com Bling conectado e credenciais criptografadas;
 - para cada loja, roda sync incremental de produtos e sync de estoque;
