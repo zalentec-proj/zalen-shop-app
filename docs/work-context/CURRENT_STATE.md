@@ -52,12 +52,15 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - O deployment de produção `dpl_E4Mf3FSYHC8euP4C3RukyHnsiy7U` do commit
   `0cdf2f9` está `READY` e foi associado ao domínio
   `brasil-drones.zalenshop.com.br`.
+- Auditoria de 2026-07-11 do conector Mercado Pago: a validação de entrega de
+  webhooks em produção permanece pendente. O diagnóstico detalhado e quaisquer
+  dados operacionais sensíveis devem ficar fora de documentação versionada.
 
 ## Objetivo atual
 
-Retestar a abertura do boleto oficial no detalhe do pedido, usando a tentativa
-pendente já criada no sandbox e uma tentativa de produção após a conta vendedora
-ser conectada.
+Corrigir a configuração de produção do Mercado Pago e retestar a abertura do
+boleto oficial no detalhe do pedido, usando uma tentativa real somente após a
+conta vendedora e os webhooks estarem homologados.
 
 ## Em andamento
 
@@ -65,17 +68,22 @@ O deployment de produção `dpl_E4Mf3FSYHC8euP4C3RukyHnsiy7U`, que contém o
 commit funcional `0cdf2f9`, está `READY`. O sandbox usa o e-mail validado no
 checkout e não pré-preenche CPF/CNPJ do cliente para cartões.
 
+A configuração de pagamentos em produção continua bloqueada até a validação
+controlada do webhook e das dependências server-side por ambiente.
+
 ## Próximo passo exato
 
-1. Reabrir o detalhe do pedido de boleto pendente. O código deve aparecer com a
-   ação de cópia e a ação para abrir o boleto oficial no Mercado Pago, sem
-   impressão, PDF ou download gerados pela loja.
-2. Confirmar Pix e cartão: Pix sem campos de cartão, cartão de sandbox sem
-   documento do cadastro pré-preenchido.
+1. Validar credenciais, assinatura de webhook e dependências server-side no
+   ambiente de produção, sem usar o ambiente de teste como fallback.
+2. Preservar a `notification_url` contextualizada por loja e ambiente em cada
+   pagamento e manter somente os tópicos efetivamente processados pelo conector.
+3. Criar uma transação de produção controlada e confirmar a entrega do webhook
+   antes de liberar o fluxo comercial.
 
 ## Bloqueios e dúvidas
 
-Nenhum bloqueio registrado neste handoff inicial.
+Validação de pagamentos em produção pendente de configuração segura e reteste
+controlado do webhook.
 
 ## Validação
 
