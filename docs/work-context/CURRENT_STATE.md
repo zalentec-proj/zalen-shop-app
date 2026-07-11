@@ -8,7 +8,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-07-11
 - Branch: `refactor/migrate-to-next`
-- Commit: `7e2b77e` — `Allow checkout addresses without complement`
+- Commit: `3ffaf07` — `Allow Mercado Pago Brick security origins`
 - Working tree no momento deste registro: contém apenas automações locais de
   produto/Bling fora deste commit.
 
@@ -41,21 +41,21 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Objetivo atual
 
-Retestar a renderização e a submissão do Payment Brick depois de liberar os
-hosts estritamente necessários na CSP.
+Confirmar o fluxo completo de sandbox do Payment Brick após a correção de CSP
+publicada em produção.
 
 ## Em andamento
 
-Ajuste de CSP para o Payment Brick em andamento. A captura de produção mostrou
-que o frame e a checagem antifraude do SDK foram bloqueados por CSP.
+Nenhuma alteração de código pendente. O deployment de produção `3ffaf07` está
+`READY` e o cabeçalho HTTPS de `/carrinho` confirmou as origens necessárias.
 
 ## Próximo passo exato
 
-1. Refazer o checkout em aba anônima após o deployment da CSP.
+1. Recarregar o checkout em aba anônima ou com cache desabilitado.
 2. Confirmar que o Payment Brick deixa de ficar em branco, carrega os meios de
    pagamento e permite submeter um pagamento de sandbox.
-3. Se falhar, registrar o próximo host recusado pela CSP e consultar o Sentry
-   pelo código seguro `checkout_start_failed` antes de alterar o fluxo.
+3. Se falhar, registrar no console o próximo host recusado pela CSP e consultar
+   o Sentry pelo código seguro `checkout_start_failed` antes de alterar o fluxo.
 
 ## Bloqueios e dúvidas
 
@@ -80,6 +80,9 @@ Nenhum bloqueio registrado neste handoff inicial.
 - A captura de produção posterior mostrou a CSP bloqueando explicitamente
   `https://www.mercadolibre.com` em `connect-src` e `frame-src`, origem usada
   pelo Payment Brick para segurança. O ajuste foi mantido restrito a esse host.
+- O deployment de produção `dpl_DsGNoGZftFze51LiTA4TNbUo5yub` do commit
+  `3ffaf07` ficou `READY`. A resposta HTTPS de `/carrinho` confirmou
+  `www.mercadolibre.com` nas diretivas `connect-src` e `frame-src`.
 
 ## Decisões de continuidade
 
