@@ -24,6 +24,32 @@ Para integrações externas, leia também:
 - `docs/integrations/official-sources.md`
 - o arquivo de pesquisa técnica do provedor em `docs/integrations/`
 
+## Continuidade entre máquinas
+
+O estado de trabalho que precisa sobreviver à troca de máquina deve ser
+registrado em `docs/work-context/CURRENT_STATE.md`. A conversa do Codex é
+contexto auxiliar; o handoff versionado, o código e a documentação do projeto
+são a fonte de verdade.
+
+Antes de iniciar uma nova frente de trabalho:
+
+1. Leia `docs/work-context/CURRENT_STATE.md` depois da documentação obrigatória.
+2. Verifique branch, working tree e mudanças remotas antes de editar.
+3. Confirme ou registre o objetivo da tarefa, sem inferir escopo apenas pelo último commit.
+
+Antes de encerrar uma sessão ou passar o trabalho para outra máquina:
+
+1. Atualize o handoff com objetivo, concluído, andamento, próximo passo exato,
+   bloqueios, validações, decisões e arquivos relevantes.
+2. Não registre tokens, senhas, chaves, payloads sensíveis ou saídas de terminal
+   com segredos.
+3. Faça commit e push, inclusive um commit `wip` quando o trabalho estiver
+   incompleto e for seguro versioná-lo.
+
+`git stash` é local e não substitui um handoff versionado. Em uso sequencial de
+duas máquinas, faça `git pull --rebase` antes de começar e só troque de máquina
+depois de salvar e enviar o estado atual.
+
 ## Decisões centrais
 
 1. **Zalen Shop é a plataforma.**
