@@ -41,17 +41,19 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Objetivo atual
 
-Confirmar o fluxo completo de sandbox do Payment Brick após a correção de CSP
-publicada em produção.
+Concluir a compatibilidade de CSP do Payment Brick após identificar os chunks
+dinâmicos e a telemetria do SDK.
 
 ## Em andamento
 
-Nenhuma alteração de código pendente. O deployment de produção `3ffaf07` está
-`READY` e o cabeçalho HTTPS de `/carrinho` confirmou as origens necessárias.
+A captura seguinte confirmou que o SDK também baixa componentes de
+`http2.mlstatic.com` e chama `api.mercadolibre.com/tracks`. O ajuste restrito
+para essas origens está em andamento.
 
 ## Próximo passo exato
 
-1. Recarregar o checkout em aba anônima ou com cache desabilitado.
+1. Recarregar o checkout em aba anônima ou com cache desabilitado após o novo
+   deployment.
 2. Confirmar que o Payment Brick deixa de ficar em branco, carrega os meios de
    pagamento e permite submeter um pagamento de sandbox.
 3. Se falhar, registrar no console o próximo host recusado pela CSP e consultar
@@ -83,6 +85,10 @@ Nenhum bloqueio registrado neste handoff inicial.
 - O deployment de produção `dpl_DsGNoGZftFze51LiTA4TNbUo5yub` do commit
   `3ffaf07` ficou `READY`. A resposta HTTPS de `/carrinho` confirmou
   `www.mercadolibre.com` nas diretivas `connect-src` e `frame-src`.
+- A captura de console seguinte mostrou bloqueios explícitos do script de
+  componente em `https://http2.mlstatic.com` e da telemetria em
+  `https://api.mercadolibre.com/tracks`. Ambas as permissões adicionais foram
+  mantidas no escopo estrito do Payment Brick.
 
 ## Decisões de continuidade
 

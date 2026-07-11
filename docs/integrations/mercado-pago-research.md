@@ -174,8 +174,13 @@ mp.bricks().create('payment', 'paymentBrick_container', {
 
 O Payment Brick é iniciado pelo script oficial em
 `https://sdk.mercadopago.com/js/v2`, mas, durante a renderização, também usa
-`https://www.mercadolibre.com` para frame e verificações de segurança.
-A CSP global deve permitir esse host apenas em `connect-src` e `frame-src`.
+`https://www.mercadolibre.com` para frame e verificações de segurança,
+`https://http2.mlstatic.com` para chunks de componentes e
+`https://api.mercadolibre.com` para telemetria operacional.
+A CSP global deve permitir os hosts de Mercado Livre somente nos tipos de
+recurso usados pelo SDK: `www.mercadolibre.com` em `connect-src` e `frame-src`,
+`http2.mlstatic.com` em `script-src` e `connect-src`, e
+`api.mercadolibre.com` em `connect-src`.
 As fontes usadas pelo Brick permanecem limitadas a
 `https://fonts.googleapis.com` em `style-src` e
 `https://fonts.gstatic.com` em `font-src`. Não ampliar `script-src` para
