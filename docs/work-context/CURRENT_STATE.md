@@ -8,7 +8,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-07-11
 - Branch: `refactor/migrate-to-next`
-- Commit: `3ffaf07` — `Allow Mercado Pago Brick security origins`
+- Commit: `6b0b679` — `Load Mercado Pago Brick dynamic assets`
 - Working tree no momento deste registro: contém apenas automações locais de
   produto/Bling fora deste commit.
 
@@ -41,19 +41,18 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Objetivo atual
 
-Concluir a compatibilidade de CSP do Payment Brick após identificar os chunks
-dinâmicos e a telemetria do SDK.
+Confirmar o fluxo completo de sandbox do Payment Brick após a correção de CSP
+publicada em produção.
 
 ## Em andamento
 
-A captura seguinte confirmou que o SDK também baixa componentes de
-`http2.mlstatic.com` e chama `api.mercadolibre.com/tracks`. O ajuste restrito
-para essas origens está em andamento.
+Nenhuma alteração de código pendente. O deployment de produção `6b0b679` está
+`READY` e o cabeçalho HTTPS de `/carrinho` confirmou todas as origens atualmente
+recusadas pelo console do Payment Brick.
 
 ## Próximo passo exato
 
-1. Recarregar o checkout em aba anônima ou com cache desabilitado após o novo
-   deployment.
+1. Recarregar o checkout em aba anônima ou com cache desabilitado.
 2. Confirmar que o Payment Brick deixa de ficar em branco, carrega os meios de
    pagamento e permite submeter um pagamento de sandbox.
 3. Se falhar, registrar no console o próximo host recusado pela CSP e consultar
@@ -89,6 +88,10 @@ Nenhum bloqueio registrado neste handoff inicial.
   componente em `https://http2.mlstatic.com` e da telemetria em
   `https://api.mercadolibre.com/tracks`. Ambas as permissões adicionais foram
   mantidas no escopo estrito do Payment Brick.
+- O deployment de produção `dpl_7drvtibNjaVKmzQMPYYLKyT74Q4B` do commit
+  `6b0b679` ficou `READY`. A resposta HTTPS de `/carrinho` confirmou
+  `http2.mlstatic.com` em `script-src` e `connect-src`, além de
+  `api.mercadolibre.com` em `connect-src`.
 
 ## Decisões de continuidade
 
