@@ -224,10 +224,13 @@ O payload é separado por meio:
 ### Sandbox
 
 Para cartão e meios offline, a documentação oficial exige as credenciais de
-teste da conta real e um e-mail de pagador que não seja a conta Mercado Pago do
-vendedor nem uma conta de teste. A Zalen usa `MERCADO_PAGO_TEST_PAYER_EMAIL`
-somente no backend e também o pré-preenche no Brick em sandbox. Em produção, o
-pagador é sempre o e-mail real validado do comprador.
+teste da conta real e um e-mail de pagador diferente do e-mail do vendedor. O
+Payment Brick usa o e-mail validado no checkout, sem injetar e-mail de usuário
+de teste. No sandbox, o Brick não pré-preenche CPF/CNPJ, nome ou endereço do
+cadastro; assim, não mistura a identidade real do cliente aos dados de teste.
+No backend, cartões de sandbox não recebem o CPF/CNPJ salvo como fallback, mas
+Pix e boleto preservam os dados validados quando o método exigir identificação.
+Em produção, o pagador continua sendo sempre o comprador validado.
 
 ## Webhooks
 

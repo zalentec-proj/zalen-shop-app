@@ -5,7 +5,6 @@ const mocks = vi.hoisted(() => ({
   env: {
     MERCADO_PAGO_ACCESS_TOKEN: 'APP_USR-test-token',
     MERCADO_PAGO_PUBLIC_KEY: 'APP_USR-test-public-key',
-    MERCADO_PAGO_TEST_PAYER_EMAIL: 'checkout-test@zalen.invalid' as string | undefined,
   },
   defaultEnvironment: 'test' as 'test' | 'production',
 }));
@@ -56,7 +55,6 @@ const order = {
 describe('Mercado Pago Payment Brick payload', () => {
   beforeEach(() => {
     mocks.upsertPaymentTransaction.mockReset();
-    mocks.env.MERCADO_PAGO_TEST_PAYER_EMAIL = 'checkout-test@zalen.invalid';
     mocks.defaultEnvironment = 'test';
     vi.stubGlobal(
       'fetch',
@@ -99,7 +97,7 @@ describe('Mercado Pago Payment Brick payload', () => {
     expect(body.token).toBeUndefined();
     expect(body.installments).toBeUndefined();
     expect(body.issuer_id).toBeUndefined();
-    expect(body.payer.email).toBe('checkout-test@zalen.invalid');
+    expect(body.payer.email).toBe('cliente@real.example');
   });
 
   it('sends a token and installments only for cards', async () => {
@@ -165,24 +163,21 @@ describe('Mercado Pago Payment Brick payload', () => {
     expect(body.payer.email).toBe('cliente@real.example');
   });
 
-  it('rejects a sandbox payment when its safe test payer is absent', async () => {
-    mocks.env.MERCADO_PAGO_TEST_PAYER_EMAIL = undefined;
-
-    await expect(
-      createMercadoPagoBrickPayment({
-        order,
-        baseUrl: 'https://loja.example',
-        environment: 'test',
-        idempotencyKey: 'missing-test-payer',
-        formData: {
-          payment_method_id: 'pix',
-          payment_type_id: 'bank_transfer',
-        },
-      })
-    ).rejects.toMatchObject({
-      status: 503,
-      reason: 'test_payer_email_not_configured',
+  it('uses the checkout customer email in sandbox without a test-user override', async () => {
+    await createMercadoPagoBrickPayment({
+      order,
+      baseUrl: 'https://loja.example',
+      environment: 'test',
+      idempotencyKey: 'sandbox-customer-email',
+      formData: {
+        payment_method_id: 'pix',
+        payment_type_id: 'bank_transfer',
+      },
     });
+
+    const request = vi.mocked(fetch).mock.calls[0]?.[1] as RequestInit;
+    const body = JSON.parse(String(request.body));
+    expect(body.payer.email).toBe('cliente@real.example');
   });
 
   it('keeps provider errors on the server boundary', async () => {

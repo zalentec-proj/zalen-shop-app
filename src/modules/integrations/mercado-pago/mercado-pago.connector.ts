@@ -717,15 +717,8 @@ export async function createMercadoPagoBrickPayment(input: {
   });
   const { order } = input;
   const baseUrl = normalizeBaseUrl(input.baseUrl);
-  const testPayerEmail = getServerEnv().MERCADO_PAGO_TEST_PAYER_EMAIL;
   const payerEmail =
-    accessContext.environment === 'test'
-      ? testPayerEmail
-      : order.customer?.email ?? toOptionalString(input.formData.payer?.email);
-
-  if (accessContext.environment === 'test' && !testPayerEmail) {
-    throw new MercadoPagoPreferenceError(503, 'test_payer_email_not_configured');
-  }
+    order.customer?.email ?? toOptionalString(input.formData.payer?.email);
 
   if (!payerEmail) {
     throw new MercadoPagoPreferenceError(400, 'payer_email_missing');

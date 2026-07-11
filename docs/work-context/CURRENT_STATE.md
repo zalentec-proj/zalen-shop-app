@@ -41,20 +41,22 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Objetivo atual
 
-Confirmar o fluxo completo de sandbox do Payment Brick após liberar os campos
-seguros de cartão na CSP.
+Corrigir a identidade do pagador no sandbox do Payment Brick e retestar cartão,
+Pix e boleto.
 
 ## Em andamento
 
-Nenhuma alteração de código pendente. O deployment de produção `27b98b8` está
-`READY` e o cabeçalho HTTPS de `/carrinho` confirmou os hosts dos campos seguros
-de cartão nos ambientes de sandbox e produção.
+A tentativa de cartão chegou à API do Mercado Pago, mas foi recusada por
+parâmetro do pagador. A implementação estava injetando e-mail de usuário de
+teste e CPF/CNPJ real no Brick de sandbox, contrariando a orientação oficial.
+O ajuste para separar a identidade de sandbox está em andamento.
 
 ## Próximo passo exato
 
-1. Recarregar o checkout em aba anônima ou com cache desabilitado.
-2. Confirmar que os campos de cartão carregam e que Pix e boleto continuam
-   disponíveis para criar uma tentativa de sandbox.
+1. Recarregar o checkout em aba anônima ou com cache desabilitado após o novo
+   deployment.
+2. Confirmar que cartão não mostra CPF/CNPJ pré-preenchido no sandbox e que Pix
+   e boleto continuam disponíveis para criar uma tentativa de sandbox.
 3. Se falhar, registrar no console o próximo host recusado pela CSP e consultar
    o Sentry pelo código seguro `checkout_start_failed` antes de alterar o fluxo.
 
@@ -102,6 +104,11 @@ Nenhum bloqueio registrado neste handoff inicial.
   `api-static.mercadopago.com`, `secure-fields.mercadopago.com` e
   `secure-fields-stg.mercadopago.com` em `connect-src`. Os testes de CSP,
   payload de Pix/boleto/cartão e conector passaram: 11 testes em 3 arquivos.
+- A tentativa de cartão posterior foi salva como erro técnico sem dados
+  pessoais. A documentação oficial foi relida: o e-mail do Brick em teste deve
+  ser um e-mail comum diferente do vendedor, não um usuário de teste. O ajuste
+  remove a injeção de e-mail de teste, não pré-preenche CPF/CNPJ no Brick de
+  sandbox e impede o fallback do documento salvo em cartões de sandbox.
 
 ## Decisões de continuidade
 

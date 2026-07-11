@@ -36,7 +36,6 @@ const serverEnvSchema = z.object({
   MERCADO_PAGO_WEBHOOK_SECRET: optionalSecretString,
   MERCADO_PAGO_WEBHOOK_SECRET_TEST: optionalSecretString,
   MERCADO_PAGO_WEBHOOK_SECRET_PRODUCTION: optionalSecretString,
-  MERCADO_PAGO_TEST_PAYER_EMAIL: z.string().trim().email().optional(),
   RESEND_API_KEY: optionalSecretString,
   RESEND_WEBHOOK_SECRET: optionalSecretString,
   EMAIL_DEFAULT_FROM: optionalSecretString,
@@ -138,9 +137,6 @@ function parseServerEnv(): ServerEnv {
     ),
     MERCADO_PAGO_WEBHOOK_SECRET_PRODUCTION: normalizeEnvValue(
       process.env.MERCADO_PAGO_WEBHOOK_SECRET_PRODUCTION
-    ),
-    MERCADO_PAGO_TEST_PAYER_EMAIL: normalizeEnvValue(
-      process.env.MERCADO_PAGO_TEST_PAYER_EMAIL
     ),
     RESEND_API_KEY: normalizeEnvValue(process.env.RESEND_API_KEY),
     RESEND_WEBHOOK_SECRET: normalizeEnvValue(process.env.RESEND_WEBHOOK_SECRET),

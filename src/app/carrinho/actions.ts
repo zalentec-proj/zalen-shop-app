@@ -640,11 +640,6 @@ async function buildMercadoPagoStartResult(input: {
   }
 
   if (publicKey && input.preferenceId) {
-    const sandboxPayerEmail =
-      environment === 'test'
-        ? getServerEnv().MERCADO_PAGO_TEST_PAYER_EMAIL
-        : undefined;
-
     return {
       ok: true,
       orderNumber: input.orderNumber,
@@ -656,7 +651,6 @@ async function buildMercadoPagoStartResult(input: {
       publicKey,
       environment,
       paymentAttemptKey: randomUUID(),
-      payerEmail: sandboxPayerEmail,
       fallbackPaymentUrl: input.checkoutUrl ?? input.sandboxCheckoutUrl,
     };
   }

@@ -72,6 +72,24 @@ describe('Mercado Pago payment payload contract', () => {
     expect(result.body).not.toHaveProperty('installments');
   });
 
+  it('does not send the stored customer document for a sandbox card', () => {
+    const result = buildMercadoPagoBrickPaymentPayload({
+      order,
+      payerEmail: 'buyer@example.test',
+      environment: 'test',
+      formData: {
+        payment_method_id: 'master',
+        payment_type_id: 'credit_card',
+        token: 'safe-card-token',
+      },
+    });
+
+    expect(result.body).toMatchObject({
+      payer: { email: 'buyer@example.test' },
+    });
+    expect((result.body.payer as Record<string, unknown>).identification).toBeUndefined();
+  });
+
   it('creates boleto without card information', () => {
     const result = buildMercadoPagoBrickPaymentPayload({
       order,

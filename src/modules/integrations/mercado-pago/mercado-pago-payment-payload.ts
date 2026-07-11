@@ -113,6 +113,17 @@ export function buildMercadoPagoBrickPaymentPayload(input: {
   const formPayer = input.formData.payer ?? {};
   const cardholderName = getCardholderName(input.formData);
   const formPayerIdentification = getPayerIdentification(formPayer);
+  const customerIdentification =
+    documentType && documentNumber
+      ? { type: documentType, number: documentNumber }
+      : undefined;
+  const identification =
+    paymentKind === 'card'
+      ? formPayerIdentification ??
+        (input.environment === 'production'
+          ? customerIdentification
+          : undefined)
+      : customerIdentification ?? formPayerIdentification;
   const payer = {
     email: input.payerEmail,
     first_name:
@@ -123,12 +134,7 @@ export function buildMercadoPagoBrickPaymentPayload(input: {
       paymentKind === 'card'
         ? cardholderName.surname ?? payerName.surname
         : payerName.surname ?? formPayer.last_name,
-    identification:
-      paymentKind === 'card' && formPayerIdentification
-        ? formPayerIdentification
-        : documentType && documentNumber
-          ? { type: documentType, number: documentNumber }
-          : formPayer.identification,
+    identification,
   };
 
   const body: Record<string, unknown> = {
