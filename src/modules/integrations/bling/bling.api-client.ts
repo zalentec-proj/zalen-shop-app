@@ -9,6 +9,8 @@ import { saveBlingOAuthTokens } from './bling.service';
 import type { BlingTokenResponse } from './bling.types';
 
 const baseUrl = 'https://api.bling.com.br/Api/v3';
+const minimumRequestIntervalMs = 350;
+const maxRateLimitRetries = 3;
 
 const blingCredentialsSchema = z.object({
   provider: z.literal('bling'),
@@ -94,6 +96,7 @@ export class BlingApiClient {
   private refreshToken: string;
   private didRefresh = false;
   private tokenRefreshed = false;
+  private lastRequestAt = 0;
 
   constructor(private readonly input: BlingApiClientInput) {
     this.accessToken = input.accessToken;
@@ -122,6 +125,16 @@ export class BlingApiClient {
     await this.input.onTokensRefreshed(tokens);
   }
 
+  private async respectRateLimit() {
+    const elapsed = Date.now() - this.lastRequestAt;
+
+    if (elapsed < minimumRequestIntervalMs) {
+      await new Promise((resolve) => {
+        setTimeout(resolve, minimumRequestIntervalMs - elapsed);
+      });
+    }
+  }
+
   async request<T>(
     path: string,
     init: {
@@ -129,7 +142,8 @@ export class BlingApiClient {
       query?: Record<string, string | number | Array<string | number> | undefined>;
       body?: unknown;
     } = {},
-    retried = false
+    retried = false,
+    rateLimitRetries = 0
   ): Promise<T> {
     const url = new URL(`${baseUrl}${path}`);
 
@@ -154,17 +168,25 @@ export class BlingApiClient {
       headers.set('Content-Type', 'application/json');
     }
 
+    await this.respectRateLimit();
     const response = await fetch(url, {
       method: init.method ?? 'GET',
       headers,
       body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
       cache: 'no-store',
     });
+    this.lastRequestAt = Date.now();
     const body = parseJson(await response.text());
 
     if (!response.ok && !retried && shouldAttemptRefresh(response.status, body)) {
       await this.refreshTokenOnce();
       return this.request<T>(path, init, true);
+    }
+
+    if (response.status === 429 && rateLimitRetries < maxRateLimitRetries) {
+      const delay = 500 * 2 ** rateLimitRetries;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return this.request<T>(path, init, retried, rateLimitRetries + 1);
     }
 
     if (!response.ok) {

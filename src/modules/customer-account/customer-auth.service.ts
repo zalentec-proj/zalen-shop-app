@@ -3,6 +3,7 @@ import 'server-only';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { renderCustomerLoginCodeEmail } from '@/modules/email/email.templates';
 import { sendStoreEmail } from '@/modules/email/email.service';
+import { enforceRateLimit } from '@/modules/security/rate-limit.service';
 import { linkOrCreateCustomerAccount } from './customer-account.service';
 
 type SupabaseGenerateLinkData = {
@@ -72,6 +73,11 @@ export async function requestCustomerLoginCode(input: {
 }) {
   const email = normalizeEmail(input.email);
   const next = getSafeNextPath(input.next);
+  await enforceRateLimit({
+    scope: 'customer_otp_send',
+    storeId: input.storeId,
+    subject: email,
+  });
   const code = await generateCustomerEmailOtp(email);
   const accountUrl = `${input.baseUrl}/conta/entrar?next=${encodeURIComponent(next)}`;
   const template = renderCustomerLoginCodeEmail({
@@ -112,6 +118,11 @@ export async function verifyCustomerLoginCode(input: {
 }) {
   const email = normalizeEmail(input.email);
   const token = input.token.trim();
+  await enforceRateLimit({
+    scope: 'customer_otp_verify',
+    storeId: input.storeId,
+    subject: email,
+  });
   const supabase = await createClient();
   const { data, error } = await supabase.auth.verifyOtp({
     email,

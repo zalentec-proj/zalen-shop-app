@@ -2,11 +2,15 @@
   "crons": [
     {
       "path": "/api/jobs/bling/webhooks/process",
-      "schedule": "0 3 * * *"
+      "schedule": "*/10 * * * *"
     },
     {
       "path": "/api/jobs/bling/sync",
-      "schedule": "30 3 * * *"
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/jobs/mercado-pago/reconcile",
+      "schedule": "*/10 * * * *"
     }
   ]
 }

@@ -30,6 +30,9 @@ type PaymentTransactionRow = {
   updated_at: string | null;
 };
 
+const paymentTransactionFields =
+  'id,store_id,order_id,provider,provider_reference,external_payment_id,external_reference,status,amount,checkout_url,sandbox_checkout_url,raw_status,raw_status_detail,approved_at,processed_at,last_error,metadata_json,created_at,updated_at';
+
 function toNumber(value: number | string | null | undefined): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -193,7 +196,7 @@ export async function listPaymentTransactionsByOrderIds(input: {
 
   const { data, error } = await supabase
     .from('payment_transactions')
-    .select('*')
+    .select(paymentTransactionFields)
     .eq('store_id', input.storeId)
     .in('order_id', input.orderIds)
     .order('updated_at', { ascending: false });

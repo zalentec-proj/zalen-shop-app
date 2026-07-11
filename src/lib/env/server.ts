@@ -23,6 +23,9 @@ const serverEnvSchema = z.object({
   BLING_ENV: optionalSecretString,
   CRON_SECRET: optionalSecretString,
   INTERNAL_JOB_SECRET: optionalSecretString,
+  RATE_LIMIT_HASH_SECRET: optionalSecretString,
+  SENTRY_DSN: z.string().trim().url().optional(),
+  SENTRY_ENVIRONMENT: optionalSecretString,
   INTEGRATION_TOKEN_ENCRYPTION_KEY: optionalSecretString,
   MERCADO_PAGO_ENV: z.enum(['test', 'production']).optional(),
   MERCADO_PAGO_CLIENT_ID: optionalSecretString,
@@ -33,7 +36,9 @@ const serverEnvSchema = z.object({
   MERCADO_PAGO_WEBHOOK_SECRET: optionalSecretString,
   MERCADO_PAGO_WEBHOOK_SECRET_TEST: optionalSecretString,
   MERCADO_PAGO_WEBHOOK_SECRET_PRODUCTION: optionalSecretString,
+  MERCADO_PAGO_TEST_PAYER_EMAIL: z.string().trim().email().optional(),
   RESEND_API_KEY: optionalSecretString,
+  RESEND_WEBHOOK_SECRET: optionalSecretString,
   EMAIL_DEFAULT_FROM: optionalSecretString,
   EMAIL_DEFAULT_REPLY_TO: optionalSecretString,
   MELHOR_ENVIO_TOKEN: optionalSecretString,
@@ -103,6 +108,9 @@ function parseServerEnv(): ServerEnv {
     BLING_ENV: normalizeEnvValue(process.env.BLING_ENV),
     CRON_SECRET: normalizeEnvValue(process.env.CRON_SECRET),
     INTERNAL_JOB_SECRET: normalizeEnvValue(process.env.INTERNAL_JOB_SECRET),
+    RATE_LIMIT_HASH_SECRET: normalizeEnvValue(process.env.RATE_LIMIT_HASH_SECRET),
+    SENTRY_DSN: normalizeEnvValue(process.env.SENTRY_DSN),
+    SENTRY_ENVIRONMENT: normalizeEnvValue(process.env.SENTRY_ENVIRONMENT),
     INTEGRATION_TOKEN_ENCRYPTION_KEY: normalizeEnvValue(
       process.env.INTEGRATION_TOKEN_ENCRYPTION_KEY
     ),
@@ -131,7 +139,11 @@ function parseServerEnv(): ServerEnv {
     MERCADO_PAGO_WEBHOOK_SECRET_PRODUCTION: normalizeEnvValue(
       process.env.MERCADO_PAGO_WEBHOOK_SECRET_PRODUCTION
     ),
+    MERCADO_PAGO_TEST_PAYER_EMAIL: normalizeEnvValue(
+      process.env.MERCADO_PAGO_TEST_PAYER_EMAIL
+    ),
     RESEND_API_KEY: normalizeEnvValue(process.env.RESEND_API_KEY),
+    RESEND_WEBHOOK_SECRET: normalizeEnvValue(process.env.RESEND_WEBHOOK_SECRET),
     EMAIL_DEFAULT_FROM: normalizeEnvValue(process.env.EMAIL_DEFAULT_FROM),
     EMAIL_DEFAULT_REPLY_TO: normalizeEnvValue(
       process.env.EMAIL_DEFAULT_REPLY_TO

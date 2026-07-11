@@ -163,6 +163,7 @@ export interface MercadoPagoPaymentInstructions {
     expiresAt?: string;
   };
   externalResourceUrl?: string;
+  expiresAt?: string;
 }
 
 export interface MercadoPagoEnvironmentAdminState {

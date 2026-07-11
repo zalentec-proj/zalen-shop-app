@@ -1,6 +1,6 @@
 # Pesquisa Técnica — Mercado Pago
 
-> Status: **Payment Brick beta — OAuth por loja, Checkout Pro fallback e conciliação inicial**
+> Status: **Payment Brick em homologação — OAuth por loja, tentativas idempotentes, reconciliação e Checkout Pro somente como contingência manual**
 > Fonte de verdade: documentação oficial Mercado Pago Developers.
 
 ## Fontes oficiais consultadas
@@ -14,6 +14,7 @@
 - https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/common-initialization
 - https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/payment-brick/default-rendering
 - https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/payment-brick/payment-submission
+- https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/integration-test/test-payment-flow
 - https://www.mercadopago.com.br/developers/pt/reference/payments/_payments/post
 - https://www.mercadopago.com.br/developers/pt/reference/payments/_payments_id/get
 - https://www.mercadopago.com.br/developers/pt/docs/your-integrations/credentials
@@ -185,9 +186,26 @@ Regras implementadas:
 - resposta pública nunca inclui `Access Token`, `refresh_token` ou payload bruto
   sensível.
 
-Para Pix/boleto, a idempotência usa chave estável por pedido para não gerar
-pagamentos duplicados em reenvio. Para cartão, usa chave por tentativa para
-permitir nova tentativa quando a anterior foi recusada.
+O banco preserva cada tentativa em `payment_attempts`. A chave de idempotência é
+derivada no servidor do pedido, método e submissão do Brick, sem confiar em uma
+chave arbitrária do navegador. Reenvio do mesmo formulário reutiliza a tentativa;
+uma nova submissão gera uma tentativa nova no mesmo pedido.
+
+O payload é separado por meio:
+
+- cartão: token, emissor, parcelas, identificação e e-mail;
+- Pix: sem token ou campos de cartão; resposta persiste QR Code, copia-e-cola e
+  vencimento;
+- boleto: sem campos de cartão; resposta persiste URL/linha e vencimento quando
+  fornecidos pelo Mercado Pago.
+
+### Sandbox
+
+Para cartão e meios offline, a documentação oficial exige as credenciais de
+teste da conta real e um e-mail de pagador que não seja a conta Mercado Pago do
+vendedor nem uma conta de teste. A Zalen usa `MERCADO_PAGO_TEST_PAYER_EMAIL`
+somente no backend e também o pré-preenche no Brick em sandbox. Em produção, o
+pagador é sempre o e-mail real validado do comprador.
 
 ## Webhooks
 

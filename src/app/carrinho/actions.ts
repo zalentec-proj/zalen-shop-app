@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import { createHash, randomUUID } from 'node:crypto';
 import { cookies } from 'next/headers';
+import { getServerEnv } from '@/lib/env/server';
 import { createClient } from '@/lib/supabase/server';
 import { createOrder } from '@/modules/orders/order.service';
 import { getOrderByIdFromRepository } from '@/modules/orders/order.repository';
@@ -42,11 +43,20 @@ import {
 import { processMercadoPagoPaymentUpdate } from '@/modules/payments/mercado-pago-payment.service';
 import { getLatestPaymentTransactionByOrderId } from '@/modules/payments/payment-transaction.repository';
 import {
+  reservePaymentAttempt,
+  updatePaymentAttempt,
+} from '@/modules/payments/payment-attempt.repository';
+import {
   getCustomerTypeFromDocument,
   isValidDocumentForCustomerType,
   resolveCheckoutPricing,
 } from '@/modules/pricing/pricing.service';
 import { sendOrderReceivedStoreEmail } from '@/modules/email/store-transactional-email.service';
+import {
+  enforceRateLimit,
+  getRateLimitErrorMessage,
+} from '@/modules/security/rate-limit.service';
+import { captureOperationalException } from '@/modules/observability/monitoring.service';
 import type { CustomerType } from '@/modules/pricing/pricing.types';
 import {
   quoteShipping,
@@ -208,6 +218,7 @@ export type CheckoutCartActionResult =
       publicKey: string;
       environment: MercadoPagoEnvironment;
       paymentAttemptKey: string;
+      payerEmail?: string;
       fallbackPaymentUrl?: string;
     }
   | {
@@ -262,7 +273,7 @@ export type IdentifyCheckoutCustomerActionResult =
 export type CheckoutAccountCodeActionResult =
   | {
       ok: true;
-      emailHint: string;
+      emailHint?: string;
       message: string;
     }
   | {
@@ -375,15 +386,19 @@ function getSafeCheckoutError(error: unknown) {
       return 'Não foi possível validar os dados do cartão no Mercado Pago. Revise o cartão e tente novamente.';
     }
 
-    return `Mercado Pago recusou a preferência (${mercadoPagoError.status}: ${mercadoPagoError.reason}).`;
+    if (reason.includes('payer') || reason.includes('parameter')) {
+      return 'Não foi possível preparar esta forma de pagamento. Revise os dados e tente novamente.';
+    }
+
+    return 'O Mercado Pago não conseguiu processar esta tentativa. Revise os dados ou escolha outra forma de pagamento.';
   }
 
   if (error instanceof CustomerPersistenceError) {
-    return `Não foi possível salvar os dados do cliente (${error.safeReason}).`;
+    return 'Não foi possível salvar seus dados agora. Revise as informações e tente novamente.';
   }
 
   if (error instanceof CheckoutAttemptPersistenceError) {
-    return `Não foi possível reservar a tentativa de pagamento (${error.safeReason}).`;
+    return 'Não foi possível preparar o pagamento agora. Tente novamente em instantes.';
   }
 
   if (error instanceof Error) {
@@ -450,11 +465,7 @@ function getSafeCheckoutError(error: unknown) {
     }
 
     if (safeMessages.has(error.message)) {
-      return `Não foi possível iniciar o pagamento agora (${error.message}).`;
-    }
-
-    if (process.env.NODE_ENV !== 'production') {
-      return `Não foi possível iniciar o pagamento agora (${error.name}: ${error.message.slice(0, 160)}).`;
+      return 'Não foi possível iniciar o pagamento agora. Tente novamente em instantes.';
     }
   }
 
@@ -638,6 +649,11 @@ async function buildMercadoPagoStartResult(input: {
   }
 
   if (publicKey && input.preferenceId) {
+    const sandboxPayerEmail =
+      environment === 'test'
+        ? getServerEnv().MERCADO_PAGO_TEST_PAYER_EMAIL
+        : undefined;
+
     return {
       ok: true,
       orderNumber: input.orderNumber,
@@ -649,6 +665,7 @@ async function buildMercadoPagoStartResult(input: {
       publicKey,
       environment,
       paymentAttemptKey: randomUUID(),
+      payerEmail: sandboxPayerEmail,
       fallbackPaymentUrl: input.checkoutUrl ?? input.sandboxCheckoutUrl,
     };
   }
@@ -727,10 +744,10 @@ export async function requestCheckoutEmailCodeAction(
       email,
       message: 'Enviamos um código para validar seu e-mail.',
     };
-  } catch {
+  } catch (error) {
     return {
       ok: false,
-      error: 'Não foi possível enviar o código agora. Tente novamente em instantes.',
+      error: getRateLimitErrorMessage(error),
     };
   }
 }
@@ -790,6 +807,20 @@ export async function requestCheckoutAccountCodeAction(
     };
   }
 
+  try {
+    const store = await resolveCurrentStoreFromHeaders();
+    await enforceRateLimit({
+      scope: 'checkout_account_lookup',
+      storeId: store.id,
+      subject: parsed.data.identifier,
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      error: getRateLimitErrorMessage(error),
+    };
+  }
+
   const { store, customer } = await findCheckoutCustomerForIdentifier(
     parsed.data.identifier
   );
@@ -797,17 +828,8 @@ export async function requestCheckoutAccountCodeAction(
 
   if (!customer || !email) {
     return {
-      ok: false,
-      error: 'Não encontramos um e-mail validável para este cadastro.',
-    };
-  }
-
-  const typoMessage = getSavedCustomerEmailTypoErrorMessage(email);
-
-  if (typoMessage) {
-    return {
-      ok: false,
-      error: typoMessage,
+      ok: true,
+      message: 'Se houver uma conta correspondente, enviaremos um código para o e-mail cadastrado.',
     };
   }
 
@@ -822,13 +844,12 @@ export async function requestCheckoutAccountCodeAction(
 
     return {
       ok: true,
-      emailHint: maskEmail(email),
-      message: 'Enviamos um código para o e-mail cadastrado.',
+      message: 'Se houver uma conta correspondente, enviaremos um código para o e-mail cadastrado.',
     };
-  } catch {
+  } catch (error) {
     return {
       ok: false,
-      error: 'Não foi possível enviar o código agora. Tente novamente em instantes.',
+      error: getRateLimitErrorMessage(error),
     };
   }
 }
@@ -845,6 +866,20 @@ export async function verifyCheckoutAccountCodeAction(
     };
   }
 
+  try {
+    const store = await resolveCurrentStoreFromHeaders();
+    await enforceRateLimit({
+      scope: 'checkout_account_lookup',
+      storeId: store.id,
+      subject: parsed.data.identifier,
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      error: getRateLimitErrorMessage(error),
+    };
+  }
+
   const { store, customer } = await findCheckoutCustomerForIdentifier(
     parsed.data.identifier
   );
@@ -853,16 +888,7 @@ export async function verifyCheckoutAccountCodeAction(
   if (!customer || !email) {
     return {
       ok: false,
-      error: 'Não encontramos um e-mail validável para este cadastro.',
-    };
-  }
-
-  const typoMessage = getSavedCustomerEmailTypoErrorMessage(email);
-
-  if (typoMessage) {
-    return {
-      ok: false,
-      error: typoMessage,
+      error: 'Código inválido ou expirado. Solicite um novo código.',
     };
   }
 
@@ -906,7 +932,7 @@ export async function verifyCheckoutAccountCodeAction(
 export async function switchCheckoutAccountAction(): Promise<SwitchCheckoutAccountActionResult> {
   try {
     const supabase = await createClient();
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: 'global' });
 
     return {
       ok: true,
@@ -1001,6 +1027,7 @@ function getPaymentEnvironmentFromTransaction(
 function getStableBrickIdempotencyKey(input: {
   orderId: string;
   formData: MercadoPagoBrickPaymentFormData;
+  submissionId: string;
 }) {
   const paymentMethodId =
     typeof input.formData.payment_method_id === 'string' &&
@@ -1013,14 +1040,18 @@ function getStableBrickIdempotencyKey(input: {
       ? input.formData.payment_method_option_id.trim().toLowerCase()
       : undefined;
 
-  return [
+  const source = [
     input.orderId,
     'mercado-pago-brick',
     paymentMethodId,
     paymentMethodOptionId,
+    input.formData.token,
+    input.submissionId,
   ]
     .filter(Boolean)
     .join(':');
+
+  return createHash('sha256').update(source).digest('hex');
 }
 
 function getBrickFormDataString(
@@ -1121,6 +1152,18 @@ export async function lookupCheckoutPostalCodeAction(
     };
   }
 
+  try {
+    await enforceRateLimit({
+      scope: 'postal_code_lookup',
+      subject: parsed.data.postalCode,
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      error: getRateLimitErrorMessage(error),
+    };
+  }
+
   const result = await lookupBrazilianPostalCode(parsed.data.postalCode);
 
   if (!result.ok) {
@@ -1163,6 +1206,11 @@ export async function checkoutCartAction(
 
   try {
     const store = await resolveCurrentStoreFromHeaders();
+    await enforceRateLimit({
+      scope: 'checkout_create',
+      storeId: store.id,
+      subject: normalizeEmailAddress(parsed.data.customer.email),
+    });
     const verifiedEmail = await requireVerifiedCheckoutEmail({
       email: parsed.data.customer.email,
     });
@@ -1304,6 +1352,13 @@ export async function checkoutCartAction(
       }).catch(() => undefined);
     }
 
+    captureOperationalException({
+      error,
+      area: 'checkout',
+      storeId: reservedAttempt?.storeId,
+      code: 'checkout_start_failed',
+    });
+
     return {
       ok: false,
       error: getSafeCheckoutError(error),
@@ -1324,6 +1379,8 @@ export async function processMercadoPagoBrickPaymentAction(
     };
   }
 
+  let paymentAttempt: { id: string; storeId: string } | undefined;
+
   try {
     const store = await resolveCurrentStoreFromHeaders();
     const supabase = await createClient();
@@ -1336,6 +1393,12 @@ export async function processMercadoPagoBrickPaymentAction(
         status: 'error',
       };
     }
+
+    await enforceRateLimit({
+      scope: 'payment_submit',
+      storeId: store.id,
+      subject: `${data.user.id}:${parsed.data.orderId}`,
+    });
 
     const customer = await findCustomerByAuthUserId({
       storeId: store.id,
@@ -1393,12 +1456,60 @@ export async function processMercadoPagoBrickPaymentAction(
       };
     }
 
-    const idempotencyKey = formData.token
-      ? parsed.data.idempotencyKey
-      : getStableBrickIdempotencyKey({
-          orderId: order.id,
-          formData,
-        });
+    const paymentMethodId = getBrickFormDataString(
+      formData,
+      'payment_method_id'
+    );
+    const idempotencyKey = getStableBrickIdempotencyKey({
+      orderId: order.id,
+      formData,
+      submissionId: parsed.data.idempotencyKey,
+    });
+    const attemptReservation = await reservePaymentAttempt({
+      storeId: store.id,
+      orderId: order.id,
+      environment: environment ?? 'test',
+      idempotencyKey,
+      paymentMethodId,
+      amount: order.total,
+    });
+
+    paymentAttempt = {
+      id: attemptReservation.attempt.id,
+      storeId: store.id,
+    };
+
+    if (
+      attemptReservation.state === 'existing' &&
+      attemptReservation.attempt.externalPaymentId
+    ) {
+      const existingStatus = getBrickPaymentStatus(
+        attemptReservation.attempt.status
+      );
+
+      return {
+        ok: true,
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        paymentId: attemptReservation.attempt.externalPaymentId,
+        status: existingStatus,
+        redirectPath: getPaymentRedirectPath(order.id, existingStatus),
+        message: getBrickPaymentMessage(existingStatus),
+      };
+    }
+
+    if (attemptReservation.state === 'existing') {
+      return {
+        ok: true,
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        paymentId: '',
+        status: 'pending',
+        redirectPath: getPaymentRedirectPath(order.id, 'pending'),
+        message: 'Já estamos processando esta tentativa. Acompanhe o status do pedido.',
+      };
+    }
+
     const payment = await createMercadoPagoBrickPayment({
       order,
       baseUrl,
@@ -1406,6 +1517,18 @@ export async function processMercadoPagoBrickPaymentAction(
       idempotencyKey,
       providerReference: latestTransaction?.providerReference,
       environment,
+    });
+    const initialStatus = getBrickPaymentStatus(payment.status);
+
+    await updatePaymentAttempt({
+      attemptId: paymentAttempt.id,
+      storeId: store.id,
+      externalPaymentId: payment.id,
+      paymentMethodId: payment.paymentMethodId,
+      paymentTypeId: payment.paymentTypeId,
+      status: initialStatus,
+      statusDetail: payment.statusDetail,
+      instructions: (payment.paymentInstructions ?? {}) as Record<string, unknown>,
     });
     const reconciliation = await processMercadoPagoPaymentUpdate({
       storeId: store.id,
@@ -1416,6 +1539,17 @@ export async function processMercadoPagoBrickPaymentAction(
     const status = getBrickPaymentStatus(
       reconciliation.ok ? reconciliation.status : payment.status
     );
+    await updatePaymentAttempt({
+      attemptId: paymentAttempt.id,
+      storeId: store.id,
+      externalPaymentId: payment.id,
+      paymentMethodId: payment.paymentMethodId,
+      paymentTypeId: payment.paymentTypeId,
+      status,
+      statusDetail: payment.statusDetail,
+      instructions: (payment.paymentInstructions ?? {}) as Record<string, unknown>,
+      lastError: reconciliation.ok ? undefined : reconciliation.errorCode,
+    });
     const redirectPath = getPaymentRedirectPath(order.id, status);
     const message = getBrickPaymentMessage(status);
 
@@ -1440,6 +1574,22 @@ export async function processMercadoPagoBrickPaymentAction(
       message,
     };
   } catch (error) {
+    if (paymentAttempt) {
+      await updatePaymentAttempt({
+        attemptId: paymentAttempt.id,
+        storeId: paymentAttempt.storeId,
+        status: 'error',
+        lastError: error instanceof Error ? error.message : 'payment_submission_failed',
+      }).catch(() => undefined);
+    }
+
+    captureOperationalException({
+      error,
+      area: 'payment',
+      storeId: paymentAttempt?.storeId,
+      code: 'payment_brick_submission_failed',
+    });
+
     return {
       ok: false,
       error: getSafeCheckoutError(error),
@@ -1625,6 +1775,11 @@ export async function quoteCheckoutShippingAction(
 
   try {
     const store = await resolveCurrentStoreFromHeaders();
+    await enforceRateLimit({
+      scope: 'shipping_quote',
+      storeId: store.id,
+      subject: parsed.data.shippingAddress.postalCode,
+    });
     const pricing = await resolveCheckoutPricing({
       storeId: store.id,
       customerType,
@@ -1654,6 +1809,12 @@ export async function quoteCheckoutShippingAction(
       shippingOptions,
     };
   } catch (error) {
+    captureOperationalException({
+      error,
+      area: 'shipping',
+      code: 'shipping_quote_failed',
+    });
+
     return {
       ok: false,
       error: getSafeCheckoutError(error),

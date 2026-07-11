@@ -18,6 +18,7 @@ Carrinho abandonado e sugestões de produtos ficam preparados por template/log, 
 | Envio de e-mail | https://resend.com/docs/api-reference/emails/send-email |
 | Domínios verificados | https://resend.com/docs/dashboard/domains/introduction |
 | API keys | https://resend.com/docs/api-reference/api-keys/create-api-key |
+| Webhooks assinados | https://resend.com/docs/webhooks/verify-webhooks-requests |
 
 ## Decisão MVP
 
@@ -68,10 +69,25 @@ Payload base:
 | `EMAIL_DEFAULT_FROM` | remetente fallback da Zalen |
 | `EMAIL_DEFAULT_REPLY_TO` | reply-to fallback |
 
+## Webhooks de entrega
+
+Implementado no endpoint `POST /api/webhooks/resend`:
+
+- assinatura Svix validada com `RESEND_WEBHOOK_SECRET` e corpo bruto;
+- idempotência por `svix-id` em `email_webhook_events`;
+- atualização segura de `email_messages` para `sent`, `delivered`, `bounced`,
+  `complained` ou `suppressed`;
+- erros de persistência retornam 503 para permitir retry do provedor; assinaturas
+  inválidas retornam 401;
+- administrador e operador podem consultar o histórico; viewer não lê
+  destinatários nem histórico.
+
+No painel Resend, cadastrar a URL HTTPS pública da loja/plataforma e selecionar
+ao menos os eventos de envio, entrega, bounce, complaint e suppression.
+
 ## Fora do MVP
 
 - UI completa para configurar domínio por loja;
 - chave Resend própria por loja;
-- webhooks de entrega/bounce/suppression;
 - automações de carrinho abandonado;
 - IA de recomendações.

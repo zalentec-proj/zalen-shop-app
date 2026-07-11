@@ -136,6 +136,14 @@
   Pago com `Access Token` privado.
 - Checkout Pro fica disponível somente como fallback temporário.
 - Pagamento direto usa `X-Idempotency-Key`.
+- Cada submissão de pagamento fica registrada em `payment_attempts`; reenvio do
+  mesmo formulário não cria cobrança duplicada e uma nova tentativa legítima
+  preserva o mesmo pedido.
+- Pix não envia token ou parcelas de cartão e exibe QR Code/copia-e-cola quando
+  retornados pelo gateway.
+- Boleto não envia campos de cartão e exibe link/linha/vencimento quando
+  retornados pelo gateway.
+- Cartão usa token, emissor, parcelas, e-mail e identificação do Brick.
 - Backend força o total do pagamento a partir de `orders.total`.
 - `notification_url` inclui `store_id` e `environment`.
 - Webhook valida assinatura antes de salvar/processar.
@@ -215,6 +223,12 @@ Antes de implementação real:
 - Upload é limitado.
 - Sem HTML/JS livre no MVP.
 - `.env.local` e segredos não são commitados.
+- Headers globais bloqueiam framing, sniffing e APIs de navegador não usadas.
+- Rate limit persistente protege OTP, CEP, frete, criação de pedido e pagamento.
+- OTP e identificação não confirmam se uma conta, CPF/CNPJ ou e-mail existe.
+- Logout do comprador encerra a sessão global do Supabase.
+- `email_messages` não é visível a viewer; documentos legais aceitam somente
+  texto simples e só ficam públicos após publicação.
 
 ## 11. Deploy
 
@@ -223,3 +237,5 @@ Antes de implementação real:
 - Supabase Cloud conectado quando necessário.
 - Vercel preparado.
 - Ambiente staging separado de production.
+- CI aprova typecheck, build, cobertura crítica, auditoria de dependências e
+  varredura de segredos; baseline OWASP roda apenas contra preview de homologação.

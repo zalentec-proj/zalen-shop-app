@@ -12,6 +12,10 @@ import {
   getMercadoPagoOAuthConfig,
   getMercadoPagoWebhookSecret,
 } from './mercado-pago.config';
+import {
+  buildMercadoPagoBrickPaymentPayload,
+  MercadoPagoPaymentPayloadError,
+} from './mercado-pago-payment-payload';
 import { refreshMercadoPagoAccessToken } from './mercado-pago.oauth';
 import {
   getMercadoPagoIntegrationFromRepository,
@@ -61,6 +65,7 @@ interface MercadoPagoPaymentResponse {
   transaction_details?: {
     external_resource_url?: string;
   };
+  date_of_expiration?: string;
 }
 
 export class MercadoPagoPreferenceError extends Error {
@@ -177,85 +182,12 @@ function toNumber(value: number | string | undefined) {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function toInteger(value: number | string | undefined) {
-  const parsed = Number(value ?? 0);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
-}
-
 function toRecord(value: unknown): Record<string, unknown> | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return undefined;
   }
 
   return value as Record<string, unknown>;
-}
-
-function isCardBrickPaymentData(formData: MercadoPagoBrickPaymentFormData) {
-  const paymentTypeId = toOptionalString(formData.payment_type_id);
-  const paymentMethodId = toOptionalString(
-    formData.payment_method_id
-  )?.toLowerCase();
-
-  return (
-    Boolean(toOptionalString(formData.token)) ||
-    paymentTypeId === 'credit_card' ||
-    paymentTypeId === 'debit_card' ||
-    (formData.installments !== undefined &&
-      formData.installments !== null &&
-      Boolean(
-        paymentMethodId &&
-          !['pix', 'bolbradesco', 'pec', 'pagofacil', 'rapipago'].includes(
-            paymentMethodId
-          )
-      ))
-  );
-}
-
-function getFormDataString(
-  formData: MercadoPagoBrickPaymentFormData,
-  key: string
-) {
-  return toOptionalString((formData as Record<string, unknown>)[key]);
-}
-
-function getFormPayerIdentification(
-  payer: MercadoPagoBrickPaymentFormData['payer'] | undefined
-) {
-  const type = toOptionalString(payer?.identification?.type);
-  const number = toOptionalString(payer?.identification?.number)?.replace(
-    /\D/g,
-    ''
-  );
-
-  if (!type || !number) {
-    return undefined;
-  }
-
-  return {
-    type,
-    number,
-  };
-}
-
-function getFormCardholderName(formData: MercadoPagoBrickPaymentFormData) {
-  const formPayer = formData.payer ?? {};
-  const firstName =
-    toOptionalString(formPayer.first_name) ??
-    getFormDataString(formData, 'cardholderName') ??
-    getFormDataString(formData, 'card_holder_name');
-  const lastName = toOptionalString(formPayer.last_name);
-
-  if (firstName || lastName) {
-    return {
-      name: firstName,
-      surname: lastName,
-    };
-  }
-
-  return splitName(
-    getFormDataString(formData, 'cardholder_name') ??
-      getFormDataString(formData, 'cardHolderName')
-  );
 }
 
 function getMercadoPagoPaymentInstructions(
@@ -283,6 +215,7 @@ function getMercadoPagoPaymentInstructions(
   return {
     pix,
     externalResourceUrl,
+    expiresAt: payment.date_of_expiration,
   };
 }
 
@@ -784,13 +717,19 @@ export async function createMercadoPagoBrickPayment(input: {
   });
   const { order } = input;
   const baseUrl = normalizeBaseUrl(input.baseUrl);
-  const documentType = getDocumentType(order.customer?.document);
-  const documentNumber = order.customer?.document?.replace(/\D/g, '');
-  const payerName = splitName(order.customer?.name);
-  const formPayer = input.formData.payer ?? {};
-  const isCardPayment = isCardBrickPaymentData(input.formData);
-  const cardholderName = getFormCardholderName(input.formData);
-  const formPayerIdentification = getFormPayerIdentification(formPayer);
+  const testPayerEmail = getServerEnv().MERCADO_PAGO_TEST_PAYER_EMAIL;
+  const payerEmail =
+    accessContext.environment === 'test'
+      ? testPayerEmail
+      : order.customer?.email ?? toOptionalString(input.formData.payer?.email);
+
+  if (accessContext.environment === 'test' && !testPayerEmail) {
+    throw new MercadoPagoPreferenceError(503, 'test_payer_email_not_configured');
+  }
+
+  if (!payerEmail) {
+    throw new MercadoPagoPreferenceError(400, 'payer_email_missing');
+  }
   const notificationUrl = baseUrl.startsWith('https://')
     ? (() => {
         const url = new URL('/api/webhooks/mercado-pago', baseUrl);
@@ -799,47 +738,23 @@ export async function createMercadoPagoBrickPayment(input: {
         return url.toString();
       })()
     : undefined;
-  const payer = {
-    email: order.customer?.email ?? formPayer.email,
-    first_name: isCardPayment
-      ? cardholderName.name ?? payerName.name
-      : payerName.name ?? formPayer.first_name,
-    last_name: isCardPayment
-      ? cardholderName.surname ?? payerName.surname
-      : payerName.surname ?? formPayer.last_name,
-    identification:
-      isCardPayment && formPayerIdentification
-        ? formPayerIdentification
-        : documentType && documentNumber
-        ? {
-            type: documentType,
-            number: documentNumber,
-          }
-        : formPayer.identification,
-  };
-  const installments = toInteger(input.formData.installments);
-  const issuerId =
-    typeof input.formData.issuer_id === 'number'
-      ? input.formData.issuer_id
-      : toOptionalString(input.formData.issuer_id);
-  const body: Record<string, unknown> = {
-    transaction_amount: order.total,
-    token: toOptionalString(input.formData.token),
-    description: `Pedido ${order.orderNumber}`,
-    installments,
-    payment_method_id: toOptionalString(input.formData.payment_method_id),
-    issuer_id: issuerId,
-    external_reference: order.id,
-    notification_url: notificationUrl,
-    metadata: {
-      store_id: order.storeId,
-      order_id: order.id,
-      order_number: order.orderNumber,
+  let body: Record<string, unknown>;
+
+  try {
+    body = buildMercadoPagoBrickPaymentPayload({
+      order,
+      formData: input.formData,
+      payerEmail,
+      notificationUrl,
       environment: accessContext.environment,
-      checkout_mode: 'payment_brick',
-    },
-    payer,
-  };
+    }).body;
+  } catch (error) {
+    if (error instanceof MercadoPagoPaymentPayloadError) {
+      throw new MercadoPagoPreferenceError(400, error.code);
+    }
+
+    throw error;
+  }
   const payment = await createPaymentOnMercadoPago({
     body,
     accessToken: accessContext.accessToken,

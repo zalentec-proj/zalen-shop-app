@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, ShieldCheck } from 'lucide-react';
@@ -68,8 +70,10 @@ export default function Footer({
             <li><a href="/#tecnologia" className="hover:text-blue-primary transition-colors">Nossa Tecnologia</a></li>
             <li><a href="/#beneficios" className="hover:text-blue-primary transition-colors">Garantia Oficial</a></li>
             <li><a href="/#tecnologia" className="hover:text-blue-primary transition-colors">Suporte Técnico Avançado</a></li>
-            <li><a href="/#contato" className="hover:text-blue-primary transition-colors">Termos de Serviço</a></li>
-            <li><a href="/#contato" className="hover:text-blue-primary transition-colors">Política de Privacidade</a></li>
+            <li><Link href="/termos-de-uso" className="hover:text-blue-primary transition-colors">Termos de Serviço</Link></li>
+            <li><Link href="/politica-de-privacidade" className="hover:text-blue-primary transition-colors">Política de Privacidade</Link></li>
+            <li><Link href="/trocas-e-devolucoes" className="hover:text-blue-primary transition-colors">Trocas e devoluções</Link></li>
+            <li><Link href="/contato" className="hover:text-blue-primary transition-colors">Contato</Link></li>
           </ul>
         </div>
 
@@ -115,7 +119,9 @@ export default function Footer({
           </span>
           <div className="flex items-center gap-6">
             <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-green-accent" /> 100% Seguro</span>
-            <span>CNPJ: 00.000.000/0001-00</span>
+            <Link href="/contato" className="hover:text-blue-primary transition-colors">
+              Dados da loja e atendimento
+            </Link>
           </div>
         </div>
       </div>

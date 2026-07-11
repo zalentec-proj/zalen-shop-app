@@ -25,6 +25,9 @@ type StoreEmailSettingsRow = {
   settings_json: Record<string, unknown> | null;
 };
 
+const storeEmailSettingsFields =
+  'id,store_id,provider,mode,status,sender_name,sender_email,reply_to_email,domain,domain_status,settings_json';
+
 function toProvider(value: string | null | undefined): EmailProvider {
   return value === 'resend' ? 'resend' : 'resend';
 }
@@ -87,7 +90,7 @@ export async function getStoreEmailSettingsFromRepository(
 
   const { data, error } = await supabase
     .from('store_email_settings')
-    .select('*')
+    .select(storeEmailSettingsFields)
     .eq('store_id', storeId)
     .maybeSingle();
 
@@ -168,6 +171,22 @@ export async function updateEmailMessageStatusInRepository(input: {
     payload.sent_at = now;
   }
 
+  if (input.status === 'delivered') {
+    payload.delivered_at = now;
+  }
+
+  if (input.status === 'bounced') {
+    payload.bounced_at = now;
+  }
+
+  if (input.status === 'complained') {
+    payload.complained_at = now;
+  }
+
+  if (input.status === 'suppressed') {
+    payload.suppressed_at = now;
+  }
+
   const { error } = await supabase
     .from('email_messages')
     .update(payload)
@@ -179,4 +198,67 @@ export async function updateEmailMessageStatusInRepository(input: {
       message: safeErrorMessage(error),
     });
   }
+}
+
+export async function recordResendWebhookEvent(input: {
+  eventId: string;
+  eventType: string;
+  providerMessageId?: string;
+}) {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    throw new Error('email_webhook_storage_unavailable');
+  }
+
+  const { data, error } = await supabase
+    .from('email_webhook_events')
+    .insert({
+      provider: 'resend',
+      external_id: input.eventId,
+      provider_message_id: input.providerMessageId,
+      event_type: input.eventType,
+    })
+    .select('id')
+    .single();
+
+  if (error?.code === '23505') {
+    return { duplicate: true as const };
+  }
+
+  if (error || !data) {
+    throw new Error('email_webhook_event_persistence_failed');
+  }
+
+  return { duplicate: false as const, id: String(data.id) };
+}
+
+export async function updateEmailMessageFromResendWebhook(input: {
+  providerMessageId: string;
+  eventId: string;
+  status: EmailMessageStatus;
+}) {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const payload: Record<string, unknown> = {
+    status: input.status,
+    last_provider_event_id: input.eventId,
+    updated_at: now,
+  };
+
+  if (input.status === 'delivered') payload.delivered_at = now;
+  if (input.status === 'bounced') payload.bounced_at = now;
+  if (input.status === 'complained') payload.complained_at = now;
+  if (input.status === 'suppressed') payload.suppressed_at = now;
+
+  await supabase
+    .from('email_messages')
+    .update(payload)
+    .eq('provider', 'resend')
+    .eq('provider_message_id', input.providerMessageId);
 }

@@ -336,6 +336,7 @@ export async function insertShippingQuotesInRepository(input: {
   storeId: string;
   destinationPostalCode: string;
   itemsHash: string;
+  cacheKey: string;
   expiresAt: string;
   rates: ShippingRate[];
 }): Promise<ShippingRate[]> {
@@ -365,6 +366,7 @@ export async function insertShippingQuotesInRepository(input: {
           kind: rate.kind,
           description: rate.description,
           deliveryTimeLabel: rate.deliveryTimeLabel,
+          cacheKey: input.cacheKey,
           ...(rate.rawPayload ?? {}),
         },
       }))
@@ -390,6 +392,69 @@ export async function insertShippingQuotesInRepository(input: {
       quoteId: quote?.id,
       expiresAt: quote?.expires_at ?? input.expiresAt,
     };
+  });
+}
+
+export async function getReusableShippingQuoteRatesFromRepository(input: {
+  storeId: string;
+  cacheKey: string;
+  minimumCreatedAt: string;
+}): Promise<ShippingRate[]> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('shipping_quotes')
+    .select('*')
+    .eq('store_id', input.storeId)
+    .contains('raw_payload', { cacheKey: input.cacheKey })
+    .gte('created_at', input.minimumCreatedAt)
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (error || !data || data.length === 0) {
+    return [];
+  }
+
+  const newestCreatedAt = (data as ShippingQuoteRow[])[0].created_at;
+  const newestGroup = (data as ShippingQuoteRow[]).filter(
+    (quote) => quote.created_at === newestCreatedAt
+  );
+
+  return newestGroup.flatMap((quote): ShippingRate[] => {
+    const rawPayload = quote.raw_payload ?? {};
+    const kind = rawPayload.kind;
+
+    if (!['pickup', 'fixed', 'manual', 'external'].includes(String(kind))) {
+      return [];
+    }
+
+    return [{
+      quoteId: quote.id,
+      methodId: quote.method_id ?? '',
+      kind: kind as ShippingRate['kind'],
+      providerKey: quote.provider_key ?? undefined,
+      serviceCode: quote.service_code,
+      carrierName: quote.carrier_name ?? undefined,
+      serviceName: quote.service_name,
+      description:
+        typeof rawPayload.description === 'string'
+          ? rawPayload.description
+          : undefined,
+      price: toNumber(quote.price),
+      deliveryMinDays: quote.delivery_min_days ?? undefined,
+      deliveryMaxDays: quote.delivery_max_days ?? undefined,
+      deliveryTimeLabel:
+        typeof rawPayload.deliveryTimeLabel === 'string'
+          ? rawPayload.deliveryTimeLabel
+          : undefined,
+      rawPayload,
+      expiresAt: quote.expires_at,
+    }];
   });
 }
 

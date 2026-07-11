@@ -9,6 +9,7 @@ import {
   verifyCustomerLoginCode,
 } from '@/modules/customer-account/customer-auth.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
+import { getRateLimitErrorMessage } from '@/modules/security/rate-limit.service';
 
 export type CustomerAuthState = {
   step: 'email' | 'code';
@@ -118,11 +119,11 @@ export async function customerOtpAction(
       baseUrl: await getBaseUrl(),
       next,
     });
-  } catch {
+  } catch (error) {
     return {
       step: 'email',
       next,
-      error: 'Não foi possível enviar o código agora. Tente novamente em instantes.',
+      error: getRateLimitErrorMessage(error),
     };
   }
 
@@ -138,7 +139,7 @@ export async function customerSignOutAction() {
   const supabase = await createOptionalClient();
 
   if (supabase) {
-    await supabase.auth.signOut({ scope: 'local' });
+    await supabase.auth.signOut({ scope: 'global' });
   }
 
   redirect('/conta/entrar');

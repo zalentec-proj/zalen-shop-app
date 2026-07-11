@@ -17,8 +17,8 @@ Nenhuma integração pode ser implementada com endpoints, payloads, headers, esc
 | Provedor | Finalidade | Status |
 |---|---|---|
 | **Bling** | ERP operacional — produtos, estoque, pedidos, notas | Beta operacional |
-| **Mercado Pago** | Pagamentos — Pix, cartão, boleto via Checkout Pro | Beta Checkout Pro |
-| **Resend** | E-mails transacionais por loja — login, pedido, pagamento e rastreio | MVP centralizado |
+| **Mercado Pago** | Pagamentos — Pix, cartão e boleto via Payment Brick | Homologação sandbox; produção pendente de gate |
+| **Resend** | E-mails transacionais por loja — login, pedido, pagamento e rastreio | MVP com webhook de entrega/bounce |
 | **SuperFrete** | Cotação real de frete no checkout | V1 quote-only |
 | **Google Marketing** | GTM, GA4, Google Ads, Merchant Center e SEO técnico | Base implementada |
 | **Meta Marketing** | Meta Pixel e Conversions API para compra confirmada | Base implementada |

@@ -64,6 +64,11 @@ type RepositoryError = {
   message?: string;
 };
 
+const customerFields =
+  'id,store_id,auth_user_id,name,email,phone,document,customer_type,legal_name,state_registration,state_registration_exempt,source,accepts_marketing,notes,created_at,updated_at';
+const customerAddressFields =
+  'id,store_id,customer_id,label,recipient_name,phone,postal_code,street,number,complement,district,city,state,country,is_default,created_at,updated_at';
+
 export class CustomerPersistenceError extends Error {
   readonly safeReason: string;
 
@@ -301,7 +306,7 @@ async function getDefaultAddressesByCustomerId(
 
   const { data, error } = await supabase
     .from('customer_addresses')
-    .select('*')
+    .select(customerAddressFields)
     .eq('store_id', storeId)
     .in('customer_id', customerIds)
     .eq('is_default', true);
@@ -331,7 +336,7 @@ export async function listCustomerAddressesFromRepository(input: {
 
   const { data, error } = await supabase
     .from('customer_addresses')
-    .select('*')
+    .select(customerAddressFields)
     .eq('store_id', input.storeId)
     .eq('customer_id', input.customerId)
     .order('is_default', { ascending: false })
@@ -400,12 +405,12 @@ export async function upsertCustomerAddressInRepository(input: {
         .eq('id', input.addressId)
         .eq('store_id', input.storeId)
         .eq('customer_id', input.customerId)
-        .select('*')
+        .select(customerAddressFields)
         .single()
     : await supabase
         .from('customer_addresses')
         .insert(payload)
-        .select('*')
+        .select(customerAddressFields)
         .single();
 
   if (result.error || !result.data) {
@@ -547,7 +552,7 @@ export async function listCustomersFromRepository(
 
   const { data: customerRows, error: customerError } = await supabase
     .from('customers')
-    .select('*')
+    .select(customerFields)
     .eq('store_id', storeId)
     .order('updated_at', { ascending: false });
 
@@ -633,7 +638,7 @@ export async function findCustomerByCheckoutIdentifierFromRepository(input: {
 
   let query = supabase
     .from('customers')
-    .select('*')
+    .select(customerFields)
     .eq('store_id', input.storeId)
     .limit(1);
 
@@ -675,7 +680,7 @@ export async function findCustomerByAuthUserIdFromRepository(input: {
 
   const { data, error } = await supabase
     .from('customers')
-    .select('*')
+    .select(customerFields)
     .eq('store_id', input.storeId)
     .eq('auth_user_id', input.authUserId)
     .maybeSingle();
@@ -709,7 +714,7 @@ export async function findCustomerByEmailFromRepository(input: {
 
   const { data, error } = await supabase
     .from('customers')
-    .select('*')
+    .select(customerFields)
     .eq('store_id', input.storeId)
     .eq('email', email)
     .maybeSingle();
@@ -743,7 +748,7 @@ export async function linkCustomerAuthUserInRepository(input: {
 
   const { data: existing, error: existingError } = await supabase
     .from('customers')
-    .select('*')
+    .select(customerFields)
     .eq('store_id', input.storeId)
     .eq('id', input.customerId)
     .maybeSingle();
@@ -773,7 +778,7 @@ export async function linkCustomerAuthUserInRepository(input: {
     })
     .eq('store_id', input.storeId)
     .eq('id', input.customerId)
-    .select('*')
+    .select(customerFields)
     .single();
 
   if (error || !data) {
@@ -830,7 +835,7 @@ export async function upsertCustomerInRepository(
   if (payload.auth_user_id) {
     const { data, error } = await supabase
       .from('customers')
-      .select('*')
+      .select(customerFields)
       .eq('store_id', input.storeId)
       .eq('auth_user_id', payload.auth_user_id)
       .maybeSingle();
@@ -846,7 +851,7 @@ export async function upsertCustomerInRepository(
   if (payload.document) {
     const { data, error } = await supabase
       .from('customers')
-      .select('*')
+      .select(customerFields)
       .eq('store_id', input.storeId)
       .eq('document', payload.document)
       .maybeSingle();
@@ -863,7 +868,7 @@ export async function upsertCustomerInRepository(
   if (payload.email) {
     const { data, error } = await supabase
       .from('customers')
-      .select('*')
+      .select(customerFields)
       .eq('store_id', input.storeId)
       .eq('email', payload.email)
       .maybeSingle();
@@ -892,12 +897,12 @@ export async function upsertCustomerInRepository(
         .update(updatePayload)
         .eq('id', existing.id)
         .eq('store_id', input.storeId)
-        .select('*')
+        .select(customerFields)
         .single()
     : await supabase
         .from('customers')
         .insert(payload)
-        .select('*')
+        .select(customerFields)
         .single();
 
   if (result.error || !result.data) {
@@ -943,12 +948,12 @@ export async function upsertCustomerInRepository(
           .update(addressPayload)
           .eq('id', existingAddress.id)
           .eq('store_id', input.storeId)
-          .select('*')
+          .select(customerAddressFields)
           .single()
       : await supabase
           .from('customer_addresses')
           .insert(addressPayload)
-          .select('*')
+          .select(customerAddressFields)
           .single();
 
     if (addressResult.error || !addressResult.data) {

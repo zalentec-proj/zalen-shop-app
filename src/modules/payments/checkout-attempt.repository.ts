@@ -63,6 +63,9 @@ type CheckoutAttemptRow = {
   completed_at: string | null;
 };
 
+const checkoutAttemptFields =
+  'id,store_id,attempt_key,cart_hash,customer_hash,status,order_id,order_number,provider,provider_reference,checkout_url,sandbox_checkout_url,error_message,created_at,updated_at,completed_at';
+
 export class CheckoutAttemptPersistenceError extends Error {
   constructor(readonly safeReason: string) {
     super('checkout_attempt_persistence_failed');
@@ -119,7 +122,7 @@ export async function reserveCheckoutAttempt(input: {
       provider: 'mercado_pago',
       updated_at: now,
     })
-    .select('*')
+    .select(checkoutAttemptFields)
     .single();
 
   if (!error && data) {
@@ -135,7 +138,7 @@ export async function reserveCheckoutAttempt(input: {
 
   const { data: existing, error: fetchError } = await supabase
     .from('checkout_attempts')
-    .select('*')
+    .select(checkoutAttemptFields)
     .eq('store_id', input.storeId)
     .eq('attempt_key', input.attemptKey)
     .maybeSingle();
@@ -177,7 +180,7 @@ export async function reserveCheckoutAttempt(input: {
       .eq('id', existingAttempt.id)
       .eq('store_id', input.storeId)
       .eq('status', 'error')
-      .select('*')
+      .select(checkoutAttemptFields)
       .single();
 
     if (retryError || !retried) {
@@ -213,7 +216,7 @@ export async function findReusableCheckoutAttempt(input: {
   ).toISOString();
   const { data, error } = await supabase
     .from('checkout_attempts')
-    .select('*')
+    .select(checkoutAttemptFields)
     .eq('store_id', input.storeId)
     .eq('cart_hash', input.cartHash)
     .eq('customer_hash', input.customerHash)
@@ -263,7 +266,7 @@ export async function completeCheckoutAttempt(input: {
     })
     .eq('id', input.attemptId)
     .eq('store_id', input.storeId)
-    .select('*')
+    .select(checkoutAttemptFields)
     .single();
 
   if (error || !data) {

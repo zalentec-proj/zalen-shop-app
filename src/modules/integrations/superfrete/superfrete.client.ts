@@ -6,7 +6,7 @@ import type {
   SuperFreteQuoteResponse,
 } from './superfrete.types';
 
-const REQUEST_TIMEOUT_MS = 8000;
+const REQUEST_TIMEOUT_MS = 5000;
 
 export class SuperFreteQuoteError extends Error {
   constructor(

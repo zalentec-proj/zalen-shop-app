@@ -57,7 +57,7 @@ interface PaymentStateMapping {
   lastError?: string;
 }
 
-function mapMercadoPagoStatus(status: string | undefined): PaymentStateMapping {
+export function mapMercadoPagoStatus(status: string | undefined): PaymentStateMapping {
   switch (status) {
     case 'approved':
       return {
@@ -103,7 +103,7 @@ function mapMercadoPagoStatus(status: string | undefined): PaymentStateMapping {
   }
 }
 
-function amountsMatch(paymentAmount: number | undefined, order: OrderListItem) {
+export function amountsMatch(paymentAmount: number | undefined, order: OrderListItem) {
   if (typeof paymentAmount !== 'number') {
     return false;
   }

@@ -8,7 +8,15 @@ export type EmailDomainStatus =
   | 'verified'
   | 'failed';
 
-export type EmailMessageStatus = 'queued' | 'sent' | 'failed' | 'skipped';
+export type EmailMessageStatus =
+  | 'queued'
+  | 'sent'
+  | 'delivered'
+  | 'bounced'
+  | 'complained'
+  | 'suppressed'
+  | 'failed'
+  | 'skipped';
 
 export type StoreEmailTemplateKey =
   | 'customer_login_code'

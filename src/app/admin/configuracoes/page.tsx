@@ -46,6 +46,13 @@ const setupAreas = [
     icon: Globe2,
     status: 'Planejado',
   },
+  {
+    title: 'Documentos legais',
+    description: 'Privacidade, termos, devoluções e contato publicados pela loja.',
+    href: '/admin/configuracoes/documentos-legais',
+    icon: ShieldCheck,
+    status: 'Pendente',
+  },
 ];
 
 const futureAreas = [
@@ -63,7 +70,7 @@ export default function SettingsIndexPage() {
         description="Arquitetura organizada para operar a loja dentro da Zalen, com conectores externos ativados somente quando houver implementação aprovada."
         action={<SettingsBadge tone="info">Zalen Shop</SettingsBadge>}
       >
-        <div className="grid gap-3 lg:grid-cols-4">
+        <div className="grid gap-3 lg:grid-cols-5">
           {setupAreas.map((area) => {
             const Icon = area.icon;
 
@@ -129,7 +136,7 @@ export default function SettingsIndexPage() {
         >
           <div className="space-y-2">
             {[
-              'Nenhum pagamento real foi implementado.',
+              'Pagamento em produção depende de homologação completa.',
               'Frete nativo é server-side; Melhor Envio segue planejado.',
               'Domínios e DNS permanecem visuais.',
               'Tokens e secrets não entram no frontend.',

@@ -8,6 +8,13 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run src/**/*.test.ts",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:ci": "npm run lint && npm run test:coverage && npm run build",
+    "security:audit": "npm audit --omit=dev --audit-level=high",
+    "security:secrets": "node scripts/security/scan-secrets.mjs",
     "test:checkout-sale": "node scripts/checkout-sale-smoke-test.mjs",
     "categorias:dry": "DRY_RUN=true node create-categories.js",
     "categorias:run": "DRY_RUN=false node create-categories.js",
@@ -28,7 +35,7 @@
     "medidas:bling": "DRY_RUN=false MEASURES_APPROVED=true node capture-and-update-shipping-measures.js"
   },
   "dependencies": {
-    "@google/genai": "^1.29.0",
+    "@sentry/nextjs": "^10.65.0",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.86.0",
     "@tailwindcss/postcss": "^4.1.14",
@@ -39,14 +46,18 @@
     "next": "^16.0.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
+    "resend": "^6.17.2",
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@types/node": "^22.14.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vitest/coverage-v8": "^4.1.10",
     "supabase": "^2.104.0",
     "tailwindcss": "^4.1.14",
-    "typescript": "~5.8.2"
+    "typescript": "~5.8.2",
+    "vitest": "^4.1.10"
   }
 }

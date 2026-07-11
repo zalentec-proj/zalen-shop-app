@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import {
   getShippingOriginFromRepository,
   getShippingQuoteFromRepository,
+  getReusableShippingQuoteRatesFromRepository,
   getShipmentsByOrderIdFromRepository,
   insertShippingQuotesInRepository,
   listShippingMethodsFromRepository,
@@ -12,7 +13,6 @@ import {
   upsertShippingOriginInRepository,
   upsertManualShipmentInRepository,
 } from './shipment.repository';
-import { isManualShippingFallbackEnabled } from '../integrations/superfrete/superfrete.config';
 import {
   calculateSuperFreteRates,
   hasActiveSuperFreteMethod,
@@ -43,6 +43,7 @@ export type {
 } from './shipment.types';
 
 const SHIPPING_QUOTE_TTL_MINUTES = 30;
+const SHIPPING_QUOTE_CACHE_MINUTES = 5;
 
 function roundCurrency(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
@@ -70,6 +71,24 @@ export function getShippingItemsHash(items: ShippingQuoteItem[]) {
   return createHash('sha256')
     .update(JSON.stringify(normalizeItems(items)))
     .digest('hex');
+}
+
+function getShippingQuoteCacheKey(input: ShippingQuoteInput) {
+  return createHash('sha256')
+    .update(
+      JSON.stringify({
+        destinationPostalCode: onlyDigits(input.destinationPostalCode),
+        itemsHash: getShippingItemsHash(input.items),
+        subtotal: roundCurrency(input.subtotal),
+      })
+    )
+    .digest('hex');
+}
+
+function getShippingQuoteCacheCutoff() {
+  return new Date(
+    Date.now() - SHIPPING_QUOTE_CACHE_MINUTES * 60 * 1000
+  ).toISOString();
 }
 
 function getQuoteExpiration() {
@@ -159,28 +178,72 @@ async function calculateNativeRates(input: ShippingQuoteInput) {
 async function calculateShippingRates(input: ShippingQuoteInput) {
   const configuration = await getShippingCalculationConfiguration(input.storeId);
   const hasSuperFrete = hasActiveSuperFreteMethod(configuration.methods);
+  const nativeRates = calculateNativeRatesFromConfiguration({
+    quote: input,
+    ...configuration,
+  });
 
-  if (hasSuperFrete) {
-    try {
-      return await calculateSuperFreteRates({
-        quote: input,
-        ...configuration,
-      });
-    } catch (error) {
-      if (!isManualShippingFallbackEnabled()) {
-        throw error;
-      }
-    }
+  if (!hasSuperFrete) {
+    return nativeRates;
   }
 
-  if (!hasSuperFrete || isManualShippingFallbackEnabled()) {
-    return calculateNativeRatesFromConfiguration({
+  try {
+    const superFreteRates = await calculateSuperFreteRates({
       quote: input,
       ...configuration,
     });
+
+    if (superFreteRates.length > 0) {
+      return superFreteRates;
+    }
+  } catch (error) {
+    if (nativeRates.length === 0) {
+      throw error;
+    }
   }
 
-  return [];
+  // The external quote is preferred, but an active native option must keep
+  // checkout available when the carrier has no coverage or is unavailable.
+  return nativeRates;
+}
+
+async function getCachedShippingRates(input: ShippingQuoteInput) {
+  return getReusableShippingQuoteRatesFromRepository({
+    storeId: input.storeId,
+    cacheKey: getShippingQuoteCacheKey(input),
+    minimumCreatedAt: getShippingQuoteCacheCutoff(),
+  });
+}
+
+async function quoteAndPersistShippingRates(input: {
+  quote: ShippingQuoteInput;
+  calculate: (quote: ShippingQuoteInput) => Promise<ShippingRate[]>;
+}) {
+  const destinationPostalCode = onlyDigits(input.quote.destinationPostalCode);
+  const normalizedQuote = {
+    ...input.quote,
+    destinationPostalCode,
+  };
+  const cachedRates = await getCachedShippingRates(normalizedQuote);
+
+  if (cachedRates.length > 0) {
+    return cachedRates;
+  }
+
+  const rates = await input.calculate(normalizedQuote);
+
+  if (rates.length === 0) {
+    return [];
+  }
+
+  return insertShippingQuotesInRepository({
+    storeId: normalizedQuote.storeId,
+    destinationPostalCode,
+    itemsHash: getShippingItemsHash(normalizedQuote.items),
+    cacheKey: getShippingQuoteCacheKey(normalizedQuote),
+    expiresAt: getQuoteExpiration(),
+    rates,
+  });
 }
 
 export async function getShippingConfiguration(storeId: string): Promise<{
@@ -213,44 +276,18 @@ export async function updateShippingMethod(
 export async function quoteNativeShipping(
   input: ShippingQuoteInput
 ): Promise<ShippingRate[]> {
-  const destinationPostalCode = onlyDigits(input.destinationPostalCode);
-  const rates = await calculateNativeRates({
-    ...input,
-    destinationPostalCode,
-  });
-
-  if (rates.length === 0) {
-    return [];
-  }
-
-  return insertShippingQuotesInRepository({
-    storeId: input.storeId,
-    destinationPostalCode,
-    itemsHash: getShippingItemsHash(input.items),
-    expiresAt: getQuoteExpiration(),
-    rates,
+  return quoteAndPersistShippingRates({
+    quote: input,
+    calculate: calculateNativeRates,
   });
 }
 
 export async function quoteShipping(
   input: ShippingQuoteInput
 ): Promise<ShippingRate[]> {
-  const destinationPostalCode = onlyDigits(input.destinationPostalCode);
-  const rates = await calculateShippingRates({
-    ...input,
-    destinationPostalCode,
-  });
-
-  if (rates.length === 0) {
-    return [];
-  }
-
-  return insertShippingQuotesInRepository({
-    storeId: input.storeId,
-    destinationPostalCode,
-    itemsHash: getShippingItemsHash(input.items),
-    expiresAt: getQuoteExpiration(),
-    rates,
+  return quoteAndPersistShippingRates({
+    quote: input,
+    calculate: calculateShippingRates,
   });
 }
 

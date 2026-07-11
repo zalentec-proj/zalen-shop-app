@@ -176,6 +176,7 @@ type MercadoPagoBrickSession = {
   publicKey: string;
   environment: 'test' | 'production';
   paymentAttemptKey: string;
+  payerEmail?: string;
   fallbackPaymentUrl?: string;
 };
 
@@ -904,7 +905,9 @@ export default function CartClient({ customerSession }: Props) {
           amount: paymentSession.amount,
           preferenceId: paymentSession.preferenceId,
           payer: {
-            email: normalizeEmailAddress(customer.email),
+            email: normalizeEmailAddress(
+              paymentSession.payerEmail ?? customer.email
+            ),
             firstName,
             lastName: lastNameParts.join(' '),
             entityType:
@@ -950,7 +953,7 @@ export default function CartClient({ customerSession }: Props) {
             const formData = getMercadoPagoBrickFormData(submitData);
             const result = await processMercadoPagoBrickPaymentAction({
               orderId: paymentSession.orderId,
-              idempotencyKey: crypto.randomUUID(),
+              idempotencyKey: paymentSession.paymentAttemptKey,
               formData,
             });
 
@@ -1751,6 +1754,7 @@ export default function CartClient({ customerSession }: Props) {
       publicKey: result.publicKey,
       environment: result.environment,
       paymentAttemptKey: result.paymentAttemptKey,
+      payerEmail: result.payerEmail,
       fallbackPaymentUrl: result.fallbackPaymentUrl,
     });
     setBrickStatus('loading');
