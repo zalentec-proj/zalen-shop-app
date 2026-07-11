@@ -18,7 +18,7 @@ function isAuthorized(request: Request) {
   );
 }
 
-export async function GET(request: Request) {
+async function handle(request: Request) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
   }
@@ -70,4 +70,12 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({ ok: true, processed, failed });
+}
+
+export async function GET(request: Request) {
+  return handle(request);
+}
+
+export async function POST(request: Request) {
+  return handle(request);
 }
