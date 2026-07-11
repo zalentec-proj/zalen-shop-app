@@ -8,7 +8,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-07-11
 - Branch: `refactor/migrate-to-next`
-- Commit: `5f0a0cd` — `Fix checkout shipping quote validation`
+- Commit: `7e2b77e` — `Allow checkout addresses without complement`
 - Working tree no momento deste registro: contém apenas automações locais de
   produto/Bling fora deste commit.
 
@@ -35,24 +35,27 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   criação do pedido.
 - A validação completa do endereço agora usa campos obrigatórios explícitos e
   aceita complemento vazio, evitando bloqueio antes do Mercado Pago.
+- O Payment Brick também exige `www.mercadolibre.com` para frame e verificações
+  de segurança executadas pelo SDK. A CSP global deve permitir esse host apenas
+  em `connect-src` e `frame-src`, mantendo `script-src` restrito ao SDK oficial.
 
 ## Objetivo atual
 
-Retestar a criação do pedido e a abertura do Mercado Pago depois de corrigir o
-schema de endereço opcional.
+Retestar a renderização e a submissão do Payment Brick depois de liberar os
+hosts estritamente necessários na CSP.
 
 ## Em andamento
 
-Nenhuma alteração de código pendente. Aguardando o reteste da abertura do
-Mercado Pago em produção.
+Ajuste de CSP para o Payment Brick em andamento. A captura de produção mostrou
+que o frame e a checagem antifraude do SDK foram bloqueados por CSP.
 
 ## Próximo passo exato
 
-1. Refazer o checkout com complemento vazio ou preenchido.
-2. Confirmar que o botão `Abrir pagamento` cria o pedido e carrega o Mercado
-   Pago.
-3. Se falhar, consultar o Sentry pelo código seguro `checkout_payload_invalid`
-   ou `checkout_start_failed` antes de alterar o fluxo.
+1. Refazer o checkout em aba anônima após o deployment da CSP.
+2. Confirmar que o Payment Brick deixa de ficar em branco, carrega os meios de
+   pagamento e permite submeter um pagamento de sandbox.
+3. Se falhar, registrar o próximo host recusado pela CSP e consultar o Sentry
+   pelo código seguro `checkout_start_failed` antes de alterar o fluxo.
 
 ## Bloqueios e dúvidas
 
@@ -74,6 +77,9 @@ Nenhum bloqueio registrado neste handoff inicial.
 - Testes de endereço, cotação, frete, CEP e rate limit passaram: 20 testes em
   5 arquivos.
 - `npm run lint` e `npm run build` passaram após a correção do complemento.
+- A captura de produção posterior mostrou a CSP bloqueando explicitamente
+  `https://www.mercadolibre.com` em `connect-src` e `frame-src`, origem usada
+  pelo Payment Brick para segurança. O ajuste foi mantido restrito a esse host.
 
 ## Decisões de continuidade
 

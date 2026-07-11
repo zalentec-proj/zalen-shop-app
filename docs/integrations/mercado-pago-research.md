@@ -170,6 +170,17 @@ mp.bricks().create('payment', 'paymentBrick_container', {
 });
 ```
 
+### Content Security Policy (CSP)
+
+O Payment Brick é iniciado pelo script oficial em
+`https://sdk.mercadopago.com/js/v2`, mas, durante a renderização, também usa
+`https://www.mercadolibre.com` para frame e verificações de segurança.
+A CSP global deve permitir esse host apenas em `connect-src` e `frame-src`.
+As fontes usadas pelo Brick permanecem limitadas a
+`https://fonts.googleapis.com` em `style-src` e
+`https://fonts.gstatic.com` em `font-src`. Não ampliar `script-src` para
+subdomínios genéricos do Mercado Livre.
+
 Regras implementadas:
 
 - a Zalen cria pedido e preferência server-side antes de renderizar o Brick;

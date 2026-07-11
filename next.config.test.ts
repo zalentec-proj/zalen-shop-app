@@ -12,6 +12,12 @@ describe('global security headers', () => {
     expect(headers['Referrer-Policy']).toBe('strict-origin-when-cross-origin');
     expect(headers['Permissions-Policy']).toContain('camera=()');
     expect(headers['Content-Security-Policy']).toContain("frame-ancestors 'none'");
+    expect(headers['Content-Security-Policy']).toContain(
+      'connect-src \'self\' https://*.supabase.co https://api.mercadopago.com https://www.mercadolibre.com'
+    );
+    expect(headers['Content-Security-Policy']).toContain(
+      'frame-src https://*.mercadopago.com https://www.mercadolibre.com'
+    );
     expect(nextConfig.poweredByHeader).toBe(false);
   });
 });
