@@ -8,7 +8,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-07-11
 - Branch: `refactor/migrate-to-next`
-- Commit: `27b98b8` — `Allow Mercado Pago secure card fields`
+- Commit: `4194e84` — `Use checkout identity for Mercado Pago sandbox`
 - Working tree no momento deste registro: contém apenas automações locais de
   produto/Bling fora deste commit.
 
@@ -41,20 +41,18 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Objetivo atual
 
-Corrigir a identidade do pagador no sandbox do Payment Brick e retestar cartão,
-Pix e boleto.
+Retestar cartão, Pix e boleto no Payment Brick após corrigir a identidade do
+pagador usada no sandbox.
 
 ## Em andamento
 
-A tentativa de cartão chegou à API do Mercado Pago, mas foi recusada por
-parâmetro do pagador. A implementação estava injetando e-mail de usuário de
-teste e CPF/CNPJ real no Brick de sandbox, contrariando a orientação oficial.
-O ajuste para separar a identidade de sandbox está em andamento.
+Nenhuma alteração de código pendente. O deployment de produção `4194e84` está
+`READY`; o sandbox usa o e-mail validado no checkout e não pré-preenche CPF/CNPJ
+do cliente para cartões.
 
 ## Próximo passo exato
 
-1. Recarregar o checkout em aba anônima ou com cache desabilitado após o novo
-   deployment.
+1. Recarregar o checkout em aba anônima ou com cache desabilitado.
 2. Confirmar que cartão não mostra CPF/CNPJ pré-preenchido no sandbox e que Pix
    e boleto continuam disponíveis para criar uma tentativa de sandbox.
 3. Se falhar, registrar no console o próximo host recusado pela CSP e consultar
@@ -109,6 +107,10 @@ Nenhum bloqueio registrado neste handoff inicial.
   ser um e-mail comum diferente do vendedor, não um usuário de teste. O ajuste
   remove a injeção de e-mail de teste, não pré-preenche CPF/CNPJ no Brick de
   sandbox e impede o fallback do documento salvo em cartões de sandbox.
+- O deployment de produção `dpl_9dkYsStvnphxq5FGZuSEtiLGo43x` do commit
+  `4194e84` ficou `READY`. Os testes de CSP, payload de cartão/Pix/boleto e
+  conector passaram: 12 testes em 3 arquivos; `npm run lint` e `npm run build`
+  também passaram.
 
 ## Decisões de continuidade
 
