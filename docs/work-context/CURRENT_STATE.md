@@ -8,10 +8,11 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-07-13
 - Branch: `refactor/migrate-to-next`
-- Commit remoto atual: `3566597` — `Record payment production validation status`
+- Commit remoto atual: `1118275` — `feat(catalog): add drone model compatibility`
 - Working tree no momento deste registro: contém alterações locais não
-  relacionadas de produto/Bling e uma implementação ainda não publicada para
-  confirmação visual de Pix.
+  relacionadas em `src/assets/logo brasil.svg`, `audit-bling-marketplaces.js`
+  e `capture-and-audit-bling-marketplaces.js`. Preservá-las e não incluí-las
+  em commits de compatibilidade por modelo.
 
 ## Contexto permanente
 
