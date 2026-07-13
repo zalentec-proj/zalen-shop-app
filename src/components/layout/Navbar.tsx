@@ -89,7 +89,7 @@ export default function Navbar({
   const renderDesktopItem = (item: StorefrontNavigationItem) => {
     const isActive = activeCategory === item.categorySlug;
     const hasChildren = item.children.length > 0;
-    const className = `inline-flex items-center gap-1 text-[14px] font-medium tracking-wide transition-all duration-300 relative py-1 cursor-pointer hover:text-white ${
+    const className = `inline-flex items-center gap-1 text-[13px] font-medium tracking-wide transition-all duration-300 relative py-1 cursor-pointer hover:text-white ${
       isActive ? 'text-white' : 'text-brand-muted'
     }`;
     const content = (
@@ -171,7 +171,7 @@ export default function Navbar({
         </button>
 
         {/* Desktop Nav Links */}
-        <div className="hidden lg:flex items-center gap-6 xl:gap-8">
+        <div className="hidden lg:flex items-center gap-3 xl:gap-4">
           {navLinks.map(renderDesktopItem)}
         </div>
 

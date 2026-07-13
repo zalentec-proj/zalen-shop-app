@@ -98,6 +98,13 @@ function getSettingsPageMeta(pathname: string) {
     };
   }
 
+  if (pathname.startsWith('/admin/configuracoes/compatibilidade')) {
+    return {
+      title: 'Compatibilidade por modelo',
+      description: 'Vínculos auditáveis entre peças, acessórios e os modelos DJI da loja ativa.',
+    };
+  }
+
   return {
     title: 'Configurações',
     description: 'Operação, canais e preferências da loja ativa dentro da Zalen Shop.',

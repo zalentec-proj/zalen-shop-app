@@ -331,6 +331,7 @@ export function toProductSummary(product: Product): ProductSummary {
   return {
     id: product.id,
     variantId: primaryVariant?.id,
+    sku: primaryVariant?.sku,
     externalProvider: product.externalProvider,
     externalId: product.externalId,
     name: product.name,

@@ -23,6 +23,27 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
+- Foi implementada a base de compatibilidade por modelo DJI para Brasil Drones,
+  separada das categorias técnicas do Bling. As migrations de produção
+  `20260713200000_add_drone_model_compatibility.sql` e
+  `20260713201000_add_drone_model_foreign_key_indexes.sql` criaram tabelas
+  com RLS para linhas, modelos e vínculos produto-modelo; foram semeadas oito
+  linhas e 31 modelos. Não houve alteração de produto, categoria técnica,
+  preço, estoque ou dados no Bling.
+- A navegação do storefront recebeu suporte a rotas internas seguras e foram
+  preparados os destinos `/modelos/[slug]` e `/modelos/linha/[slug]`, além da
+  tela administrativa `/admin/configuracoes/compatibilidade`. As sugestões são
+  derivadas de nome/SKU e ficam em revisão; apenas vínculos confirmados por um
+  operador aparecem no storefront.
+- Os 38 itens de menu por modelo foram propositalmente desativados pela
+  migration `20260713202000_defer_model_navigation_until_storefront_deployment.sql`.
+  O handoff vigente bloqueia novo deploy até a validação de pagamento em
+  produção; isso evita expor itens de menu antes do código de rotas estar
+  publicado. Os atalhos anteriores Baterias e Master Airscrew foram mantidos
+  visíveis. Após um deploy seguro, o admin permite ativar todos os itens por
+  meio do comando protegido “Ativar menu de modelos”, que permanece bloqueado
+  enquanto não houver ao menos uma compatibilidade confirmada.
+
 - Foi implementado localmente um Status Screen de Pix para o checkout. Depois
   de criar um Pix pendente, o cliente permanece na tela de pagamento com o
   componente oficial do Mercado Pago e um contador de dois minutos. Nesse
@@ -119,7 +140,8 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 Restaurar e validar a configuração de produção do Mercado Pago e publicar a
 confirmação visual de Pix somente depois de homologar a assinatura de webhook e
-as dependências server-side por ambiente.
+as dependências server-side por ambiente. A compatibilidade por modelo DJI está
+preparada e deve ser ativada somente no mesmo ciclo de deploy seguro.
 
 ## Em andamento
 
@@ -130,6 +152,11 @@ o webhook em tempo real, mas não oferece a experiência imediata do checkout.
 A configuração de pagamentos em produção continua bloqueada até a restauração
 controlada dos segredos por ambiente e a validação de entrega autenticada do
 webhook.
+
+O catálogo de modelos no banco está pronto, mas sem vínculos produto-modelo e
+sem menu público ativo. O próximo operador deve revisar as sugestões na tela de
+compatibilidade depois que o código estiver publicado; não deve criar vínculos
+automáticos em massa apenas pelo nome da peça.
 
 Nenhum deployment foi criado após a restauração parcial das variáveis. A versão
 em produção continua sendo a previamente validada.
@@ -160,9 +187,11 @@ Supabase estiverem disponíveis novamente.
    um pedido pago controlado, copiar seu ID e usar o painel “Enviar um pedido
    de homologação”. Confirmar o registro no Bling, não faturar/não expedir e
    cancelá-lo após a validação; manter `orderSend.enabled` desligado.
-8. Antes de expor as novas linhas no menu do storefront, modelar compatibilidade
-   produto-modelo no catálogo Zalen e configurar os itens de navegação. Não
-   recategorizar produtos já classificados tecnicamente no Bling.
+8. Depois do deploy seguro do código de compatibilidade, abrir
+   `/admin/configuracoes/compatibilidade`, revisar os modelos sugeridos por
+   produto e salvar apenas os vínculos confirmados. Só então usar “Ativar menu
+   de modelos”. Não recategorizar produtos já classificados tecnicamente no
+   Bling.
 
 ## Bloqueios e dúvidas
 
@@ -245,6 +274,14 @@ concluir a troca coordenada do segredo de cron.
   também passaram; o build usou o fallback WASM já conhecido para SWC local.
 - O deployment de produção `dpl_27w5qbDkCJ7vD9GX91geqtFiwdki` chegou a
   `READY` com o commit `231ca62`, que contém a correção funcional `12c989f`.
+- A implementação de compatibilidade por modelo passou em `npm run lint`,
+  `npm run test:unit` (52 testes em 13 arquivos) e `npm run build`. O build
+  local utilizou o fallback WASM conhecido para SWC e terminou com sucesso.
+- As migrations de modelo foram aplicadas ao projeto Supabase `zalen.shop`.
+  A validação posterior confirmou 8 linhas, 31 modelos, zero vínculos de
+  produto e 38 itens de navegação adiados. A auditoria de segurança não apontou
+  alerta novo das funções adicionadas; a auditoria de performance confirmou os
+  índices das duas novas chaves estrangeiras.
 
 ## Decisões de continuidade
 

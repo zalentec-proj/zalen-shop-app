@@ -78,6 +78,7 @@ export interface ProductCategorySummary {
 export interface ProductSummary {
   id: string;
   variantId?: string;
+  sku?: string;
   externalProvider?: string;
   externalId?: string;
   name: string;

@@ -6,6 +6,7 @@ import {
   Globe2,
   Store,
   PackageCheck,
+  ScanSearch,
   ReceiptText,
   ShieldCheck,
   Truck,
@@ -45,6 +46,13 @@ const setupAreas = [
     href: '/admin/configuracoes/dominios',
     icon: Globe2,
     status: 'Planejado',
+  },
+  {
+    title: 'Compatibilidade por modelo',
+    description: 'Associe peças e acessórios aos modelos DJI sem alterar a categoria técnica.',
+    href: '/admin/configuracoes/compatibilidade',
+    icon: ScanSearch,
+    status: 'Inicial',
   },
   {
     title: 'Documentos legais',

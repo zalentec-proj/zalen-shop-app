@@ -1246,6 +1246,18 @@ export async function listStorefrontProductsFromRepository(
   return mockProducts;
 }
 
+export async function listProductsByIdsFromRepository(
+  storeId: string,
+  productIds: string[],
+  options: { includeInactive?: boolean } = {}
+): Promise<Product[]> {
+  const supabaseProducts = await fetchSupabaseProductsByIds(storeId, productIds, {
+    includeInactive: options.includeInactive,
+  });
+
+  return supabaseProducts ?? [];
+}
+
 export async function listProductsWithSourceFromRepository(
   storeId: string
 ): Promise<

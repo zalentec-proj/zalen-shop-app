@@ -37,6 +37,12 @@ const navigationItemSchema = z.object({
   label: z.string().trim().min(2).max(80),
   type: z.enum(['category', 'group', 'custom']),
   categorySlug: z.string().trim().optional(),
+  href: z
+    .string()
+    .trim()
+    .regex(/^\/[a-z0-9][a-z0-9/_-]*$/, 'Use uma rota interna iniciada por /.')
+    .optional()
+    .or(z.literal('')),
   parentId: z.string().trim().optional(),
   position: z.coerce.number().int().min(0).max(10000),
   enabled: z.boolean(),
@@ -94,11 +100,13 @@ export async function saveStorefrontNavigationAction(formData: FormData) {
       formData.get(`${prefix}.categorySlug`) ?? ''
     ).trim();
     const parentId = String(formData.get(`${prefix}.parentId`) ?? '').trim();
+    const href = String(formData.get(`${prefix}.href`) ?? '').trim();
     const raw = {
       id: String(formData.get(`${prefix}.id`) ?? '').trim() || undefined,
       label: String(formData.get(`${prefix}.label`) ?? '').trim(),
       type,
       categorySlug: categorySlug || undefined,
+      href: href || undefined,
       parentId: parentId || undefined,
       position: formData.get(`${prefix}.position`),
       enabled: getBoolean(formData, `${prefix}.enabled`),
@@ -126,6 +134,7 @@ export async function saveStorefrontNavigationAction(formData: FormData) {
     if (
       parsed.data.type === 'custom' &&
       !parsed.data.categorySlug &&
+      !parsed.data.href &&
       !parsed.data.opensInDropdown &&
       !parsed.data.parentId
     ) {
@@ -144,4 +153,6 @@ export async function saveStorefrontNavigationAction(formData: FormData) {
   revalidatePath('/');
   revalidatePath('/admin/configuracoes/loja-online');
   revalidatePath('/categoria/[slug]', 'page');
+  revalidatePath('/modelos/[slug]', 'page');
+  revalidatePath('/modelos/linha/[slug]', 'page');
 }

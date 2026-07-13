@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "tsc --noEmit",
     "test": "vitest run",
-    "test:unit": "vitest run src/**/*.test.ts",
+    "test:unit": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:ci": "npm run lint && npm run test:coverage && npm run build",

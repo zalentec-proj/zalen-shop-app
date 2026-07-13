@@ -42,6 +42,7 @@ export interface StorefrontNavigationItemInput {
   label: string;
   type: StorefrontNavigationItemType;
   categorySlug?: string;
+  href?: string;
   parentId?: string;
   position: number;
   enabled: boolean;
@@ -56,6 +57,7 @@ type NavigationRow = {
   label: string;
   type: string;
   category_slug: string | null;
+  href: string | null;
   parent_id: string | null;
   position: number | null;
   enabled: boolean | null;
@@ -128,6 +130,14 @@ function getCategoryHref(categorySlug?: string) {
   return categorySlug ? `/categoria/${categorySlug}` : undefined;
 }
 
+function getInternalHref(value: string | null | undefined) {
+  if (!value || !/^\/[a-z0-9][a-z0-9/_-]*$/.test(value)) {
+    return undefined;
+  }
+
+  return value;
+}
+
 function isValidNavigationType(value: string): value is StorefrontNavigationItemType {
   return value === 'category' || value === 'group' || value === 'custom';
 }
@@ -183,6 +193,7 @@ function toNavigationRow(input: StorefrontNavigationItemInput): NavigationRow {
     label: input.label,
     type: input.type,
     category_slug: input.categorySlug ?? null,
+    href: input.href ?? null,
     parent_id: input.parentId ?? null,
     position: input.position,
     enabled: input.enabled,
@@ -220,7 +231,7 @@ function rowToItem(
     label: row.label,
     type,
     categorySlug,
-    href: getCategoryHref(categorySlug),
+    href: getInternalHref(row.href) ?? getCategoryHref(categorySlug),
     parentId: row.parent_id ?? undefined,
     position: row.position ?? 0,
     enabled: row.enabled ?? true,
@@ -332,7 +343,7 @@ export async function getStorefrontNavigation(
     const { data, error } = await supabase
       .from('storefront_navigation_items')
       .select(
-        'id, store_id, label, type, category_slug, parent_id, position, enabled, show_in_navbar, show_in_categories_dropdown, opens_in_dropdown'
+        'id, store_id, label, type, category_slug, href, parent_id, position, enabled, show_in_navbar, show_in_categories_dropdown, opens_in_dropdown'
       )
       .eq('store_id', storeId)
       .order('position', { ascending: true });
@@ -364,7 +375,7 @@ export async function getAdminStorefrontNavigation(
   const { data, error } = await supabase
     .from('storefront_navigation_items')
     .select(
-      'id, store_id, label, type, category_slug, parent_id, position, enabled, show_in_navbar, show_in_categories_dropdown, opens_in_dropdown'
+      'id, store_id, label, type, category_slug, href, parent_id, position, enabled, show_in_navbar, show_in_categories_dropdown, opens_in_dropdown'
     )
     .eq('store_id', storeId)
     .order('position', { ascending: true });
@@ -404,6 +415,7 @@ export async function replaceStorefrontNavigationItems(
     label: item.label,
     type: item.type,
     category_slug: item.categorySlug ?? null,
+    href: item.href ?? null,
     parent_id: item.parentId ? idMap.get(item.parentId) ?? null : null,
     position: item.position,
     enabled: item.enabled,
@@ -437,6 +449,35 @@ export async function replaceStorefrontNavigationItems(
     return {
       ok: false,
       error: 'navigation-save-failed',
+    };
+  }
+
+  return { ok: true };
+}
+
+export async function setStorefrontModelNavigationEnabled(
+  storeId: string,
+  enabled: boolean
+) {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return {
+      ok: false,
+      error: 'supabase-admin-not-configured',
+    };
+  }
+
+  const { error } = await supabase
+    .from('storefront_navigation_items')
+    .update({ enabled, updated_at: new Date().toISOString() })
+    .eq('store_id', storeId)
+    .like('href', '/modelos/%');
+
+  if (error) {
+    return {
+      ok: false,
+      error: 'model-navigation-update-failed',
     };
   }
 

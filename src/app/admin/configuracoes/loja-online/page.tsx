@@ -164,6 +164,16 @@ function NavigationItemRow({
             </label>
 
             <label className="grid gap-1 text-[11px] font-semibold text-slate-400">
+              Rota interna
+              <input
+                name={`${prefix}.href`}
+                defaultValue={item.href ?? ''}
+                placeholder="/modelos/mini-3"
+                className="h-9 rounded-lg border border-white/8 bg-[#050A14] px-3 text-xs text-white outline-none"
+              />
+            </label>
+
+            <label className="grid gap-1 text-[11px] font-semibold text-slate-400">
               Ordem
               <input
                 name={`${prefix}.position`}
@@ -303,7 +313,7 @@ export default async function OnlineStoreSettingsPage() {
               Categorias e itens do menu
             </h2>
             <p className="mt-1 text-xs leading-5 text-slate-400">
-              Itens sem link podem ser usados como grupo/pai. Categoria vinculada sempre aponta para `/categoria/[slug]`.
+              Categorias apontam para `/categoria/[slug]`. Itens customizados aceitam somente rotas internas, como `/modelos/mini-3`.
             </p>
           </div>
           <button
