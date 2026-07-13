@@ -37,6 +37,16 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - A publicação desta mudança foi deliberadamente suspensa até restaurar a
   configuração segura de produção do ambiente de deploy e validar novamente a
   assinatura de webhook. Não publicar uma nova versão antes dessa etapa.
+- A auditoria de 2026-07-13 confirmou que o `vercel env pull` não deve ser
+  usado para inferir que um segredo de produção está vazio: a CLI omite valores
+  sensíveis ao baixá-los. A presença de uma variável no arquivo temporário não
+  prova o seu conteúdo.
+- Foram restauradas na Vercel, sem publicar deployment, as configurações com
+  fonte local validada: Supabase, `APP_URL`, OAuth do Bling, chave de
+  criptografia de integrações, Resend, fallback de produção do Mercado Pago e
+  uma nova chave de hash do rate limit. Os valores não foram registrados aqui.
+- A validação de API confirmou as credenciais locais de Supabase e o token de
+  produção de Mercado Pago antes da restauração.
 
 - A função persistente de rate limit foi corrigida pela migration
   `20260711165637_fix_security_rate_limit_timestamp.sql`.
@@ -88,15 +98,21 @@ A configuração de pagamentos em produção continua bloqueada até a restaura�
 controlada dos segredos por ambiente e a validação de entrega autenticada do
 webhook.
 
+Nenhum deployment foi criado após a restauração parcial das variáveis. A versão
+em produção continua sendo a previamente validada.
+
 ## Próximo passo exato
 
 1. Reativar a sessão OAuth do MCP oficial do Mercado Pago e consultar a
    configuração de produção da aplicação sem registrar segredos no repositório.
-2. Restaurar as variáveis server-side do ambiente de produção e manter a chave
-   de assinatura de webhook alinhada ao segredo do provedor.
-3. Preservar a `notification_url` contextualizada por loja e ambiente em cada
+2. Após a validação interativa da conta do Mercado Pago, recuperar a assinatura
+   de webhook de produção e as credenciais OAuth ausentes; salvar somente na
+   Vercel por ambiente.
+3. Gerar ou recuperar o segredo de cron e atualizar na mesma operação a Vercel
+   e o segredo `zalen_cron_secret` do Vault do Supabase.
+4. Preservar a `notification_url` contextualizada por loja e ambiente em cada
    pagamento e manter somente os tópicos efetivamente processados pelo conector.
-4. Criar uma transação de produção controlada e confirmar a entrega do webhook
+5. Criar uma transação de produção controlada e confirmar a entrega do webhook
    antes de publicar e liberar o novo acompanhamento de Pix.
 
 ## Bloqueios e dúvidas
@@ -107,6 +123,9 @@ MCP do Mercado Pago não expôs as ferramentas OAuth necessárias para consultar
 a configuração da aplicação. O acesso pelo painel web do provedor também está
 aguardando uma validação interativa da conta, que deve ser concluída pelo
 titular sem compartilhar códigos ou credenciais.
+
+O acesso administrativo ao Vault do Supabase ainda precisa ser autenticado para
+concluir a troca coordenada do segredo de cron.
 
 ## Validação
 
