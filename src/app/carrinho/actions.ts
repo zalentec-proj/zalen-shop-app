@@ -231,6 +231,7 @@ export type MercadoPagoBrickPaymentActionResult =
       orderId: string;
       orderNumber: string;
       paymentId: string;
+      paymentMethodId?: string;
       status: MercadoPagoBrickActionStatus;
       redirectPath: string;
       message: string;
@@ -242,6 +243,17 @@ export type MercadoPagoBrickPaymentActionResult =
         MercadoPagoBrickActionStatus,
         'rejected' | 'cancelled' | 'error'
       >;
+    };
+
+export type MercadoPagoCheckoutPaymentStatusActionResult =
+  | {
+      ok: true;
+      status: MercadoPagoBrickActionStatus;
+      redirectPath: string;
+    }
+  | {
+      ok: false;
+      error: string;
     };
 
 export type IdentifyCheckoutCustomerActionResult =
@@ -944,6 +956,11 @@ const mercadoPagoBrickPaymentSchema = z.object({
   formData: z.record(z.string(), z.unknown()),
 });
 
+const mercadoPagoCheckoutPaymentStatusSchema = z.object({
+  orderId: z.string().trim().uuid(),
+  paymentId: z.string().trim().min(1).max(128),
+});
+
 function getPostalCodeLookupErrorMessage(errorCode: string) {
   if (errorCode === 'invalid_postal_code') {
     return 'Informe um CEP válido com 8 dígitos.';
@@ -1498,6 +1515,7 @@ export async function processMercadoPagoBrickPaymentAction(
         orderId: order.id,
         orderNumber: order.orderNumber,
         paymentId: attemptReservation.attempt.externalPaymentId,
+        paymentMethodId: attemptReservation.attempt.paymentMethodId,
         status: existingStatus,
         redirectPath: getPaymentRedirectPath(order.id, existingStatus),
         message: getBrickPaymentMessage(existingStatus),
@@ -1575,6 +1593,7 @@ export async function processMercadoPagoBrickPaymentAction(
       orderId: order.id,
       orderNumber: order.orderNumber,
       paymentId: payment.id,
+      paymentMethodId: payment.paymentMethodId,
       status,
       redirectPath,
       message,
@@ -1600,6 +1619,119 @@ export async function processMercadoPagoBrickPaymentAction(
       ok: false,
       error: getSafeCheckoutError(error),
       status: 'error',
+    };
+  }
+}
+
+export async function getMercadoPagoCheckoutPaymentStatusAction(
+  rawInput: unknown
+): Promise<MercadoPagoCheckoutPaymentStatusActionResult> {
+  const parsed = mercadoPagoCheckoutPaymentStatusSchema.safeParse(rawInput);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: 'Não foi possível localizar este pagamento.',
+    };
+  }
+
+  try {
+    const store = await resolveCurrentStoreFromHeaders();
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.getUser();
+
+    if (error || !data.user) {
+      return {
+        ok: false,
+        error: 'Entre na sua conta para acompanhar o pagamento.',
+      };
+    }
+
+    await enforceRateLimit({
+      scope: 'payment_status_poll',
+      storeId: store.id,
+      subject: `${data.user.id}:${parsed.data.orderId}`,
+    });
+
+    const [customer, order] = await Promise.all([
+      findCustomerByAuthUserId({
+        storeId: store.id,
+        authUserId: data.user.id,
+      }),
+      getOrderByIdFromRepository(store.id, parsed.data.orderId),
+    ]);
+
+    if (!customer || !order) {
+      return {
+        ok: false,
+        error: 'Não foi possível localizar este pagamento.',
+      };
+    }
+
+    const sessionEmail = normalizeEmailAddress(data.user.email ?? '');
+    const orderEmail = normalizeEmailAddress(order.customerEmail ?? '');
+    const belongsToCustomer =
+      order.customerId === customer.id ||
+      (sessionEmail && orderEmail && sessionEmail === orderEmail);
+
+    if (!belongsToCustomer) {
+      return {
+        ok: false,
+        error: 'Não foi possível localizar este pagamento.',
+      };
+    }
+
+    if (order.paymentStatus === 'paid') {
+      return {
+        ok: true,
+        status: 'approved',
+        redirectPath: getPaymentRedirectPath(order.id, 'approved'),
+      };
+    }
+
+    const latestTransaction = await getLatestPaymentTransactionByOrderId({
+      storeId: store.id,
+      orderId: order.id,
+    });
+
+    if (
+      !latestTransaction?.externalPaymentId ||
+      latestTransaction.externalPaymentId !== parsed.data.paymentId
+    ) {
+      return {
+        ok: false,
+        error: 'Não foi possível localizar este pagamento.',
+      };
+    }
+
+    const environment = getPaymentEnvironmentFromTransaction(latestTransaction);
+    const reconciliation = await processMercadoPagoPaymentUpdate({
+      storeId: store.id,
+      paymentId: latestTransaction.externalPaymentId,
+      environment,
+      source: 'poll',
+    });
+
+    if (!reconciliation.ok) {
+      return {
+        ok: true,
+        status: 'pending',
+        redirectPath: getPaymentRedirectPath(order.id, 'pending'),
+      };
+    }
+
+    const status = getBrickPaymentStatus(reconciliation.status);
+
+    return {
+      ok: true,
+      status,
+      redirectPath: getPaymentRedirectPath(order.id, status),
+    };
+  } catch {
+    return {
+      ok: true,
+      status: 'pending',
+      redirectPath: getPaymentRedirectPath(parsed.data.orderId, 'pending'),
     };
   }
 }

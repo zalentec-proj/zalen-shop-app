@@ -54,6 +54,7 @@ import {
 import type { Cart } from '@/modules/cart/cart.types';
 import { pushMarketingEvent } from '@/modules/marketing/marketing.client';
 import type { CustomerType } from '@/modules/pricing/pricing.types';
+import { PixPaymentStatusScreen } from './PixPaymentStatusScreen';
 
 type CheckoutSessionCustomer = {
   name?: string;
@@ -179,6 +180,13 @@ type MercadoPagoBrickSession = {
   fallbackPaymentUrl?: string;
 };
 
+type PixPaymentStatusSession = {
+  orderId: string;
+  orderNumber: string;
+  paymentId: string;
+  publicKey: string;
+};
+
 type MercadoPagoBrickController = {
   unmount: () => void;
 };
@@ -257,6 +265,12 @@ function getMercadoPagoBrickFormData(
   }
 
   return data;
+}
+
+function getBrickPaymentMethodId(formData: Record<string, unknown>) {
+  const value = formData.payment_method_id;
+
+  return typeof value === 'string' ? value.trim().toLowerCase() : undefined;
 }
 
 function formatDeliveryWindow(option: CheckoutShippingOption) {
@@ -640,6 +654,8 @@ export default function CartClient({ customerSession }: Props) {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [paymentSession, setPaymentSession] =
     useState<MercadoPagoBrickSession | null>(null);
+  const [pixPaymentStatusSession, setPixPaymentStatusSession] =
+    useState<PixPaymentStatusSession | null>(null);
   const [brickRenderKey, setBrickRenderKey] = useState(0);
   const [brickStatus, setBrickStatus] = useState<
     'idle' | 'loading' | 'ready' | 'processing' | 'error' | 'done'
@@ -954,6 +970,7 @@ export default function CartClient({ customerSession }: Props) {
             setBrickStatus('processing');
 
             const formData = getMercadoPagoBrickFormData(submitData);
+            const isPixPayment = getBrickPaymentMethodId(formData) === 'pix';
             const result = await processMercadoPagoBrickPaymentAction({
               orderId: paymentSession.orderId,
               idempotencyKey: paymentSession.paymentAttemptKey,
@@ -972,6 +989,22 @@ export default function CartClient({ customerSession }: Props) {
             resetCheckoutAttempt();
             setCart(createEmptyCart());
             clearStoredCart();
+
+            if (
+              result.status === 'pending' &&
+              result.paymentId &&
+              (result.paymentMethodId?.toLowerCase() === 'pix' || isPixPayment)
+            ) {
+              setPaymentSession(null);
+              setPixPaymentStatusSession({
+                orderId: result.orderId,
+                orderNumber: result.orderNumber,
+                paymentId: result.paymentId,
+                publicKey: paymentSession.publicKey,
+              });
+              return;
+            }
+
             window.location.href = result.redirectPath;
           },
           onError: () => {
@@ -1698,6 +1731,7 @@ export default function CartClient({ customerSession }: Props) {
 
     setCheckoutError(null);
     setPaymentSession(null);
+    setPixPaymentStatusSession(null);
     setBrickStatus('idle');
     setIsSubmitting(true);
 
@@ -2554,7 +2588,17 @@ export default function CartClient({ customerSession }: Props) {
                       </div>
                     </div>
                   </div>
-                  {paymentSession ? (
+                  {pixPaymentStatusSession ? (
+                    <PixPaymentStatusScreen
+                      orderId={pixPaymentStatusSession.orderId}
+                      orderNumber={pixPaymentStatusSession.orderNumber}
+                      paymentId={pixPaymentStatusSession.paymentId}
+                      publicKey={pixPaymentStatusSession.publicKey}
+                      onApproved={(redirectPath) => {
+                        window.location.href = redirectPath;
+                      }}
+                    />
+                  ) : paymentSession ? (
                     <div className="rounded-2xl border border-brand-border-soft bg-[#050A14]/80 p-4">
                       <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <div>

@@ -6,11 +6,12 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Snapshot
 
-- Atualizado em: 2026-07-11
+- Atualizado em: 2026-07-13
 - Branch: `refactor/migrate-to-next`
-- Commit funcional: `0cdf2f9` — `Use official Mercado Pago boleto document`
-- Working tree no momento deste registro: contém uma alteração local em
-  `package.json` e automações de produto/Bling fora destes commits.
+- Commit remoto atual: `3566597` — `Record payment production validation status`
+- Working tree no momento deste registro: contém alterações locais não
+  relacionadas de produto/Bling e uma implementação ainda não publicada para
+  confirmação visual de Pix.
 
 ## Contexto permanente
 
@@ -21,6 +22,21 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Última mudança conhecida
+
+- Foi implementado localmente um Status Screen de Pix para o checkout. Depois
+  de criar um Pix pendente, o cliente permanece na tela de pagamento com o
+  componente oficial do Mercado Pago e um contador de dois minutos. Nesse
+  período, o servidor confere o pagamento a cada quatro segundos, respeitando
+  autenticação, vínculo do pedido e rate limit. Quando o pagamento é aprovado,
+  a tela confirma e encaminha automaticamente ao pedido.
+- A consulta curta do checkout é uma melhoria de experiência e não substitui o
+  webhook. O webhook continua sendo a fonte assíncrona para atualização
+  definitiva, inclusive quando o cliente fecha a página.
+- O detalhe do pedido não deve mais mostrar um aviso de pagamento pendente
+  quando a transação já estiver confirmada.
+- A publicação desta mudança foi deliberadamente suspensa até restaurar a
+  configuração segura de produção do ambiente de deploy e validar novamente a
+  assinatura de webhook. Não publicar uma nova versão antes dessa etapa.
 
 - A função persistente de rate limit foi corrigida pela migration
   `20260711165637_fix_security_rate_limit_timestamp.sql`.
@@ -58,32 +74,39 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Objetivo atual
 
-Corrigir a configuração de produção do Mercado Pago e retestar a abertura do
-boleto oficial no detalhe do pedido, usando uma tentativa real somente após a
-conta vendedora e os webhooks estarem homologados.
+Restaurar e validar a configuração de produção do Mercado Pago e publicar a
+confirmação visual de Pix somente depois de homologar a assinatura de webhook e
+as dependências server-side por ambiente.
 
 ## Em andamento
 
-O deployment de produção `dpl_E4Mf3FSYHC8euP4C3RukyHnsiy7U`, que contém o
-commit funcional `0cdf2f9`, está `READY`. O sandbox usa o e-mail validado no
-checkout e não pré-preenche CPF/CNPJ do cliente para cartões.
+O deployment de produção vigente é anterior à implementação de confirmação
+visual de Pix. A conciliação periódica pode atualizar pedidos que não receberam
+o webhook em tempo real, mas não oferece a experiência imediata do checkout.
 
-A configuração de pagamentos em produção continua bloqueada até a validação
-controlada do webhook e das dependências server-side por ambiente.
+A configuração de pagamentos em produção continua bloqueada até a restauração
+controlada dos segredos por ambiente e a validação de entrega autenticada do
+webhook.
 
 ## Próximo passo exato
 
-1. Validar credenciais, assinatura de webhook e dependências server-side no
-   ambiente de produção, sem usar o ambiente de teste como fallback.
-2. Preservar a `notification_url` contextualizada por loja e ambiente em cada
+1. Reativar a sessão OAuth do MCP oficial do Mercado Pago e consultar a
+   configuração de produção da aplicação sem registrar segredos no repositório.
+2. Restaurar as variáveis server-side do ambiente de produção e manter a chave
+   de assinatura de webhook alinhada ao segredo do provedor.
+3. Preservar a `notification_url` contextualizada por loja e ambiente em cada
    pagamento e manter somente os tópicos efetivamente processados pelo conector.
-3. Criar uma transação de produção controlada e confirmar a entrega do webhook
-   antes de liberar o fluxo comercial.
+4. Criar uma transação de produção controlada e confirmar a entrega do webhook
+   antes de publicar e liberar o novo acompanhamento de Pix.
 
 ## Bloqueios e dúvidas
 
-Validação de pagamentos em produção pendente de configuração segura e reteste
-controlado do webhook.
+Validação de pagamentos em produção pendente de restauração segura da
+configuração server-side e reteste controlado do webhook. A sessão atual do
+MCP do Mercado Pago não expôs as ferramentas OAuth necessárias para consultar
+a configuração da aplicação. O acesso pelo painel web do provedor também está
+aguardando uma validação interativa da conta, que deve ser concluída pelo
+titular sem compartilhar códigos ou credenciais.
 
 ## Validação
 
@@ -101,6 +124,9 @@ controlado do webhook.
 - Testes de endereço, cotação, frete, CEP e rate limit passaram: 20 testes em
   5 arquivos.
 - `npm run lint` e `npm run build` passaram após a correção do complemento.
+- A implementação local do acompanhamento de Pix passou em `npm run lint`,
+  `npm test` (44 testes) e `npm run build`. O build utilizou o fallback WASM
+  local conhecido para SWC e terminou com sucesso.
 - A captura de produção posterior mostrou a CSP bloqueando explicitamente
   `https://www.mercadolibre.com` em `connect-src` e `frame-src`, origem usada
   pelo Payment Brick para segurança. O ajuste foi mantido restrito a esse host.

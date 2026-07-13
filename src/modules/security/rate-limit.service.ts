@@ -12,7 +12,8 @@ export type RateLimitScope =
   | 'postal_code_lookup'
   | 'shipping_quote'
   | 'checkout_create'
-  | 'payment_submit';
+  | 'payment_submit'
+  | 'payment_status_poll';
 
 type RateLimitPolicy = {
   limit: number;
@@ -27,6 +28,7 @@ export const rateLimitPolicies: Record<RateLimitScope, RateLimitPolicy> = {
   shipping_quote: { limit: 20, windowSeconds: 5 * 60 },
   checkout_create: { limit: 10, windowSeconds: 10 * 60 },
   payment_submit: { limit: 5, windowSeconds: 10 * 60 },
+  payment_status_poll: { limit: 45, windowSeconds: 2 * 60 },
 };
 
 export class RateLimitExceededError extends Error {

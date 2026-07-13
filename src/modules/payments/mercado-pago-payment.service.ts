@@ -28,7 +28,7 @@ import type {
 import { upsertPaymentTransaction } from './payment-transaction.repository';
 import type { PaymentTransactionStatus } from './payment-transaction.types';
 
-type PaymentUpdateSource = 'return' | 'webhook';
+type PaymentUpdateSource = 'return' | 'webhook' | 'poll';
 
 export type MercadoPagoPaymentProcessingStatus =
   | 'approved'
@@ -410,7 +410,7 @@ export async function processMercadoPagoPaymentUpdate(input: {
       order,
       status: 'approved',
     }).catch(() => undefined);
-  } else if (mapping.orderPaymentStatus === 'pending') {
+  } else if (mapping.orderPaymentStatus === 'pending' && input.source !== 'poll') {
     await sendPaymentStatusStoreEmail({
       storeId: input.storeId,
       storeName: store.shortName,

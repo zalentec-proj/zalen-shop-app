@@ -388,7 +388,7 @@ export default async function CustomerOrderDetailPage({
     order.status !== 'cancelled' &&
     order.paymentStatus !== 'refunded' &&
     order.payment?.status !== 'refunded';
-  const paymentNotice = paymentNoticeLabel(search?.payment);
+  const paymentNotice = isPaid ? undefined : paymentNoticeLabel(search?.payment);
   const paymentInstructions = await resolvePaymentInstructions({
     payment: order.payment,
     storeId: store.id,
@@ -448,7 +448,7 @@ export default async function CustomerOrderDetailPage({
             value={
               order.shipments[0]
                 ? statusLabel(order.shipments[0].status)
-                : order.paymentStatus === 'paid'
+                : isPaid
                   ? 'Em separação'
                   : 'Rastreio pendente'
             }
