@@ -25,7 +25,7 @@ import type {
 type SendOrderInput = {
   storeId: string;
   orderId: string;
-  trigger: 'checkout' | 'admin_retry';
+  trigger: 'checkout' | 'admin_retry' | 'admin_test';
 };
 
 function getSafeErrorCode(error: unknown) {
@@ -85,6 +85,7 @@ function toDurationMs(startedAt: string) {
 export async function sendOrderToBling(
   input: SendOrderInput
 ): Promise<BlingOrderSendResult> {
+  const isHomologation = input.trigger === 'admin_test';
   const order = await getOrderByIdFromRepository(input.storeId, input.orderId);
 
   if (!order) {
@@ -133,7 +134,7 @@ export async function sendOrderToBling(
     input.storeId
   );
 
-  if (!orderSendSettings.enabled) {
+  if (!orderSendSettings.enabled && !isHomologation) {
     await updateOrderExternalErpStateInRepository({
       storeId: input.storeId,
       orderId: input.orderId,
@@ -168,6 +169,7 @@ export async function sendOrderToBling(
     storeId: input.storeId,
     orderId: order.id,
     orderNumber: order.orderNumber,
+    testMode: isHomologation,
   });
   const startedAt = new Date().toISOString();
   let draftSummary: Record<string, unknown> | undefined;
@@ -175,8 +177,9 @@ export async function sendOrderToBling(
   try {
     const draft = mapOrderToBlingDraft(order, {
       paymentMethodId: orderSendSettings.paymentMethodId,
+      isHomologation,
     });
-    draftSummary = summarizeBlingOrderDraft(draft);
+    draftSummary = summarizeBlingOrderDraft(draft, { isHomologation });
 
     if (!draft.customer.name || !draft.customer.document) {
       throw new Error('order_missing_customer_data');
@@ -208,6 +211,7 @@ export async function sendOrderToBling(
       orderId: order.id,
       orderNumber: order.orderNumber,
       trigger: input.trigger,
+      testMode: isHomologation,
       status: 'success',
       externalId,
       tokenRefreshed: client.hasRefreshedToken(),
@@ -246,6 +250,7 @@ export async function sendOrderToBling(
       orderNumber: order.orderNumber,
       externalId,
       tokenRefreshed: client.hasRefreshedToken(),
+      testMode: isHomologation,
     };
   } catch (error) {
     const errorCode = getSafeErrorCode(error);
@@ -255,6 +260,7 @@ export async function sendOrderToBling(
       orderId: order.id,
       orderNumber: order.orderNumber,
       trigger: input.trigger,
+      testMode: isHomologation,
       status: 'error',
       errorCode,
       draft: draftSummary,
@@ -291,6 +297,7 @@ export async function sendOrderToBling(
       orderId: order.id,
       orderNumber: order.orderNumber,
       errorCode,
+      testMode: isHomologation,
     };
   }
 }

@@ -89,6 +89,11 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Auditoria de 2026-07-11 do conector Mercado Pago: a validação de entrega de
   webhooks em produção permanece pendente. O diagnóstico detalhado e quaisquer
   dados operacionais sensíveis devem ficar fora de documentação versionada.
+- Foi preparada localmente uma homologação manual de pedido para a conta Bling
+  operacional. Ela permanece separada do disparo automático: exige owner/admin,
+  confirmação explícita e um pedido Zalen já pago; registra `testMode` no job e
+  inclui o aviso “não faturar / não expedir” nas observações do Bling. Nenhum
+  pedido externo foi enviado durante essa preparação.
 
 ## Objetivo atual
 
@@ -131,6 +136,10 @@ Supabase estiverem disponíveis novamente.
    pagamento e manter somente os tópicos efetivamente processados pelo conector.
 6. Criar uma transação de produção controlada e confirmar a entrega do webhook
    antes de publicar e liberar o novo acompanhamento de Pix.
+7. Para validar o conector Bling sem conta de homologação ativa, criar primeiro
+   um pedido pago controlado, copiar seu ID e usar o painel “Enviar um pedido
+   de homologação”. Confirmar o registro no Bling, não faturar/não expedir e
+   cancelá-lo após a validação; manter `orderSend.enabled` desligado.
 
 ## Bloqueios e dúvidas
 
@@ -163,6 +172,9 @@ concluir a troca coordenada do segredo de cron.
 - A implementação local do acompanhamento de Pix passou em `npm run lint`,
   `npm test` (44 testes) e `npm run build`. O build utilizou o fallback WASM
   local conhecido para SWC e terminou com sucesso.
+- A preparação do envio manual de homologação Bling passou no teste dedicado
+  de mapeamento (2 testes), em `npm run lint` e em `npm run build`; o build
+  usou o fallback WASM local conhecido. Não houve chamada externa ao Bling.
 - A captura de produção posterior mostrou a CSP bloqueando explicitamente
   `https://www.mercadolibre.com` em `connect-src` e `frame-src`, origem usada
   pelo Payment Brick para segurança. O ajuste foi mantido restrito a esse host.

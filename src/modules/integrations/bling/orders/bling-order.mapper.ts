@@ -62,8 +62,17 @@ function metadataPackage(metadata: Record<string, unknown> | undefined) {
   };
 }
 
-function formatShippingNotes(order: OrderListItem, shippingTotal: number) {
-  const lines = [`Pedido Zalen Shop ${order.orderNumber}`];
+export const blingHomologationWarning =
+  'HOMOLOGAÇÃO ZALEN SHOP — NÃO FATURAR, NÃO EXPEDIR. Cancelar após a validação.';
+
+function formatShippingNotes(
+  order: OrderListItem,
+  shippingTotal: number,
+  isHomologation: boolean
+) {
+  const lines = isHomologation
+    ? [blingHomologationWarning, `Pedido de teste Zalen Shop ${order.orderNumber}`]
+    : [`Pedido Zalen Shop ${order.orderNumber}`];
 
   if (order.shippingProviderKey === 'superfrete') {
     lines.push('Frete cotado no checkout via SuperFrete quote-only.');
@@ -103,7 +112,7 @@ function formatShippingNotes(order: OrderListItem, shippingTotal: number) {
 
 export function mapOrderToBlingDraft(
   order: OrderListItem,
-  options: { paymentMethodId?: number } = {}
+  options: { paymentMethodId?: number; isHomologation?: boolean } = {}
 ): BlingOrderDraft {
   const customerName = order.customer?.name ?? order.customerName;
   const customerDocument = onlyDigits(order.customer?.document);
@@ -172,7 +181,11 @@ export function mapOrderToBlingDraft(
           },
         }
       : undefined,
-    observacoesInternas: formatShippingNotes(order, totals.shipping),
+    observacoesInternas: formatShippingNotes(
+      order,
+      totals.shipping,
+      options.isHomologation === true
+    ),
   } satisfies BlingOrderDraft['payload'];
 
   return {
@@ -191,7 +204,10 @@ export function mapOrderToBlingDraft(
   };
 }
 
-export function summarizeBlingOrderDraft(draft: BlingOrderDraft) {
+export function summarizeBlingOrderDraft(
+  draft: BlingOrderDraft,
+  options: { isHomologation?: boolean } = {}
+) {
   return {
     orderId: draft.orderId,
     orderNumber: draft.orderNumber,
@@ -205,5 +221,6 @@ export function summarizeBlingOrderDraft(draft: BlingOrderDraft) {
     ),
     itemCount: draft.items.length,
     total: draft.totals.total,
+    testMode: options.isHomologation === true,
   };
 }

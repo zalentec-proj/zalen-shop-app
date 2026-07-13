@@ -681,6 +681,7 @@ export async function createBlingOrderSendJobInRepository(input: {
   storeId: string;
   orderId: string;
   orderNumber?: string;
+  testMode?: boolean;
 }) {
   return createBlingSyncJobInRepository({
     storeId: input.storeId,
@@ -688,6 +689,7 @@ export async function createBlingOrderSendJobInRepository(input: {
     summary: {
       orderId: input.orderId,
       orderNumber: input.orderNumber,
+      testMode: input.testMode === true,
       startedAt: new Date().toISOString(),
     },
   });

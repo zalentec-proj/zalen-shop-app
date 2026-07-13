@@ -263,6 +263,13 @@ Comportamento atual:
 - se a trava estiver desligada, não chama o Bling e marca o pedido como
   `skipped` com erro seguro `bling_order_send_disabled`;
 - admin permite retry manual por rota server-side;
+- para homologação excepcional na própria conta Bling operacional, owner/admin
+  pode enviar manualmente um único pedido já pago mesmo com a trava automática
+  desligada; a ação exige confirmação explícita, registra `testMode = true` no
+  job e envia em `observacoesInternas` o aviso para não faturar, não expedir e
+  cancelar após a validação;
+- esse modo não cria pedido, não muda pagamento, não liga a trava global e não
+  é acionado pelo checkout ou por webhook;
 - nenhum token, credential ou payload bruto é retornado ao frontend.
 
 Idempotência:

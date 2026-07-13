@@ -8,7 +8,11 @@ import { logoutAction } from '@/app/login/actions';
 import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import { platformBrand } from '@/lib/branding/platform-brand';
 import { noindexMetadata } from '@/modules/seo/seo.service';
-import { getCurrentUser, canAccessStore } from '@/modules/auth/auth.service';
+import {
+  checkStoreRole,
+  getCurrentUser,
+  canAccessStore,
+} from '@/modules/auth/auth.service';
 import { getBlingAdminState } from '@/modules/integrations/bling/bling.service';
 import {
   getOptionalStoreFromResolution,
@@ -18,6 +22,7 @@ import { BlingHomologationPanel } from './BlingHomologationPanel';
 import { BlingInventorySyncPanel } from './BlingInventorySyncPanel';
 import { BlingProductSyncPanel } from './BlingProductSyncPanel';
 import { BlingWebhookProcessPanel } from './BlingWebhookProcessPanel';
+import { BlingTestOrderSendPanel } from './BlingTestOrderSendPanel';
 
 export const metadata: Metadata = {
   title: `${platformBrand.productName} Admin — Bling`,
@@ -99,6 +104,10 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
   }
 
   const state = await getBlingAdminState(store.id);
+  const testOrderAccess = await checkStoreRole(store.id, [
+    'store_owner',
+    'store_admin',
+  ]);
   const params = (await searchParams) ?? {};
   const error = typeof params.error === 'string' ? params.error : undefined;
   const status = state.status in statusLabel ? state.status : 'pending_credentials';
@@ -272,6 +281,10 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
                     canRun={canRunBlingJobs}
                     initialStatus={state.homologation?.status}
                     initialSummary={state.homologation?.summary}
+                  />
+
+                  <BlingTestOrderSendPanel
+                    canRun={canRunBlingJobs && testOrderAccess.allowed}
                   />
                 </aside>
               </div>

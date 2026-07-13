@@ -90,6 +90,8 @@ export interface BlingOrderSendResult {
   externalId?: string;
   errorCode?: string;
   tokenRefreshed?: boolean;
+  /** Verdadeiro somente no envio manual e controlado de homologação. */
+  testMode?: boolean;
 }
 
 export interface BlingCreateSalesOrderResponse {
