@@ -268,6 +268,9 @@ Comportamento atual:
   desligada; a ação exige confirmação explícita, registra `testMode = true` no
   job e envia em `observacoesInternas` o aviso para não faturar, não expedir e
   cancelar após a validação;
+- o painel aceita tanto o número operacional visível (`BD-...`) quanto o UUID
+  interno; ambos são normalizados e resolvidos sempre dentro do `store_id` da
+  requisição antes do envio;
 - esse modo não cria pedido, não muda pagamento, não liga a trava global e não
   é acionado pelo checkout ou por webhook;
 - nenhum token, credential ou payload bruto é retornado ao frontend.

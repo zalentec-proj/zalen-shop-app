@@ -7,6 +7,7 @@ import {
 } from '@/lib/supabase/server';
 import { logDevOnce } from '@/lib/logging/dev';
 import { getMockProductBySlug } from '../catalog/product.mock';
+import { parseOrderReference } from './order-reference';
 import type {
   ExternalErpSyncStatus,
   FulfillmentStatus,
@@ -580,6 +581,40 @@ export async function getOrderByIdFromRepository(
     itemsByOrderId.get(orderId) ?? [],
     storeId
   );
+}
+
+export async function getOrderByReferenceFromRepository(
+  storeId: string,
+  value: string
+): Promise<OrderListItem | null> {
+  const reference = parseOrderReference(value);
+  const supabase = createOptionalAdminClient();
+
+  if (!reference || !supabase) {
+    return null;
+  }
+
+  let query = supabase.from('orders').select('*').eq('store_id', storeId);
+
+  query =
+    reference.kind === 'id'
+      ? query.eq('id', reference.value)
+      : query.eq('order_number', reference.value);
+
+  const { data: orderRow, error: orderError } = await query.maybeSingle();
+
+  if (orderError || !orderRow) {
+    return null;
+  }
+
+  const row = orderRow as OrderRow;
+  const itemsByOrderId = await getOrderItemsFromRepository(
+    supabase,
+    storeId,
+    [row.id]
+  );
+
+  return mapOrder(row, itemsByOrderId.get(row.id) ?? [], storeId);
 }
 
 export async function listOrdersByCustomerIdFromRepository(input: {

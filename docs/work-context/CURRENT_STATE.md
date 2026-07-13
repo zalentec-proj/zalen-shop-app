@@ -94,6 +94,11 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   confirmação explícita e um pedido Zalen já pago; registra `testMode` no job e
   inclui o aviso “não faturar / não expedir” nas observações do Bling. Nenhum
   pedido externo foi enviado durante essa preparação.
+- O painel de homologação Bling agora aceita o número visível do pedido ou o
+  UUID interno. O erro `order_not_found` observado ao informar `BD-167498`
+  ocorreu porque a primeira versão consultava somente `orders.id`; a resolução
+  passa a usar `orders.order_number` quando a referência não é UUID, sempre
+  filtrada pela loja ativa.
 
 ## Objetivo atual
 
@@ -175,6 +180,10 @@ concluir a troca coordenada do segredo de cron.
 - A preparação do envio manual de homologação Bling passou no teste dedicado
   de mapeamento (2 testes), em `npm run lint` e em `npm run build`; o build
   usou o fallback WASM local conhecido. Não houve chamada externa ao Bling.
+- A correção de referência de pedido passou em 49 testes, `npm run lint` e
+  `npm run build`. A validação de produção confirmou `BD-167498` como pago por
+  Pix em produção, ainda sem ID externo Bling; nenhum envio foi disparado pelo
+  diagnóstico.
 - A captura de produção posterior mostrou a CSP bloqueando explicitamente
   `https://www.mercadolibre.com` em `connect-src` e `frame-src`, origem usada
   pelo Payment Brick para segurança. O ajuste foi mantido restrito a esse host.

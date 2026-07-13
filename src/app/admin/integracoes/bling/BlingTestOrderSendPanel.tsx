@@ -6,6 +6,14 @@ import { FlaskConical } from 'lucide-react';
 
 const confirmationText = 'HOMOLOGAR NO BLING';
 
+const errorMessages: Record<string, string> = {
+  invalid_order_reference: 'Informe o número do pedido (ex.: BD-167498) ou o UUID completo.',
+  order_not_found: 'Pedido não encontrado nesta loja. Confira o número exibido no admin.',
+  order_payment_not_approved: 'O pedido existe, mas o pagamento ainda não está aprovado.',
+  order_already_synced: 'Este pedido já foi enviado ao Bling.',
+  order_send_already_running: 'Este pedido já está sendo enviado. Aguarde e atualize a página.',
+};
+
 type SendResult = {
   status?: 'success' | 'error' | 'skipped';
   orderNumber?: string;
@@ -63,13 +71,13 @@ export function BlingTestOrderSendPanel({ canRun }: { canRun: boolean }) {
       </p>
 
       <label className="mt-4 block text-xs font-semibold text-slate-200" htmlFor="bling-test-order-id">
-        ID do pedido pago na Zalen
+        Número ou ID do pedido pago na Zalen
       </label>
       <input
         id="bling-test-order-id"
         value={orderId}
         onChange={(event) => setOrderId(event.target.value)}
-        placeholder="UUID do pedido"
+        placeholder="Ex.: BD-167498"
         autoComplete="off"
         className="mt-2 w-full rounded-lg border border-white/10 bg-[#081225] px-3 py-2 font-mono text-xs text-white outline-none placeholder:text-slate-600 focus:border-amber-300/50"
       />
@@ -103,7 +111,8 @@ export function BlingTestOrderSendPanel({ canRun }: { canRun: boolean }) {
         <div className="mt-3 rounded-lg border border-white/10 bg-[#081225] px-3 py-2 text-xs text-slate-200">
           {result.status === 'success'
             ? `Pedido ${result.orderNumber ?? ''} enviado ao Bling (ID ${result.externalId ?? 'não informado'}).`
-            : `Envio não concluído: ${result.errorCode ?? 'erro_controlado'}.`}
+            : errorMessages[result.errorCode ?? ''] ??
+              `Envio não concluído: ${result.errorCode ?? 'erro_controlado'}.`}
         </div>
       ) : null}
     </section>

@@ -1,7 +1,7 @@
 import 'server-only';
 
 import {
-  getOrderByIdFromRepository,
+  getOrderByReferenceFromRepository,
   updateOrderExternalErpStateInRepository,
 } from '@/modules/orders/order.repository';
 import { BLING_PROVIDER_KEY } from '../bling.config';
@@ -86,7 +86,10 @@ export async function sendOrderToBling(
   input: SendOrderInput
 ): Promise<BlingOrderSendResult> {
   const isHomologation = input.trigger === 'admin_test';
-  const order = await getOrderByIdFromRepository(input.storeId, input.orderId);
+  const order = await getOrderByReferenceFromRepository(
+    input.storeId,
+    input.orderId
+  );
 
   if (!order) {
     return {
@@ -99,7 +102,7 @@ export async function sendOrderToBling(
   if (order.paymentStatus !== 'paid') {
     await markOrderSendError({
       storeId: input.storeId,
-      orderId: input.orderId,
+      orderId: order.id,
       errorCode: 'order_payment_not_approved',
     });
 
@@ -114,7 +117,7 @@ export async function sendOrderToBling(
   if (order.externalErpProvider === BLING_PROVIDER_KEY && order.externalErpId) {
     await updateOrderExternalErpStateInRepository({
       storeId: input.storeId,
-      orderId: input.orderId,
+      orderId: order.id,
       provider: BLING_PROVIDER_KEY,
       externalId: order.externalErpId,
       status: 'synced',
@@ -137,7 +140,7 @@ export async function sendOrderToBling(
   if (!orderSendSettings.enabled && !isHomologation) {
     await updateOrderExternalErpStateInRepository({
       storeId: input.storeId,
-      orderId: input.orderId,
+      orderId: order.id,
       provider: BLING_PROVIDER_KEY,
       status: 'skipped',
       lastError: 'bling_order_send_disabled',
@@ -154,7 +157,7 @@ export async function sendOrderToBling(
   if (
     await hasRunningBlingOrderSendJobInRepository({
       storeId: input.storeId,
-      orderId: input.orderId,
+      orderId: order.id,
     })
   ) {
     return {

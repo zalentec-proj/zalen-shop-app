@@ -6,6 +6,7 @@ import {
   getCurrentUser,
 } from '@/modules/auth/auth.service';
 import { sendOrderToBling } from '@/modules/integrations/bling/orders/bling-order-send.service';
+import { parseOrderReference } from '@/modules/orders/order-reference';
 import { resolveCurrentStoreFromRequest } from '@/modules/stores/store-resolution';
 
 export const runtime = 'nodejs';
@@ -25,8 +26,15 @@ function getOrderRequest(body: unknown) {
     return undefined;
   }
 
+  const orderReference = parseOrderReference(orderId);
+
+  if (!orderReference) {
+    return { invalidOrderReference: true as const };
+  }
+
   return {
-    orderId: orderId.trim(),
+    orderId: orderReference.value,
+    invalidOrderReference: false as const,
     isHomologation: record.mode === 'homologation',
     hasHomologationConfirmation:
       record.confirmation === homologationConfirmation,
@@ -64,6 +72,13 @@ export async function POST(request: NextRequest) {
   if (!orderRequest) {
     return NextResponse.json(
       { status: 'error', errorCode: 'missing_order_id' },
+      { status: 400 }
+    );
+  }
+
+  if (orderRequest.invalidOrderReference) {
+    return NextResponse.json(
+      { status: 'error', errorCode: 'invalid_order_reference' },
       { status: 400 }
     );
   }
