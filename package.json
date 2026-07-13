@@ -32,7 +32,12 @@
     "imagens:bling": "DRY_RUN=false IMAGES_APPROVED=true node capture-and-update-bling-images.js",
     "medidas:dry": "DRY_RUN=true MEASURES_APPROVED=false node tools/spreadsheets/estimate-shipping-measures.mjs",
     "medidas:bling:dry": "DRY_RUN=true MEASURES_APPROVED=false node update-shipping-measures.js",
-    "medidas:bling": "DRY_RUN=false MEASURES_APPROVED=true node capture-and-update-shipping-measures.js"
+    "medidas:bling": "DRY_RUN=false MEASURES_APPROVED=true node capture-and-update-shipping-measures.js",
+    "nomes:dry": "python3 prepare-original-names-update.py && DRY_RUN=true NAMES_APPROVED=false node update-product-names.js",
+    "nomes:bling": "DRY_RUN=false NAMES_APPROVED=true node update-product-names.js",
+    "nomes:auth": "node capture-and-update-product-names.js",
+    "modelos:dry": "DRY_RUN=true node capture-and-create-bling-model-categories.js",
+    "modelos:bling": "DRY_RUN=false MODEL_CATEGORIES_APPROVED=true node capture-and-create-bling-model-categories.js"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.65.0",

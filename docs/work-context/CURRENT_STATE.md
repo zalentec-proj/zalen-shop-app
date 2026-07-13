@@ -99,6 +99,21 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   ocorreu porque a primeira versão consultava somente `orders.id`; a resolução
   passa a usar `orders.order_number` quando a referência não é UUID, sempre
   filtrada pela loja ativa.
+- A árvore de categorias de linhas/modelos DJI foi criada no Bling usando
+  exclusivamente o app privado da Brasil Drones. Foram incluídas 38 categorias:
+  `Flip` e as linhas Lito, Neo, Mini, Air, Avata, Mavic e Phantom, com seus
+  respectivos modelos. A criação retornou zero erros e não alterou produtos,
+  estoque, preço ou as categorias técnicas existentes.
+- A automação idempotente está em
+  `scripts/bling/create-brasil-drones-model-categories.mjs`; o callback OAuth
+  separado está em `capture-and-create-bling-model-categories.js`. Os scripts
+  exigem as variáveis de ambiente exclusivas do app do cliente e não aceitam as
+  credenciais globais da Zalen Shop. O resultado e o mapa local de categorias
+  ficam em `saida_bling/`, que é ignorado pelo Git.
+- Produtos no Bling mantêm uma categoria principal. As linhas/modelos não devem
+  substituir as categorias técnicas como Braços, Câmeras ou Frames. Para o
+  menu estilo Mundrone filtrar todas as peças compatíveis com um drone, o
+  catálogo Zalen precisará de uma relação própria de compatibilidade por modelo.
 
 ## Objetivo atual
 
@@ -145,6 +160,9 @@ Supabase estiverem disponíveis novamente.
    um pedido pago controlado, copiar seu ID e usar o painel “Enviar um pedido
    de homologação”. Confirmar o registro no Bling, não faturar/não expedir e
    cancelá-lo após a validação; manter `orderSend.enabled` desligado.
+8. Antes de expor as novas linhas no menu do storefront, modelar compatibilidade
+   produto-modelo no catálogo Zalen e configurar os itens de navegação. Não
+   recategorizar produtos já classificados tecnicamente no Bling.
 
 ## Bloqueios e dúvidas
 
