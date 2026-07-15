@@ -74,9 +74,34 @@ function phraseSpecificity(phrase: string) {
     .filter((token) => token && token !== 'dji').length;
 }
 
+function getSlashModelAliases(value: string) {
+  const aliases = new Set<string>();
+  const normalizedValue = value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR');
+  const shorthandPattern = /\b([a-z]+)\s*(\d+[a-z]*)\s*\/\s*(\d+[a-z]*)\b/g;
+
+  for (const match of normalizedValue.matchAll(shorthandPattern)) {
+    aliases.add(`${match[1]} ${match[2]}`);
+    aliases.add(`${match[1]} ${match[3]}`);
+  }
+
+  return aliases;
+}
+
 export function detectDroneModels(value: string): DroneModelDetection[] {
-  const text = normalizeText(value);
+  const slashModelAliases = getSlashModelAliases(value);
+  const text = [normalizeText(value), ...slashModelAliases].filter(Boolean).join(' ');
   if (!text) return [];
+
+  const explicitSlashModelSlugs = new Set(
+    droneModelDefinitions
+      .filter((model) =>
+        model.aliases.some((alias) => slashModelAliases.has(normalizeText(alias)))
+      )
+      .map((model) => model.slug)
+  );
 
   const candidates = droneModelDefinitions
     .map((model) => {
@@ -103,7 +128,10 @@ export function detectDroneModels(value: string): DroneModelDetection[] {
 
   return candidates
     .filter(({ model, matchedAlias }) => {
-      return highestSpecificityByLine.get(model.lineSlug) === phraseSpecificity(matchedAlias);
+      return (
+        explicitSlashModelSlugs.has(model.slug) ||
+        highestSpecificityByLine.get(model.lineSlug) === phraseSpecificity(matchedAlias)
+      );
     })
     .map(({ model, matchedAlias }) => ({
       modelSlug: model.slug,

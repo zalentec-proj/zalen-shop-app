@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Search, Sparkles } from 'lucide-react';
+import { Search, Sparkles, X } from 'lucide-react';
 import { saveProductDroneModelsAction } from './actions';
 
 interface ModelOption {
@@ -25,6 +25,156 @@ interface CompatibilityManagerProps {
 }
 
 type Filter = 'all' | 'defined' | 'suggested' | 'missing';
+
+interface ModelPickerProps {
+  currentModelIds: string[];
+  models: ModelOption[];
+  productId: string;
+  productName: string;
+  suggestedModelIds: string[];
+}
+
+function ModelPicker({
+  currentModelIds,
+  models,
+  productId,
+  productName,
+  suggestedModelIds,
+}: ModelPickerProps) {
+  const [selectedModelIds, setSelectedModelIds] = useState(() => new Set(currentModelIds));
+  const modelsById = useMemo(() => new Map(models.map((model) => [model.id, model])), [models]);
+  const modelsByLine = useMemo(() => {
+    return models.reduce<Map<string, ModelOption[]>>((groups, model) => {
+      const current = groups.get(model.lineLabel) ?? [];
+      current.push(model);
+      groups.set(model.lineLabel, current);
+      return groups;
+    }, new Map());
+  }, [models]);
+  const selectedModels = Array.from(selectedModelIds)
+    .map((modelId) => modelsById.get(modelId))
+    .filter((model): model is ModelOption => Boolean(model));
+  const suggestedModels = suggestedModelIds
+    .map((modelId) => modelsById.get(modelId))
+    .filter((model): model is ModelOption => Boolean(model));
+
+  function toggleModel(modelId: string) {
+    setSelectedModelIds((current) => {
+      const next = new Set(current);
+      if (next.has(modelId)) {
+        next.delete(modelId);
+      } else {
+        next.add(modelId);
+      }
+      return next;
+    });
+  }
+
+  function applySuggestion(replaceSelection: boolean) {
+    setSelectedModelIds((current) => {
+      const next = replaceSelection ? new Set<string>() : new Set(current);
+      suggestedModelIds.forEach((modelId) => next.add(modelId));
+      return next;
+    });
+  }
+
+  return (
+    <form action={saveProductDroneModelsAction} className="min-w-[340px] space-y-2">
+      <input type="hidden" name="productId" value={productId} />
+
+      {selectedModels.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5" aria-label={`Modelos selecionados para ${productName}`}>
+          {selectedModels.map((model) => (
+            <button
+              key={model.id}
+              type="button"
+              title={`Remover ${model.lineLabel} - ${model.label}`}
+              onClick={() => toggleModel(model.id)}
+              className="inline-flex h-7 items-center gap-1 rounded-md border border-emerald-400/25 bg-emerald-400/10 px-2 text-[11px] font-medium text-emerald-100 transition hover:border-rose-400/45 hover:bg-rose-400/10 hover:text-rose-100"
+            >
+              {model.lineLabel} - {model.label}
+              <X className="h-3 w-3" aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="text-[11px] text-slate-500">Nenhum modelo confirmado</p>
+      )}
+
+      {suggestedModels.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+          <span className="text-amber-200">Sugestão: {suggestedModels.map((model) => model.label).join(', ')}</span>
+          <button
+            type="button"
+            onClick={() => applySuggestion(false)}
+            className="rounded-md border border-amber-300/25 px-2 py-1 font-medium text-amber-100 transition hover:border-amber-300/50 hover:bg-amber-300/10"
+          >
+            Adicionar sugestão
+          </button>
+          <button
+            type="button"
+            onClick={() => applySuggestion(true)}
+            className="rounded-md border border-white/10 px-2 py-1 font-medium text-slate-300 transition hover:border-white/25 hover:bg-white/5 hover:text-white"
+          >
+            Usar somente sugestão
+          </button>
+        </div>
+      ) : null}
+
+      <details className="rounded-md border border-white/8 bg-[#050A14]">
+        <summary className="cursor-pointer px-3 py-2 text-[11px] font-medium text-slate-300 marker:text-slate-500">
+          Selecionar modelos ({selectedModelIds.size})
+        </summary>
+        <div className="max-h-64 overflow-y-auto border-t border-white/8 p-2">
+          <div className="grid gap-2 sm:grid-cols-2">
+            {Array.from(modelsByLine.entries()).map(([lineLabel, lineModels]) => (
+              <fieldset key={lineLabel} className="rounded border border-white/6 p-2">
+                <legend className="px-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                  {lineLabel}
+                </legend>
+                <div className="space-y-1">
+                  {lineModels.map((model) => (
+                    <label
+                      key={model.id}
+                      className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-[11px] text-slate-300 transition hover:bg-white/5"
+                    >
+                      <input
+                        type="checkbox"
+                        name="modelIds"
+                        value={model.id}
+                        checked={selectedModelIds.has(model.id)}
+                        onChange={() => toggleModel(model.id)}
+                        className="h-3.5 w-3.5 rounded border-white/20 bg-[#081225] text-[#1E3DFF] focus:ring-[#1E3DFF]/45"
+                      />
+                      {model.label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            ))}
+          </div>
+        </div>
+      </details>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setSelectedModelIds(new Set())}
+          disabled={selectedModelIds.size === 0}
+          className="h-8 rounded-md border border-white/10 px-2.5 text-[11px] font-medium text-slate-300 transition hover:border-rose-400/45 hover:text-rose-100 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Limpar seleção
+        </button>
+        <button
+          type="submit"
+          className="h-8 rounded-md border border-[#1E3DFF]/35 bg-[#101F43] px-3 text-[11px] font-semibold text-white transition hover:bg-[#1E3DFF]/30"
+        >
+          Salvar
+        </button>
+      </div>
+    </form>
+  );
+}
 
 export default function CompatibilityManager({
   models,
@@ -125,31 +275,13 @@ export default function CompatibilityManager({
                     ) : null}
                   </td>
                   <td className="px-2 py-4">
-                    <form action={saveProductDroneModelsAction} className="flex items-center gap-2">
-                      <input type="hidden" name="productId" value={product.id} />
-                      <label className="sr-only" htmlFor={`models-${product.id}`}>
-                        Modelos compatíveis para {product.name}
-                      </label>
-                      <select
-                        id={`models-${product.id}`}
-                        name="modelIds"
-                        multiple
-                        defaultValue={product.currentModelIds}
-                        className="h-24 min-w-[240px] rounded-lg border border-white/8 bg-[#050A14] px-2 py-1 text-xs text-white outline-none focus:border-[#1E3DFF]/45"
-                      >
-                        {models.map((model) => (
-                          <option key={model.id} value={model.id}>
-                            {model.lineLabel} - {model.label}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="submit"
-                        className="h-9 rounded-lg border border-[#1E3DFF]/35 bg-[#101F43] px-3 text-xs font-semibold text-white transition hover:bg-[#1E3DFF]/30"
-                      >
-                        Salvar
-                      </button>
-                    </form>
+                    <ModelPicker
+                      currentModelIds={product.currentModelIds}
+                      models={models}
+                      productId={product.id}
+                      productName={product.name}
+                      suggestedModelIds={product.suggestedModelIds}
+                    />
                   </td>
                   <td className="px-2 py-4 text-right text-[11px] text-slate-500">{product.status}</td>
                 </tr>

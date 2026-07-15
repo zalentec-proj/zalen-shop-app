@@ -47,4 +47,12 @@ describe('drone model definitions', () => {
       },
     ]);
   });
+
+  it('detects both models when the product reference uses slash shorthand', () => {
+    expect(
+      detectDroneModels('Braço C Motor Drone DJI Air 3 / 3S Traseiro Direito Original').map(
+        ({ modelSlug }) => modelSlug
+      )
+    ).toEqual(['air-3', 'air-3s']);
+  });
 });

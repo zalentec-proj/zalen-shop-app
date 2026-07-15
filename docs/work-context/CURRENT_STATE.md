@@ -142,6 +142,17 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   substituir as categorias técnicas como Braços, Câmeras ou Frames. Para o
   menu estilo Mundrone filtrar todas as peças compatíveis com um drone, o
   catálogo Zalen precisará de uma relação própria de compatibilidade por modelo.
+- A tela administrativa de compatibilidade foi ajustada para usar caixas de
+  seleção agrupadas por linha, em vez de um seletor múltiplo que dependia de
+  `Cmd` no macOS. Cada modelo selecionado pode ser removido individualmente,
+  toda a seleção pode ser limpa e uma sugestão pode ser adicionada ou usada
+  como substituta. O detector também reconhece referências abreviadas com barra,
+  como `Air 3 / 3S`, como compatibilidade com ambos os modelos.
+- Em 2026-07-15 foram consultados exclusivamente os SKUs
+  `BDP-AIR3S-BRACO-TRASEIRO-DIREITO-L060` e
+  `BDP-AIR2S-HELICE-GERAL-L072`. Os vínculos já estavam corretos: o braço tem
+  Air 3 e Air 3S, e as hélices têm somente Air 2S. Nenhuma alteração direta de
+  dados foi necessária.
 
 ## Objetivo atual
 
@@ -160,10 +171,11 @@ A configuração de pagamentos em produção continua bloqueada até a restaura�
 controlada dos segredos por ambiente e a validação de entrega autenticada do
 webhook.
 
-O catálogo de modelos no banco está pronto, mas sem vínculos produto-modelo e
-sem menu público ativo. O próximo operador deve revisar as sugestões na tela de
-compatibilidade depois que o código estiver publicado; não deve criar vínculos
-automáticos em massa apenas pelo nome da peça.
+O catálogo de modelos no banco está pronto e já possui vínculos manuais
+confirmados pontuais; o menu público permanece inativo. O próximo operador deve
+revisar as sugestões na tela de compatibilidade depois que o código estiver
+publicado; não deve criar vínculos automáticos em massa apenas pelo nome da
+peça.
 
 Nenhum deployment foi criado após a restauração parcial das variáveis. A versão
 em produção continua sendo a previamente validada.
@@ -215,6 +227,9 @@ concluir a troca coordenada do segredo de cron.
 ## Validação
 
 - Documentação obrigatória do projeto e o handoff foram relidos antes da alteração.
+- A interface de compatibilidade compilou e a checagem de TypeScript passou
+  com `npm run lint`; a suíte Vitest passou com 53 testes. O build de produção
+  também compilou e concluiu a validação de TypeScript via `npm run build`.
 - A chamada direta de `consume_security_rate_limit` falhava antes da migration
   com erro de tipo e passou depois, retornando `allowed = true`.
 - `npm run lint` passou.
