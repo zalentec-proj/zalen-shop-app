@@ -6,13 +6,14 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Snapshot
 
-- Atualizado em: 2026-07-13
+- Atualizado em: 2026-07-15
 - Branch: `refactor/migrate-to-next`
-- Commit remoto atual: `1118275` — `feat(catalog): add drone model compatibility`
-- Working tree no momento deste registro: contém alterações locais não
-  relacionadas em `src/assets/logo brasil.svg`, `audit-bling-marketplaces.js`
-  e `capture-and-audit-bling-marketplaces.js`. Preservá-las e não incluí-las
-  em commits de compatibilidade por modelo.
+- Commit remoto atual: `8533a5e` — `Update Brasil Drones logo`
+- Working tree no momento deste registro: contém apenas automações/auditorias
+  locais não rastreadas (`audit-bling-marketplaces.js` e
+  `capture-and-audit-bling-marketplaces.js`). Não incluir esses arquivos em
+  commits sem decisão explícita.
+- Guia de continuidade para outra IDE/máquina: `docs/work-context/IDE_HANDOFF.md`.
 
 ## Contexto permanente
 
@@ -23,6 +24,11 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Última mudança conhecida
+
+- A logo do storefront Brasil Drones foi atualizada no asset
+  `src/assets/logo brasil.svg` e enviada ao Git no commit `8533a5e`. Se a
+  produção ainda exibir a logo antiga, verificar se o deploy em produção está
+  apontando para esse commit/branch e se há cache/CDN servindo o asset anterior.
 
 - Foi implementada a base de compatibilidade por modelo DJI para Brasil Drones,
   separada das categorias técnicas do Bling. As migrations de produção
