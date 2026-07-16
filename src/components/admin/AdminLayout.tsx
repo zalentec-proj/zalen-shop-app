@@ -6,7 +6,7 @@ export function cn(...classes: Array<string | false | null | undefined>) {
 
 export function AdminPageFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-auto w-full max-w-[1480px] px-3 py-4 sm:px-4 lg:px-6">
+    <div className="mx-auto min-w-0 w-full max-w-[1480px] px-3 py-4 sm:px-4 lg:px-6">
       {children}
     </div>
   );
@@ -73,8 +73,8 @@ export function AdminContentGrid({
   return (
     <div
       className={cn(
-        'grid gap-4 xl:items-start',
-        sidebar ? 'xl:grid-cols-[minmax(0,1fr)_var(--admin-sidebar-width)]' : '',
+        'grid min-w-0 gap-4 2xl:items-start',
+        sidebar ? '2xl:grid-cols-[minmax(0,1fr)_var(--admin-sidebar-width)]' : '',
         className
       )}
       style={
@@ -107,7 +107,7 @@ export function AdminSectionCard({
   return (
     <section
       className={cn(
-        'rounded-xl border border-white/6 bg-[#0A1730]/95 shadow-[0_14px_34px_rgba(0,0,0,0.2)]',
+        'min-w-0 rounded-xl border border-white/6 bg-[#0A1730]/95 shadow-[0_14px_34px_rgba(0,0,0,0.2)]',
         className
       )}
     >
@@ -122,7 +122,7 @@ export function AdminSectionCard({
           {action ? <div className="shrink-0">{action}</div> : null}
         </header>
       )}
-      <div className={cn('px-4 py-3', bodyClassName)}>{children}</div>
+      <div className={cn('min-w-0 px-4 py-3', bodyClassName)}>{children}</div>
     </section>
   );
 }
@@ -146,7 +146,7 @@ export function AdminSidePanel({
 }
 
 export function AdminKpiGrid({ children }: { children: ReactNode }) {
-  return <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">{children}</div>;
+  return <div className="grid min-w-0 gap-3 sm:grid-cols-2 2xl:grid-cols-4">{children}</div>;
 }
 
 export function AdminKpiCard({
@@ -161,7 +161,7 @@ export function AdminKpiCard({
   helper: string;
 }) {
   return (
-    <div className="rounded-xl border border-white/6 bg-[linear-gradient(180deg,rgba(13,26,54,0.98),rgba(8,17,36,0.98))] p-3 shadow-[0_10px_24px_rgba(0,0,0,0.18)]">
+    <div className="min-w-0 rounded-xl border border-white/6 bg-[linear-gradient(180deg,rgba(13,26,54,0.98),rgba(8,17,36,0.98))] p-3 shadow-[0_10px_24px_rgba(0,0,0,0.18)]">
       <div className="flex items-center justify-between gap-3">
         <span className="text-xs font-medium text-slate-300">{label}</span>
         <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#1E3DFF]/25 bg-[#091427] text-[#5BCBFF]">

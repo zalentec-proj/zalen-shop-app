@@ -109,7 +109,7 @@ export default async function ShippingSettingsPage() {
                 defaultValue={origin?.senderName ?? ''}
                 required
               />
-              <div className="grid gap-2 sm:grid-cols-[1fr_120px]">
+              <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_120px]">
                 <Field
                   label="CEP origem"
                   name="postalCode"
@@ -129,7 +129,7 @@ export default async function ShippingSettingsPage() {
                 defaultValue={origin?.street ?? ''}
                 required
               />
-              <div className="grid gap-2 sm:grid-cols-[110px_1fr]">
+              <div className="grid min-w-0 gap-2 sm:grid-cols-[110px_minmax(0,1fr)]">
                 <Field
                   label="Número"
                   name="number"
@@ -154,7 +154,7 @@ export default async function ShippingSettingsPage() {
                 defaultValue={origin?.city ?? ''}
                 required
               />
-              <div className="grid gap-2 sm:grid-cols-[1fr_90px]">
+              <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_90px]">
                 <Field
                   label="Telefone"
                   name="phone"
@@ -172,7 +172,7 @@ export default async function ShippingSettingsPage() {
                 <select
                   name="status"
                   defaultValue={origin?.status ?? 'active'}
-                  className="h-9 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs text-white outline-none"
+                  className="h-9 min-w-0 w-full rounded-lg border border-white/8 bg-[#081225] px-3 text-xs text-white outline-none"
                 >
                   <option value="active">Ativa</option>
                   <option value="disabled">Desativada</option>
@@ -205,7 +205,7 @@ export default async function ShippingSettingsPage() {
             >
               <form
                 action={updateShippingMethodAction}
-                className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start"
+                className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)] xl:items-start"
               >
                 <input type="hidden" name="methodId" value={method.id} />
                 <div>
@@ -242,7 +242,7 @@ export default async function ShippingSettingsPage() {
 
                 <div className="rounded-lg border border-white/6 bg-[#081225] p-3">
                   <div className="grid gap-2">
-                    <div className="grid gap-2 sm:grid-cols-2">
+                    <div className="grid min-w-0 gap-2 sm:grid-cols-2">
                       <Field
                         label="Valor"
                         name="price"
@@ -264,7 +264,7 @@ export default async function ShippingSettingsPage() {
                         }
                       />
                     </div>
-                    <div className="grid gap-2 sm:grid-cols-3">
+                    <div className="grid min-w-0 gap-2 sm:grid-cols-3">
                       <Field
                         label="Prazo mín."
                         name="minDeliveryDays"
@@ -294,7 +294,7 @@ export default async function ShippingSettingsPage() {
                         <select
                           name="status"
                           defaultValue={method.status}
-                          className="h-9 rounded-lg border border-white/8 bg-[#0A1730] px-3 text-xs text-white outline-none"
+                          className="h-9 min-w-0 w-full rounded-lg border border-white/8 bg-[#0A1730] px-3 text-xs text-white outline-none"
                         >
                           <option value="active">Ativo</option>
                           <option value="disabled">Desativado</option>
@@ -343,7 +343,7 @@ function Field({
   step?: string;
 }) {
   return (
-    <label className="grid gap-1 text-xs font-semibold text-slate-300">
+    <label className="grid min-w-0 gap-1 text-xs font-semibold text-slate-300">
       {label}
       <input
         name={name}
@@ -352,7 +352,7 @@ function Field({
         min={min}
         step={step}
         defaultValue={defaultValue}
-        className="h-9 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs text-white outline-none transition focus:border-[#1E3DFF]/45"
+        className="h-9 min-w-0 w-full rounded-lg border border-white/8 bg-[#081225] px-3 text-xs text-white outline-none transition focus:border-[#1E3DFF]/45"
       />
     </label>
   );

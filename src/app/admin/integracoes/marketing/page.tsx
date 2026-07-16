@@ -272,7 +272,7 @@ export default async function MarketingIntegrationsPage({
   ];
 
   return (
-    <main className="min-h-screen bg-[#05070B] text-white xl:pl-60">
+    <main className="min-h-screen min-w-0 bg-[#05070B] text-white min-[1800px]:pl-60">
       <AdminSidebar
         activeKey="marketing"
         storeShortName={store.shortName}

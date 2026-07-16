@@ -110,7 +110,7 @@ export default function SettingsIndexPage() {
         </div>
       </SettingsPanel>
 
-      <div className="grid gap-4 xl:grid-cols-[1fr_320px] xl:items-start">
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
         <SettingsPanel
           title="Grupos planejados"
           description="A navegação secundária já reflete a plataforma completa, mas as páginas abaixo serão habilitadas em sprints futuras."

@@ -158,7 +158,7 @@ export function BlingProductSyncPanel({
         </div>
       ) : null}
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto]">
+      <div className="mt-4 grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
         <button
           type="button"
           onClick={() => runSync('incremental')}

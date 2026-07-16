@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import type { ComponentType } from 'react';
+import { useState, type ComponentType } from 'react';
 import { platformBrand } from '@/lib/branding/platform-brand';
 import {
   ArrowUpRight,
@@ -9,6 +9,7 @@ import {
   CreditCard,
   Database,
   LayoutGrid,
+  Menu,
   Megaphone,
   Package2,
   Settings2,
@@ -18,6 +19,7 @@ import {
   UsersRound,
   Waypoints,
   Wifi,
+  X,
 } from 'lucide-react';
 
 export type AdminSidebarKey =
@@ -211,10 +213,47 @@ export function AdminSidebar({
   footerDescription = 'Catálogo Supabase; pedidos Supabase.',
   onSelectView,
 }: AdminSidebarProps) {
+  const [mobileOpen, setMobileOpen] = useState(false);
   const sidebarGroups = buildSidebarGroups(counts);
 
   return (
-    <aside className="border-b border-white/6 bg-[#050C19]/95 backdrop-blur xl:fixed xl:inset-y-0 xl:left-0 xl:w-60 xl:border-b-0 xl:border-r">
+    <>
+      <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-white/6 bg-[#050C19]/95 px-3 backdrop-blur min-[1800px]:hidden">
+        <div className="flex min-w-0 items-center gap-3">
+          <img
+            src={platformBrand.logoWhite}
+            alt={platformBrand.productName}
+            className="h-4 w-auto shrink-0 select-none"
+            draggable={false}
+          />
+          <span className="truncate text-xs font-semibold text-white">{storeShortName}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setMobileOpen((open) => !open)}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/8 bg-[#081225] text-slate-200"
+          aria-label={mobileOpen ? 'Fechar navegação do admin' : 'Abrir navegação do admin'}
+          aria-expanded={mobileOpen}
+        >
+          {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+        </button>
+      </header>
+
+      {mobileOpen ? (
+        <button
+          type="button"
+          className="fixed inset-0 z-40 bg-[#020713]/75 backdrop-blur-sm min-[1800px]:hidden"
+          onClick={() => setMobileOpen(false)}
+          aria-label="Fechar navegação do admin"
+        />
+      ) : null}
+
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 w-60 overflow-y-auto border-r border-white/6 bg-[#050C19]/98 backdrop-blur transition-transform duration-200 min-[1800px]:translate-x-0',
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        )}
+      >
       <div className="flex h-full flex-col gap-4 px-3 py-4">
         <div className="rounded-lg border border-white/6 bg-[#071124] px-3 py-3">
           <img
@@ -277,7 +316,10 @@ export function AdminSidebar({
                       key={`${group.label}-${item.label}`}
                       type="button"
                       disabled={item.disabled}
-                      onClick={() => onSelectView(item.viewKey!)}
+                      onClick={() => {
+                        setMobileOpen(false);
+                        onSelectView(item.viewKey!);
+                      }}
                       className={itemClassName}
                     >
                       {content}
@@ -290,6 +332,7 @@ export function AdminSidebar({
                     <Link
                       key={`${group.label}-${item.label}`}
                       href={item.href}
+                      onClick={() => setMobileOpen(false)}
                       className={itemClassName}
                     >
                       {content}
@@ -325,6 +368,7 @@ export function AdminSidebar({
 
           <Link
             href="/"
+            onClick={() => setMobileOpen(false)}
             className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/30 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-3 py-2 text-xs font-semibold text-white shadow-[0_10px_20px_rgba(30,61,255,0.2)] transition hover:brightness-110"
           >
             Voltar à loja
@@ -332,6 +376,7 @@ export function AdminSidebar({
           </Link>
         </div>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

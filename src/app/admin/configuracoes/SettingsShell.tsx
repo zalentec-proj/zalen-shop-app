@@ -124,7 +124,7 @@ export function SettingsShell({
   const adminRoleLabel = accessRoleLabel[adminUser.role];
 
   return (
-    <div className="min-h-screen bg-[#050A14] text-[13px] text-slate-100">
+    <div className="min-h-screen min-w-0 bg-[#050A14] text-[13px] text-slate-100">
       <AdminSidebar
         activeKey={getSettingsSidebarKey(pathname)}
         storeShortName={storeShortName}
@@ -133,7 +133,7 @@ export function SettingsShell({
         footerDescription="Regras visuais e operacionais da loja ativa."
       />
 
-      <main className="xl:pl-60">
+      <main className="min-w-0 min-[1800px]:pl-60">
         <AdminPageFrame>
             <header className="flex flex-col gap-3 border-b border-white/6 pb-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="space-y-1">

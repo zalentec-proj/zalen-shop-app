@@ -137,7 +137,7 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
         footerDescription={`ERP da loja ${store.shortName}.`}
       />
 
-      <main className="xl:pl-60">
+      <main className="min-w-0 min-[1800px]:pl-60">
         <AdminPageFrame>
           <div className="rounded-lg border border-white/8 bg-[#07101F] shadow-[0_24px_90px_rgba(0,0,0,0.32)]">
             <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/8 px-4 py-4">

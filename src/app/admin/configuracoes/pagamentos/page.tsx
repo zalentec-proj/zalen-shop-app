@@ -156,7 +156,7 @@ export default async function PaymentSettingsPage() {
         </div>
       </SettingsPanel>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_260px] xl:items-start">
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_260px] xl:items-start">
         <SettingsPanel
           title="Métodos disponíveis"
           description="Status operacional da loja ativa."

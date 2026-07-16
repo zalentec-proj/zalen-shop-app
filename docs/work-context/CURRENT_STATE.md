@@ -8,10 +8,9 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-07-16
 - Branch: `refactor/migrate-to-next`
-- Commit base atual: `7304646` — `fix(admin): harden data integrity`
-- Working tree no momento deste registro: contém a reorganização não publicada
-  do navbar público. Preserve essas alterações na próxima sessão; elas não
-  pertencem à correção de integridade do admin.
+- Commit base atual: `bf409e8` — `fix(storefront): compact mobile catalog layout`
+- A sequência atual da branch contém a revisão responsiva do admin. Preserve
+  essas alterações nas próximas sessões até o deployment correspondente.
 - Guia de continuidade para outra IDE/máquina: `docs/work-context/IDE_HANDOFF.md`.
 
 ## Contexto permanente
@@ -23,6 +22,18 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Última mudança conhecida
+
+- Em 2026-07-16 foi revisada a estrutura responsiva compartilhada do admin. A
+  navegação lateral fixa passa a ser usada somente em desktop amplo; abaixo de
+  1800 px ela vira um drawer, evitando consumir a largura operacional do
+  dashboard. Cards e grids compartilhados agora aceitam encolhimento com
+  `min-width: 0`, painéis laterais empilham antes de comprimir o conteúdo e
+  tabelas largas mantêm rolagem horizontal dentro do próprio módulo.
+- Formulários de envio, domínios, pagamentos e navegação da loja foram ajustados
+  para não deixar inputs, selects ou colunas implícitas aumentarem a largura da
+  página. `npm run lint` e `npm run build` passaram antes da revisão preventiva
+  final; devem ser executados novamente antes de publicar. O preview local está
+  em `http://localhost:3012`, sem novo deployment nesta etapa.
 
 - Em 2026-07-16 foi concluída a auditoria e correção de integridade do admin.
   O dashboard agora calcula faturamento, ticket médio, série temporal e consumo

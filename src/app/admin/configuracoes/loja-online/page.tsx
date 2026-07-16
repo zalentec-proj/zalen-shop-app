@@ -108,10 +108,10 @@ function NavigationItemRow({
   const active = item.enabled;
 
   return (
-    <section className="rounded-lg border border-white/6 bg-[#081225] p-3">
+    <section className="min-w-0 rounded-lg border border-white/6 bg-[#081225] p-3">
       <input type="hidden" name={`${prefix}.id`} value={item.id} />
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start">
-        <div className="space-y-3">
+      <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start">
+        <div className="min-w-0 space-y-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex min-w-0 items-start gap-3">
               <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/8 bg-[#0A1730] text-slate-300">
@@ -121,7 +121,7 @@ function NavigationItemRow({
                 <input
                   name={`${prefix}.label`}
                   defaultValue={item.label}
-                  className="h-9 w-full min-w-[220px] rounded-lg border border-white/8 bg-[#050A14] px-3 text-sm font-semibold text-white outline-none transition focus:border-[#1E3DFF]/45"
+                  className="h-9 min-w-0 w-full rounded-lg border border-white/8 bg-[#050A14] px-3 text-sm font-semibold text-white outline-none transition focus:border-[#1E3DFF]/45"
                 />
                 <div className="mt-1 text-[11px] text-slate-500">
                   {item.href ?? 'Grupo sem link direto'}
@@ -133,13 +133,13 @@ function NavigationItemRow({
             </SettingsBadge>
           </div>
 
-          <div className="grid gap-2 md:grid-cols-4">
-            <label className="grid gap-1 text-[11px] font-semibold text-slate-400">
+          <div className="grid min-w-0 gap-2 md:grid-cols-4">
+            <label className="grid min-w-0 gap-1 text-[11px] font-semibold text-slate-400">
               Tipo
               <select
                 name={`${prefix}.type`}
                 defaultValue={item.type}
-                className="h-9 rounded-lg border border-white/8 bg-[#050A14] px-3 text-xs text-white outline-none"
+                className="h-9 min-w-0 w-full rounded-lg border border-white/8 bg-[#050A14] px-3 text-xs text-white outline-none"
               >
                 <option value="category">Categoria</option>
                 <option value="group">Grupo</option>
@@ -147,12 +147,12 @@ function NavigationItemRow({
               </select>
             </label>
 
-            <label className="grid gap-1 text-[11px] font-semibold text-slate-400 md:col-span-2">
+            <label className="grid min-w-0 gap-1 text-[11px] font-semibold text-slate-400 md:col-span-2">
               Categoria vinculada
               <select
                 name={`${prefix}.categorySlug`}
                 defaultValue={item.categorySlug ?? ''}
-                className="h-9 rounded-lg border border-white/8 bg-[#050A14] px-3 text-xs text-white outline-none"
+                className="h-9 min-w-0 w-full rounded-lg border border-white/8 bg-[#050A14] px-3 text-xs text-white outline-none"
               >
                 <option value="">Sem link</option>
                 {categoryOptions.map((category) => (
@@ -163,17 +163,17 @@ function NavigationItemRow({
               </select>
             </label>
 
-            <label className="grid gap-1 text-[11px] font-semibold text-slate-400">
+            <label className="grid min-w-0 gap-1 text-[11px] font-semibold text-slate-400">
               Rota interna
               <input
                 name={`${prefix}.href`}
                 defaultValue={item.href ?? ''}
                 placeholder="/modelos/mini-3"
-                className="h-9 rounded-lg border border-white/8 bg-[#050A14] px-3 text-xs text-white outline-none"
+                className="h-9 min-w-0 w-full rounded-lg border border-white/8 bg-[#050A14] px-3 text-xs text-white outline-none"
               />
             </label>
 
-            <label className="grid gap-1 text-[11px] font-semibold text-slate-400">
+            <label className="grid min-w-0 gap-1 text-[11px] font-semibold text-slate-400">
               Ordem
               <input
                 name={`${prefix}.position`}
@@ -181,19 +181,19 @@ function NavigationItemRow({
                 min="0"
                 step="1"
                 defaultValue={item.position}
-                className="h-9 rounded-lg border border-white/8 bg-[#050A14] px-3 text-xs text-white outline-none"
+                className="h-9 min-w-0 w-full rounded-lg border border-white/8 bg-[#050A14] px-3 text-xs text-white outline-none"
               />
             </label>
           </div>
         </div>
 
-        <div className="space-y-3 rounded-lg border border-white/6 bg-[#050A14] p-3">
-          <label className="grid gap-1 text-[11px] font-semibold text-slate-400">
+        <div className="min-w-0 space-y-3 rounded-lg border border-white/6 bg-[#050A14] p-3">
+          <label className="grid min-w-0 gap-1 text-[11px] font-semibold text-slate-400">
             Item pai / submenu
             <select
               name={`${prefix}.parentId`}
               defaultValue={item.parentId ?? ''}
-              className="h-9 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs text-white outline-none"
+              className="h-9 min-w-0 w-full rounded-lg border border-white/8 bg-[#081225] px-3 text-xs text-white outline-none"
             >
               <option value="">Sem pai</option>
               {parentOptions

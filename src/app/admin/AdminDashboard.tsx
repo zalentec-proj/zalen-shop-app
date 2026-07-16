@@ -2300,7 +2300,8 @@ export default function AdminDashboard({
             </div>
           }
         >
-          <div className="overflow-hidden rounded-lg border border-white/6">
+          <div className="overflow-x-auto rounded-lg border border-white/6">
+            <div className="min-w-[760px]">
             <div className="grid grid-cols-[1fr_1fr_0.55fr_0.75fr_0.75fr_0.8fr] gap-3 bg-[#081225] px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
               <span>Pedido</span>
               <span>Cliente</span>
@@ -2417,6 +2418,7 @@ export default function AdminDashboard({
                 </div>
               </div>
             ))}
+            </div>
           </div>
         </Panel>
 
@@ -3102,7 +3104,7 @@ export default function AdminDashboard({
   );
 
   return (
-    <div className="min-h-screen bg-[#050A14] text-[13px] text-slate-100">
+    <div className="min-h-screen min-w-0 bg-[#050A14] text-[13px] text-slate-100">
       <AdminSidebar
         activeKey={activeView}
         storeShortName={store.shortName}
@@ -3117,7 +3119,7 @@ export default function AdminDashboard({
         onSelectView={handleSelectAdminView}
       />
 
-      <main className="xl:pl-60">
+      <main className="min-w-0 min-[1800px]:pl-60">
         <AdminPageFrame>
           <div className="space-y-4">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
