@@ -6,14 +6,18 @@ import { getServerEnv } from '@/lib/env/server';
 import {
   getStoreSlugFromHostname,
   getStorefrontOriginFromHost,
+  isLocalhostName,
   isReservedPlatformSubdomain,
   normalizeHostname,
 } from './host-resolution';
 import {
   getStaticActiveStoreContext,
+  getStoreByCustomHostnameFromRepository,
   getStoreBySlugFromRepository,
 } from './store.repository';
 import type { StoreContext } from './store.types';
+import { getActivePrimaryStoreDomain } from '@/modules/domains/domain.repository';
+import type { StoreDomain } from '@/modules/domains/domain.types';
 
 export type StoreResolution =
   | {
@@ -21,6 +25,7 @@ export type StoreResolution =
       host?: string;
       slug: string;
       store: StoreContext;
+      domain?: StoreDomain;
     }
   | {
       kind: 'fallback';
@@ -41,7 +46,9 @@ export type StoreResolution =
     };
 
 export class StoreNotFoundError extends Error {
-  constructor(resolution: Extract<StoreResolution, { kind: 'not_found' }>) {
+  constructor(
+    resolution: Extract<StoreResolution, { kind: 'not_found' | 'reserved' }>
+  ) {
     super(`Store not found for host ${resolution.host ?? 'unknown'}.`);
     this.name = 'StoreNotFoundError';
   }
@@ -75,8 +82,26 @@ export async function getCurrentStorefrontOrigin(store: Pick<StoreContext, 'slug
   const currentOrigin = getOriginFromHeaders(headerStore);
 
   try {
+    const currentUrl = new URL(currentOrigin);
+    const hostname = normalizeHostname(currentUrl.host);
+
+    if (
+      hostname &&
+      !isLocalhostName(hostname) &&
+      !hostname.endsWith('.lvh.me')
+    ) {
+      const fullStore = await getStoreBySlugFromRepository(store.slug);
+      const primary = fullStore
+        ? await getActivePrimaryStoreDomain(fullStore.id).catch(() => null)
+        : null;
+
+      if (primary) {
+        return `https://${primary.hostname}`;
+      }
+    }
+
     return getStorefrontOriginFromHost(
-      new URL(currentOrigin),
+      currentUrl,
       store.slug,
       getRootDomain()
     );
@@ -86,7 +111,7 @@ export async function getCurrentStorefrontOrigin(store: Pick<StoreContext, 'slug
 }
 
 export function getStoreFromResolution(resolution: StoreResolution) {
-  if (resolution.kind === 'not_found') {
+  if (resolution.kind === 'not_found' || resolution.kind === 'reserved') {
     throw new StoreNotFoundError(resolution);
   }
 
@@ -94,7 +119,9 @@ export function getStoreFromResolution(resolution: StoreResolution) {
 }
 
 export function getOptionalStoreFromResolution(resolution: StoreResolution) {
-  return resolution.kind === 'not_found' ? null : resolution.store;
+  return resolution.kind === 'not_found' || resolution.kind === 'reserved'
+    ? null
+    : resolution.store;
 }
 
 export async function resolveStoreFromHost(
@@ -105,9 +132,48 @@ export async function resolveStoreFromHost(
   const slug = getStoreSlugFromHostname(hostname, getRootDomain());
 
   if (!slug) {
+    if (
+      !hostname ||
+      isLocalhostName(hostname) ||
+      hostname === 'lvh.me'
+    ) {
+      return {
+        kind: 'fallback',
+        host: hostname,
+        store: fallbackStore,
+      };
+    }
+
+    if (
+      hostname === getRootDomain() ||
+      hostname.endsWith(`.${getRootDomain()}`)
+    ) {
+      return {
+        kind: 'reserved',
+        host: hostname,
+        slug: hostname === getRootDomain()
+          ? '@'
+          : hostname.slice(0, -1 * (`.${getRootDomain()}`.length)),
+        store: fallbackStore,
+      };
+    }
+
+    const custom = await getStoreByCustomHostnameFromRepository(hostname);
+
+    if (custom) {
+      return {
+        kind: 'store',
+        host: hostname,
+        slug: custom.store.slug,
+        store: custom.store,
+        domain: custom.domain,
+      };
+    }
+
     return {
-      kind: 'fallback',
+      kind: 'not_found',
       host: hostname,
+      slug: hostname,
       store: fallbackStore,
     };
   }

@@ -8,7 +8,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-07-16
 - Branch: `refactor/migrate-to-next`
-- Commit base atual: `bf409e8` — `fix(storefront): compact mobile catalog layout`
+- Commit base antes desta frente: `7887410` — `fix(account): simplify customer authentication`
 - A sequência atual da branch contém a revisão responsiva do admin. Preserve
   essas alterações nas próximas sessões até o deployment correspondente.
 - Guia de continuidade para outra IDE/máquina: `docs/work-context/IDE_HANDOFF.md`.
@@ -22,6 +22,34 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Última mudança conhecida
+
+- Em 2026-07-16 foi implementado o autosserviço de domínio próprio por loja,
+  protegido por `DOMAIN_SELF_SERVICE_ENABLED` e allowlist. Owner/admin pode
+  cadastrar um domínio já adquirido, copiar os registros DNS retornados pela
+  Vercel, acompanhar propriedade/DNS/SSL, verificar, ativar, trocar o principal
+  e remover apenas a associação com o projeto. Operador e viewer permanecem em
+  modo leitura. Token e IDs da Vercel são exclusivamente server-side e o client
+  nunca envia `force`.
+- As migrations `20260716193747_custom_domain_self_service`,
+  `20260716193934_custom_domain_fk_indexes` e
+  `20260716194351_defer_empty_domain_verification_cron` foram aplicadas ao
+  Supabase `xtwobxfepsdfjrtducqb`. Elas criam `store_domains`,
+  `store_domain_events`, RLS sem acesso `anon`, unicidade global, ativação
+  transacional, auditoria e o job de verificação a cada cinco minutos. O cron
+  só faz a chamada HTTP quando existe domínio pendente com verificação vencida;
+  as tabelas estão vazias e a rota ainda não existe no deployment atual, então
+  não há chamada 404 periódica antes da publicação.
+- A resolução pública agora diferencia localhost, `lvh.me`, subdomínio Zalen e
+  domínio externo ativo. Host externo desconhecido ou pendente retorna 404 e
+  nunca abre a Brasil Drones. O hostname principal alimenta SEO, feed e URLs
+  públicas; variantes e domínios antigos recebem redirect 308, preservando path
+  e query. `/admin` em domínio próprio passa pelo resolvedor central e termina
+  no subdomínio administrativo da loja.
+- A integração oficial da Vercel está documentada em
+  `docs/integrations/vercel-domains-research.md`. O recurso permanece desligado,
+  sem token/IDs configurados, sem domínio real cadastrado e sem deployment. O
+  piloto planejado continua sendo `www.brasildrones.com.br`, somente depois do
+  bloqueio de pagamento descrito abaixo ser resolvido.
 
 - Em 2026-07-16 a autenticação e a área do cliente foram simplificadas para a
   experiência da loja. A tela de entrada deixou de exibir a coluna institucional
@@ -89,8 +117,8 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Foi implementada a base de compatibilidade por modelo DJI para Brasil Drones,
   separada das categorias técnicas do Bling. As migrations de produção
-  `20260713200000_add_drone_model_compatibility.sql` e
-  `20260713201000_add_drone_model_foreign_key_indexes.sql` criaram tabelas
+  `20260713230351_add_drone_model_compatibility.sql` e
+  `20260713230504_add_drone_model_foreign_key_indexes.sql` criaram tabelas
   com RLS para linhas, modelos e vínculos produto-modelo; foram semeadas oito
   linhas e 31 modelos. Não houve alteração de produto, categoria técnica,
   preço, estoque ou dados no Bling.
@@ -100,7 +128,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   derivadas de nome/SKU e ficam em revisão; apenas vínculos confirmados por um
   operador aparecem no storefront.
 - Os 38 itens de menu por modelo foram propositalmente desativados pela
-  migration `20260713202000_defer_model_navigation_until_storefront_deployment.sql`.
+  migration `20260713230806_defer_model_navigation_until_storefront_deployment.sql`.
   O handoff vigente bloqueia novo deploy até a validação de pagamento em
   produção; isso evita expor itens de menu antes do código de rotas estar
   publicado. Os atalhos anteriores Baterias e Master Airscrew foram mantidos
@@ -142,7 +170,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   `MERCADO_PAGO_WEBHOOK_SECRET_PRODUCTION` na Vercel.
 
 - A função persistente de rate limit foi corrigida pela migration
-  `20260711165637_fix_security_rate_limit_timestamp.sql`.
+  `20260711165710_fix_security_rate_limit_timestamp.sql`.
 - A migration foi aplicada ao Supabase de produção e uma chamada real retornou
   `allowed = true`.
 - `RATE_LIMIT_HASH_SECRET` foi configurado na Vercel para produção.
@@ -215,8 +243,9 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 Restaurar e validar a configuração de produção do Mercado Pago e publicar a
 confirmação visual de Pix somente depois de homologar a assinatura de webhook e
-as dependências server-side por ambiente. A compatibilidade por modelo DJI está
-preparada e deve ser ativada somente no mesmo ciclo de deploy seguro.
+as dependências server-side por ambiente. O autosserviço de domínios e a
+compatibilidade por modelo DJI estão preparados, mas devem entrar somente em um
+ciclo de deploy seguro, inicialmente com o recurso de domínios desligado.
 
 ## Em andamento
 
@@ -236,6 +265,10 @@ peça.
 
 Nenhum deployment foi criado após a restauração parcial das variáveis. A versão
 em produção continua sendo a previamente validada.
+
+O schema de domínios já está em produção, sem registros. O código correspondente
+ainda não foi publicado, `DOMAIN_SELF_SERVICE_ENABLED` deve permanecer `false`
+e as credenciais Vercel ainda não devem ser usadas até o piloto controlado.
 
 No momento deste handoff, a sessão de navegador do titular está compartilhando
 uma atividade não relacionada. Não interromper essa atividade para alternar de
@@ -271,6 +304,15 @@ Supabase estiverem disponíveis novamente.
    produto e salvar apenas os vínculos confirmados. Só então usar “Ativar menu
    de modelos”. Não recategorizar produtos já classificados tecnicamente no
    Bling.
+9. No mesmo deployment seguro, publicar o código de domínios com
+   `DOMAIN_SELF_SERVICE_ENABLED=false`; configurar no servidor
+   `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID` e a allowlist da
+   Brasil Drones, sem expor valores no cliente ou no Git.
+10. Habilitar apenas a Brasil Drones e cadastrar `www.brasildrones.com.br` como
+    piloto, sem alterar inicialmente o A record do apex. Validar endpoint
+    `.well-known`, SSL, storefront, login do comprador e pagamento controlado.
+11. Alterar o apex somente em janela explícita de corte; depois validar o
+    redirect 308 para `www`. Só liberar todas as lojas após o piloto.
 
 ## Bloqueios e dúvidas
 
@@ -281,10 +323,29 @@ a configuração da aplicação. O acesso pelo painel web do provedor também es
 aguardando uma validação interativa da conta, que deve ser concluída pelo
 titular sem compartilhar códigos ou credenciais.
 
-O acesso administrativo ao Vault do Supabase ainda precisa ser autenticado para
-concluir a troca coordenada do segredo de cron.
+O acesso ao projeto Supabase correto foi restabelecido. A troca coordenada do
+segredo de cron continua condicionada à validação dos ambientes da Vercel e não
+deve expor o valor em terminal, código ou documentação.
 
 ## Validação
+
+- O autosserviço de domínios passou em `npm run lint`, `npm test` (82 testes em
+  18 arquivos), `npm run build`, `git diff --check` e no scanner de segredos.
+  O build confirmou as novas rotas `.well-known`, job e resolvedor
+  administrativo.
+- `npx supabase migration list --linked` terminou sem divergências após
+  reconciliar as versões locais de 11 e 13 de julho e aplicar as três migrations
+  de domínio. A inspeção do catálogo confirmou RLS ativo, zero privilégio
+  `anon`, leitura `authenticated` por política, escrita/RPC por `service_role`,
+  FKs compostos e cron ativo a cada cinco minutos.
+- O Security Advisor não apontou alerta novo para domínios; permanece somente o
+  aviso global de proteção contra senhas vazadas desativada. O Performance
+  Advisor deixou de apontar FKs sem índice nas tabelas novas; os avisos restantes
+  nelas são apenas índices ainda não usados porque não existem registros.
+- `npm run security:audit` não encontrou vulnerabilidade alta/crítica. Há duas
+  ocorrências moderadas de PostCSS dentro do Next; a correção automática
+  sugerida exigiria `--force` e downgrade incompatível para Next 9, por isso não
+  foi aplicada.
 
 - A correção de integridade do admin passou em `npm run lint`, `npm run
   test:unit` (53 testes em 13 arquivos) e `npm run build`. A migração foi

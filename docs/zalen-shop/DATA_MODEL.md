@@ -607,3 +607,20 @@ sync_jobs(store_id, provider, status)
 ## 10. Regra central
 
 Se a tabela contém dado de uma loja, ela deve carregar `store_id` e respeitar isolamento por loja.
+
+## 11. Domínios próprios por loja
+
+`store_domains` mantém um registro por hostname e agrupa apex/`www` por
+`configuration_id`. O hostname é normalizado e globalmente único. O ciclo de
+vida usa `pending_provisioning`, `pending_ownership`, `pending_dns`,
+`pending_ssl`, `ready`, `active`, `redirect`, `failed`, `removing` e `removed`.
+
+Uma partial unique index permite somente um `primary` com status `active` por
+loja. `redirect_to_domain_id` liga variantes e domínios antigos ao principal.
+Registros DNS e desafios TXT são normalizados em JSON; respostas brutas e tokens
+do provedor não são persistidos.
+
+`store_domain_events` registra transições, ator e código seguro de erro. Ambas
+as tabelas usam `store_id`, RLS e leitura somente para membros da loja ou papéis
+globais. Escrita autenticada direta não é concedida; Server Actions autorizadas
+usam o serviço server-side.

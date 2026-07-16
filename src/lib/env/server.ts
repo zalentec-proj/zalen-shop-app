@@ -16,6 +16,11 @@ const serverEnvSchema = z.object({
   APP_URL: z.string().trim().url().optional(),
   PLATFORM_ROOT_DOMAIN: optionalSecretString,
   AUTH_COOKIE_DOMAIN: optionalSecretString,
+  VERCEL_API_TOKEN: optionalSecretString,
+  VERCEL_PROJECT_ID: optionalSecretString,
+  VERCEL_TEAM_ID: optionalSecretString,
+  DOMAIN_SELF_SERVICE_ENABLED: optionalSecretString,
+  DOMAIN_SELF_SERVICE_STORE_ALLOWLIST: optionalSecretString,
   BLING_CLIENT_ID: optionalSecretString,
   BLING_CLIENT_SECRET: optionalSecretString,
   BLING_REDIRECT_URI: z.string().trim().url().optional(),
@@ -100,6 +105,15 @@ function parseServerEnv(): ServerEnv {
     APP_URL: normalizeEnvValue(process.env.APP_URL),
     PLATFORM_ROOT_DOMAIN: normalizeEnvValue(process.env.PLATFORM_ROOT_DOMAIN),
     AUTH_COOKIE_DOMAIN: normalizeEnvValue(process.env.AUTH_COOKIE_DOMAIN),
+    VERCEL_API_TOKEN: normalizeEnvValue(process.env.VERCEL_API_TOKEN),
+    VERCEL_PROJECT_ID: normalizeEnvValue(process.env.VERCEL_PROJECT_ID),
+    VERCEL_TEAM_ID: normalizeEnvValue(process.env.VERCEL_TEAM_ID),
+    DOMAIN_SELF_SERVICE_ENABLED: normalizeEnvValue(
+      process.env.DOMAIN_SELF_SERVICE_ENABLED
+    ),
+    DOMAIN_SELF_SERVICE_STORE_ALLOWLIST: normalizeEnvValue(
+      process.env.DOMAIN_SELF_SERVICE_STORE_ALLOWLIST
+    ),
     BLING_CLIENT_ID: normalizeEnvValue(process.env.BLING_CLIENT_ID),
     BLING_CLIENT_SECRET: normalizeEnvValue(process.env.BLING_CLIENT_SECRET),
     BLING_REDIRECT_URI: normalizeEnvValue(process.env.BLING_REDIRECT_URI),

@@ -4,10 +4,11 @@ import { getAuthCookieDomain } from '@/lib/auth/cookie-domain';
 import {
   DEFAULT_LOCAL_STORE_ROOT_DOMAIN,
   getPlatformAppOriginFromHost,
+  getStoreSlugFromHostname,
   isLocalhostName,
+  isReservedPlatformSubdomain,
   normalizeHostname,
 } from '@/modules/stores/host-resolution';
-import { activeStore } from '@/modules/stores/current-store';
 
 const placeholderFragments = [
   '${',
@@ -84,7 +85,7 @@ function getRequestOrigin(request: NextRequest) {
   return `${protocol}://${host}`;
 }
 
-function shouldRedirectAdminToStoreHost(
+function shouldResolveCustomAdminHost(
   request: NextRequest,
   rootDomain: string
 ) {
@@ -102,24 +103,10 @@ function shouldRedirectAdminToStoreHost(
     return false;
   }
 
-  return hostname !== `${activeStore.slug}.${rootDomain}`;
-}
+  const slug = getStoreSlugFromHostname(hostname, rootDomain);
+  if (slug && !isReservedPlatformSubdomain(slug)) return false;
 
-function getStoreAdminOriginFromHost(
-  currentUrl: URL,
-  rootDomain: string
-) {
-  const hostname = normalizeHostname(currentUrl.host);
-
-  if (
-    !hostname ||
-    isLocalhostName(hostname) ||
-    hostname.endsWith(`.${DEFAULT_LOCAL_STORE_ROOT_DOMAIN}`)
-  ) {
-    return currentUrl.origin;
-  }
-
-  return `${currentUrl.protocol}//${activeStore.slug}.${rootDomain}`;
+  return hostname !== rootDomain && !hostname.endsWith(`.${rootDomain}`);
 }
 
 function redirectWithCookies(
@@ -146,19 +133,38 @@ function redirectWithCookies(
 }
 
 export async function proxy(request: NextRequest) {
-  let response = NextResponse.next({ request });
   const pathname = request.nextUrl.pathname;
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(
+    'x-zalen-request-path',
+    `${pathname}${request.nextUrl.search}`
+  );
+  let response = NextResponse.next({ request: { headers: requestHeaders } });
   const rootDomain =
     normalizeEnvValue(process.env.PLATFORM_ROOT_DOMAIN) ?? 'zalenshop.com.br';
 
-  if (pathname.startsWith('/admin') && shouldRedirectAdminToStoreHost(request, rootDomain)) {
-    const requestOrigin = new URL(getRequestOrigin(request));
-    const storeAdminUrl = new URL(
-      `${pathname}${request.nextUrl.search}`,
-      getStoreAdminOriginFromHost(requestOrigin, rootDomain)
+  if (pathname.startsWith('/admin') && shouldResolveCustomAdminHost(request, rootDomain)) {
+    const hostname = normalizeHostname(
+      request.headers.get('x-forwarded-host') ??
+        request.headers.get('host') ??
+        request.nextUrl.host
+    );
+    const resolverUrl = new URL(
+      '/api/store-admin-redirect',
+      getPlatformAppOriginFromHost(new URL(getRequestOrigin(request)), rootDomain)
+    );
+    resolverUrl.searchParams.set('host', hostname ?? '');
+    resolverUrl.searchParams.set(
+      'path',
+      getSafeNextPath(`${pathname}${request.nextUrl.search}`)
     );
 
-    return NextResponse.redirect(storeAdminUrl);
+    return NextResponse.redirect(resolverUrl);
+  }
+
+  const isAuthRoute = pathname === '/login' || pathname === '/login/forgot';
+  if (!pathname.startsWith('/admin') && !isAuthRoute) {
+    return response;
   }
 
   const supabaseUrl = normalizeEnvValue(process.env.NEXT_PUBLIC_SUPABASE_URL);
@@ -182,7 +188,8 @@ export async function proxy(request: NextRequest) {
           request.cookies.set(name, value);
         });
 
-        response = NextResponse.next({ request });
+        requestHeaders.set('cookie', request.cookies.toString());
+        response = NextResponse.next({ request: { headers: requestHeaders } });
 
         cookiesToSet.forEach(({ name, value, options }) => {
           response.cookies.set(name, value, options);
@@ -218,5 +225,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/login', '/login/forgot'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|favicon.svg).*)'],
 };

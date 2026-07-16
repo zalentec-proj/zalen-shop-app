@@ -1,8 +1,10 @@
 import 'server-only';
 
 import { getServerEnv } from '@/lib/env/server';
+import { getActivePrimaryStoreDomain } from '@/modules/domains/domain.repository';
 import type { Order, OrderListItem } from '@/modules/orders/order.types';
 import type { Shipment } from '@/modules/shipping/shipment.types';
+import { getStoreByIdFromRepository } from '@/modules/stores/store.repository';
 import {
   renderOrderReceivedEmail,
   renderPaymentStatusEmail,
@@ -20,12 +22,33 @@ const paymentTemplateByStatus: Record<PaymentEmailStatus, StoreEmailTemplateKey>
   failed: 'payment_failed',
 };
 
-function getBaseUrl(baseUrl: string | undefined) {
-  return baseUrl ?? getServerEnv().APP_URL ?? 'http://localhost:3000';
+async function getBaseUrl(storeId: string, baseUrl: string | undefined) {
+  if (baseUrl) return baseUrl;
+
+  const [primaryDomain, store] = await Promise.all([
+    getActivePrimaryStoreDomain(storeId).catch(() => null),
+    getStoreByIdFromRepository(storeId).catch(() => null),
+  ]);
+
+  if (primaryDomain) {
+    return `https://${primaryDomain.hostname}`;
+  }
+
+  if (store) {
+    const rootDomain = getServerEnv().PLATFORM_ROOT_DOMAIN ?? 'zalenshop.com.br';
+    return `https://${store.slug}.${rootDomain}`;
+  }
+
+  return getServerEnv().APP_URL ?? 'http://localhost:3000';
 }
 
-function getOrderUrl(baseUrl: string | undefined, orderId: string) {
-  return `${getBaseUrl(baseUrl).replace(/\/$/, '')}/conta/pedidos/${orderId}`;
+async function getOrderUrl(
+  storeId: string,
+  baseUrl: string | undefined,
+  orderId: string
+) {
+  const resolvedBaseUrl = await getBaseUrl(storeId, baseUrl);
+  return `${resolvedBaseUrl.replace(/\/$/, '')}/conta/pedidos/${orderId}`;
 }
 
 function getCustomerEmail(order: EmailOrder) {
@@ -57,7 +80,7 @@ export async function sendOrderReceivedStoreEmail(input: {
   const content = renderOrderReceivedEmail({
     storeName: input.storeName,
     orderNumber: input.order.orderNumber,
-    orderUrl: getOrderUrl(input.baseUrl, input.order.id),
+    orderUrl: await getOrderUrl(input.storeId, input.baseUrl, input.order.id),
   });
 
   return sendStoreEmail({
@@ -91,7 +114,7 @@ export async function sendPaymentStatusStoreEmail(input: {
   const content = renderPaymentStatusEmail({
     storeName: input.storeName,
     orderNumber: input.order.orderNumber,
-    orderUrl: getOrderUrl(input.baseUrl, input.order.id),
+    orderUrl: await getOrderUrl(input.storeId, input.baseUrl, input.order.id),
     status: input.status,
   });
 
@@ -127,7 +150,7 @@ export async function sendShipmentTrackingStoreEmail(input: {
   const content = renderShipmentTrackingEmail({
     storeName: input.storeName,
     orderNumber: input.order.orderNumber,
-    orderUrl: getOrderUrl(input.baseUrl, input.order.id),
+    orderUrl: await getOrderUrl(input.storeId, input.baseUrl, input.order.id),
     carrier: input.shipment.carrier,
     trackingCode: input.shipment.trackingCode,
     trackingUrl: input.shipment.trackingUrl,

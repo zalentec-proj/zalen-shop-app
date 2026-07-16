@@ -13,7 +13,8 @@ export type RateLimitScope =
   | 'shipping_quote'
   | 'checkout_create'
   | 'payment_submit'
-  | 'payment_status_poll';
+  | 'payment_status_poll'
+  | 'domain_verify';
 
 type RateLimitPolicy = {
   limit: number;
@@ -29,6 +30,7 @@ export const rateLimitPolicies: Record<RateLimitScope, RateLimitPolicy> = {
   checkout_create: { limit: 10, windowSeconds: 10 * 60 },
   payment_submit: { limit: 5, windowSeconds: 10 * 60 },
   payment_status_poll: { limit: 45, windowSeconds: 2 * 60 },
+  domain_verify: { limit: 6, windowSeconds: 10 * 60 },
 };
 
 export class RateLimitExceededError extends Error {

@@ -4,6 +4,8 @@ import { createOptionalPublicServerClient } from '@/lib/supabase/server';
 import { logDevOnce } from '@/lib/logging/dev';
 import { activeStore } from './current-store';
 import type { StoreContext, StoreRow } from './store.types';
+import { getStoreDomainByHostname } from '@/modules/domains/domain.repository';
+import type { StoreDomain } from '@/modules/domains/domain.types';
 
 function toShortName(name: string) {
   return name
@@ -109,4 +111,22 @@ export async function getStoreByIdFromRepository(
   }
 
   return toStoreContext(data as StoreRow, 'supabase');
+}
+
+export async function getStoreByCustomHostnameFromRepository(
+  hostname: string
+): Promise<{ store: StoreContext; domain: StoreDomain } | null> {
+  const domain = await getStoreDomainByHostname(hostname).catch(() => null);
+
+  if (!domain || !['active', 'redirect'].includes(domain.status)) {
+    return null;
+  }
+
+  const store = await getStoreByIdFromRepository(domain.storeId);
+
+  if (!store || store.status !== 'active') {
+    return null;
+  }
+
+  return { store, domain };
 }

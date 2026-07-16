@@ -4,7 +4,7 @@
 
 A Zalen Shop deve evoluir para resolver a loja ativa pelo host da requisição, de forma parecida com plataformas SaaS de e-commerce como a Nuvemshop: cada loja possui um endereço dentro do domínio da plataforma e, em uma fase posterior, pode usar um domínio próprio.
 
-No MVP atual, `localhost`/`127.0.0.1` continuam usando Brasil Drones como fallback, mas o app já possui resolução server-side por subdomínio para o padrão `{storeSlug}.zalenshop.com.br` e para desenvolvimento com `{storeSlug}.lvh.me`.
+No MVP atual, `localhost`/`127.0.0.1` continuam usando Brasil Drones como fallback. O app resolve server-side o padrão `{storeSlug}.zalenshop.com.br`, desenvolvimento com `{storeSlug}.lvh.me` e domínios próprios ativos persistidos em `store_domains`.
 
 Domínios definidos para esta fase:
 
@@ -80,7 +80,7 @@ Executar services/repositories com store_id
 
 ## 4. Domínio próprio do cliente
 
-Em uma fase futura, uma loja poderá apontar um domínio próprio para a Zalen Shop.
+Uma loja pode cadastrar um domínio próprio já adquirido no painel Zalen Shop.
 
 Exemplo:
 
@@ -88,9 +88,9 @@ Exemplo:
 www.brasildrones.com.br
 ```
 
-Nesse caso, o host não terá `storeSlug` no subdomínio da Zalen. A resolução deverá consultar uma configuração de domínios vinculados à loja, por exemplo uma futura tabela `store_domains`.
+Nesse caso, o host não possui `storeSlug` no subdomínio da Zalen. A resolução consulta `store_domains.hostname` e aceita somente os estados `active` e `redirect`.
 
-Fluxo conceitual futuro:
+Fluxo implementado:
 
 ```txt
 Host da request
@@ -103,6 +103,14 @@ Obter store_id
 ```
 
 O domínio próprio deve servir principalmente o storefront público. O admin da loja deve permanecer no domínio da plataforma.
+
+Host externo pendente, removido ou desconhecido retorna 404. Ele nunca cai no
+fallback Brasil Drones. O hostname principal ativo é usado para URLs públicas;
+variantes e endereços antigos redirecionam com 308, preservando path e query.
+
+O cadastro raiz cria o par apex + `www`. `www` é o principal padrão, mas o
+lojista pode escolher o apex. Propriedade, DNS, SSL e roteamento HTTPS são
+verificados antes de permitir ativação.
 
 ## 5. Por que o admin fica no domínio da plataforma
 
@@ -184,13 +192,21 @@ Regras atuais:
 - não criar `/platform`;
 - não alterar comportamento real de Bling, Mercos ou qualquer conector externo sem pesquisa técnica aprovada.
 
-## 9. Próximas fases
+## 9. Estado do autosserviço
+
+Implementado:
+
+- `store_domains` e `store_domain_events` com RLS;
+- Vercel Domains API server-side, sem `force`;
+- job de verificação a cada cinco minutos e verificação manual com rate limit;
+- endpoint HTTPS `/.well-known/zalen-domain-verification`;
+- ativação transacional de um único principal e redirect 308;
+- remoção explícita que preserva domínio e DNS no registrador;
+- resolução de `/admin` do domínio próprio para o subdomínio Zalen da loja.
 
 Itens futuros:
 
-- criar tabela `store_domains` para domínios próprios;
-- associar domínio próprio validado a uma loja;
 - decidir redirect de `app.zalenshop.com.br/` para login ou seletor de loja;
 - implementar seletor de loja para contas com mais de uma `store_membership`;
 - migrar webhooks externos para descobrir loja por metadados seguros do provedor quando disponível;
-- adicionar testes automatizados específicos para `localhost`, `lvh.me`, `{storeSlug}.zalenshop.com.br` e domínio próprio.
+- expandir o piloto da allowlist para todas as lojas após validação operacional.

@@ -150,12 +150,21 @@ A estratégia futura é resolver a loja pelo host da requisição:
 
 - `{storeSlug}.zalen.shop` identifica lojas no domínio da plataforma;
 - `brasil-drones.lvh.me:3000` e `lb-london.lvh.me:3000` permitem teste local com subdomínio;
-- domínios próprios, como `www.brasildrones.com.br`, serão resolvidos por configuração futura de domínio;
+- domínios próprios ativos, como `www.brasildrones.com.br`, são resolvidos por `store_domains.hostname`;
 - `app.zalen.shop/platform` será reservado para o futuro platform admin.
 
 O admin da loja deve permanecer no domínio da plataforma, por exemplo `brasil-drones.zalen.shop/admin`, mesmo quando o storefront público usar domínio próprio.
 
 Detalhes: ver `docs/zalen-shop/DOMAIN_AND_STORE_RESOLUTION.md`.
+
+Host externo pendente, removido ou desconhecido retorna 404 e nunca usa Brasil
+Drones como fallback. O fallback fixo existe somente para `localhost`,
+`127.0.0.1` e o root local `lvh.me`.
+
+O domínio principal ativo é a origem de canonical, Open Graph, JSON-LD,
+checkout, retornos de pagamento, sitemap, robots e Merchant feed. Subdomínio
+Zalen público, variante secundária e domínio antigo fazem redirect 308 para ele,
+preservando path e query. Admin, login, API e `/.well-known` são excluídos.
 
 ## 9. Platform connectors registry
 

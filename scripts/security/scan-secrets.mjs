@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 const files = execFileSync(
   'git',
@@ -21,6 +21,12 @@ const patterns = [
 const findings = [];
 
 for (const file of files) {
+  // `git ls-files --cached` still reports a tracked path removed in the
+  // working tree until the deletion is staged.
+  if (!existsSync(file)) {
+    continue;
+  }
+
   const contents = readFileSync(file);
 
   if (contents.subarray(0, 8_192).includes(0)) {

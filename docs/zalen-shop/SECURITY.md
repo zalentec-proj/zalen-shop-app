@@ -176,3 +176,13 @@ Regras:
 - `integration_providers` não guarda credenciais.
 - `store_integrations` guarda configuração e credenciais criptografadas por loja.
 - Antes de implementar qualquer conector, preencher pesquisa técnica oficial em `docs/integrations`.
+
+## 17. Domínios próprios
+
+- Token Vercel, project ID e team ID ficam somente no servidor.
+- O formulário nunca aceita `store_id`; o servidor resolve a loja pelo host administrativo e pela sessão.
+- `store_domains` e `store_domain_events` não concedem acesso `anon`.
+- Membros consultam apenas a própria loja; owner/admin e papéis globais alteram via Server Actions.
+- Nunca usar `force` para mover domínio de outro projeto.
+- Eventos guardam códigos seguros, sem token ou resposta bruta da Vercel.
+- Host externo desconhecido retorna 404 e não herda o fallback Brasil Drones.

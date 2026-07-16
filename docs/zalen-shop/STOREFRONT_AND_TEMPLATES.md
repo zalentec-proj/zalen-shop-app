@@ -164,3 +164,8 @@ Rastreio:
 - venda confirmada usa `event_id = purchase:{storeId}:{orderId}` para
   deduplicação com server-side;
 - nenhuma credencial aparece no HTML ou no bundle do storefront.
+
+Quando existir domínio próprio principal ativo, todas essas URLs públicas usam
+`https://{hostname}`. A variante secundária, o subdomínio público Zalen e
+domínios antigos redirecionam com 308, preservando path e query. Rotas de admin,
+login, API e verificação `/.well-known` permanecem no fluxo operacional próprio.

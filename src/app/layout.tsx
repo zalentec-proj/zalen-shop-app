@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { enforceCanonicalStorefrontHost } from '@/modules/stores/storefront-canonical';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -25,7 +26,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  await enforceCanonicalStorefrontHost();
+
   return (
     <html lang="pt-BR">
       <body>{children}</body>

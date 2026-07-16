@@ -4,6 +4,10 @@ import { headers } from 'next/headers';
 import type { Metadata } from 'next';
 import type { Category, Product } from '@/modules/catalog/product.types';
 import type { StoreContext } from '@/modules/stores/store.types';
+import {
+  getCurrentStorefrontOrigin,
+  resolveStoreFromHost,
+} from '@/modules/stores/store-resolution';
 
 export const storefrontDescription =
   'Equipamentos originais, peças selecionadas e suporte técnico para quem exige segurança, precisão e liberdade em cada voo.';
@@ -27,7 +31,14 @@ export async function getCurrentOrigin() {
     return 'http://localhost:3000';
   }
 
-  return `${forwardedProto ?? protocolForHost(host)}://${host}`;
+  const currentOrigin = `${forwardedProto ?? protocolForHost(host)}://${host}`;
+  const resolution = await resolveStoreFromHost(host);
+
+  if (resolution.kind === 'store' || resolution.kind === 'fallback') {
+    return getCurrentStorefrontOrigin(resolution.store);
+  }
+
+  return currentOrigin;
 }
 
 export function absoluteStoreUrl(origin: string, path = '/') {

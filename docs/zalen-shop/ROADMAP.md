@@ -90,10 +90,15 @@ Objetivo: remover a dependência operacional de store fixa e resolver a loja pel
 - Resolver `{storeSlug}.zalen.shop` por `stores.slug`.
 - Manter `localhost:3000` como fallback Brasil Drones durante desenvolvimento.
 - Testar `brasil-drones.lvh.me:3000` e `lb-london.lvh.me:3000`.
-- Planejar domínio próprio de clientes, como `www.brasildrones.com.br`.
+- Cadastrar e operar domínio próprio em autosserviço por loja, atrás de feature flag.
+- Verificar propriedade, DNS, SSL e roteamento pela Vercel API.
+- Ativar principal e manter variantes/domínios antigos com redirect 308.
 - Manter admin da loja no domínio da plataforma.
 - Reservar `app.zalen.shop/platform` para operação interna futura da Zalen.
 - Garantir que services e repositories recebam `storeId` resolvido fora deles.
+
+Implementação concluída em código e schema em 2026-07-16. O rollout permanece
+desligado por padrão e depende do piloto controlado da Brasil Drones.
 
 ## Fase 7 — Platform Admin
 

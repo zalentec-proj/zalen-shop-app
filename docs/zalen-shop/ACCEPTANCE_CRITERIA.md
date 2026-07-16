@@ -239,3 +239,21 @@ Antes de implementação real:
 - Ambiente staging separado de production.
 - CI aprova typecheck, build, cobertura crítica, auditoria de dependências e
   varredura de segredos; baseline OWASP roda apenas contra preview de homologação.
+
+## 12. Domínios próprios
+
+- Owner/admin e papéis globais cadastram domínio; operator/viewer apenas consultam.
+- `store_id` não vem do formulário e toda escrita é autorizada no servidor.
+- Hostname é IDN/ASCII normalizado, único globalmente e rejeita IP, localhost,
+  wildcard, hosts reservados e `*.zalenshop.com.br`.
+- Apex/`www` formam um par; `www` é o principal padrão e pode ser invertido.
+- DNS e TXT exibidos vêm da resposta da Vercel, sem A/CNAME fixo no código.
+- O estado só chega a `ready` com projeto, propriedade, DNS e probe HTTPS válidos.
+- Ativação exige confirmação e mantém no máximo um principal ativo por loja.
+- Variante secundária e domínios antigos usam redirect 308.
+- Host externo desconhecido ou pendente retorna 404, nunca Brasil Drones.
+- `/admin` no domínio próprio termina no subdomínio administrativo da loja.
+- Remoção exige digitar o hostname e não apaga domínio/registro no registrador.
+- Job protegido verifica pendências a cada cinco minutos com backoff; verificação
+  manual tem rate limit.
+- O recurso inicia com `DOMAIN_SELF_SERVICE_ENABLED=false` e piloto por allowlist.

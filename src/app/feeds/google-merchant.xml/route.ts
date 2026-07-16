@@ -4,6 +4,7 @@ import { getStoreMarketingSettings } from '@/modules/marketing/marketing.service
 import { absoluteStoreUrl } from '@/modules/seo/seo.service';
 import {
   getOptionalStoreFromResolution,
+  getCurrentStorefrontOrigin,
   resolveStoreFromRequest,
 } from '@/modules/stores/store-resolution';
 
@@ -50,7 +51,15 @@ export async function GET(request: NextRequest) {
     return new NextResponse('Store not found.', { status: 404 });
   }
 
-  const origin = getOrigin(request);
+  const requestOrigin = getOrigin(request);
+  const origin = await getCurrentStorefrontOrigin(store);
+
+  if (new URL(requestOrigin).origin !== new URL(origin).origin) {
+    return NextResponse.redirect(
+      new URL('/feeds/google-merchant.xml', origin),
+      308
+    );
+  }
   const [settings, products] = await Promise.all([
     getStoreMarketingSettings(store.id),
     listStorefrontProducts(store.id),

@@ -22,6 +22,7 @@ Nenhuma integração pode ser implementada com endpoints, payloads, headers, esc
 | **SuperFrete** | Cotação real de frete no checkout | V1 quote-only |
 | **Google Marketing** | GTM, GA4, Google Ads, Merchant Center e SEO técnico | Base implementada |
 | **Meta Marketing** | Meta Pixel e Conversions API para compra confirmada | Base implementada |
+| **Vercel Domains** | Domínio próprio autosserviço por loja | Implementado atrás de feature flag |
 | **Melhor Envio** | Cotação e geração de etiquetas de frete | Planejado |
 | **Asaas** | Pagamentos alternativos (futuro) | Futuro |
 | **Pagar.me** | Pagamentos alternativos (futuro) | Futuro |
@@ -69,6 +70,7 @@ Se o endpoint não está na documentação oficial, ele não existe. Não assuma
 | `superfrete-research.md` | Pesquisa técnica — SuperFrete quote-only |
 | `google-marketing-research.md` | Pesquisa técnica — Google Tag/GTM, GA4, Ads, Merchant e SEO |
 | `meta-marketing-research.md` | Pesquisa técnica — Meta Pixel e Conversions API |
+| `vercel-domains-research.md` | Pesquisa técnica — associação, DNS, SSL, redirect e remoção de domínios Vercel |
 | `melhor-envio-research-template.md` | Template de pesquisa técnica — Melhor Envio |
 
 ---

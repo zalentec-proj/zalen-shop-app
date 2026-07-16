@@ -154,6 +154,26 @@
 
 ---
 
+## Vercel Domains
+
+| Recurso | URL |
+|---|---|
+| REST API | https://vercel.com/docs/rest-api |
+| Adicionar domínio ao projeto | https://vercel.com/docs/rest-api/projects/add-a-domain-to-a-project |
+| Atualizar domínio e redirect | https://vercel.com/docs/rest-api/projects/update-a-project-domain |
+| Verificar domínio | https://vercel.com/docs/rest-api/reference/endpoints/projects/verify-project-domain |
+| Consultar DNS/TLS | https://vercel.com/docs/rest-api/reference/endpoints/domains/get-a-domains-configuration |
+| Configurar domínio próprio | https://vercel.com/docs/domains/working-with-domains/add-a-domain |
+| Remover domínio | https://vercel.com/docs/domains/working-with-domains/remove-a-domain |
+
+**Notas:**
+- O token é server-side e o projeto/time são fixados por ambiente.
+- Nunca usar `force` para tomar domínio associado a outro projeto.
+- Registros DNS recomendados vêm da API; não fixar A/CNAME no código.
+- Remoção do projeto não remove o domínio do registrador.
+
+---
+
 ## Asaas (futuro)
 
 | Recurso | URL |

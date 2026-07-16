@@ -181,6 +181,21 @@ Regras:
 - apenas métodos nativos calculam frete no MVP;
 - providers externos continuam dependentes de pesquisa técnica oficial.
 
+### Domínios
+
+A tela `/admin/configuracoes/dominios` permite a owner/admin:
+
+- cadastrar domínio já adquirido;
+- escolher `www` ou apex como principal;
+- copiar registros DNS e desafio TXT retornados pela Vercel;
+- acompanhar provisionamento, propriedade, DNS, SSL e ativação;
+- verificar, tentar novamente, ativar, tornar principal e remover;
+- confirmar ativação e digitar o hostname para remover.
+
+Operator/viewer consultam status e instruções, sem alterar. Remover desfaz apenas
+a associação com o projeto Vercel; não apaga domínio, nameservers, MX ou outros
+registros do registrador.
+
 ## 10. Regras de implementação
 
 - Admin deve usar componentes próprios de sistema.
