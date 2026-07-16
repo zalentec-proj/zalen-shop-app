@@ -124,8 +124,8 @@ export default function BestSellers({
   }, [products, categories, localFilters, searchQuery]);
 
   return (
-    <section className="w-full px-4 md:px-8 py-12 bg-transparent" id="catalogo">
-      <div className="max-w-7xl mx-auto flex flex-col gap-10">
+    <section className="w-full bg-transparent px-3 py-9 md:px-8 md:py-12" id="catalogo">
+      <div className="mx-auto flex max-w-7xl flex-col gap-7 md:gap-10">
         
         {/* Section Heading & descriptive caption */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 text-left">
@@ -165,7 +165,7 @@ export default function BestSellers({
           {/* Right: Products item grid cards (Takes 9 columns of catalog) */}
           <div className="lg:col-span-9">
             {filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
                 {filteredProducts.map((prod) => (
                   <ProductCard
                     key={prod.id}

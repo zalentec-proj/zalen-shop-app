@@ -8,6 +8,7 @@ import {
   Search,
   User,
   ShoppingCart,
+  Instagram,
   Menu,
   X,
 } from 'lucide-react';
@@ -18,6 +19,8 @@ import type {
   StorefrontNavigation,
   StorefrontNavigationItem,
 } from '@/modules/catalog/storefront-navigation';
+
+const INSTAGRAM_URL = 'https://www.instagram.com/dronesepartsbrasildji/';
 
 export interface NavbarProductPreview {
   id: string;
@@ -264,10 +267,10 @@ export default function Navbar({
   };
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 bg-transparent px-4 pt-3 md:px-8">
+    <header className="fixed inset-x-0 top-0 z-50 bg-transparent px-3 pt-2 md:px-8 md:pt-3">
       <nav
         id="navbar-main"
-        className="navbar-glass mx-auto flex h-[78px] max-w-7xl items-center justify-between rounded-[28px] px-5 shadow-[0_12px_32px_rgba(0,0,0,0.55)] transition-all duration-300 hover:border-white/20 md:px-8"
+        className="navbar-glass mx-auto flex h-16 max-w-7xl items-center justify-between rounded-2xl px-4 shadow-[0_12px_32px_rgba(0,0,0,0.55)] transition-all duration-300 hover:border-white/20 md:h-[78px] md:rounded-[28px] md:px-8"
       >
         <button
           onClick={() => {
@@ -277,7 +280,7 @@ export default function Navbar({
           className="shrink-0 cursor-pointer focus:outline-none"
           aria-label="Ir para a página inicial"
         >
-          <Logo size="sm" className="h-[36px] md:h-[48px]" />
+          <Logo size="sm" className="h-[30px] md:h-[48px]" />
         </button>
 
         <label className="relative mx-6 hidden min-w-0 max-w-md flex-1 items-center md:flex">
@@ -312,6 +315,17 @@ export default function Navbar({
             <User className="h-5 w-5" />
             <span className="hidden text-xs font-semibold lg:inline">Minha conta</span>
           </Link>
+
+          <a
+            href={INSTAGRAM_URL}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Instagram da Brasil Drones"
+            title="Instagram da Brasil Drones"
+            className="hidden h-10 w-10 items-center justify-center rounded-full text-brand-white transition-colors hover:bg-white/5 hover:text-[#E1306C] md:inline-flex"
+          >
+            <Instagram className="h-5 w-5" />
+          </a>
 
           <button
             onClick={onCartToggle}
@@ -448,6 +462,16 @@ export default function Navbar({
               <span className="text-sm font-semibold">Meus pedidos</span>
               <ReceiptText className="w-4 h-4" />
             </Link>
+            <a
+              href={INSTAGRAM_URL}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between rounded-xl border border-brand-border bg-brand-surface px-4 py-3 text-brand-white"
+            >
+              <span className="text-sm font-semibold">Instagram</span>
+              <Instagram className="h-4 w-4 text-[#E1306C]" />
+            </a>
           </div>
         </div>
       )}

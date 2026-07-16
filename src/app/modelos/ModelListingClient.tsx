@@ -112,7 +112,7 @@ export default function ModelListingClient({
         searchQuery={searchQuery}
       />
 
-      <main className="mx-auto max-w-7xl px-4 pb-16 pt-44 md:px-8 lg:pt-48">
+      <main className="mx-auto max-w-7xl px-3 pb-14 pt-24 md:px-8 md:pt-44 lg:pt-48">
         <header className="flex flex-col gap-5 border-b border-brand-border-soft pb-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-primary">
@@ -166,7 +166,7 @@ export default function ModelListingClient({
             </Link>
           </div>
         ) : (
-          <section className="grid grid-cols-1 gap-4 pt-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <section className="grid grid-cols-2 gap-3 pt-6 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
             {visibleProducts.map((product) => {
               const price = productPrice(product);
               const image = product.images[0];
@@ -175,9 +175,9 @@ export default function ModelListingClient({
                 <Link
                   key={product.id}
                   href={`/produto/${product.slug}`}
-                  className="group flex min-h-[360px] flex-col overflow-hidden rounded-lg border border-brand-border-soft bg-brand-surface transition hover:border-blue-primary/50"
+                  className="group flex min-h-[270px] flex-col overflow-hidden rounded-lg border border-brand-border-soft bg-brand-surface transition hover:border-blue-primary/50 sm:min-h-[320px]"
                 >
-                  <div className="flex h-52 items-center justify-center border-b border-brand-border-soft bg-black/10 p-4">
+                  <div className="flex h-32 items-center justify-center border-b border-brand-border-soft bg-black/10 p-2 sm:h-44 sm:p-3 md:h-52 md:p-4">
                     {image ? (
                       <img
                         src={image.url}
@@ -189,22 +189,22 @@ export default function ModelListingClient({
                     )}
                   </div>
 
-                  <div className="flex flex-1 flex-col p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-muted">
+                  <div className="flex flex-1 flex-col p-3 sm:p-4">
+                    <p className="hidden text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-muted sm:block">
                       {product.brand ?? 'DJI'}
                     </p>
-                    <h2 className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-white group-hover:text-blue-primary">
+                    <h2 className="line-clamp-2 text-[12px] font-semibold leading-4 text-white group-hover:text-blue-primary sm:mt-1 sm:text-sm sm:leading-5">
                       {product.name}
                     </h2>
-                    <div className="mt-auto flex items-end justify-between gap-3 pt-5">
+                    <div className="mt-auto flex items-end justify-between gap-2 pt-4 sm:gap-3 sm:pt-5">
                       <div>
-                        <p className="text-[11px] text-brand-muted">À vista</p>
-                        <p className="text-lg font-semibold text-green-accent">
+                        <p className="hidden text-[11px] text-brand-muted sm:block">À vista</p>
+                        <p className="text-base font-semibold text-green-accent sm:text-lg">
                           R$ {price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </p>
                       </div>
-                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-blue-primary/30 bg-blue-primary/10 text-blue-primary">
-                        <ShoppingCart className="h-4 w-4" />
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-blue-primary/30 bg-blue-primary/10 text-blue-primary sm:h-9 sm:w-9">
+                        <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         <span className="sr-only">Ver produto</span>
                       </span>
                     </div>

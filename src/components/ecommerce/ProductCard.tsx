@@ -19,7 +19,7 @@ export default function ProductCard({ product, onProductClick, onAddToCart }: Pr
   });
 
   return (
-    <div className="group glass-panel rounded-[24px] overflow-hidden flex flex-col justify-between transition-all duration-500 hover:border-white/20 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.55)] relative">
+    <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl glass-panel transition-all duration-500 hover:-translate-y-2 hover:border-white/20 hover:shadow-[0_20px_40px_rgba(0,0,0,0.55)] sm:rounded-[20px] md:rounded-[24px]">
       
       {/* Decorative inner background pulse for tech feeling */}
       <div className="absolute inset-0 bg-[#070B14]/40 -z-10 group-hover:bg-[#091021]/50 transition-colors"></div>
@@ -27,10 +27,10 @@ export default function ProductCard({ product, onProductClick, onAddToCart }: Pr
       {/* Product Image Stage (Moves to the very top, full edge-to-edge, with premium background layout) */}
       <div
         onClick={() => onProductClick(product.id)}
-        className="w-full h-52 relative cursor-pointer overflow-hidden bg-gradient-to-b from-white/[0.04] via-transparent to-transparent border-b border-brand-border-soft flex items-center justify-center p-0"
+        className="relative flex h-32 w-full cursor-pointer items-center justify-center overflow-hidden border-b border-brand-border-soft bg-gradient-to-b from-white/[0.04] via-transparent to-transparent p-2 sm:h-44 sm:p-3 md:h-52 md:p-4"
       >
         {/* Absolute Badges on top of image */}
-        <div className="absolute top-4 left-4 z-20 flex flex-col gap-1.5 pointer-events-none">
+        <div className="pointer-events-none absolute left-2 top-2 z-20 hidden flex-col gap-1.5 sm:left-3 sm:top-3 sm:flex md:left-4 md:top-4">
           {product.isNew && (
             <span className="inline-flex items-center bg-blue-primary/10 border border-blue-primary/40 rounded-full px-2.5 py-0.5 text-[9px] font-bold text-blue-primary uppercase tracking-wider shadow-[0_0_8px_rgba(30,61,255,0.3)]">
               Novo
@@ -49,7 +49,7 @@ export default function ProductCard({ product, onProductClick, onAddToCart }: Pr
             e.stopPropagation();
             setFavorite(!favorite);
           }}
-          className={`absolute top-4 right-4 z-20 w-8 h-8 rounded-full flex items-center justify-center border transition-all cursor-pointer ${
+          className={`absolute right-3 top-3 z-20 hidden h-8 w-8 items-center justify-center rounded-full border transition-all cursor-pointer sm:flex md:right-4 md:top-4 ${
             favorite
               ? 'bg-red-500/15 border-red-500/30 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]'
               : 'border-white/10 bg-black/40 text-brand-white hover:border-white/20 hover:text-white hover:scale-105'
@@ -62,7 +62,7 @@ export default function ProductCard({ product, onProductClick, onAddToCart }: Pr
         <img
           src={product.image}
           alt={product.name}
-          className="w-full h-full object-cover filter group-hover:scale-110 drop-shadow-[0_12px_24px_rgba(0,0,0,0.6)] transition-all duration-500 select-none pointer-events-none z-10"
+          className="z-10 h-full w-full select-none object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.6)] transition-all duration-500 group-hover:scale-105 pointer-events-none"
           referrerPolicy="no-referrer"
         />
         
@@ -75,13 +75,13 @@ export default function ProductCard({ product, onProductClick, onAddToCart }: Pr
       </div>
 
       {/* Info Details layout */}
-      <div className="p-6 pt-2 flex flex-col text-left gap-3 relative">
-        <div className="flex flex-col gap-1 cursor-pointer" onClick={() => onProductClick(product.id)}>
+      <div className="relative flex flex-col gap-2 p-3 pt-2 text-left sm:gap-2.5 sm:p-4 sm:pt-3 md:gap-3 md:p-6 md:pt-2">
+        <div className="flex cursor-pointer flex-col gap-1" onClick={() => onProductClick(product.id)}>
           {/* Category breadcrumb */}
-          <span className="text-[10px] font-bold tracking-widest text-brand-muted uppercase font-display">
+          <span className="hidden text-[10px] font-bold uppercase tracking-widest text-brand-muted sm:block font-display">
             {product.category}
           </span>
-          <h3 className="text-[15px] font-bold text-white tracking-tight line-clamp-1 group-hover:text-blue-primary transition-colors">
+          <h3 className="min-h-8 line-clamp-2 text-[12px] font-bold leading-4 tracking-tight text-white transition-colors group-hover:text-blue-primary sm:min-h-0 sm:text-[14px] sm:leading-5 md:text-[15px]">
             {product.name}
           </h3>
         </div>
@@ -89,20 +89,20 @@ export default function ProductCard({ product, onProductClick, onAddToCart }: Pr
         {/* Pricing Layout */}
         <div className="flex flex-col gap-0.5">
           {/* Installments in gray (discrete) */}
-          <span className="text-[11px] text-brand-muted">
+          <span className="text-[10px] text-brand-muted sm:text-[11px]">
             12x de R$ {monthlyInstallment} sem juros
           </span>
           {/* Large green-accent price */}
-          <span className="text-lg font-extrabold text-green-accent font-sans">
+          <span className="text-base font-extrabold text-green-accent sm:text-lg font-sans">
             R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
 
         {/* Quick add triggers */}
-        <div className="flex items-center justify-between pt-3 border-t border-brand-border-soft mt-1">
+        <div className="mt-1 flex items-center justify-between border-t border-brand-border-soft pt-2 sm:pt-3">
           <button
             onClick={() => onProductClick(product.id)}
-            className="text-xs font-semibold text-brand-white group-hover:text-blue-primary transition-colors cursor-pointer"
+            className="cursor-pointer text-[11px] font-semibold text-brand-white transition-colors group-hover:text-blue-primary sm:text-xs"
           >
             Ver detalhes
           </button>
@@ -113,10 +113,10 @@ export default function ProductCard({ product, onProductClick, onAddToCart }: Pr
               e.stopPropagation();
               onAddToCart(product);
             }}
-            className="w-10 h-10 rounded-xl bg-blue-primary/10 border border-blue-primary/20 text-blue-primary hover:bg-blue-primary hover:text-white transition-all duration-300 flex items-center justify-center cursor-pointer shadow-[0_0_12px_rgba(30,61,255,0.1)] active:scale-95 hover:border-blue-primary"
+            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-blue-primary/20 bg-blue-primary/10 text-blue-primary shadow-[0_0_12px_rgba(30,61,255,0.1)] transition-all duration-300 hover:border-blue-primary hover:bg-blue-primary hover:text-white active:scale-95 sm:h-9 sm:w-9 sm:rounded-xl md:h-10 md:w-10"
             title="Adicionar ao carrinho"
           >
-            <ShoppingCart className="w-4 h-4" />
+            <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </button>
         </div>
       </div>

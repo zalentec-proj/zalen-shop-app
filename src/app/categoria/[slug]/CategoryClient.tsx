@@ -103,7 +103,7 @@ export default function CategoryClient({
         searchQuery={searchQuery}
       />
 
-      <main className="max-w-7xl mx-auto px-4 pt-44 pb-20 md:px-8 lg:pt-48">
+      <main className="mx-auto max-w-7xl px-3 pb-14 pt-24 md:px-8 md:pt-44 lg:pt-48">
         {/* Header */}
         <div className="flex items-end justify-between mb-10 flex-wrap gap-4">
           <div>
@@ -155,7 +155,7 @@ export default function CategoryClient({
             <Link href="/" className="text-blue-primary text-sm hover:underline">Ver todos os produtos</Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
             {sorted.map((product) => {
               const variant = product.variants[0];
               const price = variant?.price ?? 0;
@@ -164,10 +164,10 @@ export default function CategoryClient({
                 <Link
                   key={product.id}
                   href={`/produto/${product.slug}`}
-                  className="group glass-panel rounded-[24px] overflow-hidden flex flex-col transition-all duration-500 hover:border-white/20 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.55)] relative"
+                  className="group relative flex flex-col overflow-hidden rounded-2xl glass-panel transition-all duration-500 hover:-translate-y-2 hover:border-white/20 hover:shadow-[0_20px_40px_rgba(0,0,0,0.55)] md:rounded-[24px]"
                 >
                   {/* Image */}
-                  <div className="w-full h-52 relative overflow-hidden bg-gradient-to-b from-white/[0.04] via-transparent to-transparent border-b border-brand-border-soft flex items-center justify-center p-4">
+                  <div className="relative flex h-32 w-full items-center justify-center overflow-hidden border-b border-brand-border-soft bg-gradient-to-b from-white/[0.04] via-transparent to-transparent p-2 sm:h-44 sm:p-3 md:h-52 md:p-4">
                     {product.isNew && (
                       <span className="absolute top-3 left-3 z-10 bg-blue-primary/10 border border-blue-primary/40 rounded-full px-2.5 py-0.5 text-[9px] font-bold text-blue-primary uppercase tracking-wider">
                         Novo
@@ -176,15 +176,15 @@ export default function CategoryClient({
                     <img
                       src={product.images[0]?.url}
                       alt={product.images[0]?.alt ?? product.name}
-                      className="w-full h-full object-cover group-hover:scale-110 drop-shadow-[0_12px_24px_rgba(0,0,0,0.6)] transition-all duration-500 select-none"
+                      className="h-full w-full select-none object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.6)] transition-all duration-500 group-hover:scale-105"
                     />
                   </div>
 
                   {/* Info */}
-                  <div className="p-5 flex flex-col gap-3">
+                  <div className="flex flex-col gap-2 p-3 sm:gap-3 sm:p-4 md:p-5">
                     <div>
-                      <span className="text-[10px] font-bold tracking-widest text-brand-muted uppercase">{product.brand}</span>
-                      <h3 className="text-[15px] font-bold text-white tracking-tight line-clamp-1 group-hover:text-blue-primary transition-colors mt-0.5">
+                      <span className="hidden text-[10px] font-bold uppercase tracking-widest text-brand-muted sm:block">{product.brand}</span>
+                      <h3 className="mt-0.5 min-h-8 line-clamp-2 text-[12px] font-bold leading-4 tracking-tight text-white transition-colors group-hover:text-blue-primary sm:min-h-0 sm:text-[15px] sm:leading-5">
                         {product.name}
                       </h3>
                     </div>
@@ -201,19 +201,19 @@ export default function CategoryClient({
                     )}
 
                     <div>
-                      <span className="text-[11px] text-brand-muted">12x de R$ {monthly}</span>
-                      <p className="text-lg font-extrabold text-green-accent">
+                      <span className="text-[10px] text-brand-muted sm:text-[11px]">12x de R$ {monthly}</span>
+                      <p className="text-base font-extrabold text-green-accent sm:text-lg">
                         R$ {price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
                     </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-brand-border-soft">
-                      <span className="text-xs font-semibold text-brand-white group-hover:text-blue-primary transition-colors">
+                    <div className="flex items-center justify-between border-t border-brand-border-soft pt-2">
+                      <span className="text-[11px] font-semibold text-brand-white transition-colors group-hover:text-blue-primary sm:text-xs">
                         Ver detalhes
                       </span>
                       <div className="flex items-center gap-2">
-                        <div className="w-9 h-9 rounded-xl bg-blue-primary/10 border border-blue-primary/20 text-blue-primary flex items-center justify-center group-hover:bg-blue-primary group-hover:text-white transition-all">
-                          <ShoppingCart className="w-4 h-4" />
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-blue-primary/20 bg-blue-primary/10 text-blue-primary transition-all group-hover:bg-blue-primary group-hover:text-white sm:h-9 sm:w-9 sm:rounded-xl">
+                          <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         </div>
                         <ArrowUpRight className="w-4 h-4 text-brand-muted group-hover:text-white transition-colors" />
                       </div>

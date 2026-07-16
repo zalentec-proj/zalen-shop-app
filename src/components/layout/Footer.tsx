@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Instagram, ShieldCheck } from 'lucide-react';
 import Logo from '../ui/Logo';
 import type { StorefrontCategory } from '../../types';
 
@@ -13,6 +13,8 @@ const fallbackCategories = [
   { name: 'Acessórios', slug: 'acessorios' },
   { name: 'Kits e Combos', slug: 'kits-e-combos' },
 ];
+
+const INSTAGRAM_URL = 'https://www.instagram.com/dronesepartsbrasildji/';
 
 export default function Footer({
   categories = [],
@@ -43,6 +45,15 @@ export default function Footer({
           <p className="text-[14px] leading-relaxed text-brand-muted font-normal max-w-sm">
             A Brasil Drones & Parts é especializada em drones e peças de alta performance, oferecendo tecnologia, suporte e segurança para elevar seus projetos de mapeamento, filmagem ou inspeção técnica.
           </p>
+          <a
+            href={INSTAGRAM_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-10 w-fit items-center gap-2 rounded-lg border border-white/10 px-3 text-sm font-semibold text-brand-muted transition hover:border-[#E1306C]/50 hover:text-[#E1306C]"
+          >
+            <Instagram className="h-4 w-4" />
+            @dronesepartsbrasildji
+          </a>
         </div>
 
         {/* Categorias links */}
