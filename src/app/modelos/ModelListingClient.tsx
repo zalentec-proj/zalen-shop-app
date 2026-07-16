@@ -83,6 +83,22 @@ export default function ModelListingClient({
       <Navbar
         categories={storefrontCategories}
         navigation={navigation}
+        productPreviews={products.map((product) => {
+          const variant = product.variants[0];
+
+          return {
+            id: product.id,
+            name: product.name,
+            href: `/produto/${product.slug}`,
+            imageUrl: product.images[0]?.url,
+            price: variant?.promotionalPrice ?? variant?.price,
+            searchText: [
+              variant?.sku,
+              product.brand,
+              ...product.categories.map((item) => item.name),
+            ].filter(Boolean).join(' '),
+          };
+        })}
         cartItemsCount={cartItemsCount}
         onCartToggle={() => {
           window.location.href = '/carrinho';
@@ -96,7 +112,7 @@ export default function ModelListingClient({
         searchQuery={searchQuery}
       />
 
-      <main className="mx-auto max-w-7xl px-4 pb-16 pt-32 md:px-8">
+      <main className="mx-auto max-w-7xl px-4 pb-16 pt-44 md:px-8 lg:pt-48">
         <header className="flex flex-col gap-5 border-b border-brand-border-soft pb-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-primary">

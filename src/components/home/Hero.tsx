@@ -208,7 +208,7 @@ export default function Hero({ onExploreClick, onPeasClick }: HeroProps) {
 
   return (
     <section
-      className="relative flex min-h-[100vh] w-full items-center justify-center overflow-hidden bg-[#03060d] pt-28 pb-14 lg:py-0"
+      className="relative flex min-h-[100svh] w-full items-center justify-center overflow-hidden bg-[#03060d] pb-14 pt-44 lg:pb-14 lg:pt-44"
       id="home"
       aria-label="Destaques Brasil Drones"
     >

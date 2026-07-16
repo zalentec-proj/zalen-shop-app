@@ -74,6 +74,22 @@ export default function CategoryClient({
       <Navbar
         categories={storefrontCategories}
         navigation={navigation}
+        productPreviews={products.map((product) => {
+          const variant = product.variants[0];
+
+          return {
+            id: product.id,
+            name: product.name,
+            href: `/produto/${product.slug}`,
+            imageUrl: product.images[0]?.url,
+            price: variant?.promotionalPrice ?? variant?.price,
+            searchText: [
+              variant?.sku,
+              product.brand,
+              ...product.categories.map((item) => item.name),
+            ].filter(Boolean).join(' '),
+          };
+        })}
         cartItemsCount={cartItemsCount}
         onCartToggle={() => {
           window.location.href = '/carrinho';
@@ -87,7 +103,7 @@ export default function CategoryClient({
         searchQuery={searchQuery}
       />
 
-      <main className="max-w-7xl mx-auto px-4 md:px-8 pt-32 pb-20">
+      <main className="max-w-7xl mx-auto px-4 pt-44 pb-20 md:px-8 lg:pt-48">
         {/* Header */}
         <div className="flex items-end justify-between mb-10 flex-wrap gap-4">
           <div>

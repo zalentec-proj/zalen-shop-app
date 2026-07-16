@@ -6,13 +6,11 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Snapshot
 
-- Atualizado em: 2026-07-15
+- Atualizado em: 2026-07-16
 - Branch: `refactor/migrate-to-next`
-- Commit remoto atual: `8533a5e` — `Update Brasil Drones logo`
-- Working tree no momento deste registro: contém apenas automações/auditorias
-  locais não rastreadas (`audit-bling-marketplaces.js` e
-  `capture-and-audit-bling-marketplaces.js`). Não incluir esses arquivos em
-  commits sem decisão explícita.
+- Commit base atual: `4406d9b` — `fix(catalog): simplify model compatibility selection`
+- Working tree no momento deste registro: contém a reorganização não publicada
+  do navbar público e este handoff. Preserve essas alterações na próxima sessão.
 - Guia de continuidade para outra IDE/máquina: `docs/work-context/IDE_HANDOFF.md`.
 
 ## Contexto permanente
@@ -24,6 +22,17 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Última mudança conhecida
+
+- O navbar público da Brasil Drones foi reorganizado em duas faixas: a superior
+  concentra logo, busca, conta e carrinho; a inferior concentra somente a
+  navegação de categorias. A fonte continua sendo `storefront_navigation_items`,
+  portanto visibilidade, ordem e submenus seguem controlados pelo admin. As
+  páginas de categoria e compatibilidade por modelo receberam espaçamento para
+  o novo cabeçalho fixo. Nos submenus de desktop, a lista de subcategorias é
+  acompanhada por uma prévia navegável de produto do catálogo. Sem acesso local
+  ao Supabase, o fallback preserva linhas e modelos a partir de
+  `drone-model.definitions.ts`; em produção a configuração salva pela loja tem
+  prioridade. Esta alteração ainda não foi publicada.
 
 - A logo do storefront Brasil Drones foi atualizada no asset
   `src/assets/logo brasil.svg` e enviada ao Git no commit `8533a5e`. Se a

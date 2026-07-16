@@ -11,6 +11,10 @@ import {
   isCategoryGroupRoot,
   normalizeCategoryText,
 } from './category-groups';
+import {
+  droneModelDefinitions,
+  droneModelLineDefinitions,
+} from './drone-model.definitions';
 
 export type StorefrontNavigationItemType = 'category' | 'group' | 'custom';
 export type StorefrontNavigationSource = 'database' | 'fallback';
@@ -68,6 +72,32 @@ type NavigationRow = {
 
 const categoryDropdownRootLabels = new Set(['categorias', 'departamentos']);
 
+const fallbackModelNavigationItems: StorefrontNavigationItemInput[] = [
+  ...droneModelLineDefinitions.map((line) => ({
+    id: `fallback-model-line-${line.slug}`,
+    label: line.name,
+    type: 'custom' as const,
+    href: line.slug === 'flip' ? '/modelos/flip' : `/modelos/linha/${line.slug}`,
+    position: 30 + line.position,
+    enabled: true,
+    showInNavbar: true,
+    showInCategoriesDropdown: false,
+    opensInDropdown: line.slug !== 'flip',
+  })),
+  ...droneModelDefinitions.map((model) => ({
+    id: `fallback-model-${model.slug}`,
+    label: model.name,
+    type: 'custom' as const,
+    href: `/modelos/${model.slug}`,
+    parentId: `fallback-model-line-${model.lineSlug}`,
+    position: model.position,
+    enabled: true,
+    showInNavbar: false,
+    showInCategoriesDropdown: false,
+    opensInDropdown: false,
+  })),
+];
+
 const fallbackDefinitions: StorefrontNavigationItemInput[] = [
   {
     id: 'fallback-categorias',
@@ -83,11 +113,6 @@ const fallbackDefinitions: StorefrontNavigationItemInput[] = [
     ['Drones', 'drones'],
     ['Baterias', 'baterias'],
     ['Master Airscrew', 'master-airscrew'],
-    ['Mini 3', 'mini-3'],
-    ['Flip', 'flip'],
-    ['Linha Air', 'linha-air'],
-    ['Linha Mavic', 'linha-mavic'],
-    ['Linha Avata', 'linha-avata'],
   ].map(([label, categorySlug], index) => ({
     id: `fallback-navbar-${categorySlug}`,
     label,
@@ -97,10 +122,9 @@ const fallbackDefinitions: StorefrontNavigationItemInput[] = [
     enabled: true,
     showInNavbar: true,
     showInCategoriesDropdown: true,
-    opensInDropdown: ['linha-air', 'linha-mavic', 'linha-avata'].includes(
-      categorySlug
-    ),
+    opensInDropdown: false,
   })),
+  ...fallbackModelNavigationItems,
   ...[
     ['Peças', 'pecas'],
     ['Acessórios', 'acessorios'],
