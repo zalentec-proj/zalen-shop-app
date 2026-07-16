@@ -23,6 +23,34 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
+- Em 2026-07-16 foi concluída a auditoria e correção de integridade do admin.
+  O dashboard agora calcula faturamento, ticket médio, série temporal e consumo
+  de clientes apenas a partir de pedidos com `payment_status = 'paid'`; valores
+  pendentes permanecem em fila separada. A distribuição de categorias deixou
+  de usar percentuais fixos e passa a derivar os valores dos itens de pedidos
+  pagos e dos vínculos reais de produto-categoria.
+- As ações que criam clientes e os endpoints operacionais do Bling passaram a
+  exigir função operacional (`owner`, `admin` ou `operator`); OAuth e
+  homologação exigem `owner` ou `admin`. A interface também desabilita essas
+  operações para leitor e quando a origem exibida é mock/indisponível. O admin
+  não exibe mais perfil, notificações, meios de pagamento ou domínio próprio
+  como se fossem configurações persistidas quando não são.
+- Foi aplicada ao projeto Supabase de produção a migration
+  `20260716143538_harden_admin_data_integrity`. Ela fixa o `search_path` dos
+  dois gatilhos apontados pelo advisor, mantém inativos os 38 links de modelos
+  até o deploy seguro e cria a restrição que impede novos pedidos sem pagamento
+  de avançar para processamento, envio ou entrega. A validação posterior
+  confirmou zero links de modelo ativos e o `search_path` vazio nos dois
+  gatilhos.
+- Há um único pedido histórico já enviado com pagamento pendente. Ele foi
+  preservado: não é seguro inferir se o correto é confirmar o pagamento ou
+  reverter a expedição. Um operador deve resolver esse registro no processo
+  operacional; depois disso, validar a restrição do banco se desejar remover o
+  estado `NOT VALID`.
+- O Security Advisor agora só aponta a proteção contra senhas vazadas do
+  Supabase Auth como desativada. Essa opção precisa ser habilitada no painel do
+  projeto, pois não há alteração de schema ou de código que a substitua.
+
 - O navbar público da Brasil Drones foi reorganizado em duas faixas: a superior
   concentra logo, busca, conta e carrinho; a inferior concentra somente a
   navegação de categorias. A fonte continua sendo `storefront_navigation_items`,
@@ -196,6 +224,9 @@ Supabase estiverem disponíveis novamente.
 
 ## Próximo passo exato
 
+0. Resolver manualmente o pedido histórico que está como enviado sem pagamento
+   confirmado; registrar a decisão operacional antes de validar integralmente a
+   restrição `orders_fulfillment_requires_payment`.
 1. Copiar, diretamente do painel de credenciais de produção, `Client ID` e
    `Client Secret` do Mercado Pago para as variáveis sensíveis da Vercel,
    sem expor os valores em terminal, código ou documentação.
@@ -235,6 +266,9 @@ concluir a troca coordenada do segredo de cron.
 
 ## Validação
 
+- A correção de integridade do admin passou em `npm run lint`, `npm run
+  test:unit` (53 testes em 13 arquivos) e `npm run build`. A migração foi
+  aplicada e verificada no Supabase de produção sem expor dados sensíveis.
 - Documentação obrigatória do projeto e o handoff foram relidos antes da alteração.
 - A interface de compatibilidade compilou e a checagem de TypeScript passou
   com `npm run lint`; a suíte Vitest passou com 53 testes. O build de produção

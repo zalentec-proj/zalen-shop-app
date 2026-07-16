@@ -5,13 +5,14 @@ import { ArrowLeft, ExternalLink, ShieldCheck, Wifi } from 'lucide-react';
 import { AdminSidebar } from '@/app/admin/AdminSidebar';
 import { AdminPageFrame } from '@/components/admin/AdminLayout';
 import { logoutAction } from '@/app/login/actions';
-import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import { platformBrand } from '@/lib/branding/platform-brand';
 import { noindexMetadata } from '@/modules/seo/seo.service';
 import {
   checkStoreRole,
   getCurrentUser,
   canAccessStore,
+  storeManagementRoles,
+  storeOperationalRoles,
 } from '@/modules/auth/auth.service';
 import { getBlingAdminState } from '@/modules/integrations/bling/bling.service';
 import {
@@ -104,14 +105,15 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
   }
 
   const state = await getBlingAdminState(store.id);
-  const testOrderAccess = await checkStoreRole(store.id, [
-    'store_owner',
-    'store_admin',
-  ]);
+  const managementAccess = await checkStoreRole(store.id, storeManagementRoles);
+  const operationalAccess = await checkStoreRole(store.id, storeOperationalRoles);
   const params = (await searchParams) ?? {};
   const error = typeof params.error === 'string' ? params.error : undefined;
   const status = state.status in statusLabel ? state.status : 'pending_credentials';
-  const canRunBlingJobs = status === 'connected' && state.isEncryptionConfigured;
+  const canRunBlingJobs =
+    status === 'connected' &&
+    state.isEncryptionConfigured &&
+    operationalAccess.allowed;
   const statusCards = [
     { label: 'Ambiente', value: state.environment },
     { label: 'Último sync', value: formatOptionalDateTime(state.lastSyncAt) ?? 'Sem sync' },
@@ -129,9 +131,10 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
     <div className="min-h-screen bg-[#050A14] text-white">
       <AdminSidebar
         activeKey="bling"
+        storeShortName={store.shortName}
         footerLabel="Conectores"
         footerTitle="ERP principal"
-        footerDescription={`Bling planejado para ${currentStoreBrand.shortName}.`}
+        footerDescription={`ERP da loja ${store.shortName}.`}
       />
 
       <main className="xl:pl-60">
@@ -153,7 +156,7 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
                   Bling
                 </h1>
                 <p className="mt-1 max-w-2xl text-sm text-slate-400">
-                  Operação server-side para {currentStoreBrand.shortName}; tokens nunca são exibidos no frontend.
+                  Operação server-side para {store.shortName}; tokens nunca são exibidos no frontend.
                 </p>
               </div>
 
@@ -183,7 +186,7 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <StatusBadge status={status} />
-                    {state.canStartOAuth ? (
+                    {state.canStartOAuth && managementAccess.allowed ? (
                       <a
                         href={state.connectPath}
                         className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-3 py-2 text-xs font-semibold text-white transition hover:brightness-110"
@@ -197,7 +200,9 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
                         disabled
                         className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-500"
                       >
-                        Configuração pendente
+                        {state.canStartOAuth
+                          ? 'Permissão de gestão necessária'
+                          : 'Configuração pendente'}
                         <ShieldCheck className="h-3.5 w-3.5" />
                       </button>
                     )}
@@ -278,13 +283,13 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
                   </section>
 
                   <BlingHomologationPanel
-                    canRun={canRunBlingJobs}
+                    canRun={canRunBlingJobs && managementAccess.allowed}
                     initialStatus={state.homologation?.status}
                     initialSummary={state.homologation?.summary}
                   />
 
                   <BlingTestOrderSendPanel
-                    canRun={canRunBlingJobs && testOrderAccess.allowed}
+                    canRun={canRunBlingJobs && managementAccess.allowed}
                   />
                 </aside>
               </div>

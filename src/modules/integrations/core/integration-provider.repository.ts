@@ -205,28 +205,6 @@ function mapProvider(row: ProviderRow): IntegrationProvider {
   };
 }
 
-function ensureInitialProviders(
-  providers: IntegrationProvider[]
-): IntegrationProvider[] {
-  const providersByKey = new Map(
-    providers.map((provider) => [provider.key, provider])
-  );
-
-  mockIntegrationProviders.forEach((provider) => {
-    if (!providersByKey.has(provider.key)) {
-      providersByKey.set(provider.key, provider);
-    }
-  });
-
-  return Array.from(providersByKey.values()).sort((left, right) => {
-    if (left.category === right.category) {
-      return left.name.localeCompare(right.name);
-    }
-
-    return left.category.localeCompare(right.category);
-  });
-}
-
 export async function listIntegrationProvidersWithSourceFromRepository(): Promise<
   IntegrationRepositoryResult<IntegrationProvider[]>
 > {
@@ -262,7 +240,7 @@ export async function listIntegrationProvidersWithSourceFromRepository(): Promis
   }
 
   return {
-    data: ensureInitialProviders((data as ProviderRow[]).map(mapProvider)),
+    data: (data as ProviderRow[]).map(mapProvider),
     source: 'supabase',
   };
 }

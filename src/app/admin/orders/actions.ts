@@ -91,6 +91,12 @@ export async function upsertOrderShipmentAction(formData: FormData) {
     return;
   }
 
+  const order = await getOrderById(store.id, parsed.data.orderId);
+
+  if (!order || order.paymentStatus !== 'paid') {
+    return;
+  }
+
   const shipment = await upsertManualShipment({
     storeId: store.id,
     orderId: parsed.data.orderId,
@@ -119,16 +125,12 @@ export async function upsertOrderShipmentAction(formData: FormData) {
     ...getOrderShipmentState(parsed.data.status),
   });
 
-  const order = await getOrderById(store.id, parsed.data.orderId);
-
-  if (order) {
-    await sendShipmentTrackingStoreEmail({
-      storeId: store.id,
-      storeName: store.shortName,
-      order,
-      shipment,
-    }).catch(() => undefined);
-  }
+  await sendShipmentTrackingStoreEmail({
+    storeId: store.id,
+    storeName: store.shortName,
+    order,
+    shipment,
+  }).catch(() => undefined);
 
   revalidatePath('/admin');
   revalidatePath('/conta');

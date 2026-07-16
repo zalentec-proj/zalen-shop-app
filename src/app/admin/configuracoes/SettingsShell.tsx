@@ -23,6 +23,7 @@ import {
 type AdminAccessRole = PlatformRole | StoreRole;
 
 interface SettingsShellProps {
+  storeShortName: string;
   adminUser: {
     email?: string;
     role: AdminAccessRole;
@@ -111,7 +112,11 @@ function getSettingsPageMeta(pathname: string) {
   };
 }
 
-export function SettingsShell({ adminUser, children }: SettingsShellProps) {
+export function SettingsShell({
+  storeShortName,
+  adminUser,
+  children,
+}: SettingsShellProps) {
   const pathname = usePathname();
   const pageMeta = getSettingsPageMeta(pathname);
   const adminInitials = initialsFromEmail(adminUser.email);
@@ -122,6 +127,7 @@ export function SettingsShell({ adminUser, children }: SettingsShellProps) {
     <div className="min-h-screen bg-[#050A14] text-[13px] text-slate-100">
       <AdminSidebar
         activeKey={getSettingsSidebarKey(pathname)}
+        storeShortName={storeShortName}
         footerLabel="Sistema"
         footerTitle="Configurações da loja"
         footerDescription="Regras visuais e operacionais da loja ativa."
@@ -178,10 +184,11 @@ export function SettingsShell({ adminUser, children }: SettingsShellProps) {
 
                 <button
                   type="button"
+                  disabled
                   className="inline-flex items-center gap-2 rounded-lg border border-white/8 bg-[#081225] px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-[#1E3DFF]/35 hover:text-white"
                 >
                   <SlidersHorizontal className="h-3.5 w-3.5" />
-                  Exportar visão
+                  Exportação indisponível
                 </button>
               </div>
             </header>

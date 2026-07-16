@@ -62,21 +62,23 @@ function getStaticPaymentProviders(): PaymentProviderCard[] {
   return [
     {
       name: 'Pagamento manual',
-      status: 'active',
-      summary: 'Método operacional para combinar pagamento fora da loja, sem captura automática.',
+      status: 'future',
+      summary: 'Método planejado para combinar pagamento fora da loja, sem captura automática.',
       sellsWith: ['Transferência', 'Combinar com vendedor'],
-      note: 'Sem conciliação automática. Requer confirmação operacional do pedido.',
-      action: 'Configurar',
+      note: 'Não há configuração, confirmação de pagamento ou criação de pedido implementadas.',
+      action: 'Não disponível',
       icon: Landmark,
+      actionDisabled: true,
     },
     {
       name: 'Pix manual',
-      status: 'active',
-      summary: 'Chave Pix exibida ao cliente, com confirmação manual pelo operador.',
+      status: 'future',
+      summary: 'Método planejado para chave Pix e confirmação manual pelo operador.',
       sellsWith: ['Pix copia e cola', 'Chave Pix'],
-      note: 'Não valida pagamento em tempo real e não usa webhook.',
-      action: 'Configurar',
+      note: 'Não há chave Pix persistida, confirmação de pagamento ou webhook configurados.',
+      action: 'Não disponível',
       icon: QrCode,
+      actionDisabled: true,
     },
     {
       name: 'Pagar.me',
@@ -132,7 +134,7 @@ export default async function PaymentSettingsPage() {
     <div className="space-y-4">
       <SettingsPanel
         title="Meios de pagamento"
-        description="Configure como a loja poderá receber pagamentos. Mercado Pago já opera em beta via Checkout Pro."
+        description="Estado dos meios de pagamento da loja ativa. Apenas o Mercado Pago possui fluxo implementado."
         action={<SettingsActionButton variant="primary" disabled>Novo meio</SettingsActionButton>}
       >
         <div className="flex flex-wrap gap-2">
@@ -224,7 +226,7 @@ export default async function PaymentSettingsPage() {
         <SettingsPanel title="Guardrails" description="Limites desta etapa.">
           <div className="space-y-2">
             {[
-              'Mercado Pago usa Checkout Pro server-side nesta beta.',
+              'Quando conectado, Mercado Pago usa Checkout Pro apenas no servidor.',
               'Credenciais continuam fora do frontend e não aparecem no admin.',
               'Webhook assinado e retorno de pagamento usam a mesma conciliação.',
             ].map((item) => (

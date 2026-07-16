@@ -25,6 +25,16 @@ const storeRoles: StoreRole[] = [
   'store_operator',
   'store_viewer',
 ];
+
+export const storeManagementRoles: StoreRole[] = [
+  'store_owner',
+  'store_admin',
+];
+
+export const storeOperationalRoles: StoreRole[] = [
+  ...storeManagementRoles,
+  'store_operator',
+];
 const legacyStoreRoleMap: Record<string, StoreRole> = {
   owner: 'store_owner',
   admin: 'store_admin',
@@ -208,7 +218,7 @@ export async function getCurrentMembership(
 
 export async function checkStoreRole(
   storeId: string,
-  roles: AdminRole[]
+  roles: readonly AdminRole[]
 ): Promise<RoleCheckResult> {
   const user = await getCurrentUser();
 
@@ -234,7 +244,7 @@ export async function checkStoreRole(
 
 export async function hasStoreRole(
   storeId: string,
-  roles: AdminRole[]
+  roles: readonly AdminRole[]
 ): Promise<boolean> {
   const result = await checkStoreRole(storeId, roles);
   return result.allowed;

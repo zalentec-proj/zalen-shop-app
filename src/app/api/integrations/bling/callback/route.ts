@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { canAccessStore, getCurrentUser } from '@/modules/auth/auth.service';
+import {
+  checkStoreRole,
+  storeManagementRoles,
+} from '@/modules/auth/auth.service';
 import { getBlingOAuthConfig } from '@/modules/integrations/bling/bling.config';
 import { exchangeBlingAuthorizationCode } from '@/modules/integrations/bling/bling.oauth';
 import {
@@ -37,14 +40,14 @@ export async function GET(request: NextRequest) {
   const state = request.nextUrl.searchParams.get('state');
   const providerError = request.nextUrl.searchParams.get('error');
   const expectedState = request.cookies.get(BLING_OAUTH_STATE_COOKIE_NAME)?.value;
-  const user = await getCurrentUser();
   const store = await resolveCurrentStoreFromRequest(request);
+  const access = await checkStoreRole(store.id, storeManagementRoles);
 
-  if (!user) {
+  if (!access.user) {
     return redirectToDetail(origin, 'missing_session');
   }
 
-  if (!(await canAccessStore(user.id, store.id))) {
+  if (!access.allowed) {
     return redirectToDetail(origin, 'access_denied');
   }
 

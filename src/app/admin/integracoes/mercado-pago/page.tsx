@@ -18,10 +18,14 @@ import {
   AdminPageFrame,
 } from '@/components/admin/AdminLayout';
 import { logoutAction } from '@/app/login/actions';
-import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import { platformBrand } from '@/lib/branding/platform-brand';
 import { noindexMetadata } from '@/modules/seo/seo.service';
-import { canAccessStore, getCurrentUser } from '@/modules/auth/auth.service';
+import {
+  canAccessStore,
+  checkStoreRole,
+  getCurrentUser,
+  storeManagementRoles,
+} from '@/modules/auth/auth.service';
 import { getMercadoPagoAdminState } from '@/modules/integrations/mercado-pago/mercado-pago.account.service';
 import type {
   MercadoPagoEnvironment,
@@ -125,7 +129,13 @@ function StatusBadge({ status }: { status: MercadoPagoRuntimeStatus }) {
   );
 }
 
-function EnvironmentCard({ state }: { state: MercadoPagoEnvironmentAdminState }) {
+function EnvironmentCard({
+  state,
+  canManage,
+}: {
+  state: MercadoPagoEnvironmentAdminState;
+  canManage: boolean;
+}) {
   const connected = state.status === 'connected' || state.status === 'expired';
   const primaryActionLabel = connected ? 'Reconectar' : 'Conectar';
   const accountRows = [
@@ -175,7 +185,7 @@ function EnvironmentCard({ state }: { state: MercadoPagoEnvironmentAdminState })
         </div>
 
         <div className="space-y-2">
-          {state.canStartOAuth ? (
+          {state.canStartOAuth && canManage ? (
             <a
               href={state.connectPath}
               className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-3 py-2 text-xs font-semibold text-white transition hover:brightness-110"
@@ -189,7 +199,9 @@ function EnvironmentCard({ state }: { state: MercadoPagoEnvironmentAdminState })
               disabled
               className="inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-500"
             >
-              Configuração pendente
+              {state.canStartOAuth
+                ? 'Permissão de gestão necessária'
+                : 'Configuração pendente'}
               <ShieldCheck className="h-3.5 w-3.5" />
             </button>
           )}
@@ -198,7 +210,7 @@ function EnvironmentCard({ state }: { state: MercadoPagoEnvironmentAdminState })
             <input type="hidden" name="environment" value={state.environment} />
             <button
               type="submit"
-              disabled={!state.canTestConnection}
+              disabled={!canManage || !state.canTestConnection}
               className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/8 bg-[#081225] px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-[#1E3DFF]/35 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
               Testar conexão
@@ -210,7 +222,7 @@ function EnvironmentCard({ state }: { state: MercadoPagoEnvironmentAdminState })
             <input type="hidden" name="environment" value={state.environment} />
             <button
               type="submit"
-              disabled={state.active || !state.canActivate}
+              disabled={!canManage || state.active || !state.canActivate}
               className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/30 bg-[#1E3DFF]/15 px-3 py-2 text-xs font-semibold text-[#BFD0FF] transition hover:border-[#1E3DFF]/55 hover:text-white disabled:cursor-not-allowed disabled:border-white/8 disabled:bg-white/5 disabled:text-slate-500"
             >
               {state.active
@@ -224,7 +236,7 @@ function EnvironmentCard({ state }: { state: MercadoPagoEnvironmentAdminState })
             <input type="hidden" name="environment" value={state.environment} />
             <button
               type="submit"
-              disabled={!connected}
+              disabled={!canManage || !connected}
               className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/8 bg-[#081225] px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-rose-400/35 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
               Desconectar
@@ -277,7 +289,10 @@ export default async function MercadoPagoIntegrationPage({
     redirect('/admin');
   }
 
-  const state = await getMercadoPagoAdminState(store.id);
+  const [state, managementAccess] = await Promise.all([
+    getMercadoPagoAdminState(store.id),
+    checkStoreRole(store.id, storeManagementRoles),
+  ]);
   const params = (await searchParams) ?? {};
   const error = firstParam(params.error);
   const connected = firstParam(params.connected);
@@ -289,9 +304,10 @@ export default async function MercadoPagoIntegrationPage({
     <div className="min-h-screen bg-[#050A14] text-white">
       <AdminSidebar
         activeKey="payments"
+        storeShortName={store.shortName}
         footerLabel="Conectores"
         footerTitle="Pagamentos"
-        footerDescription={`Mercado Pago por loja para ${currentStoreBrand.shortName}.`}
+        footerDescription={`Mercado Pago por loja para ${store.shortName}.`}
       />
 
       <main className="xl:pl-60">
@@ -377,7 +393,7 @@ export default async function MercadoPagoIntegrationPage({
                       {environmentLabel[state.activeEnvironment]}
                     </h2>
                     <p className="mt-1 text-xs text-slate-400">
-                      A loja permanece em teste até alguém ativar produção explicitamente.
+                      Ambiente ativo persistido para a loja e usado no checkout.
                     </p>
                   </div>
                   <div className="rounded-lg border border-white/8 bg-[#081225] px-3 py-2 text-xs text-slate-300">
@@ -409,7 +425,7 @@ export default async function MercadoPagoIntegrationPage({
                       {[
                         'Checkout cria pagamento com o ambiente ativo desta loja.',
                         'Webhook valida assinatura por ambiente e processa pelo store_id recebido.',
-                        'Fallback ENV fica restrito à Brasil Drones até reconectar via OAuth.',
+                        'Fallback de ambiente permanece limitado à camada server-side configurada.',
                       ].map((item) => (
                         <div
                           key={item}
@@ -427,6 +443,7 @@ export default async function MercadoPagoIntegrationPage({
                     <EnvironmentCard
                       key={environmentState.environment}
                       state={environmentState}
+                      canManage={managementAccess.allowed}
                     />
                   ))}
                 </section>

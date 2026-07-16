@@ -80,6 +80,58 @@ function mapStoreIntegration(row: StoreIntegrationRow): StoreIntegration {
   };
 }
 
+const environmentPriority: Record<string, number> = {
+  production: 0,
+  test: 1,
+  sandbox: 2,
+};
+
+const statusPriority: Record<StoreIntegrationStatus, number> = {
+  connected: 0,
+  syncing: 1,
+  pending_credentials: 2,
+  error: 3,
+  disconnected: 4,
+  disabled: 5,
+  planned: 6,
+};
+
+function compareStoreIntegrations(
+  left: StoreIntegration,
+  right: StoreIntegration
+) {
+  const environmentDifference =
+    (environmentPriority[left.environment] ?? Number.MAX_SAFE_INTEGER) -
+    (environmentPriority[right.environment] ?? Number.MAX_SAFE_INTEGER);
+
+  if (environmentDifference !== 0) {
+    return environmentDifference;
+  }
+
+  const statusDifference =
+    statusPriority[left.status] - statusPriority[right.status];
+
+  if (statusDifference !== 0) {
+    return statusDifference;
+  }
+
+  return right.updatedAt.localeCompare(left.updatedAt);
+}
+
+function selectPreferredIntegrations(rows: StoreIntegrationRow[]) {
+  const integrationsByProviderKey = new Map<string, StoreIntegration>();
+
+  rows.map(mapStoreIntegration).forEach((integration) => {
+    const current = integrationsByProviderKey.get(integration.providerKey);
+
+    if (!current || compareStoreIntegrations(integration, current) < 0) {
+      integrationsByProviderKey.set(integration.providerKey, integration);
+    }
+  });
+
+  return integrationsByProviderKey;
+}
+
 function mapProvidersWithoutStoreRows(
   source: IntegrationDataSource
 ): IntegrationRepositoryResult<StoreIntegrationListItem[]> {
@@ -131,11 +183,8 @@ export async function listStoreIntegrationsWithSourceFromRepository(
       : mapProvidersWithoutStoreRows('mock');
   }
 
-  const integrationsByProviderKey = new Map(
-    (data as StoreIntegrationRow[]).map((row) => [
-      row.provider_key,
-      mapStoreIntegration(row),
-    ])
+  const integrationsByProviderKey = selectPreferredIntegrations(
+    data as StoreIntegrationRow[]
   );
 
   return {
@@ -143,6 +192,6 @@ export async function listStoreIntegrationsWithSourceFromRepository(
       provider,
       integration: integrationsByProviderKey.get(provider.key),
     })),
-    source: 'supabase',
+    source: providersResult.source,
   };
 }

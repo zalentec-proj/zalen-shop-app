@@ -1,6 +1,9 @@
 import { randomBytes } from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { canAccessStore, getCurrentUser } from '@/modules/auth/auth.service';
+import {
+  checkStoreRole,
+  storeManagementRoles,
+} from '@/modules/auth/auth.service';
 import { getBlingOAuthConfig } from '@/modules/integrations/bling/bling.config';
 import { buildBlingAuthorizationUrl } from '@/modules/integrations/bling/bling.oauth';
 import {
@@ -27,16 +30,16 @@ function redirectToDetail(origin: string, error?: string) {
 
 export async function GET(request: Request) {
   const origin = new URL(request.url).origin;
-  const user = await getCurrentUser();
   const store = await resolveCurrentStoreFromRequest(request);
+  const access = await checkStoreRole(store.id, storeManagementRoles);
 
-  if (!user) {
+  if (!access.user) {
     return NextResponse.redirect(
       new URL(`/login?next=${encodeURIComponent(detailPath)}`, origin)
     );
   }
 
-  if (!(await canAccessStore(user.id, store.id))) {
+  if (!access.allowed) {
     return redirectToDetail(origin, 'access_denied');
   }
 
@@ -65,7 +68,7 @@ export async function GET(request: Request) {
 
   await recordBlingConnectionAttempt({
     storeId: store.id,
-    userId: user.id,
+    userId: access.user.id,
   });
 
   const response = NextResponse.redirect(authorizationUrl);

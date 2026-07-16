@@ -2,7 +2,10 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { canAccessStore, getCurrentUser } from '@/modules/auth/auth.service';
+import {
+  checkStoreRole,
+  storeOperationalRoles,
+} from '@/modules/auth/auth.service';
 import { upsertCustomer } from '@/modules/customers/customer.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 
@@ -15,10 +18,10 @@ const customerFormSchema = z.object({
 });
 
 export async function createAdminCustomerAction(formData: FormData) {
-  const user = await getCurrentUser();
   const store = await resolveCurrentStoreFromHeaders();
+  const access = await checkStoreRole(store.id, storeOperationalRoles);
 
-  if (!user || !(await canAccessStore(user.id, store.id))) {
+  if (!access.allowed) {
     return;
   }
 

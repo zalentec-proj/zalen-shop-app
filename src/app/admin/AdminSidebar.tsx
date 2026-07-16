@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import type { ComponentType } from 'react';
-import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import { platformBrand } from '@/lib/branding/platform-brand';
 import {
   ArrowUpRight,
@@ -69,6 +68,7 @@ interface AdminSidebarGroup {
 
 interface AdminSidebarProps {
   activeKey?: AdminSidebarKey;
+  storeShortName: string;
   counts?: AdminSidebarCounts;
   footerLabel?: string;
   footerTitle?: string;
@@ -204,6 +204,7 @@ function buildSidebarGroups(counts?: AdminSidebarCounts): AdminSidebarGroup[] {
 
 export function AdminSidebar({
   activeKey,
+  storeShortName,
   counts,
   footerLabel = 'Modo',
   footerTitle = 'Fonte atual',
@@ -226,7 +227,7 @@ export function AdminSidebar({
             Loja ativa
           </div>
           <div className="mt-0.5 truncate text-xs font-semibold text-white">
-            {currentStoreBrand.shortName}
+            {storeShortName}
           </div>
         </div>
 

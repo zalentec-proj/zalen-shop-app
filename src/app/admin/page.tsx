@@ -1,14 +1,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import { platformBrand } from '@/lib/branding/platform-brand';
 import { noindexMetadata } from '@/modules/seo/seo.service';
 import {
   listAdminProductsWithSource,
   listCategoriesWithSource,
 } from '@/modules/catalog/product.service';
-import { listCustomers } from '@/modules/customers/customer.service';
+import { listCustomersWithSource } from '@/modules/customers/customer.service';
 import { listOrdersWithSource } from '@/modules/orders/order.service';
 import { listAdminVariantPriceSummaries } from '@/modules/pricing/pricing.service';
 import { listStoreIntegrationsWithSource } from '@/modules/integrations/core/store-integration.service';
@@ -21,17 +20,18 @@ import {
   getOptionalStoreFromResolution,
   resolveStoreFromHeaders,
 } from '@/modules/stores/store-resolution';
+import type { StoreContext } from '@/modules/stores/store.types';
 import { logoutAction } from '@/app/login/actions';
 import AdminDashboard from './AdminDashboard';
 
 export const metadata: Metadata = {
-  title: `${platformBrand.productName} Admin — ${currentStoreBrand.shortName}`,
+  title: `${platformBrand.productName} Admin`,
   ...noindexMetadata,
 };
 
 export const dynamic = 'force-dynamic';
 
-function AccessDenied() {
+function AccessDenied({ store }: { store: StoreContext }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#05070B] px-6 text-white">
       <section className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0A1730]/90 p-7 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
@@ -43,7 +43,7 @@ function AccessDenied() {
         </h1>
         <p className="mt-3 text-sm leading-6 text-slate-400">
           Sua conta está autenticada, mas não possui vínculo com{' '}
-          {currentStoreBrand.name} nem acesso global da plataforma.
+          {store.name} nem acesso global da plataforma.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <form action={logoutAction}>
@@ -55,7 +55,7 @@ function AccessDenied() {
             </button>
           </form>
           <Link
-            href={currentStoreBrand.storefrontPath}
+            href={store.storefrontPath}
             className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-white/20 hover:text-white"
           >
             Voltar para a loja
@@ -85,7 +85,7 @@ export default async function AdminPage() {
   ]);
 
   if (!platformRole && !membership) {
-    return <AccessDenied />;
+    return <AccessDenied store={store} />;
   }
 
   const [
@@ -93,30 +93,31 @@ export default async function AdminPage() {
     categoriesResult,
     ordersResult,
     integrationsResult,
-    customers,
+    customersResult,
     variantPrices,
   ] = await Promise.all([
     listAdminProductsWithSource(store.id),
     listCategoriesWithSource(store.id),
     listOrdersWithSource(store.id),
     listStoreIntegrationsWithSource(store.id),
-    listCustomers(store.id),
+    listCustomersWithSource(store.id),
     listAdminVariantPriceSummaries(store.id),
   ]);
 
   return (
     <AdminDashboard
+      store={store}
       products={productsResult.data}
       categories={categoriesResult.data}
       orders={ordersResult.data}
-      customers={customers}
+      customers={customersResult.data}
       variantPrices={variantPrices}
       integrations={integrationsResult.data}
       dataSources={{
         products: productsResult.source,
         categories: categoriesResult.source,
         orders: ordersResult.source,
-        customers: 'supabase',
+        customers: customersResult.source,
         integrations: integrationsResult.source,
       }}
       adminUser={{

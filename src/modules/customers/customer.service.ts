@@ -9,6 +9,7 @@ import {
   linkCustomerAuthUserInRepository,
   listCustomerAddressesFromRepository,
   listCustomersFromRepository,
+  listCustomersWithSourceFromRepository,
   setDefaultCustomerAddressInRepository,
   upsertCustomerAddressInRepository,
   upsertCustomerInRepository,
@@ -94,6 +95,10 @@ export function parseCheckoutCustomerInput(input: CustomerInput): CustomerInput 
 
 export async function listCustomers(storeId: string): Promise<CustomerListItem[]> {
   return listCustomersFromRepository(storeId);
+}
+
+export async function listCustomersWithSource(storeId: string) {
+  return listCustomersWithSourceFromRepository(storeId);
 }
 
 export async function listCustomerAddresses(input: {

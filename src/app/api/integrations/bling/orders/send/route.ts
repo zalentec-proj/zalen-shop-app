@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import {
-  canAccessStore,
   checkStoreRole,
-  getCurrentUser,
+  storeManagementRoles,
+  storeOperationalRoles,
 } from '@/modules/auth/auth.service';
 import { sendOrderToBling } from '@/modules/integrations/bling/orders/bling-order-send.service';
 import { parseOrderReference } from '@/modules/orders/order-reference';
@@ -42,17 +42,17 @@ function getOrderRequest(body: unknown) {
 }
 
 export async function POST(request: NextRequest) {
-  const user = await getCurrentUser();
   const store = await resolveCurrentStoreFromRequest(request);
+  const operationalAccess = await checkStoreRole(store.id, storeOperationalRoles);
 
-  if (!user) {
+  if (!operationalAccess.user) {
     return NextResponse.json(
       { status: 'error', errorCode: 'missing_session' },
       { status: 401 }
     );
   }
 
-  if (!(await canAccessStore(user.id, store.id))) {
+  if (!operationalAccess.allowed) {
     return NextResponse.json(
       { status: 'error', errorCode: 'access_denied' },
       { status: 403 }
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (orderRequest.isHomologation) {
-    const role = await checkStoreRole(store.id, ['store_owner', 'store_admin']);
+    const role = await checkStoreRole(store.id, storeManagementRoles);
 
     if (!role.allowed) {
       return NextResponse.json(

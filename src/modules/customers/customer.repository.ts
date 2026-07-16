@@ -55,6 +55,12 @@ type OrderMetricRow = {
   order_number: string;
   total: number | string | null;
   created_at: string | null;
+  payment_status: string | null;
+};
+
+export type CustomerListResult = {
+  data: CustomerListItem[];
+  source: 'supabase' | 'unavailable';
 };
 
 type RepositoryError = {
@@ -544,10 +550,16 @@ export async function deleteCustomerAddressInRepository(input: {
 export async function listCustomersFromRepository(
   storeId: string
 ): Promise<CustomerListItem[]> {
+  return (await listCustomersWithSourceFromRepository(storeId)).data;
+}
+
+export async function listCustomersWithSourceFromRepository(
+  storeId: string
+): Promise<CustomerListResult> {
   const supabase = createOptionalAdminClient();
 
   if (!supabase) {
-    return [];
+    return { data: [], source: 'unavailable' };
   }
 
   const { data: customerRows, error: customerError } = await supabase
@@ -557,22 +569,23 @@ export async function listCustomersFromRepository(
     .order('updated_at', { ascending: false });
 
   if (customerError || !customerRows) {
-    return [];
+    return { data: [], source: 'unavailable' };
   }
 
   const customers = customerRows as CustomerRow[];
   const customerIds = customers.map((customer) => customer.id);
 
   if (customerIds.length === 0) {
-    return [];
+    return { data: [], source: 'supabase' };
   }
 
   const [addressesByCustomerId, metricsResult] = await Promise.all([
     getDefaultAddressesByCustomerId(storeId, customerIds),
     supabase
       .from('orders')
-      .select('customer_id, order_number, total, created_at')
+      .select('customer_id, order_number, total, created_at, payment_status')
       .eq('store_id', storeId)
+      .eq('payment_status', 'paid')
       .in('customer_id', customerIds),
   ]);
 
@@ -608,20 +621,25 @@ export async function listCustomersFromRepository(
         lastOrderNumber: isLatest ? order.order_number : current.lastOrderNumber,
       });
     });
+  } else if (metricsResult.error) {
+    logCustomerRepositoryError('list_customer_purchase_metrics', metricsResult.error);
   }
 
-  return customers.map((row) => {
-    const customer = mapCustomer(row, addressesByCustomerId.get(row.id));
-    const metric = metrics.get(row.id);
+  return {
+    data: customers.map((row) => {
+      const customer = mapCustomer(row, addressesByCustomerId.get(row.id));
+      const metric = metrics.get(row.id);
 
-    return {
-      ...customer,
-      ordersCount: metric?.ordersCount ?? 0,
-      totalSpent: metric?.totalSpent ?? 0,
-      lastPurchaseAt: metric?.lastPurchaseAt,
-      lastOrderNumber: metric?.lastOrderNumber,
-    };
-  });
+      return {
+        ...customer,
+        ordersCount: metric?.ordersCount ?? 0,
+        totalSpent: metric?.totalSpent ?? 0,
+        lastPurchaseAt: metric?.lastPurchaseAt,
+        lastOrderNumber: metric?.lastOrderNumber,
+      };
+    }),
+    source: metricsResult.error ? 'unavailable' : 'supabase',
+  };
 }
 
 export async function findCustomerByCheckoutIdentifierFromRepository(input: {

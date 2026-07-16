@@ -32,7 +32,6 @@ import {
   updateProductStockAction,
 } from '@/app/admin/products/actions';
 import { createAdminCustomerAction } from '@/app/admin/customers/actions';
-import { upsertOrderShipmentAction } from '@/app/admin/orders/actions';
 import { AdminSidebar } from '@/app/admin/AdminSidebar';
 import {
   AdminContentGrid,
@@ -42,10 +41,9 @@ import {
   AdminSectionCard,
 } from '@/components/admin/AdminLayout';
 import type { AdminVariantPriceSummary } from '@/modules/pricing/pricing.types';
-import { currentStoreBrand } from '@/lib/branding/current-store-brand';
 import { platformBrand } from '@/lib/branding/platform-brand';
+import type { StoreContext } from '@/modules/stores/store.types';
 import {
-  Bell,
   Boxes,
   ChevronRight,
   CircleAlert,
@@ -55,9 +53,7 @@ import {
   FileWarning,
   Filter,
   Gauge,
-  MoreHorizontal,
   Package2,
-  Pencil,
   Plus,
   RefreshCw,
   LogOut,
@@ -79,15 +75,15 @@ type AdminView =
   | 'customers'
   | 'integrations'
   | 'settings';
-type SettingsSection = 'profile' | 'operations' | 'notifications';
-type CustomerSection = 'list' | 'messages';
+type SettingsSection = 'profile' | 'operations';
 type ProductFilter = 'all' | ProductStatus;
 type ProductSourceFilter = 'all' | 'zalen' | 'bling';
 type OrderFilter = 'all' | OrderStatus;
 type AdminAccessRole = PlatformRole | StoreRole;
-type AdminDataSource = 'supabase' | 'mock';
+type AdminDataSource = 'supabase' | 'mock' | 'unavailable';
 
 interface AdminDashboardProps {
+  store: Pick<StoreContext, 'name' | 'shortName'>;
   products: ProductSummary[];
   categories: Category[];
   orders: OrderListItem[];
@@ -358,7 +354,11 @@ function cn(...classes: Array<string | false | null | undefined>) {
 }
 
 function sourceLabel(source: AdminDataSource) {
-  return source === 'supabase' ? 'Supabase' : 'Mock';
+  if (source === 'supabase') {
+    return 'Supabase';
+  }
+
+  return source === 'mock' ? 'Mock' : 'Indisponível';
 }
 
 function isAdminView(value: string | null): value is AdminView {
@@ -674,27 +674,40 @@ function RevenueLineChart({
   );
 }
 
-function InlineSubmitButton({ idleLabel = 'Salvar' }: { idleLabel?: string }) {
+function InlineSubmitButton({
+  idleLabel = 'Salvar',
+  disabled = false,
+}: {
+  idleLabel?: string;
+  disabled?: boolean;
+}) {
   const { pending } = useFormStatus();
 
   return (
     <button
       type="submit"
-      disabled={pending}
-      className="inline-flex h-8 min-w-16 items-center justify-center rounded-md border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#A9C7FF] transition hover:border-[#1E3DFF]/40 hover:text-white disabled:cursor-wait disabled:opacity-70"
+      disabled={pending || disabled}
+      className="inline-flex h-8 min-w-16 items-center justify-center rounded-md border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#A9C7FF] transition hover:border-[#1E3DFF]/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
     >
       {pending ? 'Salvando' : idleLabel}
     </button>
   );
 }
 
-function ProductStatusForm({ product }: { product: ProductSummary }) {
+function ProductStatusForm({
+  product,
+  canEdit,
+}: {
+  product: ProductSummary;
+  canEdit: boolean;
+}) {
   return (
     <form action={updateProductStatusAction} className="flex items-center gap-2">
       <input type="hidden" name="productId" value={product.id} />
       <select
         name="status"
         defaultValue={product.status}
+        disabled={!canEdit}
         aria-label={`Status de ${product.name}`}
         className={cn(
           'h-8 rounded-md border px-2.5 text-[11px] font-semibold outline-none transition',
@@ -708,12 +721,18 @@ function ProductStatusForm({ product }: { product: ProductSummary }) {
           </option>
         ))}
       </select>
-      <InlineSubmitButton />
+      <InlineSubmitButton disabled={!canEdit} />
     </form>
   );
 }
 
-function ProductStockForm({ product }: { product: ProductSummary }) {
+function ProductStockForm({
+  product,
+  canEdit,
+}: {
+  product: ProductSummary;
+  canEdit: boolean;
+}) {
   return (
     <form action={updateProductStockAction} className="flex items-center gap-2">
       <input type="hidden" name="productId" value={product.id} />
@@ -722,10 +741,11 @@ function ProductStockForm({ product }: { product: ProductSummary }) {
         name="stock"
         min={0}
         defaultValue={product.stock}
+        disabled={!canEdit}
         aria-label={`Estoque de ${product.name}`}
         className="h-8 w-20 rounded-md border border-white/8 bg-[#081225] px-2.5 text-[11px] font-semibold text-white outline-none transition [appearance:textfield] placeholder:text-slate-500 focus:border-[#1E3DFF]/35 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />
-      <InlineSubmitButton />
+      <InlineSubmitButton disabled={!canEdit} />
     </form>
   );
 }
@@ -733,9 +753,11 @@ function ProductStockForm({ product }: { product: ProductSummary }) {
 function ProductBusinessPriceForm({
   product,
   businessPrice,
+  canEdit,
 }: {
   product: ProductSummary;
   businessPrice?: AdminVariantPriceSummary;
+  canEdit: boolean;
 }) {
   if (!product.variantId) {
     return (
@@ -764,105 +786,65 @@ function ProductBusinessPriceForm({
         min={0}
         step="0.01"
         defaultValue={businessPrice?.promotionalPrice ?? businessPrice?.price ?? ''}
+        disabled={!canEdit}
         placeholder={formatCurrency(product.promotionalPrice ?? product.price)}
         aria-label={`Preço PJ de ${product.name}`}
         className="h-8 w-24 rounded-md border border-white/8 bg-[#081225] px-2.5 text-[11px] font-semibold text-white outline-none transition [appearance:textfield] placeholder:text-slate-600 focus:border-[#1E3DFF]/35 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />
-      <InlineSubmitButton idleLabel="PJ" />
+      <InlineSubmitButton idleLabel="PJ" disabled={!canEdit} />
     </form>
   );
 }
 
-function CustomerCreateForm() {
+function CustomerCreateForm({ canCreate }: { canCreate: boolean }) {
   return (
     <form action={createAdminCustomerAction} className="grid gap-2 md:grid-cols-2">
       <input
         name="name"
         required
+        disabled={!canCreate}
         placeholder="Nome do cliente"
         className="h-9 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs text-white outline-none placeholder:text-slate-500 focus:border-[#1E3DFF]/35"
       />
       <input
         name="email"
         type="email"
+        disabled={!canCreate}
         placeholder="E-mail"
         className="h-9 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs text-white outline-none placeholder:text-slate-500 focus:border-[#1E3DFF]/35"
       />
       <input
         name="phone"
+        disabled={!canCreate}
         placeholder="WhatsApp"
         className="h-9 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs text-white outline-none placeholder:text-slate-500 focus:border-[#1E3DFF]/35"
       />
       <input
         name="document"
+        disabled={!canCreate}
         placeholder="CPF/CNPJ"
         className="h-9 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs text-white outline-none placeholder:text-slate-500 focus:border-[#1E3DFF]/35"
       />
       <input
         name="notes"
+        disabled={!canCreate}
         placeholder="Observação operacional"
         className="h-9 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs text-white outline-none placeholder:text-slate-500 focus:border-[#1E3DFF]/35 md:col-span-2"
       />
       <div className="md:col-span-2">
-        <InlineSubmitButton idleLabel="Adicionar" />
+        <InlineSubmitButton idleLabel="Adicionar" disabled={!canCreate} />
       </div>
     </form>
   );
 }
 
-function OrderShipmentForm({ order }: { order: OrderListItem }) {
-  const defaultShipmentStatus =
-    order.status === 'delivered'
-      ? 'delivered'
-      : order.status === 'shipped'
-        ? 'in_transit'
-        : 'posted';
-
-  return (
-    <form
-      action={upsertOrderShipmentAction}
-      className="grid gap-2 rounded-lg border border-white/6 bg-[#081225]/70 p-2 md:grid-cols-[118px_1fr_1fr_1.5fr_auto]"
-    >
-      <input type="hidden" name="orderId" value={order.id} />
-      <select
-        name="status"
-        defaultValue={defaultShipmentStatus}
-        aria-label={`Status de envio do pedido ${order.orderNumber}`}
-        className="h-8 rounded-md border border-white/8 bg-[#050A14] px-2 text-[11px] font-semibold text-white outline-none focus:border-[#1E3DFF]/35"
-      >
-        <option value="posted">Postado</option>
-        <option value="in_transit">Em trânsito</option>
-        <option value="out_for_delivery">Saiu para entrega</option>
-        <option value="delivered">Entregue</option>
-        <option value="exception">Ocorrência</option>
-        <option value="pending">Pendente</option>
-        <option value="cancelled">Cancelado</option>
-      </select>
-      <input
-        name="carrier"
-        placeholder="Transportadora"
-        aria-label={`Transportadora do pedido ${order.orderNumber}`}
-        className="h-8 rounded-md border border-white/8 bg-[#050A14] px-2 text-[11px] font-semibold text-white outline-none placeholder:text-slate-600 focus:border-[#1E3DFF]/35"
-      />
-      <input
-        name="trackingCode"
-        placeholder="Código"
-        aria-label={`Código de rastreio do pedido ${order.orderNumber}`}
-        className="h-8 rounded-md border border-white/8 bg-[#050A14] px-2 text-[11px] font-semibold text-white outline-none placeholder:text-slate-600 focus:border-[#1E3DFF]/35"
-      />
-      <input
-        name="trackingUrl"
-        type="url"
-        placeholder="URL de rastreio"
-        aria-label={`URL de rastreio do pedido ${order.orderNumber}`}
-        className="h-8 rounded-md border border-white/8 bg-[#050A14] px-2 text-[11px] font-semibold text-white outline-none placeholder:text-slate-600 focus:border-[#1E3DFF]/35"
-      />
-      <InlineSubmitButton idleLabel="Rastreio" />
-    </form>
-  );
-}
-
-function OrderBlingRetryButton({ orderId }: { orderId: string }) {
+function OrderBlingRetryButton({
+  orderId,
+  canRetry,
+}: {
+  orderId: string;
+  canRetry: boolean;
+}) {
   const [status, setStatus] = useState<
     'idle' | 'loading' | 'done' | 'skipped' | 'error'
   >('idle');
@@ -908,6 +890,10 @@ function OrderBlingRetryButton({ orderId }: { orderId: string }) {
   }
 
   async function handleRetry() {
+    if (!canRetry) {
+      return;
+    }
+
     setStatus('loading');
     setMessage(undefined);
 
@@ -939,8 +925,8 @@ function OrderBlingRetryButton({ orderId }: { orderId: string }) {
       <button
         type="button"
         onClick={handleRetry}
-        disabled={status === 'loading'}
-        className="rounded-md border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#A9C7FF] transition hover:border-[#1E3DFF]/45 hover:text-white disabled:cursor-wait disabled:opacity-70"
+        disabled={!canRetry || status === 'loading'}
+        className="rounded-md border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#A9C7FF] transition hover:border-[#1E3DFF]/45 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
       >
         {status === 'loading'
           ? 'Enviando'
@@ -1088,6 +1074,7 @@ function SettingsField({
 }
 
 export default function AdminDashboard({
+  store,
   products,
   categories,
   orders,
@@ -1104,8 +1091,6 @@ export default function AdminDashboard({
   );
   const [settingsSection, setSettingsSection] =
     useState<SettingsSection>('profile');
-  const [customerSection, setCustomerSection] =
-    useState<CustomerSection>('list');
   const [customerCreateOpen, setCustomerCreateOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [productFilter, setProductFilter] = useState<ProductFilter>('all');
@@ -1149,12 +1134,24 @@ export default function AdminDashboard({
       .filter((product) => potentialDuplicateKeys.has(productMatchKey(product)))
       .map((product) => product.id)
   );
-  const pendingOrders = orders.filter((order) => order.status === 'pending');
+  const pendingPaymentOrders = orders.filter(
+    (order) =>
+      order.paymentStatus === 'pending' && order.status !== 'cancelled'
+  );
   const processingOrders = orders.filter(
-    (order) => order.status === 'confirmed' || order.status === 'processing'
+    (order) =>
+      order.paymentStatus === 'paid' &&
+      (order.status === 'confirmed' || order.status === 'processing')
   );
   const shippedOrders = orders.filter((order) => order.status === 'shipped');
   const paidOrders = orders.filter((order) => order.paymentStatus === 'paid');
+  const fulfillmentWithoutPaymentOrders = orders.filter(
+    (order) =>
+      order.paymentStatus !== 'paid' &&
+      (order.status === 'processing' ||
+        order.status === 'shipped' ||
+        order.status === 'delivered')
+  );
   const syncedOrders = orders.filter((order) => order.externalErpId);
   const connectedIntegrations = integrations.filter(
     (item) => item.integration?.status === 'connected'
@@ -1177,8 +1174,9 @@ export default function AdminDashboard({
       .map((price) => [price.variantId, price])
   );
 
-  const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
-  const averageTicket = orders.length > 0 ? totalRevenue / orders.length : 0;
+  const totalRevenue = paidOrders.reduce((sum, order) => sum + order.total, 0);
+  const averageTicket =
+    paidOrders.length > 0 ? totalRevenue / paidOrders.length : 0;
   const totalProductsValue = products.reduce(
     (sum, product) => sum + product.price,
     0
@@ -1205,7 +1203,7 @@ export default function AdminDashboard({
     }))
     .sort((left, right) => right.units - left.units || right.count - left.count);
 
-  const revenueSeriesBase = orders
+  const revenueSeriesBase = paidOrders
     .slice()
     .sort(
       (left, right) =>
@@ -1302,16 +1300,26 @@ export default function AdminDashboard({
     dataSources.products === 'supabase' || dataSources.categories === 'supabase'
       ? 'Supabase'
       : 'Mock';
+  const canManageStore = adminUser.role !== 'store_viewer';
+  const canEditProducts =
+    canManageStore && dataSources.products === 'supabase';
+  const canCreateCustomers =
+    canManageStore && dataSources.customers === 'supabase';
 
   const renderDashboard = () => {
     const todayOrders = orders.filter((order) => isSameCalendarDate(order.createdAt));
-    const todayRevenue = todayOrders.reduce((sum, order) => sum + order.total, 0);
-    const pendingPaymentValue = pendingOrders.reduce((sum, order) => sum + order.total, 0);
-    const readyToShipOrders = orders.filter(
-      (order) =>
-        order.paymentStatus === 'paid' &&
-        (order.status === 'confirmed' || order.status === 'processing')
+    const todayPaidOrders = paidOrders.filter((order) =>
+      isSameCalendarDate(order.createdAt)
     );
+    const todayRevenue = todayPaidOrders.reduce(
+      (sum, order) => sum + order.total,
+      0
+    );
+    const pendingPaymentValue = pendingPaymentOrders.reduce(
+      (sum, order) => sum + order.total,
+      0
+    );
+    const readyToShipOrders = processingOrders;
     const readyToShipValue = readyToShipOrders.reduce((sum, order) => sum + order.total, 0);
     const criticalStockProducts = lowStockProducts
       .slice()
@@ -1332,19 +1340,46 @@ export default function AdminDashboard({
     );
     const dashboardOrders = [
       ...readyToShipOrders,
-      ...pendingOrders,
+      ...pendingPaymentOrders,
       ...orders.filter((order) => order.status === 'shipped'),
     ]
       .filter((order, index, list) => list.findIndex((item) => item.id === order.id) === index)
       .slice(0, 5);
-    const categoryRevenue = categoryLoad.slice(0, 5).map((category, index) => {
-      const value = Math.round(totalRevenue * ([0.34, 0.26, 0.16, 0.12, 0.08][index] ?? 0.04));
-      return {
-        ...category,
-        value,
-        color: ['#4F66FF', '#2F8DFF', '#65A4FF', '#FBBF24', '#34D399'][index] ?? '#94A3B8',
-      };
+    const categoryValueBySlug = new Map(
+      categories.map((category) => [category.slug, 0])
+    );
+    const productCategoriesByProductId = new Map(
+      products.map((product) => [product.id, product.categories])
+    );
+
+    paidOrders.forEach((order) => {
+      order.items.forEach((item) => {
+        const itemCategories = productCategoriesByProductId.get(item.productId) ?? [];
+
+        if (itemCategories.length === 0) {
+          return;
+        }
+
+        const apportionedValue = item.total / itemCategories.length;
+
+        itemCategories.forEach((category) => {
+          categoryValueBySlug.set(
+            category.slug,
+            (categoryValueBySlug.get(category.slug) ?? 0) + apportionedValue
+          );
+        });
+      });
     });
+
+    const categoryRevenue = categoryLoad
+      .map((category, index) => ({
+        ...category,
+        value: categoryValueBySlug.get(category.slug) ?? 0,
+        color: ['#4F66FF', '#2F8DFF', '#65A4FF', '#FBBF24', '#34D399'][index] ?? '#94A3B8',
+      }))
+      .filter((category) => category.value > 0)
+      .sort((left, right) => right.value - left.value)
+      .slice(0, 5);
     const operationSummary = [
       {
         label: 'Faturamento',
@@ -1356,9 +1391,9 @@ export default function AdminDashboard({
       {
         label: 'Pedidos',
         value: String(orders.length),
-        detail: `${pendingOrders.length} aguardando pagamento`,
+        detail: `${pendingPaymentOrders.length} aguardando pagamento`,
         icon: ShoppingCart,
-        tone: pendingOrders.length > 0 ? ('warn' as const) : ('ok' as const),
+        tone: pendingPaymentOrders.length > 0 ? ('warn' as const) : ('ok' as const),
       },
       {
         label: 'Ticket médio',
@@ -1384,13 +1419,13 @@ export default function AdminDashboard({
             label="Pedidos hoje"
             value={String(todayOrders.length)}
             amount={formatCurrency(todayRevenue)}
-            helper={`${orders.length} pedido(s) na base`}
+            helper={`${todayPaidOrders.length} pago(s) hoje · ${orders.length} na base`}
             accent="blue"
           />
           <OperationalMetricCard
             icon={CreditCard}
             label="Aguardando pagamento"
-            value={String(pendingOrders.length)}
+            value={String(pendingPaymentOrders.length)}
             amount={formatCurrency(pendingPaymentValue)}
             helper="dependem de confirmação"
             accent="amber"
@@ -1427,7 +1462,7 @@ export default function AdminDashboard({
                 icon={CreditCard}
                 title="Aprovar pagamentos"
                 description="Pedidos aguardando análise"
-                count={pendingOrders.length}
+                count={pendingPaymentOrders.length}
                 tone="rose"
                 onClick={() => handleSelectAdminView('orders')}
               />
@@ -1445,6 +1480,14 @@ export default function AdminDashboard({
                 description="Postagem ainda sem código"
                 count={missingTrackingOrders.length}
                 tone="amber"
+                onClick={() => handleSelectAdminView('orders')}
+              />
+              <ActionRow
+                icon={CircleAlert}
+                title="Expedição sem pagamento"
+                description="Pedidos que exigem correção manual"
+                count={fulfillmentWithoutPaymentOrders.length}
+                tone="rose"
                 onClick={() => handleSelectAdminView('orders')}
               />
               <ActionRow
@@ -1701,28 +1744,34 @@ export default function AdminDashboard({
                 items={[]}
               />
               <div className="space-y-2">
-                {categoryRevenue.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between gap-3 text-xs"
-                  >
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span
-                        className="h-2.5 w-2.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: item.color }}
-                      />
-                      <span className="truncate text-slate-200">{item.name}</span>
+                {categoryRevenue.length > 0 ? (
+                  categoryRevenue.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span
+                          className="h-2.5 w-2.5 shrink-0 rounded-full"
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span className="truncate text-slate-200">{item.name}</span>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <span className="font-semibold text-white">
+                          {formatCurrency(item.value)}
+                        </span>
+                        <span className="ml-2 text-[11px] text-slate-500">
+                          {item.count} produtos
+                        </span>
+                      </div>
                     </div>
-                    <div className="shrink-0 text-right">
-                      <span className="font-semibold text-white">
-                        {formatCurrency(item.value)}
-                      </span>
-                      <span className="ml-2 text-[11px] text-slate-500">
-                        {item.count} itens
-                      </span>
-                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-lg border border-white/6 bg-[#081225] px-3 py-3 text-xs text-slate-400">
+                    Sem receita recebida com categorias vinculadas.
                   </div>
-                ))}
+                )}
                 <div className="flex items-center justify-between border-t border-white/6 pt-3 text-sm">
                   <span className="text-slate-400">Total</span>
                   <span className="font-semibold text-white">{formatCurrency(totalRevenue)}</span>
@@ -2127,7 +2176,10 @@ export default function AdminDashboard({
                         </div>
                       </div>
 
-                      <ProductStockForm product={product} />
+                      <ProductStockForm
+                        product={product}
+                        canEdit={canEditProducts}
+                      />
 
                       <div>
                         <div className="font-semibold text-slate-100">
@@ -2145,25 +2197,16 @@ export default function AdminDashboard({
                       <ProductBusinessPriceForm
                         product={product}
                         businessPrice={businessPrice}
+                        canEdit={canEditProducts}
                       />
 
-                      <ProductStatusForm product={product} />
+                      <ProductStatusForm
+                        product={product}
+                        canEdit={canEditProducts}
+                      />
 
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-300 transition hover:border-[#1E3DFF]/35 hover:text-white"
-                          aria-label={`Editar ${product.name}`}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-300 transition hover:border-[#1E3DFF]/35 hover:text-white"
-                          aria-label={`Mais ações para ${product.name}`}
-                        >
-                          <MoreHorizontal className="h-3.5 w-3.5" />
-                        </button>
+                      <div className="text-right text-[11px] text-slate-500">
+                        Edição pela tabela
                       </div>
                     </div>
                   );
@@ -2214,7 +2257,7 @@ export default function AdminDashboard({
         <MetricCard
           icon={CreditCard}
           label="Aguardando pagamento"
-          value={String(pendingOrders.length)}
+          value={String(pendingPaymentOrders.length)}
           helper="Pedidos que dependem de confirmação antes da expedição."
         />
         <MetricCard
@@ -2361,7 +2404,12 @@ export default function AdminDashboard({
                     </div>
                   ) : null}
                   {order.externalErpSyncStatus !== 'synced' ? (
-                    <OrderBlingRetryButton orderId={order.id} />
+                    <OrderBlingRetryButton
+                      orderId={order.id}
+                      canRetry={
+                        canManageStore && dataSources.orders === 'supabase'
+                      }
+                    />
                   ) : null}
                 </div>
                 <div className="text-right font-semibold text-white">
@@ -2383,7 +2431,7 @@ export default function AdminDashboard({
                   <div>
                     <div className="text-xs font-semibold text-white">Aprovar pagamentos</div>
                     <div className="mt-0.5 text-[11px] text-slate-300">
-                      {pendingOrders.length} pedido(s) aguardando aprovação.
+                      {pendingPaymentOrders.length} pedido(s) aguardando aprovação.
                     </div>
                   </div>
                   <SmallBadge className="border-amber-400/20 bg-amber-400/10 text-amber-200">
@@ -2462,19 +2510,13 @@ export default function AdminDashboard({
           icon={ShoppingCart}
           label="Com compras"
           value={String(customersWithOrders.length)}
-          helper="Clientes vinculados a pedidos salvos."
+          helper="Clientes com ao menos um pagamento confirmado."
         />
         <MetricCard
           icon={CreditCard}
           label="Total consumido"
           value={formatCurrency(customerRevenue)}
-          helper="Soma de pedidos por cliente identificado."
-        />
-        <MetricCard
-          icon={Bell}
-          label="Mensagens"
-          value="0"
-          helper="Placeholder para comunicação futura."
+          helper="Soma de pagamentos confirmados por cliente identificado."
         />
       </AdminKpiGrid>
 
@@ -2483,38 +2525,15 @@ export default function AdminDashboard({
         sidebar={
           <>
             <Panel title="Clientes" description="Navegação e ações rápidas.">
-              <div className="space-y-1.5">
-                {[
-                  { id: 'list' as CustomerSection, label: 'Lista de clientes', icon: UsersRound },
-                  { id: 'messages' as CustomerSection, label: 'Mensagens', icon: Bell },
-                ].map((section) => {
-                  const Icon = section.icon;
-
-                  return (
-                    <button
-                      key={section.id}
-                      type="button"
-                      onClick={() => setCustomerSection(section.id)}
-                      className={cn(
-                        'flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-xs transition',
-                        customerSection === section.id
-                          ? 'border-[#1E3DFF]/35 bg-[#101F43] text-white'
-                          : 'border-transparent bg-transparent text-slate-400 hover:border-white/6 hover:bg-[#081225] hover:text-slate-200'
-                      )}
-                    >
-                      <span className="flex items-center gap-2">
-                        <Icon className="h-3.5 w-3.5" />
-                        {section.label}
-                      </span>
-                      <ChevronRight className="h-3.5 w-3.5" />
-                    </button>
-                  );
-                })}
+              <div className="flex items-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[#101F43] px-3 py-2 text-xs text-white">
+                <UsersRound className="h-3.5 w-3.5" />
+                Lista de clientes
               </div>
               <button
                 type="button"
                 onClick={() => setCustomerCreateOpen(true)}
-                className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-3 text-xs font-semibold text-white transition hover:brightness-110"
+                disabled={!canCreateCustomers}
+                className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-3 text-xs font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Plus className="h-3.5 w-3.5" />
                 Adicionar cliente
@@ -2542,8 +2561,7 @@ export default function AdminDashboard({
           </>
         }
       >
-        {customerSection === 'list' ? (
-          <div className="space-y-4">
+        <div className="space-y-4">
             <Panel
               title="Lista de clientes"
               description="Busca por nome, e-mail, telefone, CPF/CNPJ ou último pedido."
@@ -2555,7 +2573,8 @@ export default function AdminDashboard({
                   <button
                     type="button"
                     onClick={() => setCustomerCreateOpen(true)}
-                    className="inline-flex h-8 items-center gap-2 rounded-md border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-2.5 text-[11px] font-semibold text-[#A9C7FF] transition hover:border-[#1E3DFF]/45 hover:text-white"
+                    disabled={!canCreateCustomers}
+                    className="inline-flex h-8 items-center gap-2 rounded-md border border-[#1E3DFF]/25 bg-[#1E3DFF]/10 px-2.5 text-[11px] font-semibold text-[#A9C7FF] transition hover:border-[#1E3DFF]/45 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Plus className="h-3.5 w-3.5" />
                     Novo
@@ -2635,26 +2654,7 @@ export default function AdminDashboard({
                 </div>
               </div>
             </Panel>
-          </div>
-        ) : null}
-
-        {customerSection === 'messages' ? (
-          <Panel
-            title="Mensagens"
-            description="Placeholder operacional. Chat, newsletter e automações ficam fora desta sprint."
-          >
-            <div className="rounded-lg border border-white/6 bg-[#081225] p-5">
-              <div className="text-sm font-semibold text-white">
-                Central de mensagens ainda não implementada
-              </div>
-              <p className="mt-2 max-w-2xl text-xs leading-5 text-slate-400">
-                Esta aba reserva a arquitetura de informação para mensagens de clientes,
-                consultas e newsletter, sem criar integração real de WhatsApp, e-mail marketing
-                ou CRM nesta etapa.
-              </p>
-            </div>
-          </Panel>
-        ) : null}
+        </div>
       </AdminContentGrid>
 
       <AdminModal
@@ -2663,7 +2663,7 @@ export default function AdminDashboard({
         description="Cadastro manual simples para operação e pedidos assistidos."
         onClose={() => setCustomerCreateOpen(false)}
       >
-        <CustomerCreateForm />
+        <CustomerCreateForm canCreate={canCreateCustomers} />
       </AdminModal>
     </div>
   );
@@ -2731,7 +2731,7 @@ export default function AdminDashboard({
             description="Catálogo da plataforma combinado com a conexão da loja ativa."
             action={
               <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
-                {currentStoreBrand.shortName}
+                {store.shortName}
               </SmallBadge>
             }
           >
@@ -2861,7 +2861,7 @@ export default function AdminDashboard({
           <div className="space-y-4">
             <Panel
               title="ERP principal"
-              description={`Operação prevista para ${currentStoreBrand.shortName}.`}
+              description={`Operação da loja ${store.shortName}.`}
               action={
                 primaryErpIntegration ? (
                   <SmallBadge className={integrationStatusClass(primaryErpIntegration)}>
@@ -2981,7 +2981,6 @@ export default function AdminDashboard({
           {[
             { id: 'profile' as SettingsSection, label: 'Perfil do admin', icon: UserRound },
             { id: 'operations' as SettingsSection, label: 'Operação da loja', icon: Store },
-            { id: 'notifications' as SettingsSection, label: 'Notificações', icon: Bell },
           ].map((section) => {
             const Icon = section.icon;
 
@@ -3012,35 +3011,35 @@ export default function AdminDashboard({
         <div className="space-y-4">
           <Panel
             title="Informações pessoais"
-            description="Bloco visual para o perfil do operador principal."
+            description="Dados da conta autenticada nesta sessão."
           >
             <div className="grid gap-4 xl:grid-cols-[160px_1fr] xl:items-start">
               <div className="rounded-lg border border-white/6 bg-[#081225] p-3 text-center">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#1E3DFF,#38BDF8)] text-sm font-semibold text-white">
-                  AD
+                  {adminInitials}
                 </div>
-                <div className="mt-2 text-sm font-semibold text-white">Admin</div>
+                <div className="mt-2 text-sm font-semibold text-white">Conta autenticada</div>
                 <div className="mt-0.5 text-[11px] text-slate-400">
-                  Operação {currentStoreBrand.shortName}
+                  Operação {store.shortName}
                 </div>
               </div>
               <div className="space-y-1">
-                <SettingsField label="Nome" value="Administrador da loja" />
-                <SettingsField label="E-mail" value="admin@brasildrones.com.br" />
-                <SettingsField label="Função" value="Gestão operacional e catálogo" />
-                <SettingsField label="Acesso" value={`${adminRoleLabel} autenticado`} />
+                <SettingsField label="E-mail" value={adminEmail} />
+                <SettingsField label="Função" value={adminRoleLabel} />
+                <SettingsField label="Escopo" value={store.name} />
+                <SettingsField label="Acesso" value="Sessão autenticada" />
               </div>
             </div>
           </Panel>
 
           <Panel
             title="Informações base"
-            description="Metadados visuais do painel e origem atual dos dados."
+            description="Contexto atual da loja e origem dos dados exibidos."
           >
             <div className="space-y-1">
-              <SettingsField label="Empresa" value={currentStoreBrand.name} />
-              <SettingsField label="Tema" value="Dark SaaS com paleta azul, ciano e verde" />
-              <SettingsField label="Status" value="Admin inicial ativo" />
+              <SettingsField label="Empresa" value={store.name} />
+              <SettingsField label="Interface" value="Admin operacional" />
+              <SettingsField label="Status" value="Sessão ativa" />
               <SettingsField
                 label="Origem"
                 value={`Catálogo ${catalogSourceLabel}; pedidos ${ordersSourceLabel}`}
@@ -3054,37 +3053,44 @@ export default function AdminDashboard({
         <div className="space-y-4">
           <Panel
             title="Operação da loja"
-            description="Parâmetros visuais do fluxo até a integração real."
+            description="Leitura dos dados e integrações configurados para a loja ativa."
           >
             <div className="space-y-1">
               <SettingsField label="Catálogo" value={`${products.length} produtos via ${productsSourceLabel}`} />
               <SettingsField label="Categorias" value={`${categories.length} categorias prontas para filtro`} />
               <SettingsField label="Pedidos" value={`${orders.length} pedidos via ${ordersSourceLabel}`} />
-              <SettingsField label="ERP" value="Bling ainda não integrado" />
+              <SettingsField
+                label="ERP"
+                value={
+                  primaryErpIntegration
+                    ? `${primaryErpIntegration.provider.name}: ${integrationStatusLabel(primaryErpIntegration)}`
+                    : 'Nenhum ERP cadastrado'
+                }
+              />
             </div>
           </Panel>
 
           <Panel
             title="Fluxo interno"
-            description="Visão simples dos blocos que já têm sustentação no frontend."
+            description="Capacidades disponíveis no escopo atual."
           >
             <div className="grid gap-3 xl:grid-cols-3">
               <div className="rounded-lg border border-white/6 bg-[#081225] p-3">
                 <div className="text-xs font-semibold text-white">Storefront</div>
                 <p className="mt-1 text-[11px] leading-5 text-slate-400">
-                  Rotas de produto, categoria e carrinho consumindo a camada de catálogo.
+                  Rotas de produto, categoria e carrinho usam a camada de catálogo.
                 </p>
               </div>
               <div className="rounded-lg border border-white/6 bg-[#081225] p-3">
                 <div className="text-xs font-semibold text-white">Mesa operacional</div>
                 <p className="mt-1 text-[11px] leading-5 text-slate-400">
-                  Pedidos, badges e estados do painel usam o service de pedidos.
+                  Pedidos e estados do painel usam os dados persistidos de pedidos.
                 </p>
               </div>
               <div className="rounded-lg border border-white/6 bg-[#081225] p-3">
                 <div className="text-xs font-semibold text-white">Integrações</div>
                 <p className="mt-1 text-[11px] leading-5 text-slate-400">
-                  Serviços externos seguem desacoplados do frontend, como deveria ser.
+                  Serviços externos são acionados apenas no servidor.
                 </p>
               </div>
             </div>
@@ -3092,60 +3098,6 @@ export default function AdminDashboard({
         </div>
       ) : null}
 
-      {settingsSection === 'notifications' ? (
-        <div className="space-y-4">
-          <Panel
-            title="Notificações gerais"
-            description="Preferências simuladas para o operador principal."
-          >
-            <div className="space-y-2">
-              {[
-                'Pedido aguardando pagamento',
-                'Pedido pronto para expedição',
-                'Estoque crítico de produto',
-                'Falha futura de integração',
-              ].map((item, index) => (
-                <div
-                  key={item}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-white/6 bg-[#081225] px-3 py-2.5"
-                >
-                  <span className="text-xs font-medium text-slate-100">{item}</span>
-                  <div className="flex gap-2">
-                    <SmallBadge
-                      className={
-                        index % 2 === 0
-                          ? 'border-[#1E3DFF]/30 bg-[#1E3DFF]/10 text-[#A9C7FF]'
-                          : 'border-white/8 bg-white/5 text-slate-300'
-                      }
-                    >
-                      In-app
-                    </SmallBadge>
-                    <SmallBadge className="border-emerald-400/20 bg-emerald-400/10 text-emerald-200">
-                      E-mail
-                    </SmallBadge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Panel>
-
-          <Panel
-            title="Resumo operacional"
-            description="Bloco visual final para fechar a área de configurações."
-          >
-            <div className="rounded-lg border border-white/6 bg-[linear-gradient(135deg,rgba(30,61,255,0.2),rgba(56,189,248,0.12))] p-4">
-              <div className="text-sm font-semibold text-white">
-                Painel pronto para crescer
-              </div>
-              <p className="mt-2 max-w-2xl text-xs leading-5 text-slate-300">
-                A estrutura já está em formato de backoffice dark, com shell fixo, cards, tabelas,
-                filtros e espaço claro para plugar autenticação, permissões, estoque real e ERP
-                sem retrabalho visual.
-              </p>
-            </div>
-          </Panel>
-        </div>
-      ) : null}
     </div>
   );
 
@@ -3153,6 +3105,7 @@ export default function AdminDashboard({
     <div className="min-h-screen bg-[#050A14] text-[13px] text-slate-100">
       <AdminSidebar
         activeKey={activeView}
+        storeShortName={store.shortName}
         counts={{
           orders: String(orders.length).padStart(2, '0'),
           products: String(products.length).padStart(2, '0'),
@@ -3206,10 +3159,11 @@ export default function AdminDashboard({
 
                 <button
                   type="button"
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/8 bg-[#081225] px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-[#1E3DFF]/35 hover:text-white"
+                  disabled
+                  className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl border border-white/8 bg-[#081225] px-3 py-2 text-xs font-medium text-slate-500"
                 >
                   <SlidersHorizontal className="h-3.5 w-3.5" />
-                  Exportar visão
+                  Exportação indisponível
                 </button>
               </div>
             </div>

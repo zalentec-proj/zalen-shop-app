@@ -275,6 +275,7 @@ export default async function MarketingIntegrationsPage({
     <main className="min-h-screen bg-[#05070B] text-white xl:pl-60">
       <AdminSidebar
         activeKey="marketing"
+        storeShortName={store.shortName}
         footerLabel="Crescimento"
         footerTitle={store.shortName}
         footerDescription="SEO, feed e mensuração por loja."

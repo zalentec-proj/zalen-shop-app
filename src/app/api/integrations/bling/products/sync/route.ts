@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
-import { canAccessStore, getCurrentUser } from '@/modules/auth/auth.service';
+import {
+  checkStoreRole,
+  storeOperationalRoles,
+} from '@/modules/auth/auth.service';
 import { runBlingProductSync } from '@/modules/integrations/bling/products/bling-product-sync.service';
 import { resolveCurrentStoreFromRequest } from '@/modules/stores/store-resolution';
 
@@ -42,17 +45,17 @@ function getSyncRequest(body: unknown): {
 }
 
 export async function POST(request: NextRequest) {
-  const user = await getCurrentUser();
   const store = await resolveCurrentStoreFromRequest(request);
+  const access = await checkStoreRole(store.id, storeOperationalRoles);
 
-  if (!user) {
+  if (!access.user) {
     return NextResponse.json(
       { status: 'error', errorCode: 'missing_session' },
       { status: 401 }
     );
   }
 
-  if (!(await canAccessStore(user.id, store.id))) {
+  if (!access.allowed) {
     return NextResponse.json(
       { status: 'error', errorCode: 'access_denied' },
       { status: 403 }
