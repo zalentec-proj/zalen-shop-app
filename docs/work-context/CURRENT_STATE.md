@@ -23,6 +23,13 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
+- Em 2026-07-16 a autenticação e a área do cliente foram simplificadas para a
+  experiência da loja. A tela de entrada deixou de exibir a coluna institucional
+  “Conta do comprador”, regras PF/PJ e explicações sobre o painel Zalen; agora
+  apresenta apenas logo, e-mail, código de acesso e criação de cadastro. O
+  resumo da conta também passou a falar somente de pedidos, pagamentos e
+  entregas. A autenticação por código e os redirecionamentos permanecem iguais.
+
 - Em 2026-07-16 foi revisada a estrutura responsiva compartilhada do admin. A
   navegação lateral fica fixa a partir de 1280 px e pode ser recolhida para uma
   coluna de ícones; abaixo disso ela vira um drawer. A preferência de largura é

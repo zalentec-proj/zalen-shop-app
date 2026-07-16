@@ -99,15 +99,11 @@ export default async function CustomerAccountPage() {
 
         <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="rounded-2xl border border-brand-border bg-[#090E17]/90 p-6">
-            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-blue-primary">
-              Conta do comprador
-            </p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight">
+            <h1 className="text-3xl font-black tracking-tight">
               Olá, {account?.customer.name ?? data.user.email}
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-brand-muted">
-              Acompanhe pedidos, pagamento e rastreio da {store.shortName}. O
-              acesso é separado do painel administrativo da Zalen Shop.
+              Acompanhe seus pedidos, pagamentos e entregas.
             </p>
           </div>
 
@@ -132,7 +128,7 @@ export default async function CustomerAccountPage() {
             <div>
               <h2 className="text-lg font-black">Pedidos recentes</h2>
               <p className="mt-1 text-sm text-brand-muted">
-                Histórico vinculado ao seu e-mail validado.
+                Acompanhe suas compras recentes.
               </p>
             </div>
             <Link

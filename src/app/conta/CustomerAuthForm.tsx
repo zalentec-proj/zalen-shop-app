@@ -2,7 +2,7 @@
 
 import { useActionState } from 'react';
 import Link from 'next/link';
-import { BadgeCheck, KeyRound, Mail, type LucideIcon } from 'lucide-react';
+import { KeyRound, Mail, type LucideIcon } from 'lucide-react';
 import Logo from '@/components/ui/Logo';
 import type { CustomerAuthState } from './actions';
 import { customerOtpAction } from './actions';
@@ -30,58 +30,29 @@ export default function CustomerAuthForm({
   const isCodeStep = state.step === 'code' && state.email;
 
   return (
-    <main className="min-h-screen bg-brand-bg px-4 py-10 text-white">
+    <main className="min-h-screen bg-brand-bg px-4 py-8 text-white sm:py-12">
       <div className="absolute left-[10%] top-[10%] -z-10 h-[420px] w-[420px] rounded-full glow-radial opacity-40" />
-      <div className="mx-auto flex min-h-[calc(100vh-80px)] w-full max-w-5xl items-center justify-center">
-        <section className="grid w-full overflow-hidden rounded-[32px] border border-brand-border bg-[#090E17]/90 shadow-[0_28px_90px_rgba(0,0,0,0.6)] md:grid-cols-[0.9fr_1.1fr]">
-          <div className="hidden border-r border-brand-border-soft bg-white/[0.02] p-8 md:flex md:flex-col md:justify-between">
-            <Link href="/" className="inline-flex">
-              <Logo size="md" />
-            </Link>
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-blue-primary">
-                Conta do comprador
-              </p>
-              <h1 className="mt-3 text-3xl font-black tracking-tight text-white font-display">
-                Finalize pedidos com dados salvos e histórico organizado.
-              </h1>
-              <p className="mt-4 text-sm leading-6 text-brand-muted">
-                A conta pertence à loja Brasil Drones. O painel administrativo da Zalen continua separado.
-              </p>
-            </div>
-            <div className="grid gap-3 text-xs text-brand-muted">
-              {['Acesso por código de e-mail', 'Pedidos e rastreio salvos', 'Preços PF/PJ recalculados no servidor'].map((item) => (
-                <div key={item} className="flex items-center gap-2">
-                  <BadgeCheck className="h-4 w-4 text-green-accent" />
-                  <span>{item}</span>
-                </div>
-              ))}
-            </div>
+      <div className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-md items-center justify-center">
+        <section className="w-full rounded-2xl border border-brand-border bg-[#090E17]/90 p-6 shadow-[0_28px_90px_rgba(0,0,0,0.6)] sm:p-8">
+          <Link href="/" className="mb-10 inline-flex">
+            <Logo size="sm" />
+          </Link>
+          <div className="mb-7">
+            <h1 className="text-2xl font-black tracking-tight text-white font-display">
+              {isCodeStep
+                ? 'Digite o código recebido'
+                : isSignup
+                  ? 'Crie sua conta'
+                  : 'Acesse sua conta'}
+            </h1>
+            <p className="mt-2 text-sm text-brand-muted">
+              {isCodeStep
+                ? `Enviamos um código para ${state.email}.`
+                : 'Informe seu e-mail para receber o código de acesso.'}
+            </p>
           </div>
 
-          <div className="p-6 sm:p-8 md:p-10">
-            <Link href="/" className="mb-8 inline-flex md:hidden">
-              <Logo size="sm" />
-            </Link>
-            <div className="mb-7">
-              <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-green-accent">
-                {isCodeStep ? 'Verificar e-mail' : isSignup ? 'Criar acesso' : 'Entrar na conta'}
-              </span>
-              <h2 className="mt-2 text-2xl font-black tracking-tight text-white font-display">
-                {isCodeStep
-                  ? 'Digite o código recebido'
-                  : isSignup
-                    ? 'Crie sua conta para acompanhar pedidos'
-                    : 'Acesse sua conta por e-mail'}
-              </h2>
-              <p className="mt-2 text-sm text-brand-muted">
-                {isCodeStep
-                  ? `Enviamos um código para ${state.email}.`
-                  : 'Você receberá um código seguro para entrar sem senha.'}
-              </p>
-            </div>
-
-            <form action={formAction} className="grid gap-3">
+          <form action={formAction} className="grid gap-3">
               <input type="hidden" name="next" value={nextPath} />
               <input
                 type="hidden"
@@ -133,9 +104,9 @@ export default function CustomerAuthForm({
                     ? 'Verificar código'
                     : 'Receber código'}
               </button>
-            </form>
+          </form>
 
-            <div className="mt-6 rounded-2xl border border-brand-border-soft bg-white/[0.02] p-4 text-center text-sm text-brand-muted">
+          <div className="mt-6 border-t border-brand-border-soft pt-5 text-center text-sm text-brand-muted">
               {isCodeStep ? (
                 <>
                   Não recebeu?{' '}
@@ -158,7 +129,6 @@ export default function CustomerAuthForm({
                   </Link>
                 </>
               )}
-            </div>
           </div>
         </section>
       </div>
