@@ -3119,7 +3119,7 @@ export default function AdminDashboard({
         onSelectView={handleSelectAdminView}
       />
 
-      <main className="min-w-0 min-[1800px]:pl-60">
+      <main className="min-w-0 transition-[padding] duration-200 xl:pl-[var(--admin-shell-sidebar-width,15rem)]">
         <AdminPageFrame>
           <div className="space-y-4">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">

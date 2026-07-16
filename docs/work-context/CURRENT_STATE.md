@@ -24,9 +24,10 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 ## Última mudança conhecida
 
 - Em 2026-07-16 foi revisada a estrutura responsiva compartilhada do admin. A
-  navegação lateral fixa passa a ser usada somente em desktop amplo; abaixo de
-  1800 px ela vira um drawer, evitando consumir a largura operacional do
-  dashboard. Cards e grids compartilhados agora aceitam encolhimento com
+  navegação lateral fica fixa a partir de 1280 px e pode ser recolhida para uma
+  coluna de ícones; abaixo disso ela vira um drawer. A preferência de largura é
+  persistida no navegador e o conteúdo acompanha a transição. Cards e grids
+  compartilhados agora aceitam encolhimento com
   `min-width: 0`, painéis laterais empilham antes de comprimir o conteúdo e
   tabelas largas mantêm rolagem horizontal dentro do próprio módulo.
 - Formulários de envio, domínios, pagamentos e navegação da loja foram ajustados

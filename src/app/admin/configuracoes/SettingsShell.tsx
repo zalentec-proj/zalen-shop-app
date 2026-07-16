@@ -133,7 +133,7 @@ export function SettingsShell({
         footerDescription="Regras visuais e operacionais da loja ativa."
       />
 
-      <main className="min-w-0 min-[1800px]:pl-60">
+      <main className="min-w-0 transition-[padding] duration-200 xl:pl-[var(--admin-shell-sidebar-width,15rem)]">
         <AdminPageFrame>
             <header className="flex flex-col gap-3 border-b border-white/6 pb-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="space-y-1">
