@@ -8,9 +8,10 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-07-16
 - Branch: `refactor/migrate-to-next`
-- Commit base atual: `4406d9b` — `fix(catalog): simplify model compatibility selection`
+- Commit base atual: `7304646` — `fix(admin): harden data integrity`
 - Working tree no momento deste registro: contém a reorganização não publicada
-  do navbar público e este handoff. Preserve essas alterações na próxima sessão.
+  do navbar público. Preserve essas alterações na próxima sessão; elas não
+  pertencem à correção de integridade do admin.
 - Guia de continuidade para outra IDE/máquina: `docs/work-context/IDE_HANDOFF.md`.
 
 ## Contexto permanente
