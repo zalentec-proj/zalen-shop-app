@@ -6,11 +6,11 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Snapshot
 
-- Atualizado em: 2026-07-16
+- Atualizado em: 2026-07-20
 - Branch: `refactor/migrate-to-next`
-- Commit base antes desta frente: `7887410` — `fix(account): simplify customer authentication`
-- A sequência atual da branch contém a revisão responsiva do admin. Preserve
-  essas alterações nas próximas sessões até o deployment correspondente.
+- Commit base antes desta frente: `46060a8` — `feat(domains): add per-store custom domain self-service`
+- A branch e o remoto estavam sincronizados antes da correção JWT do Bling.
+  Preserve os scripts locais não rastreados que não pertencem a esta frente.
 - Guia de continuidade para outra IDE/máquina: `docs/work-context/IDE_HANDOFF.md`.
 
 ## Contexto permanente
@@ -22,6 +22,24 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Última mudança conhecida
+
+- Em 2026-07-20 foi auditada ao vivo a integração Bling da Brasil Drones. O
+  admin Zalen mostrou `connected`, ambiente `production`, sync incremental de
+  77 produtos/variantes/saldos e 56 categorias ERP, sem erro. No Bling, a conta
+  está em teste Cobalto com módulos de produtos e pedidos acessíveis; a
+  instalação pública `Zalen Shop` aparece autenticada e possui recursos de
+  leitura e gerenciamento de produtos e pedidos de venda.
+- A trava `orderSend.enabled` permanece desligada. O último envio registrado em
+  2026-07-13 terminou em erro, `BD-167498` não existe na listagem de pedidos do
+  Bling e nenhum pedido externo foi criado nesta auditoria. O painel também
+  mostrou zero webhooks recebidos, pendentes ou com erro.
+- A homologação oficial falhava no primeiro `GET produtos` com
+  `request_failed`, mesmo após renovar o token. A auditoria encontrou ausência
+  de `enable-jwt: 1` nas chamadas autenticadas dos clientes operacional e de
+  homologação, embora o fluxo OAuth já enviasse o header. A correção foi
+  aplicada nos dois clientes e coberta por testes de regressão; o envio
+  automático não deve ser ligado antes do deployment e do novo teste manual
+  controlado.
 
 - Em 2026-07-16 foi implementado o autosserviço de domínio próprio por loja,
   protegido por `DOMAIN_SELF_SERVICE_ENABLED` e allowlist. Owner/admin pode
@@ -241,13 +259,20 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Objetivo atual
 
-Restaurar e validar a configuração de produção do Mercado Pago e publicar a
-confirmação visual de Pix somente depois de homologar a assinatura de webhook e
-as dependências server-side por ambiente. O autosserviço de domínios e a
-compatibilidade por modelo DJI estão preparados, mas devem entrar somente em um
-ciclo de deploy seguro, inicialmente com o recurso de domínios desligado.
+Concluir a ativação operacional do Bling para a Brasil Drones sem liberar envio
+automático antes da homologação: publicar a correção do header JWT, repetir o
+teste de conexão/homologação, enviar um único pedido pago controlado, confirmar
+e cancelar esse pedido no Bling e somente então ligar `orderSend.enabled`.
+Preservar em paralelo os bloqueios e validações pendentes do Mercado Pago,
+domínios e compatibilidade descritos abaixo.
 
 ## Em andamento
+
+A correção `enable-jwt: 1` está pronta nos clientes Bling operacional e de
+homologação. A validação local passou em 84 testes distribuídos em 20 arquivos,
+`npm run lint`, `npm run build` e `git diff --check`. Falta publicar e repetir a
+homologação pela tela autenticada; nenhum pedido deve ser enviado automaticamente
+nessa etapa.
 
 O deployment de produção vigente é anterior à implementação de confirmação
 visual de Pix. A conciliação periódica pode atualizar pedidos que não receberam
@@ -263,19 +288,30 @@ revisar as sugestões na tela de compatibilidade depois que o código estiver
 publicado; não deve criar vínculos automáticos em massa apenas pelo nome da
 peça.
 
-Nenhum deployment foi criado após a restauração parcial das variáveis. A versão
-em produção continua sendo a previamente validada.
+O deployment de produção vigente antes da correção JWT corresponde ao commit
+`46060a8` e está `READY`. A próxima publicação deve conter apenas a correção
+Bling, os testes e este handoff, preservando as alterações locais não
+relacionadas.
 
 O schema de domínios já está em produção, sem registros. O código correspondente
 ainda não foi publicado, `DOMAIN_SELF_SERVICE_ENABLED` deve permanecer `false`
 e as credenciais Vercel ainda não devem ser usadas até o piloto controlado.
 
-No momento deste handoff, a sessão de navegador do titular está compartilhando
-uma atividade não relacionada. Não interromper essa atividade para alternar de
-guia: retomar somente quando o painel do Mercado Pago e o dashboard do
-Supabase estiverem disponíveis novamente.
-
 ## Próximo passo exato
+
+0. Publicar a correção JWT e confirmar o deployment `READY`, sem alterar
+   `orderSend.enabled`.
+1. Reexecutar a homologação Bling na tela autenticada. Confirmar que o primeiro
+   `GET produtos` e a sequência oficial completam sem `request_failed`.
+2. Criar ou selecionar um pedido Zalen pago e controlado cujos SKUs existam no
+   Bling; usar “Enviar um pedido de homologação”, conferir o registro recebido,
+   não faturar/não expedir e cancelá-lo no Bling.
+3. Validar ao menos um webhook assinado ou registrar explicitamente que o cron
+   incremental será a única proteção temporária antes de liberar produção.
+4. Somente após esses passos, ligar `settings_json.orderSend.enabled` para a
+   Brasil Drones e acompanhar o primeiro pedido real pago.
+
+### Pendências paralelas já registradas
 
 0. Resolver manualmente o pedido histórico que está como enviado sem pagamento
    confirmado; registrar a decisão operacional antes de validar integralmente a
@@ -329,6 +365,9 @@ deve expor o valor em terminal, código ou documentação.
 
 ## Validação
 
+- A correção JWT do Bling passou em 84 testes distribuídos em 20 arquivos,
+  `npm run lint`, `npm run build` e `git diff --check`. Os testes novos validam
+  `enable-jwt: 1` no cliente operacional e na sequência de homologação.
 - O autosserviço de domínios passou em `npm run lint`, `npm test` (82 testes em
   18 arquivos), `npm run build`, `git diff --check` e no scanner de segredos.
   O build confirmou as novas rotas `.well-known`, job e resolvedor

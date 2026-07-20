@@ -222,6 +222,7 @@ export class BlingHomologationClient {
       const headers = new Headers({
         Accept: 'application/json',
         Authorization: `Bearer ${this.accessToken}`,
+        'enable-jwt': '1',
       });
 
       if (init.body !== undefined) {

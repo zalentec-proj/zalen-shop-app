@@ -96,6 +96,11 @@ Usar:
 enable-jwt: 1
 ```
 
+O header deve acompanhar tanto a troca/renovação OAuth quanto todas as chamadas
+autenticadas de catálogo, estoque, pedidos e homologação. Em 2026-07-20, os
+clientes operacionais e de homologação foram alinhados a essa exigência e
+receberam testes de regressão específicos.
+
 ## Escopos
 
 Os escopos devem ser configurados no app do Bling e podem ser passados por `BLING_SCOPES` se necessário.
