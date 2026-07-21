@@ -23,33 +23,35 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
-- Em 2026-07-21 a simulação oficial do webhook de produção do Mercado Pago
-  comprovou que o painel do provedor descarta a query string da URL global. A
-  rota respondia `400` sem `store_id`/`environment`, embora o mesmo endpoint
-  contextualizado respondesse corretamente `401 invalid_webhook_signature` a
-  uma requisição diagnóstica sem assinatura. A aplicação passou a publicar o
-  contexto multi-store no caminho
-  `/api/webhooks/mercado-pago/<store_id>/<environment>` e a reescrevê-lo
-  internamente para a rota já validada; Checkout Pro e Payment Brick também
-  usam o novo formato. Testes direcionados, TypeScript e build passaram. Falta
-  publicar o patch, atualizar a URL global no painel para o caminho de produção
-  da Brasil Drones e repetir a simulação assinada até obter resposta aceita.
+- Em 2026-07-21 o caminho produtivo multi-store do webhook do Mercado Pago foi
+  publicado e salvo no painel como
+  `/api/webhooks/mercado-pago/<store_id>/production`. A simulação assinada ainda
+  retornou `401` mesmo após sincronizar a assinatura atual no ambiente de
+  produção e concluir o redeploy `dpl_A6tToUbihERJdpodEzP3qGpKEsN6`. A causa
+  foi isolada na opção de tolerância do SDK Node 3.1.0: a documentação e o
+  provedor enviam `ts` Unix em segundos, mas essa opção o interpreta como
+  milissegundos. O HMAC continua validado pelo SDK e a janela anti-replay de
+  cinco minutos passou a ser aplicada separadamente, normalizando segundos ou
+  milissegundos. A correção passou em 25 arquivos/104 testes, TypeScript, build,
+  scanner de segredos e `git diff --check`; falta publicar e repetir a
+  simulação oficial até obter HTTP 200.
 - O primeiro CI após esse patch revelou que o npm do runner Linux ainda
   exigia `@emnapi/core@1.11.2` e `@emnapi/runtime@1.11.2` no nível raiz do
   lockfile. As duas dependências transitivas foram declaradas como opcionais e
   fixadas nessas versões, com metadados e integridades confirmados no registry,
   para tornar o `npm ci` reproduzível entre macOS e Linux. Uma nova instalação
   limpa local, 24 arquivos/100 testes, TypeScript, build e varredura de segredos
-  passaram; falta confirmar o novo run do GitHub Actions.
-- Em 2026-07-21 o domínio comercial correto da Brasil Drones foi confirmado
-  como `brasildroneseparts.com.br`, hospedado na Hostinger. Apex e `www`
-  respondem HTTPS 200 no endereço atual `2.57.91.91`; os nameservers são
-  `apollo.dns-parking.com` e `athena.dns-parking.com`. Não há MX ou TXT no
-  apex. O domínio ainda não foi associado à Vercel/Zalen nem alterado no DNS;
-  o corte deve preservar o site atual até CI e webhook de pagamento estarem
-  validados. O conector Hostinger disponível ao agente expõe somente Horizons,
-  não gestão de domínio/DNS, então a futura troca deverá ser feita pelo hPanel
-  autenticado ou manualmente com os registros retornados pela Vercel.
+  passaram. O GitHub Actions `29836267798` concluiu integralmente verde e o
+  deployment `dpl_3rC7VD3pWXkcjmmpJRYRqHiaVXTw` ficou `READY` antes do redeploy
+  exclusivo de variável citado acima.
+- Em 2026-07-21 o domínio comercial `brasildroneseparts.com.br` foi associado e
+  ativado pela Zalen/Vercel. No hPanel Hostinger, o apex passou a usar os dois A
+  records exatos informados pela Vercel (`216.198.79.1` e `64.29.17.1`) e `www`
+  passou a usar o CNAME dedicado da associação. A propagação pública foi
+  confirmada: `https://www.brasildroneseparts.com.br/` responde HTTP 200 com
+  certificado válido e o storefront Brasil Drones & Parts; o apex responde 308
+  para `www`. O subdomínio `brasil-drones.zalenshop.com.br` permanece como
+  fallback administrativo/público da plataforma.
 - O `package-lock.json` foi regenerado com npm 11.6.2 para incluir dependências
   opcionais `@emnapi/*` ausentes que bloqueavam `npm ci` no GitHub Actions.
   A instalação limpa, TypeScript, build, 24 arquivos/99 testes, cobertura,
@@ -423,18 +425,21 @@ de fallback. Os registros foram recriptografados, a chave anterior foi removida
 e o próximo deployment deve confirmar a configuração final sem fallback. Os
 scripts locais não rastreados e não relacionados devem continuar preservados.
 
-O schema de domínios já está em produção, sem registros. O código correspondente
-ainda não foi publicado, `DOMAIN_SELF_SERVICE_ENABLED` deve permanecer `false`
-e as credenciais Vercel ainda não devem ser usadas até o piloto controlado.
+O autosserviço de domínios está publicado e o primeiro piloto real foi concluído
+com DNS, SSL, storefront e redirecionamento validados. As credenciais continuam
+exclusivamente server-side e a habilitação permanece restrita à allowlist.
 
 ## Próximo passo exato
 
-0. Acompanhar o primeiro pedido novo pago da Brasil Drones e confirmar que foi
+0. Publicar a normalização do timestamp do webhook do Mercado Pago, aguardar CI
+   e deployment verdes e repetir a simulação assinada da URL produtiva com o
+   pagamento `168939464233` até confirmar HTTP 200 e evento processado.
+1. Acompanhar o próximo pedido novo pago da Brasil Drones e confirmar que foi
    criado uma única vez no Bling, com `external_erp_sync_status = synced`.
-1. Gerar uma alteração controlada no produto de teste do Bling e confirmar no
+2. Gerar uma alteração controlada no produto de teste do Bling e confirmar no
    painel Zalen o primeiro webhook assinado válido de produto; depois repetir
    com estoque e conferir processamento sem erro ou duplicidade.
-2. Depois do primeiro webhook processado, manter o cron de 10 minutos somente
+3. Depois do primeiro webhook processado, manter o cron de 10 minutos somente
    como camada de reconciliação, não como fonte principal de atualização.
 
 ### Pendências paralelas já registradas
@@ -477,12 +482,10 @@ e as credenciais Vercel ainda não devem ser usadas até o piloto controlado.
 
 ## Bloqueios e dúvidas
 
-Validação de pagamentos em produção pendente de restauração segura da
-configuração server-side e reteste controlado do webhook. A sessão atual do
-MCP do Mercado Pago não expôs as ferramentas OAuth necessárias para consultar
-a configuração da aplicação. O acesso pelo painel web do provedor também está
-aguardando uma validação interativa da conta, que deve ser concluída pelo
-titular sem compartilhar códigos ou credenciais.
+Validação final de pagamentos em produção depende somente da publicação da
+normalização do timestamp e de uma nova simulação assinada HTTP 200. URL,
+assinatura produtiva, pedido pago real, reconciliação e domínio estão
+configurados. Nenhum código ou credencial deve ser compartilhado no handoff.
 
 O acesso ao projeto Supabase correto foi restabelecido. A troca coordenada do
 segredo de cron continua condicionada à validação dos ambientes da Vercel e não

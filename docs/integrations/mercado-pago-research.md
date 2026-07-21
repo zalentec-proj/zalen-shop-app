@@ -283,6 +283,14 @@ WebhookSignatureValidator.validate({
 });
 ```
 
+Observação validada em 2026-07-21: a documentação oficial exemplifica `ts` no
+header `x-signature` como Unix timestamp em segundos (10 dígitos). O SDK Node
+3.1.0 valida corretamente o HMAC, mas sua opção adicional
+`toleranceSeconds` compara esse valor como se estivesse em milissegundos. A
+Zalen usa o SDK para a autenticidade e aplica separadamente a janela anti-replay
+de cinco minutos, normalizando timestamps em segundos ou milissegundos. Não
+remover a validação HMAC nem a idempotência do evento.
+
 Estratégia Zalen implementada:
 
 - validar assinatura antes de processar;

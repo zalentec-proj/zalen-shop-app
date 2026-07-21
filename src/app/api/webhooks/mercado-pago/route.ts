@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  InvalidWebhookSignatureError,
-  WebhookSignatureValidator,
-} from 'mercadopago';
+import { InvalidWebhookSignatureError } from 'mercadopago';
 import { createOptionalAdminClient } from '@/lib/supabase/server';
 import { processMercadoPagoPaymentUpdate } from '@/modules/payments/mercado-pago-payment.service';
 import {
@@ -10,6 +7,7 @@ import {
   parseMercadoPagoEnvironment,
 } from '@/modules/integrations/mercado-pago/mercado-pago.config';
 import type { MercadoPagoEnvironment } from '@/modules/integrations/mercado-pago/mercado-pago.types';
+import { validateMercadoPagoWebhookSignature } from '@/modules/integrations/mercado-pago/mercado-pago-webhook-signature';
 
 function getWebhookDataId(request: NextRequest, body: unknown) {
   const queryDataId =
@@ -179,12 +177,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    WebhookSignatureValidator.validate({
+    validateMercadoPagoWebhookSignature({
       xSignature: request.headers.get('x-signature'),
       xRequestId: request.headers.get('x-request-id'),
       dataId,
       secret,
-      toleranceSeconds: 300,
     });
   } catch (error) {
     if (error instanceof InvalidWebhookSignatureError) {
