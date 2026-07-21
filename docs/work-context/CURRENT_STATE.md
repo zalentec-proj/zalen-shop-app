@@ -46,10 +46,11 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   Tecnologia LTDA, com o cadastro do aplicativo Zalen Shop aberto. Após
   autorização explícita, o servidor `Zalen Shop Produção` foi salvo em
   `https://app.zalenshop.com.br/api/webhooks/bling`; a persistência foi
-  confirmada após recarregar a página e o webhook de estoques v1 ficou ativo.
-  O webhook de produtos ainda está inativo: o seletor customizado do Bling não
-  respondeu à automação de acessibilidade e precisa receber a seleção manual do
-  servidor antes de ser ligado e salvo.
+  confirmada após recarregar a página. Estoques e produtos v1 estão ativos para
+  criação, atualização e exclusão. Pedidos de venda foi desligado após aparecer
+  ativo além do escopo suportado; fornecedores de produtos também está inativo.
+  O painel Zalen ainda mostra zero webhooks recebidos, como esperado antes de um
+  novo evento real; cron incremental, estoque e filas permanecem sem erro.
 
 - Em 2026-07-20 foi concluída a homologação controlada do envio de pedidos no
   Bling real. A correção publicada resolve previamente o contato por documento,
@@ -344,9 +345,9 @@ e as credenciais Vercel ainda não devem ser usadas até o piloto controlado.
 
 0. Acompanhar o primeiro pedido novo pago da Brasil Drones e confirmar que foi
    criado uma única vez no Bling, com `external_erp_sync_status = synced`.
-1. Na conta criadora, concluir manualmente `Produtos → Servidor: Zalen Shop
-   Produção → Webhook ativo → Salvar webhooks`; em seguida gerar ao menos um
-   evento assinado válido de estoque e um de produto.
+1. Gerar uma alteração controlada no produto de teste do Bling e confirmar no
+   painel Zalen o primeiro webhook assinado válido de produto; depois repetir
+   com estoque e conferir processamento sem erro ou duplicidade.
 2. Depois do primeiro webhook processado, manter o cron de 10 minutos somente
    como camada de reconciliação, não como fonte principal de atualização.
 
