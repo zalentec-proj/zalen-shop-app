@@ -35,8 +35,11 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   visível; em larguras menores a loja usa o menu móvel, que preserva a
   hierarquia de linhas e modelos sem comprimir ou ocultar opções. A alteração
   passou em TypeScript, 25 arquivos/104 testes, build de produção, scanner de
-  segredos e `git diff --check`. Publicação e validação final do deployment
-  devem ser registradas após o push desta frente.
+  segredos e `git diff --check`. O commit `e5802a4` foi publicado; o Quality
+  Gate `29841695861` ficou verde e o deployment produtivo
+  `dpl_FB6xFE238A5e4HHBvXXtwvNz5tez` ficou `READY`, com os aliases comerciais
+  ativos. A validação final no domínio comercial confirmou as oito linhas no
+  navbar largo e, em tela menor, o menu móvel com linhas e respectivos modelos.
 - Em 2026-07-21 o caminho produtivo multi-store do webhook do Mercado Pago foi
   publicado e salvo no painel como
   `/api/webhooks/mercado-pago/<store_id>/production`. A simulação assinada ainda
