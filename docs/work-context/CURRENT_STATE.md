@@ -23,6 +23,14 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
+- Em 2026-07-21 foi concluída a limpeza controlada dos pedidos históricos de
+  teste da Brasil Drones. Antes da exclusão havia 34 pedidos; a transação
+  preservou explicitamente `BD-167498` e `BD-647495` e abortaria se qualquer
+  outro candidato tivesse pagamento aprovado ou ID externo no ERP. Foram
+  removidos 32 pedidos sem pagamento aprovado e sem vínculo externo. A
+  verificação posterior confirmou somente os dois pedidos validados, ambos
+  `paid`, `synced` e com os IDs Bling `26384566933` e `26386477388`; não ficaram
+  órfãos em itens, tentativas/transações de pagamento ou envios.
 - Em 2026-07-21 foi concluída a ativação controlada do menu público de modelos
   da Brasil Drones. A ação administrativa em
   `/admin/configuracoes/compatibilidade` habilitou os 38 itens preparados em
