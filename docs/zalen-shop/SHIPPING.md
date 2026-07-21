@@ -32,6 +32,12 @@ Decisões congeladas:
 - O checkout envia apenas `shippingQuoteId` ao finalizar.
 - O servidor revalida loja, itens, hash dos itens, CEP, expiração e preço.
 - Frete grátis é regra do método nativo, não cálculo do frontend.
+- O frete grátis por produto vindo do Bling também é aplicado no servidor.
+- O carrinho recebe frete grátis por produto somente quando todos os itens
+  físicos estiverem marcados como elegíveis; carrinho misto mantém a cotação
+  normal.
+- A modalidade, transportadora e prazo calculados continuam visíveis e salvos;
+  apenas o valor cobrado do comprador é zerado.
 - Métodos nativos não exigem peso/dimensões.
 - Peso interno das variantes é kg; dimensões são cm.
 - Provider externo não usa fallback físico silencioso.
@@ -48,6 +54,19 @@ Seed inicial Brasil Drones:
 
 O fallback manual só deve ser usado quando explicitamente habilitado por
 configuração de ambiente.
+
+### 2.1.1 Frete grátis por produto do Bling
+
+O detalhe oficial do produto Bling expõe `freteGratis`. A sincronização grava
+esse valor em `products.free_shipping`, com `false` como padrão seguro quando o
+campo não vier no payload.
+
+Na cotação, a Zalen ainda consulta o provider para preservar serviço,
+transportadora e prazo. Se todos os produtos físicos do carrinho tiverem
+`free_shipping = true`, as opções persistidas recebem preço zero e guardam o
+preço original nos metadados da cotação. A chave do cache inclui a elegibilidade
+para que uma mudança no Bling não reutilize uma cotação paga antiga. A mesma
+regra é recalculada no servidor antes da criação do pedido.
 
 ## 2.2 SuperFrete quote-only
 

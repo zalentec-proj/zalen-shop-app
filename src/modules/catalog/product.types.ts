@@ -55,6 +55,7 @@ export interface Product {
   seoTitle?: string;
   seoDescription?: string;
   requiresShipping: boolean;
+  freeShipping: boolean;
   variants: ProductVariant[];
   images: ProductImage[];
   categories: Category[];

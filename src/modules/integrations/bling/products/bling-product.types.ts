@@ -54,6 +54,7 @@ export interface BlingProductDetail extends BlingProductListItem {
   marca?: string;
   pesoLiquido?: number;
   pesoBruto?: number;
+  freteGratis?: boolean;
   estoque?: {
     saldoVirtualTotal?: number | string;
   };

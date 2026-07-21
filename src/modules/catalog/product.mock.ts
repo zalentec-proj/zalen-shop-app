@@ -25,6 +25,7 @@ export const mockProducts: Product[] = [
     brand: 'DJI',
     status: 'active',
     requiresShipping: true,
+    freeShipping: false,
     seoTitle: 'DJI Mavic 3 Pro — Drone Profissional com Câmera Hasselblad',
     seoDescription:
       'Compre o DJI Mavic 3 Pro com câmera Hasselblad 4/3 CMOS, autonomia de 46 min e transmissão de 15km.',
@@ -85,6 +86,7 @@ export const mockProducts: Product[] = [
     brand: 'DJI',
     status: 'active',
     requiresShipping: true,
+    freeShipping: false,
     seoTitle: 'DJI Mini 4 Pro — Mini Drone com Máxima Performance',
     seoDescription:
       'DJI Mini 4 Pro: câmera 1/1.3" CMOS, peso abaixo de 249g, autonomia de 34 min e detecção omnidirecional.',
@@ -137,6 +139,7 @@ export const mockProducts: Product[] = [
     brand: 'DJI',
     status: 'active',
     requiresShipping: true,
+    freeShipping: false,
     variants: [
       {
         id: 'dji-air-3-v1',
@@ -184,6 +187,7 @@ export const mockProducts: Product[] = [
     brand: 'DJI',
     status: 'active',
     requiresShipping: true,
+    freeShipping: false,
     variants: [
       {
         id: 'bateria-dji-mini-3-pro-v1',
@@ -232,6 +236,7 @@ export const mockProducts: Product[] = [
     brand: 'DJI',
     status: 'active',
     requiresShipping: true,
+    freeShipping: false,
     variants: [
       {
         id: 'helices-dji-air-3-v1',
@@ -278,6 +283,7 @@ export const mockProducts: Product[] = [
     brand: 'Brasil Drones',
     status: 'active',
     requiresShipping: true,
+    freeShipping: false,
     variants: [
       {
         id: 'case-impermeavel-v1',

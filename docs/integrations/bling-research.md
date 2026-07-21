@@ -144,6 +144,8 @@ Regras da v1:
 - storefront e admin continuam lendo do Supabase;
 - variante padrão é criada/atualizada com SKU, preço e estoque;
 - variações são mapeadas para múltiplas `product_variants`;
+- o campo booleano oficial `freteGratis` de `ProdutosDadosDTO` é persistido em
+  `products.free_shipping`; quando ausente, assume `false`;
 - após o primeiro sync, `dataAlteracaoInicial` usa o último sync bem-sucedido;
 - categorias cadastradas no Bling são sincronizadas para `categories` antes do
   processamento dos produtos, preservando `external_id = bling:{id}` e

@@ -7,6 +7,11 @@ const mocks = vi.hoisted(() => ({
   listShippingMethods: vi.fn(),
   calculateSuperFreteRates: vi.fn(),
   hasActiveSuperFreteMethod: vi.fn(),
+  getProductById: vi.fn(),
+}));
+
+vi.mock('@/modules/catalog/product.service', () => ({
+  getProductById: mocks.getProductById,
 }));
 
 vi.mock('./shipment.repository', () => ({
@@ -96,6 +101,10 @@ describe('shipping quote fallback', () => {
     mocks.listShippingMethods.mockResolvedValue([externalMethod, nativeMethod]);
     mocks.hasActiveSuperFreteMethod.mockReturnValue(true);
     mocks.insertQuotes.mockImplementation(async ({ rates }) => rates);
+    mocks.getProductById.mockResolvedValue({
+      requiresShipping: true,
+      freeShipping: false,
+    });
   });
 
   it('prefers SuperFrete rates when the carrier responds', async () => {
@@ -143,5 +152,94 @@ describe('shipping quote fallback', () => {
     await expect(quoteShipping(input)).rejects.toThrow(
       'superfrete_quote_failed'
     );
+  });
+
+  it('keeps carrier and delivery data but charges zero when every shippable item has free shipping', async () => {
+    mocks.getProductById.mockResolvedValue({
+      requiresShipping: true,
+      freeShipping: true,
+    });
+    mocks.calculateSuperFreteRates.mockResolvedValue([
+      {
+        methodId: externalMethod.id,
+        kind: 'external',
+        providerKey: 'superfrete',
+        serviceCode: '1',
+        serviceName: 'PAC',
+        carrierName: 'Correios',
+        price: 18.5,
+        deliveryMinDays: 5,
+      },
+    ]);
+
+    await expect(quoteShipping(input)).resolves.toMatchObject([
+      {
+        methodId: externalMethod.id,
+        serviceName: 'PAC',
+        carrierName: 'Correios',
+        price: 0,
+        deliveryMinDays: 5,
+        rawPayload: {
+          productFreeShipping: true,
+          originalPrice: 18.5,
+        },
+      },
+    ]);
+  });
+
+  it('does not grant free shipping to a mixed cart', async () => {
+    mocks.getProductById.mockImplementation(async (_storeId, productId) => ({
+      requiresShipping: true,
+      freeShipping: productId === 'product-1',
+    }));
+    mocks.calculateSuperFreteRates.mockResolvedValue([
+      {
+        methodId: externalMethod.id,
+        kind: 'external',
+        providerKey: 'superfrete',
+        serviceCode: '1',
+        serviceName: 'PAC',
+        price: 18.5,
+      },
+    ]);
+
+    await expect(
+      quoteShipping({
+        ...input,
+        items: [
+          ...input.items,
+          {
+            productId: 'product-2',
+            variantId: 'variant-2',
+            quantity: 1,
+          },
+        ],
+      })
+    ).resolves.toMatchObject([{ price: 18.5 }]);
+  });
+
+  it('partitions the quote cache when product free-shipping eligibility changes', async () => {
+    mocks.calculateSuperFreteRates.mockResolvedValue([
+      {
+        methodId: externalMethod.id,
+        kind: 'external',
+        providerKey: 'superfrete',
+        serviceCode: '1',
+        serviceName: 'PAC',
+        price: 18.5,
+      },
+    ]);
+
+    await quoteShipping(input);
+    const paidCacheKey = mocks.getReusableRates.mock.calls[0][0].cacheKey;
+
+    mocks.getProductById.mockResolvedValue({
+      requiresShipping: true,
+      freeShipping: true,
+    });
+    await quoteShipping(input);
+    const freeCacheKey = mocks.getReusableRates.mock.calls[1][0].cacheKey;
+
+    expect(freeCacheKey).not.toBe(paidCacheKey);
   });
 });

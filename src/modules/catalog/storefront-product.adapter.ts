@@ -20,7 +20,9 @@ function buildFallbackSpecs(product: CatalogProduct): StorefrontProduct['specs']
     product.brand ? { label: 'Marca', value: product.brand } : null,
     variant?.sku ? { label: 'SKU', value: variant.sku } : null,
     variant ? { label: 'Estoque', value: `${variant.stock} un.` } : null,
-    product.requiresShipping
+    product.freeShipping
+      ? { label: 'Frete', value: 'Grátis' }
+      : product.requiresShipping
       ? { label: 'Entrega', value: 'Produto físico' }
       : { label: 'Entrega', value: 'Digital' },
   ];

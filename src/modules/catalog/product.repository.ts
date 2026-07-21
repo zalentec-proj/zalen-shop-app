@@ -88,6 +88,7 @@ export interface UpsertIntegrationProductInput {
   brand?: string;
   status: ProductStatus;
   requiresShipping?: boolean;
+  freeShipping?: boolean;
   variant: {
     externalId: string;
     sku?: string;
@@ -162,6 +163,7 @@ type ProductRow = {
   seo_title: string | null;
   seo_description: string | null;
   requires_shipping: boolean | null;
+  free_shipping: boolean | null;
   created_at: string | null;
   updated_at: string | null;
 };
@@ -304,6 +306,7 @@ function mapProduct(
     seoTitle: row.seo_title ?? undefined,
     seoDescription: row.seo_description ?? undefined,
     requiresShipping: row.requires_shipping ?? true,
+    freeShipping: row.free_shipping ?? false,
     variants,
     images,
     categories,
@@ -1677,6 +1680,7 @@ export async function upsertIntegrationProductInRepository(
     brand: input.brand ?? null,
     status: input.status,
     requires_shipping: input.requiresShipping ?? true,
+    free_shipping: input.freeShipping ?? false,
     updated_at: now,
   };
 

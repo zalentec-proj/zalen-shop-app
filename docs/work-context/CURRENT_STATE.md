@@ -6,7 +6,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Snapshot
 
-- Atualizado em: 2026-07-20
+- Atualizado em: 2026-07-21
 - Branch: `refactor/migrate-to-next`
 - Commit base antes desta frente: `46060a8` — `feat(domains): add per-store custom domain self-service`
 - A branch e o remoto estavam sincronizados antes da correção JWT do Bling.
@@ -22,6 +22,35 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Última mudança conhecida
+
+- Em 2026-07-21 foi corrigida em produção a regra de frete grátis por produto
+  sincronizado do Bling. O contrato oficial `ProdutosDadosDTO.freteGratis` foi
+  mapeado para a nova coluna `products.free_shipping`, criada pela migration
+  `20260721104332_add_product_free_shipping.sql`. O valor ausente assume
+  `false`.
+- A cotação continua consultando o provider e preserva modalidade,
+  transportadora, prazo e preço original nos metadados, mas cobra zero quando
+  todos os itens físicos do carrinho forem elegíveis. Carrinho misto permanece
+  com frete pago. A elegibilidade participa da chave do cache e é revalidada
+  server-side antes do pedido.
+- O produto Bling `16676393579` (`PRO-TP`) foi marcado como elegível após a
+  confirmação do lojista. O endpoint de sincronização manual não foi usado
+  porque a sessão administrativa disponível não tinha vínculo com a Brasil
+  Drones; as próximas sincronizações e webhooks já preservam o campo oficial.
+- A validação real no checkout da Brasil Drones retornou PAC, SEDEX, Mini
+  Envios, Jadlog e Loggi como `Grátis`, mantendo os respectivos prazos. As
+  cinco cotações foram persistidas com preço `0.00`, marca de frete grátis e
+  preço original. O total do produto de teste permaneceu R$ 5,00.
+- O deployment de produção `dpl_2tn3SCYwPUqLoQnPrpNAyxgZgKSr` ficou `READY`.
+  A suíte completa passou com 23 arquivos e 95 testes, além de lint, build e
+  `git diff --check`.
+- O Security Advisor não apontou regressão da migration; permanece apenas o
+  aviso já conhecido de proteção contra senhas vazadas desativada. Os avisos
+  de performance existentes são dívida anterior e não foram ampliados por esta
+  coluna.
+- Ainda em 2026-07-21, o envio de código por e-mail foi recuperado com a
+  configuração válida do Resend em produção e confirmado por envio com status
+  `sent`; nenhum segredo foi registrado neste handoff.
 
 - Em 2026-07-20 o envio automático de pedidos ao Bling foi ativado somente para
   a Brasil Drones (`orderSend.enabled = true`), depois da criação/cancelamento

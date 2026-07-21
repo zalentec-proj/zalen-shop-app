@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { createHash } from 'node:crypto';
+import { getProductById } from '@/modules/catalog/product.service';
 import {
   getShippingOriginFromRepository,
   getShippingQuoteFromRepository,
@@ -73,16 +74,62 @@ export function getShippingItemsHash(items: ShippingQuoteItem[]) {
     .digest('hex');
 }
 
-function getShippingQuoteCacheKey(input: ShippingQuoteInput) {
+function getShippingQuoteCacheKey(
+  input: ShippingQuoteInput,
+  productFreeShipping: boolean
+) {
   return createHash('sha256')
     .update(
       JSON.stringify({
         destinationPostalCode: onlyDigits(input.destinationPostalCode),
         itemsHash: getShippingItemsHash(input.items),
         subtotal: roundCurrency(input.subtotal),
+        productFreeShipping,
       })
     )
     .digest('hex');
+}
+
+async function areAllShippableItemsFreeShipping(input: ShippingQuoteInput) {
+  const productIds = Array.from(
+    new Set(input.items.map((item) => item.productId))
+  );
+  const products = await Promise.all(
+    productIds.map((productId) => getProductById(input.storeId, productId))
+  );
+
+  if (products.some((product) => !product)) {
+    throw new Error('shipping_product_not_found');
+  }
+
+  const shippableProducts = products.filter(
+    (product): product is NonNullable<typeof product> =>
+      Boolean(product?.requiresShipping)
+  );
+
+  return (
+    shippableProducts.length > 0 &&
+    shippableProducts.every((product) => product.freeShipping)
+  );
+}
+
+function applyProductFreeShipping(
+  rates: ShippingRate[],
+  productFreeShipping: boolean
+) {
+  if (!productFreeShipping) {
+    return rates;
+  }
+
+  return rates.map((rate) => ({
+    ...rate,
+    price: 0,
+    rawPayload: {
+      ...(rate.rawPayload ?? {}),
+      productFreeShipping: true,
+      originalPrice: roundCurrency(rate.price),
+    },
+  }));
 }
 
 function getShippingQuoteCacheCutoff() {
@@ -207,10 +254,13 @@ async function calculateShippingRates(input: ShippingQuoteInput) {
   return nativeRates;
 }
 
-async function getCachedShippingRates(input: ShippingQuoteInput) {
+async function getCachedShippingRates(
+  input: ShippingQuoteInput,
+  cacheKey: string
+) {
   return getReusableShippingQuoteRatesFromRepository({
     storeId: input.storeId,
-    cacheKey: getShippingQuoteCacheKey(input),
+    cacheKey,
     minimumCreatedAt: getShippingQuoteCacheCutoff(),
   });
 }
@@ -218,19 +268,27 @@ async function getCachedShippingRates(input: ShippingQuoteInput) {
 async function quoteAndPersistShippingRates(input: {
   quote: ShippingQuoteInput;
   calculate: (quote: ShippingQuoteInput) => Promise<ShippingRate[]>;
+  productFreeShipping: boolean;
 }) {
   const destinationPostalCode = onlyDigits(input.quote.destinationPostalCode);
   const normalizedQuote = {
     ...input.quote,
     destinationPostalCode,
   };
-  const cachedRates = await getCachedShippingRates(normalizedQuote);
+  const cacheKey = getShippingQuoteCacheKey(
+    normalizedQuote,
+    input.productFreeShipping
+  );
+  const cachedRates = await getCachedShippingRates(normalizedQuote, cacheKey);
 
   if (cachedRates.length > 0) {
     return cachedRates;
   }
 
-  const rates = await input.calculate(normalizedQuote);
+  const rates = applyProductFreeShipping(
+    await input.calculate(normalizedQuote),
+    input.productFreeShipping
+  );
 
   if (rates.length === 0) {
     return [];
@@ -240,7 +298,7 @@ async function quoteAndPersistShippingRates(input: {
     storeId: normalizedQuote.storeId,
     destinationPostalCode,
     itemsHash: getShippingItemsHash(normalizedQuote.items),
-    cacheKey: getShippingQuoteCacheKey(normalizedQuote),
+    cacheKey,
     expiresAt: getQuoteExpiration(),
     rates,
   });
@@ -276,18 +334,24 @@ export async function updateShippingMethod(
 export async function quoteNativeShipping(
   input: ShippingQuoteInput
 ): Promise<ShippingRate[]> {
+  const productFreeShipping = await areAllShippableItemsFreeShipping(input);
+
   return quoteAndPersistShippingRates({
     quote: input,
     calculate: calculateNativeRates,
+    productFreeShipping,
   });
 }
 
 export async function quoteShipping(
   input: ShippingQuoteInput
 ): Promise<ShippingRate[]> {
+  const productFreeShipping = await areAllShippableItemsFreeShipping(input);
+
   return quoteAndPersistShippingRates({
     quote: input,
     calculate: calculateShippingRates,
+    productFreeShipping,
   });
 }
 
@@ -319,12 +383,19 @@ export async function validateShippingQuoteForCheckout(input: {
     throw new Error('shipping_quote_address_changed');
   }
 
-  const currentRates = await calculateShippingRates({
+  const currentQuoteInput = {
     storeId: input.storeId,
     subtotal: input.subtotal,
     destinationPostalCode: input.destinationPostalCode,
     items: input.items,
-  });
+  };
+  const productFreeShipping = await areAllShippableItemsFreeShipping(
+    currentQuoteInput
+  );
+  const currentRates = applyProductFreeShipping(
+    await calculateShippingRates(currentQuoteInput),
+    productFreeShipping
+  );
   const matchingRate = currentRates.find(
     (rate) =>
       rate.methodId === quote.methodId &&

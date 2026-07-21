@@ -226,6 +226,7 @@ export function mapBlingProductToCatalogInput(input: {
     brand: input.product.marca?.trim() || undefined,
     status: toStatus(input.product.situacao),
     requiresShipping: true,
+    freeShipping: input.product.freteGratis === true,
     variant: {
       ...mappedVariants[0],
     },

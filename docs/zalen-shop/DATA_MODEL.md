@@ -94,6 +94,7 @@ products (
   seo_title text,
   seo_description text,
   requires_shipping boolean default true,
+  free_shipping boolean not null default false,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 )

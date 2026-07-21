@@ -57,6 +57,7 @@
 - Estoque aparece corretamente.
 - Produto inativo não aparece no storefront público.
 - Admin pode visualizar produtos ativos/inativos quando autorizado.
+- Produto sincronizado do Bling persiste `freteGratis` como regra server-side.
 
 ## 6. Pedidos
 
@@ -114,6 +115,12 @@
 - SuperFrete V1 chama apenas `POST /api/v0/calculator` no servidor.
 - Métodos nativos não chamam APIs externas.
 - Frete grátis por subtotal é calculado no servidor.
+- Frete grátis por produto só zera a cobrança quando todos os itens físicos do
+  carrinho forem elegíveis.
+- Frete grátis por produto preserva modalidade, transportadora, prazo e preço
+  original nos metadados da cotação.
+- Alterar a elegibilidade de frete grátis não reutiliza uma cotação incompatível
+  do cache, e o servidor revalida a regra antes de criar o pedido.
 - `/admin/configuracoes/envios` permite configurar origem e métodos nativos.
 - SuperFrete não gera etiqueta, pagamento de etiqueta, impressão, webhook ou rastreio direto na V1.
 - Melhor Envio permanece bloqueado até pesquisa técnica oficial preenchida.
