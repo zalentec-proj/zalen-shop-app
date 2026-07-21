@@ -23,24 +23,21 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
-- Em 2026-07-20 o produto de teste Bling `PRO-TP` foi reprocessado em carga
-  completa e validado no storefront com preço de R$ 5,00, estoque 10 e status
-  ativo. O pedido pago histórico `BD-167498` referencia esse SKU e foi
-  autorizado pelo usuário para envio controlado e cancelamento posterior no
-  Bling real. A trava automática de pedidos continua desligada.
-- Duas tentativas controladas de criação do pedido retornaram HTTP 400 e não
-  criaram pedido externo. O diagnóstico sanitizado do Bling informou que o
-  `POST /pedidos/vendas` exige `contato.id` e `produto.id`; nome/documento e
-  `itens[].codigo` isolados fizeram a API interpretar os registros como novos.
-  O contato do comprador ainda não existe no Bling, enquanto o produto
-  `PRO-TP` resolve corretamente para o ID ERP já sincronizado.
-- Foi implementada localmente a resolução oficial prévia: busca do contato por
-  `numeroDocumento`, criação via `POST /contatos` quando ausente, busca de
-  produtos por `codigos[]` e inclusão de `contato.id`/`produto.id` no payload.
-  Os testes focados e a suíte completa passaram (21 arquivos, 87 testes), assim
-  como lint e build. Próximo passo exato: revisar diff, executar checagem de
-  segredos, commit/push, aguardar deployment `READY`, reenviar somente
-  `BD-167498`, validar a criação no Bling e cancelá-lo conforme autorização.
+- Em 2026-07-20 foi concluída a homologação controlada do envio de pedidos no
+  Bling real. A correção publicada resolve previamente o contato por documento,
+  cria-o quando ausente, resolve os produtos por SKU e envia `contato.id` e
+  `produto.id`, como exigido pelo `POST /pedidos/vendas`.
+- O pedido pago histórico `BD-167498` foi enviado uma única vez e criado no
+  Bling com ID `26384566933`, número de venda `73` e referência de loja
+  `BD-167498`. Foram conferidos cliente, SKU `PRO-TP`, quantidade 1, preço
+  histórico de R$ 10,00 e total de R$ 22,16. O registro continha observação
+  explícita para não faturar nem expedir e foi alterado para `Cancelado` na
+  interface autenticada do Bling após a validação.
+- A Zalen persistiu o vínculo com `external_erp_sync_status = synced`, sem erro.
+  O deployment de produção do commit `d4e3f9e` ficou `READY`. A suíte completa
+  passou (21 arquivos, 87 testes), além de lint, build, checagem de segredos e
+  `git diff --check`. A trava automática `orderSend.enabled` permanece desligada
+  e não deve ser ativada sem decisão operacional explícita.
 
 - Em 2026-07-20 foi auditada ao vivo a integração Bling da Brasil Drones. O
   admin Zalen mostrou `connected`, ambiente `production`, sync incremental de
@@ -278,20 +275,17 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Objetivo atual
 
-Concluir a ativação operacional do Bling para a Brasil Drones sem liberar envio
-automático antes da homologação: publicar a correção do header JWT, repetir o
-teste de conexão/homologação, enviar um único pedido pago controlado, confirmar
-e cancelar esse pedido no Bling e somente então ligar `orderSend.enabled`.
-Preservar em paralelo os bloqueios e validações pendentes do Mercado Pago,
-domínios e compatibilidade descritos abaixo.
+Decidir, após a homologação controlada concluída, quando ativar o envio
+automático de pedidos ao Bling para a Brasil Drones. Até essa decisão explícita,
+manter `orderSend.enabled` desligado. Preservar em paralelo os bloqueios e
+validações pendentes do Mercado Pago, domínios e compatibilidade descritos abaixo.
 
 ## Em andamento
 
-A correção `enable-jwt: 1` está pronta nos clientes Bling operacional e de
-homologação. A validação local passou em 84 testes distribuídos em 20 arquivos,
-`npm run lint`, `npm run build` e `git diff --check`. Falta publicar e repetir a
-homologação pela tela autenticada; nenhum pedido deve ser enviado automaticamente
-nessa etapa.
+A correção `enable-jwt: 1` e a resolução de referências de contato/produto estão
+publicadas. A homologação criou e depois cancelou o pedido Bling `26384566933`;
+o pedido Zalen `BD-167498` está sincronizado sem erro. O envio automático segue
+desligado.
 
 O deployment de produção vigente é anterior à implementação de confirmação
 visual de Pix. A conciliação periódica pode atualizar pedidos que não receberam
@@ -307,10 +301,8 @@ revisar as sugestões na tela de compatibilidade depois que o código estiver
 publicado; não deve criar vínculos automáticos em massa apenas pelo nome da
 peça.
 
-O deployment de produção vigente antes da correção JWT corresponde ao commit
-`46060a8` e está `READY`. A próxima publicação deve conter apenas a correção
-Bling, os testes e este handoff, preservando as alterações locais não
-relacionadas.
+O deployment funcional de produção do commit `d4e3f9e` está `READY`. Os scripts
+locais não rastreados e não relacionados devem continuar preservados.
 
 O schema de domínios já está em produção, sem registros. O código correspondente
 ainda não foi publicado, `DOMAIN_SELF_SERVICE_ENABLED` deve permanecer `false`
@@ -318,17 +310,14 @@ e as credenciais Vercel ainda não devem ser usadas até o piloto controlado.
 
 ## Próximo passo exato
 
-0. Publicar a correção JWT e confirmar o deployment `READY`, sem alterar
-   `orderSend.enabled`.
-1. Reexecutar a homologação Bling na tela autenticada. Confirmar que o primeiro
-   `GET produtos` e a sequência oficial completam sem `request_failed`.
-2. Criar ou selecionar um pedido Zalen pago e controlado cujos SKUs existam no
-   Bling; usar “Enviar um pedido de homologação”, conferir o registro recebido,
-   não faturar/não expedir e cancelá-lo no Bling.
-3. Validar ao menos um webhook assinado ou registrar explicitamente que o cron
-   incremental será a única proteção temporária antes de liberar produção.
-4. Somente após esses passos, ligar `settings_json.orderSend.enabled` para a
-   Brasil Drones e acompanhar o primeiro pedido real pago.
+0. Obter decisão operacional explícita antes de alterar
+   `settings_json.orderSend.enabled`; até lá, mantê-lo desligado.
+1. Validar ao menos um webhook assinado ou registrar explicitamente que o cron
+   incremental será a única proteção temporária antes de liberar o fluxo
+   automático.
+2. Se autorizado, ligar o envio automático somente para a Brasil Drones e
+   acompanhar o primeiro pedido novo pago, confirmando a criação no Bling sem
+   duplicidade.
 
 ### Pendências paralelas já registradas
 
