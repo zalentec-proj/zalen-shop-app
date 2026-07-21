@@ -127,9 +127,42 @@ function isInvalidTokenResponse(status: number, body: unknown) {
   return false;
 }
 
+function getHomologationValidationErrorCode(body: unknown) {
+  if (!body || typeof body !== 'object' || !('error' in body)) {
+    return undefined;
+  }
+
+  const error = (body as { error?: unknown }).error;
+
+  if (!error || typeof error !== 'object' || !('fields' in error)) {
+    return undefined;
+  }
+
+  const fields = (error as { fields?: unknown }).fields;
+
+  if (!Array.isArray(fields)) {
+    return undefined;
+  }
+
+  const companyMismatch = fields.some((field) => {
+    if (!field || typeof field !== 'object') {
+      return false;
+    }
+
+    const record = field as Record<string, unknown>;
+    return record.namespace === 'HOMOLOGACAO' && record.code === 6;
+  });
+
+  return companyMismatch ? 'homologation_app_company_mismatch' : undefined;
+}
+
 function shouldAttemptRefresh(status: number, body: unknown) {
   if (isInvalidTokenResponse(status, body)) {
     return true;
+  }
+
+  if (getHomologationValidationErrorCode(body)) {
+    return false;
   }
 
   // Bling's homologation can invalidate the access token during one step and
@@ -144,7 +177,7 @@ function assertSuccess(
   if (response.status < 200 || response.status >= 300) {
     throw new BlingHomologationClientError(
       step,
-      'request_failed',
+      getHomologationValidationErrorCode(response.body) ?? 'request_failed',
       response.status
     );
   }

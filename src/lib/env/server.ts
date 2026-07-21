@@ -32,6 +32,7 @@ const serverEnvSchema = z.object({
   SENTRY_DSN: z.string().trim().url().optional(),
   SENTRY_ENVIRONMENT: optionalSecretString,
   INTEGRATION_TOKEN_ENCRYPTION_KEY: optionalSecretString,
+  INTEGRATION_TOKEN_ENCRYPTION_KEY_PREVIOUS: optionalSecretString,
   MERCADO_PAGO_ENV: z.enum(['test', 'production']).optional(),
   MERCADO_PAGO_CLIENT_ID: optionalSecretString,
   MERCADO_PAGO_CLIENT_SECRET: optionalSecretString,
@@ -126,6 +127,9 @@ function parseServerEnv(): ServerEnv {
     SENTRY_ENVIRONMENT: normalizeEnvValue(process.env.SENTRY_ENVIRONMENT),
     INTEGRATION_TOKEN_ENCRYPTION_KEY: normalizeEnvValue(
       process.env.INTEGRATION_TOKEN_ENCRYPTION_KEY
+    ),
+    INTEGRATION_TOKEN_ENCRYPTION_KEY_PREVIOUS: normalizeEnvValue(
+      process.env.INTEGRATION_TOKEN_ENCRYPTION_KEY_PREVIOUS
     ),
     MERCADO_PAGO_ENV: normalizeMercadoPagoEnv(process.env.MERCADO_PAGO_ENV),
     MERCADO_PAGO_CLIENT_ID: normalizeEnvValue(

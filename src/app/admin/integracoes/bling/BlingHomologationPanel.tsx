@@ -41,6 +41,13 @@ const expectedSteps = [
   'delete_product',
 ];
 
+const errorLabels: Record<string, string> = {
+  homologation_app_company_mismatch:
+    'A homologação oficial deve ser executada com uma conta da empresa que criou o aplicativo Zalen Shop no Bling. A conta cliente conectada continua válida para a operação normal.',
+  request_failed: 'O Bling recusou uma etapa da homologação.',
+  homologation_request_failed: 'Não foi possível iniciar a homologação.',
+};
+
 function getStatusClass(status: Step['status']) {
   if (status === 'success') {
     return 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200';
@@ -143,7 +150,7 @@ export function BlingHomologationPanel({
 
       {summary?.errorCode ? (
         <div className="mt-3 rounded-lg border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-xs text-rose-100">
-          Falha controlada: {summary.errorCode}
+          {errorLabels[summary.errorCode] ?? `Falha controlada: ${summary.errorCode}`}
         </div>
       ) : null}
 

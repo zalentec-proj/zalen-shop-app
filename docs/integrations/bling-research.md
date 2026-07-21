@@ -84,6 +84,13 @@ code={authorization_code}
 - No fluxo de homologação, uma resposta `400` também é tratada como possível
   invalidação controlada de token e gera uma única tentativa de refresh.
 - O fluxo de homologação aguarda 2 segundos entre chamadas para evitar `429`.
+- A sequência oficial usa exclusivamente
+  `https://api.bling.com.br/Api/v3/homologacao/produtos`. Ela deve ser
+  executada com uma conta da empresa que criou o aplicativo; uma conta cliente
+  conectada pode operar catálogo/pedidos normalmente, mas o Bling rejeita a
+  homologação com o erro seguro `homologation_app_company_mismatch`.
+- Erros de validação da empresa criadora não disparam refresh de token; o painel
+  apresenta orientação operacional sem exibir a mensagem bruta ou credenciais.
 - O armazenamento criptografado está preparado em `store_integrations`.
 
 ### Header enable-jwt
@@ -367,6 +374,7 @@ BLING_REDIRECT_URI=
 BLING_SCOPES=
 BLING_ENV=sandbox
 INTEGRATION_TOKEN_ENCRYPTION_KEY=
+INTEGRATION_TOKEN_ENCRYPTION_KEY_PREVIOUS=
 CRON_SECRET=
 INTERNAL_JOB_SECRET=
 ```
@@ -377,6 +385,8 @@ INTERNAL_JOB_SECRET=
 - [x] State anti-CSRF no fluxo OAuth.
 - [x] Tokens nunca expostos no frontend.
 - [x] Tokens nunca salvos sem criptografia.
+- [x] Rotação coordenada aceita temporariamente uma chave anterior apenas para
+  descriptografia; novas gravações usam sempre a chave atual.
 - [x] `credentials_encrypted` não é selecionado no admin.
 - [x] Store filtrada por `storeId`.
 - [x] Sync de produtos usa somente rota server-side e resumo sanitizado.

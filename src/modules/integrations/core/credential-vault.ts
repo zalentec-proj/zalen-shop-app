@@ -9,6 +9,15 @@ function getEncryptionSecret() {
   return getServerEnv().INTEGRATION_TOKEN_ENCRYPTION_KEY;
 }
 
+function getDecryptionSecrets() {
+  const env = getServerEnv();
+
+  return [
+    env.INTEGRATION_TOKEN_ENCRYPTION_KEY,
+    env.INTEGRATION_TOKEN_ENCRYPTION_KEY_PREVIOUS,
+  ].filter((secret): secret is string => Boolean(secret));
+}
+
 function getEncryptionKey(secret: string) {
   return createHash('sha256').update(secret).digest();
 }
@@ -39,9 +48,9 @@ export function encryptIntegrationCredentials(payload: unknown): string {
 }
 
 export function decryptIntegrationCredentials<T>(encryptedPayload: string): T {
-  const secret = getEncryptionSecret();
+  const secrets = getDecryptionSecrets();
 
-  if (!secret) {
+  if (secrets.length === 0) {
     throw new Error('Integration credential encryption is not configured.');
   }
 
@@ -51,17 +60,25 @@ export function decryptIntegrationCredentials<T>(encryptedPayload: string): T {
     throw new Error('Unsupported integration credential payload.');
   }
 
-  const decipher = createDecipheriv(
-    'aes-256-gcm',
-    getEncryptionKey(secret),
-    Buffer.from(iv, 'base64url')
-  );
-  decipher.setAuthTag(Buffer.from(tag, 'base64url'));
+  for (const secret of secrets) {
+    try {
+      const decipher = createDecipheriv(
+        'aes-256-gcm',
+        getEncryptionKey(secret),
+        Buffer.from(iv, 'base64url')
+      );
+      decipher.setAuthTag(Buffer.from(tag, 'base64url'));
 
-  const decrypted = Buffer.concat([
-    decipher.update(Buffer.from(encrypted, 'base64url')),
-    decipher.final(),
-  ]);
+      const decrypted = Buffer.concat([
+        decipher.update(Buffer.from(encrypted, 'base64url')),
+        decipher.final(),
+      ]);
 
-  return JSON.parse(decrypted.toString('utf8')) as T;
+      return JSON.parse(decrypted.toString('utf8')) as T;
+    } catch {
+      // A previous key is accepted only during a controlled rotation window.
+    }
+  }
+
+  throw new Error('Unable to decrypt integration credentials.');
 }
