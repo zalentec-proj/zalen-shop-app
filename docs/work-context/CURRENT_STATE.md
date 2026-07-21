@@ -32,9 +32,12 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   provedor enviam `ts` Unix em segundos, mas essa opção o interpreta como
   milissegundos. O HMAC continua validado pelo SDK e a janela anti-replay de
   cinco minutos passou a ser aplicada separadamente, normalizando segundos ou
-  milissegundos. A correção passou em 25 arquivos/104 testes, TypeScript, build,
-  scanner de segredos e `git diff --check`; falta publicar e repetir a
-  simulação oficial até obter HTTP 200.
+  milissegundos. A correção foi publicada no commit `e9234eb`, passou em 25
+  arquivos/104 testes, TypeScript, build, scanner de segredos e
+  `git diff --check`; o CI `29838817155` ficou verde e o deployment produtivo
+  `dpl_HgotDQDJSN9kbHo7M1siiYwhToau` ficou `READY`. A nova simulação oficial
+  assinada do pagamento `168939464233` retornou HTTP 200 no painel, e o mesmo
+  POST 200 foi confirmado nos logs da Vercel no endpoint contextualizado.
 - O primeiro CI após esse patch revelou que o npm do runner Linux ainda
   exigia `@emnapi/core@1.11.2` e `@emnapi/runtime@1.11.2` no nível raiz do
   lockfile. As duas dependências transitivas foram declaradas como opcionais e
@@ -431,15 +434,13 @@ exclusivamente server-side e a habilitação permanece restrita à allowlist.
 
 ## Próximo passo exato
 
-0. Publicar a normalização do timestamp do webhook do Mercado Pago, aguardar CI
-   e deployment verdes e repetir a simulação assinada da URL produtiva com o
-   pagamento `168939464233` até confirmar HTTP 200 e evento processado.
-1. Acompanhar o próximo pedido novo pago da Brasil Drones e confirmar que foi
-   criado uma única vez no Bling, com `external_erp_sync_status = synced`.
-2. Gerar uma alteração controlada no produto de teste do Bling e confirmar no
+0. Acompanhar o próximo pedido novo pago da Brasil Drones e confirmar que o
+   webhook produtivo permanece HTTP 200 e que o pedido foi criado uma única vez
+   no Bling, com `external_erp_sync_status = synced`.
+1. Gerar uma alteração controlada no produto de teste do Bling e confirmar no
    painel Zalen o primeiro webhook assinado válido de produto; depois repetir
    com estoque e conferir processamento sem erro ou duplicidade.
-3. Depois do primeiro webhook processado, manter o cron de 10 minutos somente
+2. Depois do primeiro webhook processado, manter o cron de 10 minutos somente
    como camada de reconciliação, não como fonte principal de atualização.
 
 ### Pendências paralelas já registradas
@@ -447,45 +448,24 @@ exclusivamente server-side e a habilitação permanece restrita à allowlist.
 0. Resolver manualmente o pedido histórico que está como enviado sem pagamento
    confirmado; registrar a decisão operacional antes de validar integralmente a
    restrição `orders_fulfillment_requires_payment`.
-1. Copiar, diretamente do painel de credenciais de produção, `Client ID` e
-   `Client Secret` do Mercado Pago para as variáveis sensíveis da Vercel,
-   sem expor os valores em terminal, código ou documentação.
-2. Na configuração de Webhooks, abrir o modo de produção e copiar a assinatura
-   secreta para `MERCADO_PAGO_WEBHOOK_SECRET_PRODUCTION` na Vercel. Não alterar
-   a `notification_url` contextualizada por loja e ambiente gerada pelo app.
-3. Gerar um único segredo de cron e atualizar, na mesma operação, os valores
+1. Gerar um único segredo de cron e atualizar, na mesma operação, os valores
    `CRON_SECRET` e `INTERNAL_JOB_SECRET` na Vercel e o segredo
-   `zalen_cron_secret` do Vault do Supabase.
-4. Criar o deployment somente após todos os valores anteriores estarem
-   configurados e confirmar uma entrega de `payment.updated` autenticada.
-5. Preservar a `notification_url` contextualizada por loja e ambiente em cada
+   `zalen_cron_secret` do Vault do Supabase, caso a rotação coordenada ainda não
+   tenha sido concluída fora deste handoff.
+2. Preservar a `notification_url` contextualizada por loja e ambiente em cada
    pagamento e manter somente os tópicos efetivamente processados pelo conector.
-6. Criar uma transação de produção controlada e confirmar a entrega do webhook
-   antes de publicar e liberar o novo acompanhamento de Pix.
-7. A validação controlada do pedido Bling foi concluída com criação, conferência
-   e cancelamento; o envio automático foi ativado posteriormente, após rotação
-   de chave e nova validação de estoque.
-8. Depois do deploy seguro do código de compatibilidade, abrir
+3. Depois do deploy seguro do código de compatibilidade, abrir
    `/admin/configuracoes/compatibilidade`, revisar os modelos sugeridos por
    produto e salvar apenas os vínculos confirmados. Só então usar “Ativar menu
    de modelos”. Não recategorizar produtos já classificados tecnicamente no
    Bling.
-9. No mesmo deployment seguro, publicar o código de domínios com
-   `DOMAIN_SELF_SERVICE_ENABLED=false`; configurar no servidor
-   `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID` e a allowlist da
-   Brasil Drones, sem expor valores no cliente ou no Git.
-10. Habilitar apenas a Brasil Drones e cadastrar `www.brasildrones.com.br` como
-    piloto, sem alterar inicialmente o A record do apex. Validar endpoint
-    `.well-known`, SSL, storefront, login do comprador e pagamento controlado.
-11. Alterar o apex somente em janela explícita de corte; depois validar o
-    redirect 308 para `www`. Só liberar todas as lojas após o piloto.
 
 ## Bloqueios e dúvidas
 
-Validação final de pagamentos em produção depende somente da publicação da
-normalização do timestamp e de uma nova simulação assinada HTTP 200. URL,
-assinatura produtiva, pedido pago real, reconciliação e domínio estão
-configurados. Nenhum código ou credencial deve ser compartilhado no handoff.
+Não há bloqueio técnico conhecido para domínio, checkout produtivo, webhook de
+pagamento ou envio automático ao Bling. O próximo pedido real deve ser
+acompanhado como observação pós-lançamento. Nenhum código ou credencial deve ser
+compartilhado no handoff.
 
 O acesso ao projeto Supabase correto foi restabelecido. A troca coordenada do
 segredo de cron continua condicionada à validação dos ambientes da Vercel e não
