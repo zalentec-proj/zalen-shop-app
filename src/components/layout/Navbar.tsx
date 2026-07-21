@@ -343,7 +343,7 @@ export default function Navbar({
 
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="cursor-pointer p-2 text-brand-white transition-colors hover:text-blue-primary lg:hidden"
+            className="cursor-pointer p-2 text-brand-white transition-colors hover:text-blue-primary xl:hidden"
             id="menu-toggle"
             aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'}
             aria-expanded={mobileMenuOpen}
@@ -371,15 +371,15 @@ export default function Navbar({
 
       <nav
         aria-label="Categorias da loja"
-        className="mx-auto mt-2 hidden max-w-7xl overflow-visible rounded-xl border border-[#315de0]/35 bg-[#0A1B4D]/95 shadow-[0_10px_28px_rgba(0,0,0,0.28)] backdrop-blur-xl lg:block"
+        className="mx-auto mt-2 hidden max-w-7xl overflow-visible rounded-xl border border-[#315de0]/35 bg-[#0A1B4D]/95 shadow-[0_10px_28px_rgba(0,0,0,0.28)] backdrop-blur-xl xl:block"
       >
-        <div className="flex h-10 items-stretch overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:px-5">
+        <div className="flex h-10 items-stretch overflow-visible px-4 md:px-5">
           {navLinks.map(renderDesktopItem)}
         </div>
       </nav>
 
       {mobileMenuOpen && (
-        <div className="glass-panel-strong absolute left-4 right-4 top-full z-40 mt-2 flex flex-col gap-4 rounded-2xl p-5 animate-in fade-in duration-300 lg:hidden" id="mobile-menu">
+        <div className="glass-panel-strong absolute left-4 right-4 top-full z-40 mt-2 flex flex-col gap-4 rounded-2xl p-5 animate-in fade-in duration-300 xl:hidden" id="mobile-menu">
           <div className="flex flex-col gap-2">
             <span className="text-[11px] font-bold tracking-widest text-brand-muted uppercase mb-2 px-3">
               Categorias

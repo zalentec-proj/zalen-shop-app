@@ -23,6 +23,20 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
+- Em 2026-07-21 foi concluída a ativação controlada do menu público de modelos
+  da Brasil Drones. A ação administrativa em
+  `/admin/configuracoes/compatibilidade` habilitou os 38 itens preparados em
+  `storefront_navigation_items`: 8 linhas raiz e 30 modelos filhos. A consulta
+  de produção confirmou todos os 38 registros ativos, e o domínio comercial
+  passou a exibir Linha Lito, Flip, Neo, Mini, Air, Avata, Mavic e Phantom. A
+  página pública `/modelos/linha/air` foi validada com 18 produtos compatíveis.
+- O navbar também foi corrigido para não cortar os submenus: a navegação
+  horizontal completa fica disponível a partir de 1280 px com overflow
+  visível; em larguras menores a loja usa o menu móvel, que preserva a
+  hierarquia de linhas e modelos sem comprimir ou ocultar opções. A alteração
+  passou em TypeScript, 25 arquivos/104 testes, build de produção, scanner de
+  segredos e `git diff --check`. Publicação e validação final do deployment
+  devem ser registradas após o push desta frente.
 - Em 2026-07-21 o caminho produtivo multi-store do webhook do Mercado Pago foi
   publicado e salvo no painel como
   `/api/webhooks/mercado-pago/<store_id>/production`. A simulação assinada ainda
