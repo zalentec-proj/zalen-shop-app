@@ -72,6 +72,8 @@ export function BlingHomologationPanel({
   const [summary, setSummary] = useState<HomologationResult | undefined>(
     initialSummary
   );
+  const isClientAccountHomologation =
+    summary?.errorCode === 'homologation_app_company_mismatch';
 
   function runHomologation() {
     startTransition(async () => {
@@ -111,10 +113,16 @@ export function BlingHomologationPanel({
         </div>
         <span
           className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${getStatusClass(
-            status === 'running' ? 'pending' : status
+            isClientAccountHomologation
+              ? 'pending'
+              : status === 'running'
+                ? 'pending'
+                : status
           )}`}
         >
-          {status === 'success'
+          {isClientAccountHomologation
+            ? 'Conta cliente (OK)'
+            : status === 'success'
             ? 'Sucesso'
             : status === 'running'
               ? 'Executando'
@@ -149,7 +157,13 @@ export function BlingHomologationPanel({
       </div>
 
       {summary?.errorCode ? (
-        <div className="mt-3 rounded-lg border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-xs text-rose-100">
+        <div
+          className={`mt-3 rounded-lg border px-3 py-2 text-xs ${
+            isClientAccountHomologation
+              ? 'border-sky-400/20 bg-sky-400/10 text-sky-100'
+              : 'border-rose-400/20 bg-rose-400/10 text-rose-100'
+          }`}
+        >
           {errorLabels[summary.errorCode] ?? `Falha controlada: ${summary.errorCode}`}
         </div>
       ) : null}
@@ -163,11 +177,15 @@ export function BlingHomologationPanel({
 
       <button
         type="button"
-        disabled={!canRun || isPending || status === 'running'}
+        disabled={
+          !canRun || isPending || status === 'running' || isClientAccountHomologation
+        }
         onClick={runHomologation}
         className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:border-white/8 disabled:bg-white/5 disabled:text-slate-500 disabled:hover:brightness-100"
       >
-        Executar homologação
+        {isClientAccountHomologation
+          ? 'Homologação somente na conta criadora'
+          : 'Executar homologação'}
         <ShieldCheck className="h-4 w-4" />
       </button>
 

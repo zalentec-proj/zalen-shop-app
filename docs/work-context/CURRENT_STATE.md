@@ -23,6 +23,32 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
+- Em 2026-07-20 o envio automático de pedidos ao Bling foi ativado somente para
+  a Brasil Drones (`orderSend.enabled = true`), depois da criação/cancelamento
+  controlado do pedido `BD-167498`. O painel e o banco confirmaram a trava
+  ligada; novos envios continuam condicionados a pagamento aprovado, SKU
+  existente e idempotência por pedido/ID externo.
+- A chave de criptografia de integrações foi rotacionada sem indisponibilidade.
+  Os três registros criptografados existentes — Bling produção e Mercado Pago
+  teste/produção — foram recriptografados e validados somente com a chave nova.
+  A chave anterior foi removida da Vercel e do ambiente local. Uma sincronização
+  real de 77 saldos Bling terminou com sucesso após a rotação.
+- A conta Bling Drones Brasil está corretamente conectada como cliente OAuth do
+  aplicativo público criado pela Zalen. O endpoint oficial de homologação só
+  aceita a empresa/conta criadora do aplicativo; por isso o erro Bling de
+  empresa divergente não é falha operacional da loja cliente. O painel passa a
+  explicá-lo como “Conta cliente (OK)” e não renova token nesse caso.
+- Ainda não foi recebido webhook Bling. O cron incremental e o processador de
+  pendências permanecem ativos a cada 10 minutos e foram aceitos como
+  contingência temporária. A configuração e o teste do webhook devem ser feitos
+  posteriormente na conta Bling criadora do aplicativo Zalen.
+- A conta criadora foi confirmada na interface do Bling como Bza Soluções em
+  Tecnologia LTDA, com o cadastro do aplicativo Zalen Shop aberto. O formulário
+  de webhook estava vazio e foi preparado, ainda sem salvar, com o servidor
+  `Zalen Shop Produção` em
+  `https://app.zalenshop.com.br/api/webhooks/bling`; a gravação ficou aguardando
+  confirmação explícita para iniciar o envio persistente de eventos.
+
 - Em 2026-07-20 foi concluída a homologação controlada do envio de pedidos no
   Bling real. A correção publicada resolve previamente o contato por documento,
   cria-o quando ausente, resolve os produtos por SKU e envia `contato.id` e
@@ -36,8 +62,8 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - A Zalen persistiu o vínculo com `external_erp_sync_status = synced`, sem erro.
   O deployment de produção do commit `d4e3f9e` ficou `READY`. A suíte completa
   passou (21 arquivos, 87 testes), além de lint, build, checagem de segredos e
-  `git diff --check`. A trava automática `orderSend.enabled` permanece desligada
-  e não deve ser ativada sem decisão operacional explícita.
+  `git diff --check`. A trava automática permaneceu desligada durante esse teste
+  e só foi ativada após as validações posteriores registradas acima.
 
 - Em 2026-07-20 foi auditada ao vivo a integração Bling da Brasil Drones. O
   admin Zalen mostrou `connected`, ambiente `production`, sync incremental de
@@ -45,7 +71,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   está em teste Cobalto com módulos de produtos e pedidos acessíveis; a
   instalação pública `Zalen Shop` aparece autenticada e possui recursos de
   leitura e gerenciamento de produtos e pedidos de venda.
-- A trava `orderSend.enabled` permanece desligada. O último envio registrado em
+- Durante essa auditoria, a trava `orderSend.enabled` permanecia desligada. O último envio registrado em
   2026-07-13 terminou em erro, `BD-167498` não existia na listagem de pedidos do
   Bling durante aquela auditoria e nenhum pedido externo foi criado. O painel também
   mostrou zero webhooks recebidos, pendentes ou com erro.
@@ -275,17 +301,18 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Objetivo atual
 
-Decidir, após a homologação controlada concluída, quando ativar o envio
-automático de pedidos ao Bling para a Brasil Drones. Até essa decisão explícita,
-manter `orderSend.enabled` desligado. Preservar em paralelo os bloqueios e
+Acompanhar o primeiro pedido novo pago enviado automaticamente ao Bling pela
+Brasil Drones, confirmando criação única e ausência de erro. Configurar e validar
+o webhook Bling na conta criadora do aplicativo Zalen, substituindo a
+contingência temporária de polling. Preservar em paralelo os bloqueios e
 validações pendentes do Mercado Pago, domínios e compatibilidade descritos abaixo.
 
 ## Em andamento
 
-A correção `enable-jwt: 1` e a resolução de referências de contato/produto estão
-publicadas. A homologação criou e depois cancelou o pedido Bling `26384566933`;
-o pedido Zalen `BD-167498` está sincronizado sem erro. O envio automático segue
-desligado.
+A correção `enable-jwt: 1`, a resolução de referências de contato/produto e a
+rotação segura de chave estão publicadas. A homologação de pedido criou e depois
+cancelou o Bling `26384566933`; `BD-167498` está sincronizado sem erro. O envio
+automático está ligado somente para a Brasil Drones.
 
 O deployment de produção vigente é anterior à implementação de confirmação
 visual de Pix. A conciliação periódica pode atualizar pedidos que não receberam
@@ -301,8 +328,11 @@ revisar as sugestões na tela de compatibilidade depois que o código estiver
 publicado; não deve criar vínculos automáticos em massa apenas pelo nome da
 peça.
 
-O deployment funcional de produção do commit `d4e3f9e` está `READY`. Os scripts
-locais não rastreados e não relacionados devem continuar preservados.
+O deployment funcional de produção do commit `43ce6cb` está `READY`; o redeploy
+`dpl_EGmmuwnQ4BmugPjzX5nFr3Su2zCk` carregou a chave nova com a janela temporária
+de fallback. Os registros foram recriptografados, a chave anterior foi removida
+e o próximo deployment deve confirmar a configuração final sem fallback. Os
+scripts locais não rastreados e não relacionados devem continuar preservados.
 
 O schema de domínios já está em produção, sem registros. O código correspondente
 ainda não foi publicado, `DOMAIN_SELF_SERVICE_ENABLED` deve permanecer `false`
@@ -310,14 +340,13 @@ e as credenciais Vercel ainda não devem ser usadas até o piloto controlado.
 
 ## Próximo passo exato
 
-0. Obter decisão operacional explícita antes de alterar
-   `settings_json.orderSend.enabled`; até lá, mantê-lo desligado.
-1. Validar ao menos um webhook assinado ou registrar explicitamente que o cron
-   incremental será a única proteção temporária antes de liberar o fluxo
-   automático.
-2. Se autorizado, ligar o envio automático somente para a Brasil Drones e
-   acompanhar o primeiro pedido novo pago, confirmando a criação no Bling sem
-   duplicidade.
+0. Acompanhar o primeiro pedido novo pago da Brasil Drones e confirmar que foi
+   criado uma única vez no Bling, com `external_erp_sync_status = synced`.
+1. Após a confirmação operacional, salvar na conta criadora a configuração já
+   preparada do endpoint de webhook, habilitar produto/estoque e gerar ao menos
+   um evento assinado válido.
+2. Depois do primeiro webhook processado, manter o cron de 10 minutos somente
+   como camada de reconciliação, não como fonte principal de atualização.
 
 ### Pendências paralelas já registradas
 
@@ -339,10 +368,9 @@ e as credenciais Vercel ainda não devem ser usadas até o piloto controlado.
    pagamento e manter somente os tópicos efetivamente processados pelo conector.
 6. Criar uma transação de produção controlada e confirmar a entrega do webhook
    antes de publicar e liberar o novo acompanhamento de Pix.
-7. Para validar o conector Bling sem conta de homologação ativa, criar primeiro
-   um pedido pago controlado, copiar seu ID e usar o painel “Enviar um pedido
-   de homologação”. Confirmar o registro no Bling, não faturar/não expedir e
-   cancelá-lo após a validação; manter `orderSend.enabled` desligado.
+7. A validação controlada do pedido Bling foi concluída com criação, conferência
+   e cancelamento; o envio automático foi ativado posteriormente, após rotação
+   de chave e nova validação de estoque.
 8. Depois do deploy seguro do código de compatibilidade, abrir
    `/admin/configuracoes/compatibilidade`, revisar os modelos sugeridos por
    produto e salvar apenas os vínculos confirmados. Só então usar “Ativar menu

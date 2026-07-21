@@ -63,8 +63,9 @@ export function BlingTestOrderSendPanel({ canRun }: { canRun: boolean }) {
       <FlaskConical className="h-5 w-5 text-amber-200" />
       <h2 className="mt-3 text-base font-semibold">Enviar um pedido de homologação</h2>
       <p className="mt-1 text-xs leading-5 text-slate-300">
-        Envio único e manual para a conta Bling conectada. A trava automática continua desligada.
-        O pedido precisa estar pago e seus SKUs precisam existir no Bling.
+        Envio único e manual para a conta Bling conectada. Esta ação não altera a
+        trava automática. O pedido precisa estar pago e seus SKUs precisam existir
+        no Bling.
       </p>
       <p className="mt-2 text-xs font-semibold text-amber-100">
         O Bling receberá a observação: “NÃO FATURAR, NÃO EXPEDIR”. Cancele o pedido após validar.

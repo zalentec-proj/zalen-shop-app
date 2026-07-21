@@ -359,6 +359,10 @@ Regras:
 - a rota de admin exige sessão Supabase e acesso à loja ativa;
 - Supabase `pg_cron` chama webhooks pendentes, sync incremental e reconciliação
   Mercado Pago a cada 10 minutos;
+- para a ativação inicial da Brasil Drones, o cron incremental ativo e validado
+  foi aceito como contingência temporária enquanto o webhook do aplicativo
+  público é configurado na conta Bling criadora da Zalen; nesse período,
+  catálogo e estoque podem levar até 10 minutos para refletir mudanças;
 - Supabase `pg_net` envia a chamada HTTP autenticada com o segredo
   `zalen_cron_secret` guardado no Vault; nenhum valor é incluído na migration;
 - falhas e execuções podem ser auditadas em `cron.job` e
