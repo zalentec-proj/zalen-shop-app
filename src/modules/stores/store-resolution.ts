@@ -6,6 +6,7 @@ import { getServerEnv } from '@/lib/env/server';
 import {
   getStoreSlugFromHostname,
   getStorefrontOriginFromHost,
+  getRequestHost,
   isLocalhostName,
   isReservedPlatformSubdomain,
   normalizeHostname,
@@ -67,7 +68,7 @@ function getOriginFromHeaders(
     return origin;
   }
 
-  const host = headerStore.get('x-forwarded-host') ?? headerStore.get('host');
+  const host = getRequestHost(headerStore);
   const protocol = headerStore.get('x-forwarded-proto') ?? 'http';
 
   if (host) {
@@ -208,9 +209,7 @@ export async function resolveStoreFromHost(
 
 export async function resolveStoreFromHeaders() {
   const headerStore = await headers();
-  return resolveStoreFromHost(
-    headerStore.get('x-forwarded-host') ?? headerStore.get('host')
-  );
+  return resolveStoreFromHost(getRequestHost(headerStore));
 }
 
 export async function resolveCurrentStoreFromHeaders() {
@@ -220,9 +219,7 @@ export async function resolveCurrentStoreFromHeaders() {
 
 export async function resolveStoreFromRequest(request: Request | NextRequest) {
   return resolveStoreFromHost(
-    request.headers.get('x-forwarded-host') ??
-      request.headers.get('host') ??
-      new URL(request.url).host
+    getRequestHost(request.headers, new URL(request.url).host)
   );
 }
 

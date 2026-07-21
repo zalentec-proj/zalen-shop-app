@@ -3,7 +3,11 @@ import 'server-only';
 import { headers } from 'next/headers';
 import { notFound, permanentRedirect } from 'next/navigation';
 import { getCurrentStorefrontOrigin, resolveStoreFromHost } from './store-resolution';
-import { isLocalhostName, normalizeHostname } from './host-resolution';
+import {
+  getRequestHost,
+  isLocalhostName,
+  normalizeHostname,
+} from './host-resolution';
 
 const excludedPrefixes = [
   '/admin',
@@ -24,7 +28,7 @@ export async function enforceCanonicalStorefrontHost() {
     return;
   }
 
-  const host = headerStore.get('x-forwarded-host') ?? headerStore.get('host');
+  const host = getRequestHost(headerStore);
   const hostname = normalizeHostname(host);
   if (!hostname || isLocalhostName(hostname) || hostname.endsWith('.lvh.me')) {
     return;

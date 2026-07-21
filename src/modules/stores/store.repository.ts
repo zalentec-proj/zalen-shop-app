@@ -77,7 +77,9 @@ export async function getStoreBySlugFromRepository(
   }
 
   if (!data) {
-    return null;
+    return normalizedSlug === activeStore.slug
+      ? getStaticActiveStoreContext()
+      : null;
   }
 
   return toStoreContext(data as StoreRow, 'supabase');

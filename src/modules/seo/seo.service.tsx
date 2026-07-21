@@ -4,6 +4,7 @@ import { headers } from 'next/headers';
 import type { Metadata } from 'next';
 import type { Category, Product } from '@/modules/catalog/product.types';
 import type { StoreContext } from '@/modules/stores/store.types';
+import { getRequestHost } from '@/modules/stores/host-resolution';
 import {
   getCurrentStorefrontOrigin,
   resolveStoreFromHost,
@@ -24,7 +25,7 @@ function protocolForHost(host: string) {
 
 export async function getCurrentOrigin() {
   const headerStore = await headers();
-  const host = headerStore.get('x-forwarded-host') ?? headerStore.get('host');
+  const host = getRequestHost(headerStore);
   const forwardedProto = headerStore.get('x-forwarded-proto');
 
   if (!host) {

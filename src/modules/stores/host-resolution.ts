@@ -13,6 +13,27 @@ export const RESERVED_PLATFORM_SUBDOMAINS = [
 
 const LOCALHOST_NAMES = new Set(['localhost', '127.0.0.1', '::1']);
 
+type HeaderReader = {
+  get(name: string): string | null;
+};
+
+function firstForwardedValue(value: string | null | undefined) {
+  return value?.split(',')[0]?.trim() || undefined;
+}
+
+export function getRequestHost(
+  headers: HeaderReader,
+  fallback?: string | null
+) {
+  // On Vercel aliases, x-forwarded-host can point to the internal deployment.
+  // The Host header keeps the public domain requested by the customer.
+  return (
+    firstForwardedValue(headers.get('host')) ??
+    firstForwardedValue(headers.get('x-forwarded-host')) ??
+    firstForwardedValue(fallback)
+  );
+}
+
 export function normalizeHostname(value: string | null | undefined) {
   const rawHost = value?.trim().toLowerCase();
 

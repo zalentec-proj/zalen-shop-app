@@ -660,7 +660,7 @@ export default async function CustomerOrderDetailPage({
             ) : (
               <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4 text-sm text-brand-muted">
                 {isPaid
-                  ? 'Aguardando expedição no Bling.'
+                  ? 'O rastreio será disponibilizado assim que o pedido for enviado.'
                   : 'Rastreio será exibido depois da aprovação do pagamento.'}
               </div>
             )}

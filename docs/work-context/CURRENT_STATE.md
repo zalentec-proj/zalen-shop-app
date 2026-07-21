@@ -23,6 +23,29 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
+- Em 2026-07-21 o primeiro checkout completo de produção após a ativação foi
+  concluído com sucesso. O pedido `BD-647495` (`269ad7a4-3eae-4532-8670-8162f17fa1e4`)
+  ficou `confirmed`, pagamento `paid`, total R$ 5,00 e frete R$ 0,00. O envio
+  automático ao ERP terminou `synced`, sem erro, com ID externo
+  `26386477388`; o fulfillment permanece `unfulfilled`, aguardando a operação
+  normal de separação e expedição.
+- Em 2026-07-21 a área pública do pedido deixou de mencionar o Bling enquanto
+  aguarda expedição. Para pedidos pagos sem rastreio, o cliente agora vê apenas
+  “O rastreio será disponibilizado assim que o pedido for enviado.”; nomes de
+  ERP permanecem restritos ao backend e ao admin.
+- Durante o deployment dessa mensagem, uma consulta pública vazia de resolução
+  de loja expôs uma inconsistência do fallback da primeira loja. O repositório
+  agora usa o contexto estático somente quando o slug conhecido
+  `brasil-drones` retorna vazio ou erro; qualquer slug desconhecido continua
+  bloqueado. A seleção do hostname também prioriza o domínio público solicitado
+  e normaliza listas de proxy. URL e chave pública do Supabase na Vercel foram
+  alinhadas com o par local validado, sem registrar valores.
+- O storefront público foi revalidado com catálogo real. A URL direta do pedido
+  não abriu na sessão de navegador usada na checagem final porque aquela sessão
+  pertencia a outra conta autenticada e não listava o pedido; o vínculo correto
+  do comprador foi preservado no banco. A suíte passou com 24 arquivos e 99
+  testes, além de TypeScript e `git diff --check`. O deployment final é
+  `dpl_eZnVMedngPnYwJiXFeb3rAmLYFk3` e ficou `READY`.
 - Em 2026-07-21 foi corrigida em produção a regra de frete grátis por produto
   sincronizado do Bling. O contrato oficial `ProdutosDadosDTO.freteGratis` foi
   mapeado para a nova coluna `products.free_shipping`, criada pela migration

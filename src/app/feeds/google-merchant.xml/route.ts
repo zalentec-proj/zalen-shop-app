@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { listStorefrontProducts } from '@/modules/catalog/product.service';
 import { getStoreMarketingSettings } from '@/modules/marketing/marketing.service';
 import { absoluteStoreUrl } from '@/modules/seo/seo.service';
+import { getRequestHost } from '@/modules/stores/host-resolution';
 import {
   getOptionalStoreFromResolution,
   getCurrentStorefrontOrigin,
@@ -32,10 +33,7 @@ function toAbsoluteUrl(origin: string, value: string | undefined) {
 }
 
 function getOrigin(request: NextRequest) {
-  const host =
-    request.headers.get('x-forwarded-host') ??
-    request.headers.get('host') ??
-    new URL(request.url).host;
+  const host = getRequestHost(request.headers, new URL(request.url).host)!;
   const proto =
     request.headers.get('x-forwarded-proto') ??
     (host.includes('localhost') || host.includes('lvh.me') ? 'http' : 'https');

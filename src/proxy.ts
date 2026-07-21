@@ -4,6 +4,7 @@ import { getAuthCookieDomain } from '@/lib/auth/cookie-domain';
 import {
   DEFAULT_LOCAL_STORE_ROOT_DOMAIN,
   getPlatformAppOriginFromHost,
+  getRequestHost,
   getStoreSlugFromHostname,
   isLocalhostName,
   isReservedPlatformSubdomain,
@@ -73,10 +74,7 @@ function getSafeNextTarget(value: string | null): string {
 }
 
 function getRequestOrigin(request: NextRequest) {
-  const host =
-    request.headers.get('x-forwarded-host') ??
-    request.headers.get('host') ??
-    request.nextUrl.host;
+  const host = getRequestHost(request.headers, request.nextUrl.host);
   const protocol =
     request.headers.get('x-forwarded-proto') ??
     request.nextUrl.protocol.replace(':', '') ??
@@ -90,9 +88,7 @@ function shouldResolveCustomAdminHost(
   rootDomain: string
 ) {
   const hostname = normalizeHostname(
-    request.headers.get('x-forwarded-host') ??
-      request.headers.get('host') ??
-      request.nextUrl.host
+    getRequestHost(request.headers, request.nextUrl.host)
   );
 
   if (!hostname || isLocalhostName(hostname)) {
@@ -145,9 +141,7 @@ export async function proxy(request: NextRequest) {
 
   if (pathname.startsWith('/admin') && shouldResolveCustomAdminHost(request, rootDomain)) {
     const hostname = normalizeHostname(
-      request.headers.get('x-forwarded-host') ??
-        request.headers.get('host') ??
-        request.nextUrl.host
+      getRequestHost(request.headers, request.nextUrl.host)
     );
     const resolverUrl = new URL(
       '/api/store-admin-redirect',
