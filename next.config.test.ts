@@ -24,3 +24,16 @@ describe('global security headers', () => {
     expect(nextConfig.poweredByHeader).toBe(false);
   });
 });
+
+describe('Mercado Pago webhook routing', () => {
+  it('keeps tenant context in the path for providers that strip query strings', async () => {
+    const rules = await nextConfig.rewrites?.();
+
+    expect(rules).toContainEqual({
+      source:
+        '/api/webhooks/mercado-pago/:store_id/:environment(test|production)',
+      destination:
+        '/api/webhooks/mercado-pago?store_id=:store_id&environment=:environment',
+    });
+  });
+});

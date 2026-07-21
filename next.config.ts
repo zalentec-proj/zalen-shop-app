@@ -4,6 +4,16 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ['127.0.0.1', 'brasil-drones.lvh.me'],
   reactStrictMode: true,
   poweredByHeader: false,
+  async rewrites() {
+    return [
+      {
+        source:
+          '/api/webhooks/mercado-pago/:store_id/:environment(test|production)',
+        destination:
+          '/api/webhooks/mercado-pago?store_id=:store_id&environment=:environment',
+      },
+    ];
+  },
   async headers() {
     return [
       {

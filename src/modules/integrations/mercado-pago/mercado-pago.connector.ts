@@ -627,9 +627,10 @@ export async function createCheckoutPreference(
   const phone = splitPhone(order.customer?.phone);
   const notificationUrl = baseUrl.startsWith('https://')
     ? (() => {
-        const url = new URL('/api/webhooks/mercado-pago', baseUrl);
-        url.searchParams.set('store_id', order.storeId);
-        url.searchParams.set('environment', accessContext.environment);
+        const url = new URL(
+          `/api/webhooks/mercado-pago/${encodeURIComponent(order.storeId)}/${accessContext.environment}`,
+          baseUrl
+        );
         return url.toString();
       })()
     : undefined;
@@ -764,9 +765,10 @@ export async function createMercadoPagoBrickPayment(input: {
   }
   const notificationUrl = baseUrl.startsWith('https://')
     ? (() => {
-        const url = new URL('/api/webhooks/mercado-pago', baseUrl);
-        url.searchParams.set('store_id', order.storeId);
-        url.searchParams.set('environment', accessContext.environment);
+        const url = new URL(
+          `/api/webhooks/mercado-pago/${encodeURIComponent(order.storeId)}/${accessContext.environment}`,
+          baseUrl
+        );
         return url.toString();
       })()
     : undefined;

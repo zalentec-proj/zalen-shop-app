@@ -23,6 +23,17 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
+- Em 2026-07-21 a simulação oficial do webhook de produção do Mercado Pago
+  comprovou que o painel do provedor descarta a query string da URL global. A
+  rota respondia `400` sem `store_id`/`environment`, embora o mesmo endpoint
+  contextualizado respondesse corretamente `401 invalid_webhook_signature` a
+  uma requisição diagnóstica sem assinatura. A aplicação passou a publicar o
+  contexto multi-store no caminho
+  `/api/webhooks/mercado-pago/<store_id>/<environment>` e a reescrevê-lo
+  internamente para a rota já validada; Checkout Pro e Payment Brick também
+  usam o novo formato. Testes direcionados, TypeScript e build passaram. Falta
+  publicar o patch, atualizar a URL global no painel para o caminho de produção
+  da Brasil Drones e repetir a simulação assinada até obter resposta aceita.
 - Em 2026-07-21 o domínio comercial correto da Brasil Drones foi confirmado
   como `brasildroneseparts.com.br`, hospedado na Hostinger. Apex e `www`
   respondem HTTPS 200 no endereço atual `2.57.91.91`; os nameservers são
