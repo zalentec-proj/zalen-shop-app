@@ -363,6 +363,10 @@ Regras:
   foi aceito como contingência temporária enquanto o webhook do aplicativo
   público é configurado na conta Bling criadora da Zalen; nesse período,
   catálogo e estoque podem levar até 10 minutos para refletir mudanças;
+- em 2026-07-20 o servidor `Zalen Shop Produção` foi salvo no aplicativo público
+  com o endpoint `https://app.zalenshop.com.br/api/webhooks/bling` e o webhook
+  de estoques v1 foi ativado; produtos permaneceu temporariamente inativo até a
+  seleção manual do servidor no controle customizado do Bling;
 - Supabase `pg_net` envia a chamada HTTP autenticada com o segredo
   `zalen_cron_secret` guardado no Vault; nenhum valor é incluído na migration;
 - falhas e execuções podem ser auditadas em `cron.job` e

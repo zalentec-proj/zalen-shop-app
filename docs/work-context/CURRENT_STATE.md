@@ -43,11 +43,13 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   contingência temporária. A configuração e o teste do webhook devem ser feitos
   posteriormente na conta Bling criadora do aplicativo Zalen.
 - A conta criadora foi confirmada na interface do Bling como Bza Soluções em
-  Tecnologia LTDA, com o cadastro do aplicativo Zalen Shop aberto. O formulário
-  de webhook estava vazio e foi preparado, ainda sem salvar, com o servidor
-  `Zalen Shop Produção` em
-  `https://app.zalenshop.com.br/api/webhooks/bling`; a gravação ficou aguardando
-  confirmação explícita para iniciar o envio persistente de eventos.
+  Tecnologia LTDA, com o cadastro do aplicativo Zalen Shop aberto. Após
+  autorização explícita, o servidor `Zalen Shop Produção` foi salvo em
+  `https://app.zalenshop.com.br/api/webhooks/bling`; a persistência foi
+  confirmada após recarregar a página e o webhook de estoques v1 ficou ativo.
+  O webhook de produtos ainda está inativo: o seletor customizado do Bling não
+  respondeu à automação de acessibilidade e precisa receber a seleção manual do
+  servidor antes de ser ligado e salvo.
 
 - Em 2026-07-20 foi concluída a homologação controlada do envio de pedidos no
   Bling real. A correção publicada resolve previamente o contato por documento,
@@ -342,9 +344,9 @@ e as credenciais Vercel ainda não devem ser usadas até o piloto controlado.
 
 0. Acompanhar o primeiro pedido novo pago da Brasil Drones e confirmar que foi
    criado uma única vez no Bling, com `external_erp_sync_status = synced`.
-1. Após a confirmação operacional, salvar na conta criadora a configuração já
-   preparada do endpoint de webhook, habilitar produto/estoque e gerar ao menos
-   um evento assinado válido.
+1. Na conta criadora, concluir manualmente `Produtos → Servidor: Zalen Shop
+   Produção → Webhook ativo → Salvar webhooks`; em seguida gerar ao menos um
+   evento assinado válido de estoque e um de produto.
 2. Depois do primeiro webhook processado, manter o cron de 10 minutos somente
    como camada de reconciliação, não como fonte principal de atualização.
 
