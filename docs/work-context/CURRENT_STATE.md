@@ -23,6 +23,25 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
+- Em 2026-07-20 o produto de teste Bling `PRO-TP` foi reprocessado em carga
+  completa e validado no storefront com preço de R$ 5,00, estoque 10 e status
+  ativo. O pedido pago histórico `BD-167498` referencia esse SKU e foi
+  autorizado pelo usuário para envio controlado e cancelamento posterior no
+  Bling real. A trava automática de pedidos continua desligada.
+- Duas tentativas controladas de criação do pedido retornaram HTTP 400 e não
+  criaram pedido externo. O diagnóstico sanitizado do Bling informou que o
+  `POST /pedidos/vendas` exige `contato.id` e `produto.id`; nome/documento e
+  `itens[].codigo` isolados fizeram a API interpretar os registros como novos.
+  O contato do comprador ainda não existe no Bling, enquanto o produto
+  `PRO-TP` resolve corretamente para o ID ERP já sincronizado.
+- Foi implementada localmente a resolução oficial prévia: busca do contato por
+  `numeroDocumento`, criação via `POST /contatos` quando ausente, busca de
+  produtos por `codigos[]` e inclusão de `contato.id`/`produto.id` no payload.
+  Os testes focados e a suíte completa passaram (21 arquivos, 87 testes), assim
+  como lint e build. Próximo passo exato: revisar diff, executar checagem de
+  segredos, commit/push, aguardar deployment `READY`, reenviar somente
+  `BD-167498`, validar a criação no Bling e cancelá-lo conforme autorização.
+
 - Em 2026-07-20 foi auditada ao vivo a integração Bling da Brasil Drones. O
   admin Zalen mostrou `connected`, ambiente `production`, sync incremental de
   77 produtos/variantes/saldos e 56 categorias ERP, sem erro. No Bling, a conta
@@ -30,8 +49,8 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   instalação pública `Zalen Shop` aparece autenticada e possui recursos de
   leitura e gerenciamento de produtos e pedidos de venda.
 - A trava `orderSend.enabled` permanece desligada. O último envio registrado em
-  2026-07-13 terminou em erro, `BD-167498` não existe na listagem de pedidos do
-  Bling e nenhum pedido externo foi criado nesta auditoria. O painel também
+  2026-07-13 terminou em erro, `BD-167498` não existia na listagem de pedidos do
+  Bling durante aquela auditoria e nenhum pedido externo foi criado. O painel também
   mostrou zero webhooks recebidos, pendentes ou com erro.
 - A homologação oficial falhava no primeiro `GET produtos` com
   `request_failed`, mesmo após renovar o token. A auditoria encontrou ausência

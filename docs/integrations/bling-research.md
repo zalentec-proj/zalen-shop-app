@@ -260,6 +260,12 @@ Comportamento atual:
 - `sync_jobs` registra `job_type = order_send`;
 - mapper usa apenas snapshots salvos no pedido: cliente, documento, endereço,
   itens, preços finais, frete, desconto e total;
+- antes do `POST /pedidos/vendas`, o conector resolve o contato pelo filtro
+  oficial `GET /contatos?numeroDocumento=...`; quando ele ainda não existe,
+  cria o contato via `POST /contatos` e usa `contato.id` no pedido;
+- produtos existentes são resolvidos pelo filtro oficial
+  `GET /produtos?codigos[]=...`, e cada item inclui `produto.id`; o envio é
+  interrompido com erro seguro se algum SKU não existir no Bling;
 - em sucesso, grava `orders.external_erp_provider = bling`,
   `external_erp_id`, `external_erp_sync_status = synced` e
   `external_erp_synced_at`;

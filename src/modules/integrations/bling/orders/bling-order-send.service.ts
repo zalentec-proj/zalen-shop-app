@@ -17,6 +17,7 @@ import {
   mapOrderToBlingDraft,
   summarizeBlingOrderDraft,
 } from './bling-order.mapper';
+import { resolveBlingOrderReferences } from './bling-order-reference.service';
 import type {
   BlingCreateSalesOrderResponse,
   BlingOrderSendResult,
@@ -40,6 +41,9 @@ function getSafeErrorCode(error: unknown) {
       'bling_order_response_missing_id',
       'bling_order_send_disabled',
       'order_payment_not_approved',
+      'order_item_missing_sku',
+      'bling_contact_response_missing_id',
+      'bling_product_not_found_for_sku',
     ];
 
     if (safeErrorMessages.includes(error.message)) {
@@ -195,11 +199,12 @@ export async function sendOrderToBling(
     const { client, environment } = await createBlingApiClientForStore(
       input.storeId
     );
+    const payload = await resolveBlingOrderReferences(client, draft);
     const response = await client.request<BlingCreateSalesOrderResponse>(
       '/pedidos/vendas',
       {
         method: 'POST',
-        body: draft.payload,
+        body: payload,
       }
     );
     const externalId = extractCreatedBlingOrderId(response);

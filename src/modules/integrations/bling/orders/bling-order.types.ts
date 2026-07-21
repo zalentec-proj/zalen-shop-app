@@ -14,6 +14,7 @@ export interface BlingSalesOrderPayload {
   dataSaida: string;
   dataPrevista: string;
   contato: {
+    id?: number;
     nome?: string;
     tipoPessoa?: 'F' | 'J' | 'E';
     numeroDocumento?: string;
@@ -24,6 +25,9 @@ export interface BlingSalesOrderPayload {
     quantidade: number;
     valor: number;
     descricao: string;
+    produto?: {
+      id: number;
+    };
   }>;
   parcelas: Array<{
     dataVencimento: string;
