@@ -23,6 +23,22 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
+- Em 2026-07-21 o domínio comercial correto da Brasil Drones foi confirmado
+  como `brasildroneseparts.com.br`, hospedado na Hostinger. Apex e `www`
+  respondem HTTPS 200 no endereço atual `2.57.91.91`; os nameservers são
+  `apollo.dns-parking.com` e `athena.dns-parking.com`. Não há MX ou TXT no
+  apex. O domínio ainda não foi associado à Vercel/Zalen nem alterado no DNS;
+  o corte deve preservar o site atual até CI e webhook de pagamento estarem
+  validados. O conector Hostinger disponível ao agente expõe somente Horizons,
+  não gestão de domínio/DNS, então a futura troca deverá ser feita pelo hPanel
+  autenticado ou manualmente com os registros retornados pela Vercel.
+- O `package-lock.json` foi regenerado com npm 11.6.2 para incluir dependências
+  opcionais `@emnapi/*` ausentes que bloqueavam `npm ci` no GitHub Actions.
+  A instalação limpa, TypeScript, build, 24 arquivos/99 testes, cobertura,
+  varredura de segredos e `git diff --check` passaram localmente. A auditoria
+  com nível de bloqueio alto passou; permanecem duas ocorrências moderadas do
+  PostCSS interno do Next, cuja correção automática sugeriria downgrade
+  incompatível para Next 9 e não deve ser aplicada.
 - Em 2026-07-21 o primeiro checkout completo de produção após a ativação foi
   concluído com sucesso. O pedido `BD-647495` (`269ad7a4-3eae-4532-8670-8162f17fa1e4`)
   ficou `confirmed`, pagamento `paid`, total R$ 5,00 e frete R$ 0,00. O envio
