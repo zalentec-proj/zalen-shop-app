@@ -34,6 +34,13 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   usam o novo formato. Testes direcionados, TypeScript e build passaram. Falta
   publicar o patch, atualizar a URL global no painel para o caminho de produção
   da Brasil Drones e repetir a simulação assinada até obter resposta aceita.
+- O primeiro CI após esse patch revelou que o npm do runner Linux ainda
+  exigia `@emnapi/core@1.11.2` e `@emnapi/runtime@1.11.2` no nível raiz do
+  lockfile. As duas dependências transitivas foram declaradas como opcionais e
+  fixadas nessas versões, com metadados e integridades confirmados no registry,
+  para tornar o `npm ci` reproduzível entre macOS e Linux. Uma nova instalação
+  limpa local, 24 arquivos/100 testes, TypeScript, build e varredura de segredos
+  passaram; falta confirmar o novo run do GitHub Actions.
 - Em 2026-07-21 o domínio comercial correto da Brasil Drones foi confirmado
   como `brasildroneseparts.com.br`, hospedado na Hostinger. Apex e `www`
   respondem HTTPS 200 no endereço atual `2.57.91.91`; os nameservers são
