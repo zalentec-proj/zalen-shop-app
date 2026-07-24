@@ -35,7 +35,10 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   invocações diárias, redução aproximada de 94%. A migration foi aplicada ao
   Supabase de produção `zalen.shop` (`xtwobxfepsdfjrtducqb`); a inspeção
   confirmou os três jobs ativos, os comandos condicionais, o fallback horário e
-  os dois índices parciais de fila.
+  os dois índices parciais de fila. No primeiro ciclo após a mudança, às
+  20:10 UTC, os jobs de webhook Bling e reconciliação Mercado Pago concluíram
+  com `0 rows`; os logs da Vercel no mesmo intervalo confirmaram zero
+  invocações HTTP.
 - Em 2026-07-24 foi implementada a política nativa de desconto automático para
   contas PJ, sempre isolada por `store_id`. A lista `PJ empresa` agora possui
   ativação, percentual e política promocional. O preço explícito da variante
@@ -570,6 +573,9 @@ deve expor o valor em terminal, código ou documentação.
   já conhecido de proteção contra senhas vazadas desativada. O Advisor de
   performance não apontou falha nos índices novos; os avisos exibidos pertencem
   a FKs e políticas preexistentes, fora desta frente.
+- O commit funcional `ae61b36` foi enviado ao remoto. O Quality Gate
+  `30122794357` concluiu todas as etapas com sucesso e o deployment produtivo
+  `dpl_HQBPwXJAi652C1i5i7B7oUb9tjSN` ficou `READY`.
 - A correção JWT do Bling passou em 84 testes distribuídos em 20 arquivos,
   `npm run lint`, `npm run build` e `git diff --check`. Os testes novos validam
   `enable-jwt: 1` no cliente operacional e na sequência de homologação.
