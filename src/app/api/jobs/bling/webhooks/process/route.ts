@@ -1,6 +1,6 @@
-import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { authorizeInternalJobRequest } from '@/modules/integrations/bling/jobs/bling-job-auth';
+import { revalidateBlingCatalogPaths } from '@/modules/integrations/bling/jobs/bling-cache-revalidation';
 import { processBlingWebhookJobsForConnectedStores } from '@/modules/integrations/bling/webhooks/bling-webhook-processor.service';
 
 export const runtime = 'nodejs';
@@ -20,11 +20,9 @@ async function handle(request: Request) {
     limitPerStore: 20,
   });
 
-  revalidatePath('/');
-  revalidatePath('/admin');
-  revalidatePath('/admin/integracoes/bling');
-  revalidatePath('/categoria/[slug]', 'page');
-  revalidatePath('/produto/[slug]', 'page');
+  if (result.changesApplied > 0) {
+    revalidateBlingCatalogPaths();
+  }
 
   return NextResponse.json(result);
 }

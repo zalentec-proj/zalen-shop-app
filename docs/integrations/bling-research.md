@@ -361,12 +361,14 @@ Regras:
 - as rotas `/api/jobs/*` exigem `Authorization: Bearer <CRON_SECRET>` ou
   `Authorization: Bearer <INTERNAL_JOB_SECRET>`;
 - a rota de admin exige sessão Supabase e acesso à loja ativa;
-- Supabase `pg_cron` chama webhooks pendentes, sync incremental e reconciliação
-  Mercado Pago a cada 10 minutos;
-- para a ativação inicial da Brasil Drones, o cron incremental ativo e validado
-  foi aceito como contingência temporária enquanto o webhook do aplicativo
-  público é configurado na conta Bling criadora da Zalen; nesse período,
-  catálogo e estoque podem levar até 10 minutos para refletir mudanças;
+- Supabase `pg_cron` verifica a cada 10 minutos se há webhook Bling pendente,
+  retry vencido ou lock abandonado; a chamada HTTP ao worker só é criada quando
+  existe trabalho elegível;
+- o sync incremental geral roda uma vez por hora como camada de reconciliação e
+  contingência do webhook. Catálogo e estoque normalmente chegam pelo webhook,
+  mas podem levar até uma hora quando dependerem desse fallback;
+- as rotas de sync e de processamento de webhooks só invalidam o cache público
+  quando produtos, estoque ou inativações foram efetivamente processados;
 - em 2026-07-20 o servidor `Zalen Shop Produção` foi salvo no aplicativo público
   com o endpoint `https://app.zalenshop.com.br/api/webhooks/bling`; estoques e
   produtos v1 ficaram ativos para criação, atualização e exclusão. Pedidos de

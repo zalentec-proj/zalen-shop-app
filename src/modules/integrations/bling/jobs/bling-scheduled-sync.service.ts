@@ -3,17 +3,21 @@ import 'server-only';
 import { listConnectedBlingStoreIdsInRepository } from '../bling.repository';
 import { runBlingInventorySync } from '../inventory/bling-inventory-sync.service';
 import { runBlingProductSync } from '../products/bling-product-sync.service';
+import { countScheduledBlingCatalogChanges } from './bling-job-change-detection';
 
 type BlingScheduledSyncStoreResult = {
   storeId: string;
   productSync: {
     status: 'success' | 'error';
+    changesApplied: number;
     errorCode?: string;
   };
   inventorySync: {
     status: 'success' | 'error' | 'skipped';
+    changesApplied: number;
     errorCode?: string;
   };
+  changesApplied: number;
 };
 
 export type BlingScheduledSyncResult = {
@@ -24,6 +28,7 @@ export type BlingScheduledSyncResult = {
   storesFound: number;
   storesProcessed: number;
   storesWithErrors: number;
+  changesApplied: number;
   results: BlingScheduledSyncStoreResult[];
 };
 
@@ -52,8 +57,9 @@ export async function runBlingScheduledSync(input: {
   for (const storeId of storeIds) {
     const storeResult: BlingScheduledSyncStoreResult = {
       storeId,
-      productSync: { status: 'success' },
-      inventorySync: { status: 'skipped' },
+      productSync: { status: 'success', changesApplied: 0 },
+      inventorySync: { status: 'skipped', changesApplied: 0 },
+      changesApplied: 0,
     };
 
     try {
@@ -63,6 +69,11 @@ export async function runBlingScheduledSync(input: {
 
       storeResult.productSync = {
         status: productResult.status,
+        changesApplied: countScheduledBlingCatalogChanges({
+          productsCreated: productResult.summary.productsCreated,
+          productsUpdated: productResult.summary.productsUpdated,
+          variantsUpdated: 0,
+        }),
         errorCode:
           productResult.status === 'error'
             ? productResult.errorCode ?? productResult.summary.errorCode
@@ -73,17 +84,26 @@ export async function runBlingScheduledSync(input: {
 
       storeResult.inventorySync = {
         status: inventoryResult.status,
+        changesApplied: countScheduledBlingCatalogChanges({
+          productsCreated: 0,
+          productsUpdated: 0,
+          variantsUpdated: inventoryResult.summary.variantsUpdated,
+        }),
         errorCode:
           inventoryResult.status === 'error'
             ? inventoryResult.errorCode ?? inventoryResult.summary.errorCode
             : undefined,
       };
+      storeResult.changesApplied =
+        storeResult.productSync.changesApplied +
+        storeResult.inventorySync.changesApplied;
     } catch (error) {
       const errorCode = toSafeErrorCode(error);
 
       if (storeResult.productSync.status !== 'error') {
         storeResult.productSync = {
           status: 'error',
+          changesApplied: storeResult.productSync.changesApplied,
           errorCode,
         };
       }
@@ -91,9 +111,14 @@ export async function runBlingScheduledSync(input: {
       if (storeResult.inventorySync.status !== 'error') {
         storeResult.inventorySync = {
           status: 'error',
+          changesApplied: storeResult.inventorySync.changesApplied,
           errorCode,
         };
       }
+
+      storeResult.changesApplied =
+        storeResult.productSync.changesApplied +
+        storeResult.inventorySync.changesApplied;
     }
 
     results.push(storeResult);
@@ -105,6 +130,10 @@ export async function runBlingScheduledSync(input: {
       result.inventorySync.status === 'error'
   ).length;
   const finishedAt = new Date().toISOString();
+  const changesApplied = results.reduce(
+    (total, result) => total + result.changesApplied,
+    0
+  );
 
   return {
     status: storesWithErrors > 0 ? 'error' : 'success',
@@ -114,6 +143,7 @@ export async function runBlingScheduledSync(input: {
     storesFound: storeIds.length,
     storesProcessed: results.length,
     storesWithErrors,
+    changesApplied,
     results,
   };
 }

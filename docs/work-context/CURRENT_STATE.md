@@ -8,8 +8,8 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-07-24
 - Branch: `refactor/migrate-to-next`
-- Commit base antes desta frente: `b00d7f4` — `docs(orders): record production test cleanup`
-- A branch e o remoto estavam sincronizados antes da implementação do desconto PJ.
+- Commit base antes desta frente: `dfe62df` — `docs(handoff): record pj pricing deployment`
+- A branch e o remoto estavam sincronizados antes da otimização dos jobs de produção.
   Preserve os scripts locais não rastreados que não pertencem a esta frente.
 - Guia de continuidade para outra IDE/máquina: `docs/work-context/IDE_HANDOFF.md`.
 
@@ -23,6 +23,19 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
+- Em 2026-07-24 foi identificada a origem do uso elevado de Fluid Active CPU:
+  três jobs internos chamavam funções da Vercel a cada 10 minutos mesmo sem
+  venda, pagamento pendente ou webhook. Eram 432 invocações HTTP por dia em
+  estado ocioso. A migration
+  `20260724200310_optimize_internal_job_schedules.sql` torna o worker Bling e a
+  reconciliação Mercado Pago condicionais à existência de trabalho e reduz a
+  sincronização incremental geral do Bling para uma vez por hora. As rotas do
+  Bling também passam a revalidar o cache somente quando houve alteração
+  processada. A expectativa em repouso é cair de 432 para cerca de 24
+  invocações diárias, redução aproximada de 94%. A migration foi aplicada ao
+  Supabase de produção `zalen.shop` (`xtwobxfepsdfjrtducqb`); a inspeção
+  confirmou os três jobs ativos, os comandos condicionais, o fallback horário e
+  os dois índices parciais de fila.
 - Em 2026-07-24 foi implementada a política nativa de desconto automático para
   contas PJ, sempre isolada por `store_id`. A lista `PJ empresa` agora possui
   ativação, percentual e política promocional. O preço explícito da variante
@@ -516,8 +529,9 @@ exclusivamente server-side e a habilitação permanece restrita à allowlist.
 1. Gerar uma alteração controlada no produto de teste do Bling e confirmar no
    painel Zalen o primeiro webhook assinado válido de produto; depois repetir
    com estoque e conferir processamento sem erro ou duplicidade.
-2. Depois do primeiro webhook processado, manter o cron de 10 minutos somente
-   como camada de reconciliação, não como fonte principal de atualização.
+2. Acompanhar o uso da Vercel por 24 horas após a migration de otimização. Em
+   repouso, webhooks Bling e reconciliação Mercado Pago não devem gerar chamadas;
+   apenas o sync incremental Bling horário deve permanecer.
 
 ### Pendências paralelas já registradas
 
@@ -549,6 +563,13 @@ deve expor o valor em terminal, código ou documentação.
 
 ## Validação
 
+- A otimização dos jobs passou em `npm run lint`, `npm test` (115 testes em 28
+  arquivos), `npm run build`, `npm run security:audit` com zero
+  vulnerabilidades, scanner de segredos e `git diff --check`. O Advisor de
+  segurança não apontou regressão da migration; permaneceu apenas o aviso global
+  já conhecido de proteção contra senhas vazadas desativada. O Advisor de
+  performance não apontou falha nos índices novos; os avisos exibidos pertencem
+  a FKs e políticas preexistentes, fora desta frente.
 - A correção JWT do Bling passou em 84 testes distribuídos em 20 arquivos,
   `npm run lint`, `npm run build` e `git diff --check`. Os testes novos validam
   `enable-jwt: 1` no cliente operacional e na sequência de homologação.

@@ -1,6 +1,6 @@
-import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { authorizeInternalJobRequest } from '@/modules/integrations/bling/jobs/bling-job-auth';
+import { revalidateBlingCatalogPaths } from '@/modules/integrations/bling/jobs/bling-cache-revalidation';
 import {
   runBlingScheduledSync,
   type BlingScheduledSyncMode,
@@ -43,11 +43,9 @@ async function handle(request: Request) {
     productSyncMode: await getRequestMode(request),
   });
 
-  revalidatePath('/');
-  revalidatePath('/admin');
-  revalidatePath('/admin/integracoes/bling');
-  revalidatePath('/categoria/[slug]', 'page');
-  revalidatePath('/produto/[slug]', 'page');
+  if (result.changesApplied > 0) {
+    revalidateBlingCatalogPaths();
+  }
 
   return NextResponse.json(result);
 }

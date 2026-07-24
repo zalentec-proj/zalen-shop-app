@@ -221,6 +221,12 @@ derivada no servidor do pedido, método e submissão do Brick, sem confiar em um
 chave arbitrária do navegador. Reenvio do mesmo formulário reutiliza a tentativa;
 uma nova submissão gera uma tentativa nova no mesmo pedido.
 
+A reconciliação de contingência é avaliada pelo Supabase `pg_cron` a cada 10
+minutos, mas só chama a função da Zalen quando existe tentativa `created` ou
+`pending`, com identificador externo e atualização nas últimas 24 horas.
+Atualizações normais continuam chegando pelo webhook assinado; em período sem
+vendas não há invocação HTTP vazia.
+
 O payload é separado por meio:
 
 - cartão: token, emissor, parcelas, identificação e e-mail;

@@ -10,6 +10,7 @@ import {
 } from '../bling.repository';
 import { runBlingInventorySync } from '../inventory/bling-inventory-sync.service';
 import { runBlingProductSync } from '../products/bling-product-sync.service';
+import { countWebhookBlingCatalogChanges } from '../jobs/bling-job-change-detection';
 
 const maxAttempts = 5;
 const diagnosticsLimit = 30;
@@ -404,6 +405,16 @@ export async function processBlingWebhookJobsForConnectedStores(input: {
       ? 'error'
       : 'success',
     storesProcessed: storeIds.length,
+    changesApplied: results.reduce(
+      (total, result) =>
+        total +
+        countWebhookBlingCatalogChanges({
+          productSyncs: result.summary.productSyncs,
+          inventorySyncs: result.summary.inventorySyncs,
+          productsInactivated: result.summary.productsInactivated,
+        }),
+      0
+    ),
     results,
   };
 }
