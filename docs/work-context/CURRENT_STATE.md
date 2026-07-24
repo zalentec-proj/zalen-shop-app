@@ -70,7 +70,9 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   havia removido do lockfile as entradas raiz opcionais de `@emnapi/core` e
   `@emnapi/runtime`; as duas entradas multiplataforma foram restauradas com as
   mesmas versões `1.11.2` já declaradas. Uma nova instalação limpa confirmou
-  ambas no nível raiz, preservou o lockfile e manteve a auditoria zerada.
+  ambas no nível raiz, preservou o lockfile e manteve a auditoria zerada. O
+  Quality Gate `30117136356` concluiu integralmente verde no commit `c5d525c`,
+  e o deployment produtivo `dpl_Hw26iDQvCqVMc1MSxWMA253g8wDN` ficou `READY`.
 
 - Em 2026-07-21 foi concluída a limpeza controlada dos pedidos históricos de
   teste da Brasil Drones. Antes da exclusão havia 34 pedidos; a transação
