@@ -58,6 +58,14 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   controlada, autenticar uma conta PJ de homologação, confirmar carrinho com
   produto de R$ 100/R$ 90 e frete inalterado, concluir uma compra e conferir
   Mercado Pago + Bling antes de manter a regra ativa para a Brasil Drones.
+- O commit funcional `76f0a5e` foi enviado ao remoto. O primeiro Quality Gate
+  passou em TypeScript, testes e build, mas a auditoria do npm apontou alertas
+  recém-publicados nas dependências do Next. A correção compatível atualizou o
+  Next para `16.2.11`, Fast URI para `3.1.4` e fixou overrides seguros para
+  PostCSS `8.5.23` e Sharp `0.35.3`, sem usar o downgrade incompatível sugerido
+  por `npm audit fix --force`. A auditoria de produção passou com zero
+  vulnerabilidades; `npm run lint`, os 112 testes, `npm run build`, o scanner
+  de segredos e `git diff --check` também passaram novamente.
 
 - Em 2026-07-21 foi concluída a limpeza controlada dos pedidos históricos de
   teste da Brasil Drones. Antes da exclusão havia 34 pedidos; a transação
