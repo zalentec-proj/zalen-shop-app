@@ -16,6 +16,7 @@ const order = {
   subtotal: 100,
   shippingTotal: 15,
   discountTotal: 0,
+  productDiscountTotal: 10,
   total: 115,
   externalErpSyncStatus: 'pending',
   customer: {
@@ -42,8 +43,11 @@ const order = {
       sku: 'SKU-TESTE-01',
       name: 'Produto de teste',
       quantity: 1,
+      baseUnitPrice: 110,
       unitPrice: 100,
       total: 100,
+      discountPercentage: 10,
+      productDiscountTotal: 10,
     },
   ],
   createdAt: '2026-07-13T12:00:00.000Z',
@@ -65,6 +69,8 @@ describe('mapOrderToBlingDraft', () => {
     const draft = mapOrderToBlingDraft(order);
 
     expect(draft.payload.observacoesInternas).not.toContain(blingHomologationWarning);
+    expect(draft.payload.itens[0]?.valor).toBe(100);
+    expect(draft.payload.desconto).toBeUndefined();
     expect(summarizeBlingOrderDraft(draft)).toMatchObject({ testMode: false });
   });
 });

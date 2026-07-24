@@ -23,6 +23,7 @@ import {
   resolveStoreFromHeaders,
 } from '@/modules/stores/store-resolution';
 import ProductDetailClient from './ProductDetailClient';
+import { getAutomaticPjDiscountPolicy } from '@/modules/pricing/pricing.service';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -63,9 +64,10 @@ export default async function ProductPage({ params }: Props) {
   if (!product) notFound();
 
   const relatedProducts = await listRelatedProducts(store.id, slug, 3);
-  const [origin, marketingConfig] = await Promise.all([
+  const [origin, marketingConfig, pjDiscountPolicy] = await Promise.all([
     getCurrentOrigin(),
     getMarketingRuntimeConfig(store),
+    getAutomaticPjDiscountPolicy(store.id),
   ]);
   const variant = product.variants[0];
   const price = variant?.promotionalPrice ?? variant?.price;
@@ -105,6 +107,11 @@ export default async function ProductPage({ params }: Props) {
       <ProductDetailClient
         product={product}
         relatedProducts={relatedProducts}
+        businessDiscountPercentage={
+          pjDiscountPolicy?.automaticDiscountEnabled
+            ? pjDiscountPolicy.automaticDiscountPercentage
+            : undefined
+        }
       />
     </>
   );

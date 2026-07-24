@@ -1,8 +1,15 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import Link from 'next/link';
-import { KeyRound, Mail, type LucideIcon } from 'lucide-react';
+import {
+  Building2,
+  FileText,
+  KeyRound,
+  Mail,
+  UserRound,
+  type LucideIcon,
+} from 'lucide-react';
 import Logo from '@/components/ui/Logo';
 import type { CustomerAuthState } from './actions';
 import { customerOtpAction } from './actions';
@@ -28,6 +35,9 @@ export default function CustomerAuthForm({
   );
   const isSignup = mode === 'signup';
   const isCodeStep = state.step === 'code' && state.email;
+  const [customerType, setCustomerType] = useState<'pf' | 'pj'>(
+    state.registration?.customerType ?? 'pf'
+  );
 
   return (
     <main className="min-h-screen bg-brand-bg px-4 py-8 text-white sm:py-12">
@@ -54,6 +64,7 @@ export default function CustomerAuthForm({
 
           <form action={formAction} className="grid gap-3">
               <input type="hidden" name="next" value={nextPath} />
+              <input type="hidden" name="mode" value={mode} />
               <input
                 type="hidden"
                 name="intent"
@@ -63,6 +74,38 @@ export default function CustomerAuthForm({
               {isCodeStep ? (
                 <>
                   <input type="hidden" name="email" value={state.email} />
+                  <input
+                    type="hidden"
+                    name="customerType"
+                    value={state.registration?.customerType ?? 'pf'}
+                  />
+                  <input
+                    type="hidden"
+                    name="name"
+                    value={state.registration?.name ?? ''}
+                  />
+                  <input
+                    type="hidden"
+                    name="document"
+                    value={state.registration?.document ?? ''}
+                  />
+                  <input
+                    type="hidden"
+                    name="legalName"
+                    value={state.registration?.legalName ?? ''}
+                  />
+                  <input
+                    type="hidden"
+                    name="stateRegistration"
+                    value={state.registration?.stateRegistration ?? ''}
+                  />
+                  {state.registration?.stateRegistrationExempt ? (
+                    <input
+                      type="hidden"
+                      name="stateRegistrationExempt"
+                      value="on"
+                    />
+                  ) : null}
                   <Field
                     icon={KeyRound}
                     name="token"
@@ -72,13 +115,76 @@ export default function CustomerAuthForm({
                   />
                 </>
               ) : (
-                <Field
-                  icon={Mail}
-                  name="email"
-                  type="email"
-                  placeholder="E-mail"
-                  autoComplete="email"
-                />
+                <>
+                  {isSignup ? (
+                    <div className="grid grid-cols-2 gap-2 rounded-xl border border-brand-border-soft bg-[#050A14]/85 p-1">
+                      {(['pf', 'pj'] as const).map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          aria-pressed={customerType === type}
+                          onClick={() => setCustomerType(type)}
+                          className={`h-10 rounded-lg text-xs font-bold transition ${
+                            customerType === type
+                              ? 'bg-blue-primary text-white'
+                              : 'text-brand-muted hover:text-white'
+                          }`}
+                        >
+                          {type === 'pf' ? 'Pessoa física' : 'Pessoa jurídica'}
+                        </button>
+                      ))}
+                      <input
+                        type="hidden"
+                        name="customerType"
+                        value={customerType}
+                      />
+                    </div>
+                  ) : null}
+
+                  {isSignup && customerType === 'pj' ? (
+                    <>
+                      <Field
+                        icon={UserRound}
+                        name="name"
+                        placeholder="Nome do responsável"
+                        autoComplete="name"
+                      />
+                      <Field
+                        icon={Building2}
+                        name="document"
+                        placeholder="CNPJ"
+                        inputMode="numeric"
+                      />
+                      <Field
+                        icon={Building2}
+                        name="legalName"
+                        placeholder="Razão social"
+                        autoComplete="organization"
+                      />
+                      <Field
+                        icon={FileText}
+                        name="stateRegistration"
+                        placeholder="Inscrição estadual"
+                      />
+                      <label className="flex items-center gap-2 rounded-xl border border-brand-border-soft bg-[#050A14]/85 px-3 py-3 text-xs font-semibold text-brand-muted">
+                        <input
+                          type="checkbox"
+                          name="stateRegistrationExempt"
+                          className="h-4 w-4 accent-blue-primary"
+                        />
+                        Empresa isenta de inscrição estadual
+                      </label>
+                    </>
+                  ) : null}
+
+                  <Field
+                    icon={Mail}
+                    name="email"
+                    type="email"
+                    placeholder="E-mail"
+                    autoComplete="email"
+                  />
+                </>
               )}
 
               {state.error ? (
@@ -156,6 +262,7 @@ function Field({
       <Icon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-muted" />
       <input
         name={name}
+        aria-label={placeholder}
         type={type}
         placeholder={placeholder}
         autoComplete={autoComplete}

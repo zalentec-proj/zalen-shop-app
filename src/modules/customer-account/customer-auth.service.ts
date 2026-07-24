@@ -145,5 +145,7 @@ export async function verifyCustomerLoginCode(input: {
 
   return {
     ok: true,
+    authUserId: data.user.id,
+    email: data.user.email ?? email,
   };
 }

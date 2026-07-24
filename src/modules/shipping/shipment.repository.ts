@@ -337,6 +337,7 @@ export async function insertShippingQuotesInRepository(input: {
   destinationPostalCode: string;
   itemsHash: string;
   cacheKey: string;
+  pricingFingerprint?: string;
   expiresAt: string;
   rates: ShippingRate[];
 }): Promise<ShippingRate[]> {
@@ -367,6 +368,7 @@ export async function insertShippingQuotesInRepository(input: {
           description: rate.description,
           deliveryTimeLabel: rate.deliveryTimeLabel,
           cacheKey: input.cacheKey,
+          pricingFingerprint: input.pricingFingerprint,
           ...(rate.rawPayload ?? {}),
         },
       }))

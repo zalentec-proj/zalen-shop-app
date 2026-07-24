@@ -603,10 +603,29 @@ export default async function CustomerOrderDetailPage({
                 <div className="text-sm text-brand-muted">
                   {item.quantity} un.
                 </div>
-                <div className="text-sm font-bold">{formatCurrency(item.total)}</div>
+                <div className="text-right">
+                  {item.productDiscountTotal > 0 ? (
+                    <div className="text-xs text-brand-muted line-through">
+                      {formatCurrency(item.baseUnitPrice * item.quantity)}
+                    </div>
+                  ) : null}
+                  <div className="text-sm font-bold">
+                    {formatCurrency(item.total)}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
+          {order.productDiscountTotal > 0 ? (
+            <div className="mt-4 flex items-center justify-between rounded-xl border border-green-accent/20 bg-green-accent/10 px-4 py-3 text-sm">
+              <span className="font-semibold text-brand-muted">
+                Economia nos produtos
+              </span>
+              <span className="font-black text-green-accent">
+                {formatCurrency(order.productDiscountTotal)}
+              </span>
+            </div>
+          ) : null}
         </section>
 
         {shippingChoice ? (

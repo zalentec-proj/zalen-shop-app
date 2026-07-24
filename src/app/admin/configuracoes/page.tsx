@@ -6,6 +6,7 @@ import {
   Globe2,
   Store,
   PackageCheck,
+  Percent,
   ScanSearch,
   ReceiptText,
   ShieldCheck,
@@ -25,6 +26,13 @@ const setupAreas = [
     href: '/admin/configuracoes/loja-online',
     icon: Store,
     status: 'Ativo',
+  },
+  {
+    title: 'Preços',
+    description: 'Desconto automático para contas PJ e política promocional.',
+    href: '/admin/configuracoes/precos',
+    icon: Percent,
+    status: 'Inicial',
   },
   {
     title: 'Pagamentos',

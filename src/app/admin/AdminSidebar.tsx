@@ -14,6 +14,7 @@ import {
   Package2,
   PanelLeftClose,
   PanelLeftOpen,
+  Percent,
   Settings2,
   ShoppingCart,
   Store,
@@ -35,6 +36,7 @@ export type AdminSidebarKey =
   | 'bling'
   | 'marketing'
   | 'payments'
+  | 'pricing'
   | 'shipping'
   | 'domains'
   | 'settings';
@@ -172,6 +174,13 @@ function buildSidebarGroups(counts?: AdminSidebarCounts): AdminSidebarGroup[] {
     {
       label: 'Configuração',
       items: [
+        {
+          key: 'pricing',
+          label: 'Preços',
+          icon: Percent,
+          count: 'PJ',
+          href: '/admin/configuracoes/precos',
+        },
         {
           key: 'payments',
           label: 'Pagamentos',

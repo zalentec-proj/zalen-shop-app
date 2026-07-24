@@ -6,10 +6,10 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Snapshot
 
-- Atualizado em: 2026-07-21
+- Atualizado em: 2026-07-24
 - Branch: `refactor/migrate-to-next`
-- Commit base antes desta frente: `46060a8` — `feat(domains): add per-store custom domain self-service`
-- A branch e o remoto estavam sincronizados antes da correção JWT do Bling.
+- Commit base antes desta frente: `b00d7f4` — `docs(orders): record production test cleanup`
+- A branch e o remoto estavam sincronizados antes da implementação do desconto PJ.
   Preserve os scripts locais não rastreados que não pertencem a esta frente.
 - Guia de continuidade para outra IDE/máquina: `docs/work-context/IDE_HANDOFF.md`.
 
@@ -22,6 +22,42 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Última mudança conhecida
+
+- Em 2026-07-24 foi implementada a política nativa de desconto automático para
+  contas PJ, sempre isolada por `store_id`. A lista `PJ empresa` agora possui
+  ativação, percentual e política promocional. O preço explícito da variante
+  prevalece; na ausência dele, a regra percentual compara com a promoção e
+  cobra o menor preço sem acumular descontos. O frete permanece separado e não
+  recebe o percentual.
+- O cadastro público permite escolher PF/PJ. PJ informa responsável, CNPJ,
+  razão social e inscrição estadual/isento antes do envio do código; o perfil
+  empresarial só é persistido após a confirmação do e-mail. A elegibilidade
+  usa CNPJ matematicamente válido e dados fiscais completos, sempre consultados
+  no servidor. Contas existentes podem completar ou trocar os dados PJ em
+  `/conta`. Conflitos de e-mail/CNPJ retornam mensagens genéricas e não
+  permitem assumir cadastro de outro usuário.
+- Carrinho, checkout e pedido preservam snapshots de preço público, percentual,
+  economia e preço final. A cotação de frete inclui a impressão digital da
+  política de preço, invalidando prévias antigas após mudança administrativa.
+  Mercado Pago recebe itens no preço final em `additional_info.items` e envio
+  separado; Bling recebe preço final por item e nenhum desconto PJ global,
+  evitando duplicidade.
+- O Admin ganhou `/admin/configuracoes/precos`, com ativação e percentual de
+  zero a 100% (maior que zero quando ativo), exemplo de cálculo e política
+  “melhor preço”. Catálogo e produto mantêm preço público/SEO e apenas exibem
+  aviso do benefício quando a regra estiver ativa.
+- A migration `20260724171944_add_automatic_pj_discount.sql` foi aplicada com
+  sucesso ao Supabase `zalen.shop` (`xtwobxfepsdfjrtducqb`). A conferência
+  posterior confirmou a Brasil Drones com percentual `10.00`, política
+  `best_price` e `automatic_discount_enabled = false`. Portanto, a estrutura
+  está pronta sem alterar preços reais. O rollback operacional é manter ou
+  voltar essa chave para desativada no Admin.
+- A implementação passou em `npm run lint`, `npm test` (112 testes em 27
+  arquivos), `npm run build` e `git diff --check`. Próximo passo exato após o
+  deployment: validar PF com a regra desligada, ativar 10% por uma janela
+  controlada, autenticar uma conta PJ de homologação, confirmar carrinho com
+  produto de R$ 100/R$ 90 e frete inalterado, concluir uma compra e conferir
+  Mercado Pago + Bling antes de manter a regra ativa para a Brasil Drones.
 
 - Em 2026-07-21 foi concluída a limpeza controlada dos pedidos históricos de
   teste da Brasil Drones. Antes da exclusão havia 34 pedidos; a transação

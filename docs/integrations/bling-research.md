@@ -197,7 +197,9 @@ checkout. Nesta fase:
   `product_variant_prices`;
 - produto sincronizado do Bling não sobrescreve preço PJ manual da Zalen;
 - pedido enviado futuramente ao Bling deve usar o preço final salvo em
-  `order_items`, sem recalcular no ERP;
+  `order_items`, sem recalcular no ERP; benefícios PJ já estão incorporados no
+  preço unitário final e não são reenviados como desconto global, evitando
+  aplicação dupla;
 - sync de listas de preço do Bling fica pendente até confirmação oficial de
   endpoint, payload, escopos e regra de vínculo por lista.
 

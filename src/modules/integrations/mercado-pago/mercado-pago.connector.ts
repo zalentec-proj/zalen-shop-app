@@ -191,6 +191,32 @@ function toNumber(value: number | string | undefined) {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function toCents(value: number) {
+  return Math.round((value + Number.EPSILON) * 100);
+}
+
+function assertMercadoPagoOrderTotal(
+  order: MercadoPagoCheckoutPreferenceInput['order']
+) {
+  if (toCents(order.discountTotal) !== 0) {
+    throw new Error('mercado_pago_global_discount_not_supported');
+  }
+
+  const itemsSubtotal = order.items.reduce(
+    (total, item) => total + item.unitPrice * item.quantity,
+    0
+  );
+  const expectedTotal =
+    itemsSubtotal + order.shippingTotal - order.discountTotal;
+
+  if (
+    toCents(itemsSubtotal) !== toCents(order.subtotal) ||
+    toCents(expectedTotal) !== toCents(order.total)
+  ) {
+    throw new Error('mercado_pago_order_total_mismatch');
+  }
+}
+
 function toRecord(value: unknown): Record<string, unknown> | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return undefined;
@@ -621,6 +647,7 @@ export async function createCheckoutPreference(
 
   const baseUrl = normalizeBaseUrl(input.baseUrl);
   const { order } = input;
+  assertMercadoPagoOrderTotal(order);
   const documentType = getDocumentType(order.customer?.document);
   const documentNumber = order.customer?.document?.replace(/\D/g, '');
   const payerName = splitName(order.customer?.name);
@@ -756,6 +783,7 @@ export async function createMercadoPagoBrickPayment(input: {
     environment: input.environment,
   });
   const { order } = input;
+  assertMercadoPagoOrderTotal(order);
   const baseUrl = normalizeBaseUrl(input.baseUrl);
   const payerEmail =
     order.customer?.email ?? toOptionalString(input.formData.payer?.email);

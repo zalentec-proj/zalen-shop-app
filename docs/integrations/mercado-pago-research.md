@@ -202,6 +202,12 @@ Regras implementadas:
 - `formData` do Brick é enviado para server action própria;
 - backend ignora valor vindo do navegador e força `transaction_amount =
   orders.total`;
+- `additional_info.items` recebe os itens persistidos do pedido, com
+  `unit_price` já final (inclusive eventual preço PJ) e descrição/SKU; os dados
+  de entrega permanecem em `additional_info.shipments`, sem embutir frete no
+  preço do produto;
+- antes de criar preferência ou pagamento, o conector compara em centavos a
+  soma dos itens finais, frete, desconto global e total imutável do pedido;
 - backend chama `POST /v1/payments` com `Authorization: Bearer ACCESS_TOKEN` e
   `X-Idempotency-Key`;
 - `external_reference` é sempre `orders.id`;

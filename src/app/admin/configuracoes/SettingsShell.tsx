@@ -64,6 +64,7 @@ function cn(...classes: Array<string | false | null | undefined>) {
 function getSettingsSidebarKey(pathname: string): AdminSidebarKey {
   if (pathname.startsWith('/admin/configuracoes/loja-online')) return 'storefront';
   if (pathname.startsWith('/admin/configuracoes/pagamentos')) return 'payments';
+  if (pathname.startsWith('/admin/configuracoes/precos')) return 'pricing';
   if (pathname.startsWith('/admin/configuracoes/envios')) return 'shipping';
   if (pathname.startsWith('/admin/configuracoes/dominios')) return 'domains';
 
@@ -82,6 +83,13 @@ function getSettingsPageMeta(pathname: string) {
     return {
       title: 'Meios de pagamento',
       description: 'Formas de recebimento disponíveis ou planejadas para a loja ativa.',
+    };
+  }
+
+  if (pathname.startsWith('/admin/configuracoes/precos')) {
+    return {
+      title: 'Preços',
+      description: 'Regras de preço e benefícios para clientes da loja ativa.',
     };
   }
 

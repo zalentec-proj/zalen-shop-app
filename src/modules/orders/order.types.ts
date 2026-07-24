@@ -58,8 +58,11 @@ export interface OrderItem {
   sku?: string;
   name: string;
   quantity: number;
+  baseUnitPrice: number;
   unitPrice: number;
   total: number;
+  discountPercentage: number;
+  productDiscountTotal: number;
   customerType?: CustomerType;
   priceListId?: string;
   priceListName?: string;
@@ -87,6 +90,7 @@ export interface Order {
   shippingMetadata?: Record<string, unknown>;
   marketingContext?: Record<string, unknown>;
   discountTotal: number;
+  productDiscountTotal: number;
   total: number;
   customerType?: CustomerType;
   customerLegalName?: string;

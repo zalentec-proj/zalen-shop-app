@@ -1,9 +1,16 @@
 'use server';
 
 import { headers } from 'next/headers';
+import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { createOptionalClient } from '@/lib/supabase/server';
+import { isValidCnpj, onlyDigits } from '@/modules/customers/br-document';
+import { CustomerPersistenceError } from '@/modules/customers/customer.repository';
+import {
+  findCustomerByAuthUserId,
+  upsertCustomer,
+} from '@/modules/customers/customer.service';
 import {
   requestCustomerLoginCode,
   verifyCustomerLoginCode,
@@ -17,6 +24,21 @@ export type CustomerAuthState = {
   next?: string;
   error?: string;
   message?: string;
+  registration?: {
+    mode: 'login' | 'signup';
+    customerType: 'pf' | 'pj';
+    name?: string;
+    document?: string;
+    legalName?: string;
+    stateRegistration?: string;
+    stateRegistrationExempt?: boolean;
+  };
+};
+
+export type BusinessProfileState = {
+  ok?: boolean;
+  error?: string;
+  message?: string;
 };
 
 const emailSchema = z.object({
@@ -27,6 +49,81 @@ const emailSchema = z.object({
 const codeSchema = emailSchema.extend({
   token: z.string().trim().min(4).max(12),
 });
+
+const registrationSchema = z
+  .object({
+    mode: z.enum(['login', 'signup']),
+    customerType: z.enum(['pf', 'pj']).default('pf'),
+    name: z.string().trim().optional(),
+    document: z.string().trim().optional(),
+    legalName: z.string().trim().optional(),
+    stateRegistration: z.string().trim().optional(),
+    stateRegistrationExempt: z.boolean().default(false),
+  })
+  .superRefine((registration, context) => {
+    if (
+      registration.mode !== 'signup' ||
+      registration.customerType !== 'pj'
+    ) {
+      return;
+    }
+
+    if (!registration.name || registration.name.length < 2) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['name'],
+        message: 'Informe o nome do responsável.',
+      });
+    }
+
+    if (!isValidCnpj(registration.document)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['document'],
+        message: 'Informe um CNPJ válido.',
+      });
+    }
+
+    if (!registration.legalName || registration.legalName.length < 2) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['legalName'],
+        message: 'Informe a razão social.',
+      });
+    }
+
+    if (
+      !registration.stateRegistrationExempt &&
+      !registration.stateRegistration
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['stateRegistration'],
+        message: 'Informe a inscrição estadual ou marque isento.',
+      });
+    }
+  });
+
+const businessProfileSchema = z
+  .object({
+    name: z.string().trim().min(2, 'Informe o nome do responsável.'),
+    document: z
+      .string()
+      .trim()
+      .refine(isValidCnpj, 'Informe um CNPJ válido.'),
+    legalName: z.string().trim().min(2, 'Informe a razão social.'),
+    stateRegistration: z.string().trim().optional(),
+    stateRegistrationExempt: z.boolean().default(false),
+  })
+  .superRefine((profile, context) => {
+    if (!profile.stateRegistrationExempt && !profile.stateRegistration) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['stateRegistration'],
+        message: 'Informe a inscrição estadual ou marque isento.',
+      });
+    }
+  });
 
 function formValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -55,12 +152,48 @@ async function getBaseUrl() {
   );
 }
 
+function parseRegistration(
+  formData: FormData,
+  previousState: CustomerAuthState
+) {
+  return registrationSchema.safeParse({
+    mode: formValue(formData, 'mode') || previousState.registration?.mode || 'login',
+    customerType:
+      formValue(formData, 'customerType') ||
+      previousState.registration?.customerType ||
+      'pf',
+    name: formValue(formData, 'name') || previousState.registration?.name,
+    document:
+      formValue(formData, 'document') || previousState.registration?.document,
+    legalName:
+      formValue(formData, 'legalName') || previousState.registration?.legalName,
+    stateRegistration:
+      formValue(formData, 'stateRegistration') ||
+      previousState.registration?.stateRegistration,
+    stateRegistrationExempt:
+      formData.get('stateRegistrationExempt') === 'on' ||
+      previousState.registration?.stateRegistrationExempt === true,
+  });
+}
+
 export async function customerOtpAction(
   previousState: CustomerAuthState,
   formData: FormData
 ): Promise<CustomerAuthState> {
   const intent = formValue(formData, 'intent');
   const next = getSafeNextPath(formValue(formData, 'next') || previousState.next);
+  const registration = parseRegistration(formData, previousState);
+
+  if (!registration.success) {
+    return {
+      step: intent === 'verify' ? 'code' : 'email',
+      email: previousState.email,
+      next,
+      error:
+        registration.error.issues[0]?.message ??
+        'Revise os dados do cadastro empresarial.',
+    };
+  }
 
   if (intent === 'verify') {
     const parsed = codeSchema.safeParse({
@@ -74,6 +207,7 @@ export async function customerOtpAction(
         step: 'code',
         email: previousState.email,
         next,
+        registration: registration.data,
         error: 'Informe o código recebido por e-mail.',
       };
     }
@@ -90,8 +224,45 @@ export async function customerOtpAction(
         step: 'code',
         email: parsed.data.email,
         next,
+        registration: registration.data,
         error: 'Código inválido ou expirado. Solicite um novo código.',
       };
+    }
+
+    if (
+      registration.data.mode === 'signup' &&
+      registration.data.customerType === 'pj'
+    ) {
+      try {
+        await upsertCustomer({
+          storeId: store.id,
+          authUserId: result.authUserId,
+          name: registration.data.name ?? 'Cliente',
+          email: result.email,
+          document: onlyDigits(registration.data.document),
+          customerType: 'pj',
+          legalName: registration.data.legalName,
+          stateRegistration: registration.data.stateRegistrationExempt
+            ? undefined
+            : registration.data.stateRegistration,
+          stateRegistrationExempt:
+            registration.data.stateRegistrationExempt,
+          source: 'manual',
+        });
+      } catch (error) {
+        if (error instanceof CustomerPersistenceError) {
+          return {
+            step: 'code',
+            email: parsed.data.email,
+            next,
+            registration: registration.data,
+            error:
+              'Não foi possível concluir este cadastro. Entre com o e-mail já vinculado aos dados informados.',
+          };
+        }
+
+        throw error;
+      }
     }
 
     redirect(next);
@@ -106,6 +277,7 @@ export async function customerOtpAction(
     return {
       step: 'email',
       next,
+      registration: registration.data,
       error: 'Informe um e-mail válido.',
     };
   }
@@ -123,6 +295,7 @@ export async function customerOtpAction(
     return {
       step: 'email',
       next,
+      registration: registration.data,
       error: getRateLimitErrorMessage(error),
     };
   }
@@ -131,6 +304,12 @@ export async function customerOtpAction(
     step: 'code',
     email: parsed.data.email.trim().toLowerCase(),
     next,
+    registration: {
+      ...registration.data,
+      document: registration.data.document
+        ? onlyDigits(registration.data.document)
+        : undefined,
+    },
     message: 'Enviamos um código de acesso para o seu e-mail.',
   };
 }
@@ -143,4 +322,90 @@ export async function customerSignOutAction() {
   }
 
   redirect('/conta/entrar');
+}
+
+export async function updateBusinessProfileAction(
+  _previousState: BusinessProfileState,
+  formData: FormData
+): Promise<BusinessProfileState> {
+  const parsed = businessProfileSchema.safeParse({
+    name: formValue(formData, 'name'),
+    document: formValue(formData, 'document'),
+    legalName: formValue(formData, 'legalName'),
+    stateRegistration: formValue(formData, 'stateRegistration') || undefined,
+    stateRegistrationExempt:
+      formData.get('stateRegistrationExempt') === 'on',
+  });
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error:
+        parsed.error.issues[0]?.message ??
+        'Revise os dados da empresa.',
+    };
+  }
+
+  const supabase = await createOptionalClient();
+  const { data, error } = supabase
+    ? await supabase.auth.getUser()
+    : { data: { user: null }, error: new Error('auth_unavailable') };
+
+  if (error || !data.user) {
+    return {
+      ok: false,
+      error: 'Sua sessão expirou. Entre novamente para atualizar os dados.',
+    };
+  }
+
+  const store = await resolveCurrentStoreFromHeaders();
+  const customer = await findCustomerByAuthUserId({
+    storeId: store.id,
+    authUserId: data.user.id,
+  });
+
+  if (!customer) {
+    return {
+      ok: false,
+      error: 'Não foi possível localizar sua conta nesta loja.',
+    };
+  }
+
+  try {
+    await upsertCustomer({
+      storeId: store.id,
+      authUserId: data.user.id,
+      name: parsed.data.name,
+      email: data.user.email ?? customer.email,
+      phone: customer.phone,
+      document: onlyDigits(parsed.data.document),
+      customerType: 'pj',
+      legalName: parsed.data.legalName,
+      stateRegistration: parsed.data.stateRegistrationExempt
+        ? undefined
+        : parsed.data.stateRegistration,
+      stateRegistrationExempt: parsed.data.stateRegistrationExempt,
+      source: customer.source,
+      acceptsMarketing: customer.acceptsMarketing,
+      notes: customer.notes,
+    });
+  } catch (caughtError) {
+    if (caughtError instanceof CustomerPersistenceError) {
+      return {
+        ok: false,
+        error:
+          'Não foi possível salvar este CNPJ. Verifique se ele já está vinculado a outra conta.',
+      };
+    }
+
+    throw caughtError;
+  }
+
+  revalidatePath('/conta');
+  revalidatePath('/carrinho');
+
+  return {
+    ok: true,
+    message: 'Dados empresariais atualizados. O benefício PJ já pode ser recalculado.',
+  };
 }

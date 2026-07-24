@@ -1,4 +1,9 @@
 export type CustomerType = 'pf' | 'pj';
+export type PromotionPolicy = 'best_price' | 'stack' | 'promotion_only';
+export type PriceSource =
+  | 'catalog'
+  | 'variant_override'
+  | 'automatic_discount';
 
 export interface PriceList {
   id: string;
@@ -10,6 +15,9 @@ export interface PriceList {
   currency: string;
   priority: number;
   isDefault: boolean;
+  automaticDiscountEnabled: boolean;
+  automaticDiscountPercentage: number;
+  promotionPolicy: PromotionPolicy;
   externalProvider?: string;
   externalId?: string;
   createdAt: string;
@@ -49,6 +57,9 @@ export interface ResolvedVariantPrice {
   priceListName?: string;
   unitPrice: number;
   baseUnitPrice: number;
+  discountPercentage: number;
+  productDiscountAmount: number;
+  priceSource: PriceSource;
   usedFallback: boolean;
 }
 
@@ -59,8 +70,13 @@ export interface CheckoutPricingItem {
   sku?: string;
   name: string;
   quantity: number;
+  baseUnitPrice: number;
+  baseTotal: number;
   unitPrice: number;
   total: number;
+  discountPercentage: number;
+  productDiscountTotal: number;
+  priceSource: PriceSource;
   priceListId?: string;
   priceListName?: string;
   customerType: CustomerType;
@@ -72,8 +88,11 @@ export interface CheckoutPricingResult {
   priceListId?: string;
   priceListName?: string;
   items: CheckoutPricingItem[];
+  catalogSubtotal: number;
   subtotal: number;
+  productSavingsTotal: number;
   shippingTotal: number;
   discountTotal: number;
+  pricingFingerprint: string;
   total: number;
 }

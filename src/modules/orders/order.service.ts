@@ -128,6 +128,7 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
         storeId: parsed.storeId,
         quoteId: parsed.shippingQuoteId,
         subtotal: pricing.subtotal,
+        pricingFingerprint: pricing.pricingFingerprint,
         destinationPostalCode: shippingAddress?.postalCode ?? '',
         items: parsed.items.map((item) => ({
           productId: item.productId,
@@ -155,8 +156,11 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
     sku: item.sku,
     name: item.name,
     quantity: item.quantity,
+    baseUnitPrice: item.baseUnitPrice,
     unitPrice: item.unitPrice,
     total: item.total,
+    discountPercentage: item.discountPercentage,
+    productDiscountTotal: item.productDiscountTotal,
     customerType: item.customerType,
     priceListId: item.priceListId,
     priceListName: item.priceListName,
@@ -263,6 +267,7 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
       : {},
     marketingContext: parsed.marketingContext ?? {},
     discountTotal: pricing.discountTotal,
+    productDiscountTotal: pricing.productSavingsTotal,
     total: orderTotal,
     customerType,
     customerLegalName:

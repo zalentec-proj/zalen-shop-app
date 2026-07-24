@@ -32,11 +32,13 @@ import {
   subscribeToStoredCart,
 } from './modules/cart/cart.storage';
 import { pushMarketingEvent } from './modules/marketing/marketing.client';
+import { PjDiscountNotice } from './components/storefront/PjDiscountNotice';
 
 interface AppProps {
   products: Product[];
   categories: StorefrontCategory[];
   navigation?: StorefrontNavigation;
+  businessDiscountPercentage?: number;
 }
 
 function normalizeCategoryText(value: string) {
@@ -60,7 +62,12 @@ function findCategorySlug(
   );
 }
 
-export default function App({ products, categories, navigation }: AppProps) {
+export default function App({
+  products,
+  categories,
+  navigation,
+  businessDiscountPercentage,
+}: AppProps) {
   const [currentPage, setCurrentPage] = useState<'home' | 'product_detail'>('home');
   const [selectedProductId, setSelectedProductId] = useState<string>(
     products[0]?.id ?? 'dji-mavic-3-pro'
@@ -224,6 +231,12 @@ export default function App({ products, categories, navigation }: AppProps) {
         onSearchChange={setSearchQuery}
         searchQuery={searchQuery}
       />
+
+      {businessDiscountPercentage ? (
+        <div className="relative z-20 mx-auto max-w-7xl px-4 pt-28 md:px-8">
+          <PjDiscountNotice percentage={businessDiscountPercentage} />
+        </div>
+      ) : null}
 
       {currentPage === 'home' ? (
         <main className="w-full">

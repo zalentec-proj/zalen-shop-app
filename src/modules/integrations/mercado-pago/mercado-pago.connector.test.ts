@@ -44,7 +44,20 @@ const order = {
   id: '11111111-1111-4111-8111-111111111111',
   storeId: '00000000-0000-0000-0000-000000000001',
   orderNumber: 'BD-TESTE',
+  subtotal: 30,
+  shippingTotal: 12.5,
+  discountTotal: 0,
   total: 42.5,
+  items: [
+    {
+      productId: 'product-1',
+      variantId: 'variant-1',
+      sku: 'SKU-1',
+      name: 'Produto de teste',
+      quantity: 1,
+      unitPrice: 30,
+    },
+  ],
   customer: {
     name: 'Cliente Teste',
     email: 'cliente@real.example',

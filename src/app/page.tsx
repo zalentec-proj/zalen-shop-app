@@ -27,6 +27,7 @@ import {
   getOptionalStoreFromResolution,
   resolveStoreFromHeaders,
 } from '@/modules/stores/store-resolution';
+import { getAutomaticPjDiscountPolicy } from '@/modules/pricing/pricing.service';
 
 export async function generateMetadata(): Promise<Metadata> {
   const resolution = await resolveStoreFromHeaders();
@@ -110,10 +111,11 @@ export default async function HomePage() {
   ]);
   const products = toStorefrontProducts(catalogProducts);
   const categories = toStorefrontCategories(catalogCategories, catalogProducts);
-  const [origin, marketingConfig, navigation] = await Promise.all([
+  const [origin, marketingConfig, navigation, pjDiscountPolicy] = await Promise.all([
     getCurrentOrigin(),
     getMarketingRuntimeConfig(store),
     getStorefrontNavigation(store.id, categories),
+    getAutomaticPjDiscountPolicy(store.id),
   ]);
 
   return (
@@ -143,7 +145,16 @@ export default async function HomePage() {
           },
         }}
       />
-      <App products={products} categories={categories} navigation={navigation} />
+      <App
+        products={products}
+        categories={categories}
+        navigation={navigation}
+        businessDiscountPercentage={
+          pjDiscountPolicy?.automaticDiscountEnabled
+            ? pjDiscountPolicy.automaticDiscountPercentage
+            : undefined
+        }
+      />
     </>
   );
 }

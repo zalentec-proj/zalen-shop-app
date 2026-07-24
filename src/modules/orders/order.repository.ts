@@ -63,6 +63,7 @@ type OrderRow = {
   shipping_metadata_json: Record<string, unknown> | null;
   marketing_context_json: Record<string, unknown> | null;
   discount_total: number | string | null;
+  product_discount_total: number | string | null;
   total: number | string | null;
   external_erp_provider: string | null;
   external_erp_id: string | null;
@@ -82,8 +83,11 @@ type OrderItemRow = {
   sku: string | null;
   name: string;
   quantity: number;
+  base_unit_price: number | string | null;
   unit_price: number | string | null;
   total: number | string | null;
+  discount_percentage: number | string | null;
+  product_discount_total: number | string | null;
   customer_type: string | null;
   price_list_id: string | null;
   price_list_name: string | null;
@@ -258,8 +262,11 @@ function buildMockOrderItem(
     sku: variant.sku,
     name: product.name,
     quantity,
+    baseUnitPrice: variant.price,
     unitPrice: variant.price,
     total: variant.price * quantity,
+    discountPercentage: 0,
+    productDiscountTotal: 0,
     customerType: undefined,
     priceListId: undefined,
     priceListName: undefined,
@@ -273,6 +280,7 @@ function buildMockOrder(
     | 'subtotal'
     | 'total'
     | 'items'
+    | 'productDiscountTotal'
     | 'externalErpSyncStatus'
     | 'externalErpLastError'
     | 'externalErpSyncedAt'
@@ -312,6 +320,7 @@ function buildMockOrder(
     subtotal,
     shippingTotal: input.shippingTotal,
     discountTotal: input.discountTotal,
+    productDiscountTotal: 0,
     total,
     externalErpProvider: input.externalErpProvider,
     externalErpId: input.externalErpId,
@@ -333,8 +342,11 @@ function mapOrderItem(row: OrderItemRow, fallbackStoreId: string): OrderItem {
     sku: row.sku ?? undefined,
     name: row.name,
     quantity: row.quantity,
+    baseUnitPrice: toNumber(row.base_unit_price ?? row.unit_price),
     unitPrice: toNumber(row.unit_price),
     total: toNumber(row.total),
+    discountPercentage: toNumber(row.discount_percentage),
+    productDiscountTotal: toNumber(row.product_discount_total),
     customerType: toCustomerType(row.customer_type),
     priceListId: row.price_list_id ?? undefined,
     priceListName: row.price_list_name ?? undefined,
@@ -379,6 +391,7 @@ function mapOrder(
     shippingMetadata: row.shipping_metadata_json ?? {},
     marketingContext: row.marketing_context_json ?? {},
     discountTotal: toNumber(row.discount_total),
+    productDiscountTotal: toNumber(row.product_discount_total),
     total: toNumber(row.total),
     customerType: toCustomerType(row.customer_type),
     customerLegalName: row.customer_legal_name ?? undefined,
@@ -988,6 +1001,7 @@ export async function saveOrderToRepository(
     shipping_metadata_json: order.shippingMetadata ?? {},
     marketing_context_json: order.marketingContext ?? {},
     discount_total: order.discountTotal,
+    product_discount_total: order.productDiscountTotal,
     total: order.total,
     external_erp_provider: order.externalErpProvider,
     external_erp_id: order.externalErpId,
@@ -1016,8 +1030,11 @@ export async function saveOrderToRepository(
       sku: item.sku,
       name: item.name,
       quantity: item.quantity,
+      base_unit_price: item.baseUnitPrice,
       unit_price: item.unitPrice,
       total: item.total,
+      discount_percentage: item.discountPercentage,
+      product_discount_total: item.productDiscountTotal,
       customer_type: item.customerType,
       price_list_id: toNullableUuid(item.priceListId),
       price_list_name: item.priceListName,

@@ -8,7 +8,11 @@ import { createClient } from '@/lib/supabase/server';
 import { createOrder } from '@/modules/orders/order.service';
 import { getOrderByIdFromRepository } from '@/modules/orders/order.repository';
 import { isValidCpfOrCnpj, onlyDigits } from '@/modules/customers/br-document';
-import { findCheckoutCustomerByIdentifier } from '@/modules/customers/customer.service';
+import {
+  findCheckoutCustomerByIdentifier,
+  isEligibleBusinessCustomer,
+  upsertCheckoutCustomer,
+} from '@/modules/customers/customer.service';
 import { CustomerPersistenceError } from '@/modules/customers/customer.repository';
 import {
   getCommonEmailTypoSuggestion,
@@ -144,6 +148,43 @@ const checkoutCustomerSchema = z.object({
     }
   }
 });
+
+const checkoutPricingCustomerSchema = z
+  .object({
+    name: z.string().trim().min(2),
+    email: z.string().trim().email(),
+    phone: z.string().trim().min(8),
+    document: z
+      .string()
+      .trim()
+      .min(11)
+      .refine(isValidCpfOrCnpj, 'CPF ou CNPJ inválido.'),
+    legalName: optionalCheckoutString,
+    stateRegistration: optionalCheckoutString,
+    stateRegistrationExempt: z.boolean().optional(),
+    acceptsMarketing: z.boolean().optional(),
+  })
+  .superRefine((customer, context) => {
+    if (getCustomerTypeFromDocument(customer.document) !== 'pj') {
+      return;
+    }
+
+    if (!customer.legalName) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['legalName'],
+        message: 'Informe a razão social.',
+      });
+    }
+
+    if (!customer.stateRegistrationExempt && !customer.stateRegistration) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['stateRegistration'],
+        message: 'Informe a inscrição estadual ou marque isento.',
+      });
+    }
+  });
 
 const checkoutSchema = z.object({
   checkoutAttemptId: z.string().trim().uuid(),
@@ -316,11 +357,17 @@ export type CheckoutPreviewActionResult =
         name: string;
         sku?: string;
         quantity: number;
+        baseUnitPrice: number;
+        baseTotal: number;
         unitPrice: number;
         total: number;
+        discountPercentage: number;
+        productDiscountTotal: number;
         usedFallbackPrice: boolean;
       }>;
+      catalogSubtotal: number;
       subtotal: number;
+      productSavingsTotal: number;
       shippingTotal: number;
       discountTotal: number;
       total: number;
@@ -335,7 +382,9 @@ export type CheckoutShippingQuoteActionResult =
       ok: true;
       customerType: CustomerType;
       priceListName?: string;
+      catalogSubtotal: number;
       subtotal: number;
+      productSavingsTotal: number;
       discountTotal: number;
       shippingOptions: ShippingRate[];
     }
@@ -449,9 +498,11 @@ function getSafeCheckoutError(error: unknown) {
       'shipping_quote_expired',
       'shipping_quote_items_changed',
       'shipping_quote_address_changed',
+      'shipping_quote_pricing_changed',
       'shipping_quote_stale',
       'checkout_email_not_verified',
       'checkout_email_mismatch',
+      'checkout_customer_account_mismatch',
       'fetch failed',
     ]);
 
@@ -461,6 +512,10 @@ function getSafeCheckoutError(error: unknown) {
 
     if (error.message === 'checkout_email_mismatch') {
       return 'O e-mail validado não corresponde ao e-mail informado no checkout.';
+    }
+
+    if (error.message === 'checkout_customer_account_mismatch') {
+      return 'Os dados da conta mudaram. Valide novamente o e-mail antes de continuar.';
     }
 
     if (error.message.startsWith('checkout_email_typo:')) {
@@ -629,6 +684,57 @@ async function requireVerifiedCheckoutEmail(input: {
   };
 }
 
+async function getAuthenticatedPricingCustomerType(
+  storeId: string,
+  submittedCustomer?: z.infer<typeof checkoutPricingCustomerSchema>
+): Promise<CustomerType> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getUser();
+
+  if (error || !data.user) {
+    return 'pf';
+  }
+
+  const sessionEmail = normalizeEmailAddress(data.user.email ?? '');
+  const submittedEmail = submittedCustomer
+    ? normalizeEmailAddress(submittedCustomer.email)
+    : '';
+  const submittedCustomerType = submittedCustomer
+    ? getCustomerTypeFromDocument(submittedCustomer.document)
+    : 'pf';
+  const customer =
+    submittedCustomer && sessionEmail && sessionEmail === submittedEmail
+      ? await upsertCheckoutCustomer({
+          storeId,
+          authUserId: data.user.id,
+          name: submittedCustomer.name,
+          email: sessionEmail,
+          phone: submittedCustomer.phone,
+          document: submittedCustomer.document,
+          customerType: submittedCustomerType,
+          legalName:
+            submittedCustomerType === 'pj'
+              ? submittedCustomer.legalName
+              : undefined,
+          stateRegistration:
+            submittedCustomerType === 'pj'
+              ? submittedCustomer.stateRegistration
+              : undefined,
+          stateRegistrationExempt:
+            submittedCustomerType === 'pj'
+              ? submittedCustomer.stateRegistrationExempt
+              : false,
+          acceptsMarketing: submittedCustomer.acceptsMarketing,
+          source: 'checkout',
+        })
+      : await findCustomerByAuthUserId({
+          storeId,
+          authUserId: data.user.id,
+        });
+
+  return customer && isEligibleBusinessCustomer(customer) ? 'pj' : 'pf';
+}
+
 function canReusePaymentOrder(order: OrderListItem) {
   return order.paymentStatus !== 'paid' && order.status !== 'cancelled';
 }
@@ -696,6 +802,7 @@ const checkoutEmailCodeRequestSchema = z.object({
 
 const checkoutEmailCodeVerificationSchema = checkoutEmailCodeRequestSchema.extend({
   token: z.string().trim().min(4).max(12),
+  customer: checkoutCustomerSchema,
 });
 
 const checkoutAccountIdentifierSchema = z.object({
@@ -787,6 +894,40 @@ export async function verifyCheckoutEmailCodeAction(
       ok: false,
       error: 'Código inválido ou expirado. Solicite um novo código.',
     };
+  }
+
+  try {
+    await upsertCheckoutCustomer({
+      storeId: store.id,
+      authUserId: result.authUserId,
+      name: parsed.data.customer.name,
+      email: result.email,
+      phone: parsed.data.customer.phone,
+      document: parsed.data.customer.document,
+      customerType: getCustomerTypeFromDocument(
+        parsed.data.customer.document
+      ),
+      legalName: parsed.data.customer.legalName,
+      stateRegistration: parsed.data.customer.stateRegistration,
+      stateRegistrationExempt:
+        parsed.data.customer.stateRegistrationExempt,
+      acceptsMarketing: parsed.data.customer.acceptsMarketing,
+      source: 'checkout',
+      address: parsed.data.customer.shippingAddress,
+    });
+  } catch (error) {
+    if (
+      error instanceof CustomerPersistenceError &&
+      error.safeReason.includes('customer_identity_conflict')
+    ) {
+      return {
+        ok: false,
+        error:
+          'Não foi possível concluir este cadastro. Entre com o e-mail já vinculado aos dados informados.',
+      };
+    }
+
+    throw error;
   }
 
   return {
@@ -1237,11 +1378,66 @@ export async function checkoutCartAction(
     const verifiedEmail = await requireVerifiedCheckoutEmail({
       email: parsed.data.customer.email,
     });
+    const submittedCustomerType = getCustomerTypeFromDocument(
+      parsed.data.customer.document
+    );
+    const accountCustomer = await upsertCheckoutCustomer({
+      storeId: store.id,
+      authUserId: verifiedEmail.authUserId,
+      name: parsed.data.customer.name,
+      email: verifiedEmail.email,
+      phone: parsed.data.customer.phone,
+      document: parsed.data.customer.document,
+      customerType: submittedCustomerType,
+      legalName:
+        submittedCustomerType === 'pj'
+          ? parsed.data.customer.legalName
+          : undefined,
+      stateRegistration:
+        submittedCustomerType === 'pj'
+          ? parsed.data.customer.stateRegistration
+          : undefined,
+      stateRegistrationExempt:
+        submittedCustomerType === 'pj'
+          ? parsed.data.customer.stateRegistrationExempt
+          : false,
+      acceptsMarketing: parsed.data.customer.acceptsMarketing,
+      source: 'checkout',
+      address: parsed.data.customer.shippingAddress,
+    });
+
+    if (
+      onlyDigits(accountCustomer.document) !==
+        onlyDigits(parsed.data.customer.document)
+    ) {
+      throw new Error('checkout_customer_account_mismatch');
+    }
+
+    const trustedCustomerType = isEligibleBusinessCustomer(accountCustomer)
+      ? 'pj'
+      : 'pf';
     const checkoutInput = {
       ...parsed.data,
       customer: {
         ...parsed.data.customer,
+        name: accountCustomer.name,
         email: verifiedEmail.email,
+        phone: accountCustomer.phone ?? parsed.data.customer.phone,
+        document: accountCustomer.document ?? parsed.data.customer.document,
+        customerType: trustedCustomerType,
+        legalName:
+          trustedCustomerType === 'pj'
+            ? accountCustomer.legalName
+            : undefined,
+        stateRegistration:
+          trustedCustomerType === 'pj'
+            ? accountCustomer.stateRegistration
+            : undefined,
+        stateRegistrationExempt:
+          trustedCustomerType === 'pj'
+            ? accountCustomer.stateRegistrationExempt
+            : false,
+        acceptsMarketing: accountCustomer.acceptsMarketing,
       },
     } satisfies CheckoutInput;
     const baseUrl = await getCurrentStorefrontOrigin(store);
@@ -1836,8 +2032,7 @@ function isEmailLike(value: string) {
 
 const checkoutPreviewSchema = z.object({
   items: z.array(checkoutItemSchema).min(1).max(50),
-  customerType: z.enum(['pf', 'pj']).optional(),
-  document: z.string().trim().optional(),
+  customer: checkoutPricingCustomerSchema.optional(),
 });
 
 const checkoutShippingQuoteSchema = checkoutPreviewSchema.extend({
@@ -1856,12 +2051,12 @@ export async function previewCheckoutCartAction(
     };
   }
 
-  const customerType = parsed.data.document
-    ? getCustomerTypeFromDocument(parsed.data.document)
-    : parsed.data.customerType ?? 'pf';
-
   try {
     const store = await resolveCurrentStoreFromHeaders();
+    const customerType = await getAuthenticatedPricingCustomerType(
+      store.id,
+      parsed.data.customer
+    );
     const pricing = await resolveCheckoutPricing({
       storeId: store.id,
       customerType,
@@ -1878,11 +2073,17 @@ export async function previewCheckoutCartAction(
         name: item.name,
         sku: item.sku,
         quantity: item.quantity,
+        baseUnitPrice: item.baseUnitPrice,
+        baseTotal: item.baseTotal,
         unitPrice: item.unitPrice,
         total: item.total,
+        discountPercentage: item.discountPercentage,
+        productDiscountTotal: item.productDiscountTotal,
         usedFallbackPrice: item.usedFallbackPrice,
       })),
+      catalogSubtotal: pricing.catalogSubtotal,
       subtotal: pricing.subtotal,
+      productSavingsTotal: pricing.productSavingsTotal,
       shippingTotal: pricing.shippingTotal,
       discountTotal: pricing.discountTotal,
       total: pricing.total,
@@ -1913,12 +2114,12 @@ export async function quoteCheckoutShippingAction(
     };
   }
 
-  const customerType = parsed.data.document
-    ? getCustomerTypeFromDocument(parsed.data.document)
-    : parsed.data.customerType ?? 'pf';
-
   try {
     const store = await resolveCurrentStoreFromHeaders();
+    const customerType = await getAuthenticatedPricingCustomerType(
+      store.id,
+      parsed.data.customer
+    );
     await enforceRateLimit({
       scope: 'shipping_quote',
       storeId: store.id,
@@ -1932,6 +2133,7 @@ export async function quoteCheckoutShippingAction(
     const shippingOptions = await quoteShipping({
       storeId: store.id,
       subtotal: pricing.subtotal,
+      pricingFingerprint: pricing.pricingFingerprint,
       destinationPostalCode: parsed.data.shippingAddress.postalCode,
       items: parsed.data.items,
     });
@@ -1948,7 +2150,9 @@ export async function quoteCheckoutShippingAction(
       ok: true,
       customerType: pricing.customerType,
       priceListName: pricing.priceListName,
+      catalogSubtotal: pricing.catalogSubtotal,
       subtotal: pricing.subtotal,
+      productSavingsTotal: pricing.productSavingsTotal,
       discountTotal: pricing.discountTotal,
       shippingOptions,
     };

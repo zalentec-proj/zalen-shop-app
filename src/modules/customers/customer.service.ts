@@ -14,7 +14,7 @@ import {
   upsertCustomerAddressInRepository,
   upsertCustomerInRepository,
 } from './customer.repository';
-import { isValidCpfOrCnpj } from './br-document';
+import { isValidCnpj, isValidCpfOrCnpj } from './br-document';
 import { getCustomerTypeFromDocument } from '@/modules/pricing/pricing.service';
 import type {
   Customer,
@@ -91,6 +91,25 @@ export function parseCustomerInput(input: CustomerInput): CustomerInput {
 
 export function parseCheckoutCustomerInput(input: CustomerInput): CustomerInput {
   return checkoutCustomerInputSchema.parse(input);
+}
+
+export function isEligibleBusinessCustomer(
+  customer: Pick<
+    Customer,
+    | 'customerType'
+    | 'document'
+    | 'legalName'
+    | 'stateRegistration'
+    | 'stateRegistrationExempt'
+  >
+) {
+  return Boolean(
+    customer.customerType === 'pj' &&
+      isValidCnpj(customer.document) &&
+      customer.legalName?.trim() &&
+      (customer.stateRegistrationExempt ||
+        customer.stateRegistration?.trim())
+  );
 }
 
 export async function listCustomers(storeId: string): Promise<CustomerListItem[]> {

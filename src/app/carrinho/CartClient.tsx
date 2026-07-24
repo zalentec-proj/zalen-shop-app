@@ -431,6 +431,25 @@ function hasRequiredCustomerData(customer: CustomerState) {
   return true;
 }
 
+function getPricingCustomerPayload(customer: CustomerState) {
+  if (!hasRequiredCustomerData(customer)) {
+    return undefined;
+  }
+
+  return {
+    name: customer.name,
+    email: customer.email,
+    phone: customer.phone,
+    document: customer.document,
+    legalName: customer.legalName || undefined,
+    stateRegistration: customer.stateRegistrationExempt
+      ? undefined
+      : customer.stateRegistration || undefined,
+    stateRegistrationExempt: customer.stateRegistrationExempt,
+    acceptsMarketing: customer.acceptsMarketing,
+  };
+}
+
 function hasRequiredDeliveryData(customer: CustomerState) {
   return (
     onlyDigits(customer.postalCode).length === 8 &&
@@ -685,7 +704,11 @@ export default function CartClient({ customerSession }: Props) {
   const selectedShippingOption = shippingOptions.find(
     (option) => option.quoteId === selectedShippingQuoteId
   );
+  const summaryCatalogSubtotal =
+    checkoutPreview?.catalogSubtotal ?? cart.subtotal;
   const summarySubtotal = checkoutPreview?.subtotal ?? cart.subtotal;
+  const summaryProductSavings =
+    checkoutPreview?.productSavingsTotal ?? 0;
   const summaryDiscount = checkoutPreview?.discountTotal ?? 0;
   const summaryShipping = selectedShippingOption?.price ?? 0;
   const summaryShippingLabel = selectedShippingOption?.serviceName
@@ -768,7 +791,7 @@ export default function CartClient({ customerSession }: Props) {
       ecommerce: {
         currency: 'BRL',
         value: cart.total,
-        items: cart.items.map((item) => ({
+        items: (summaryItems ?? cart.items).map((item) => ({
           item_id: item.sku ?? item.variantId,
           item_name: item.name,
           price: item.unitPrice,
@@ -1176,8 +1199,7 @@ export default function CartClient({ customerSession }: Props) {
 
     const result = await previewCheckoutCartAction({
       items: actionItems,
-      document: nextCustomer.document,
-      customerType: nextCustomer.customerType,
+      customer: getPricingCustomerPayload(nextCustomer),
     });
 
     if (!result.ok) {
@@ -1210,7 +1232,11 @@ export default function CartClient({ customerSession }: Props) {
       return {
         ok: true,
         customerType: activeCustomerType,
+        catalogSubtotal:
+          checkoutPreview?.catalogSubtotal ?? cart.subtotal,
         subtotal: checkoutPreview?.subtotal ?? cart.subtotal,
+        productSavingsTotal:
+          checkoutPreview?.productSavingsTotal ?? 0,
         discountTotal: checkoutPreview?.discountTotal ?? 0,
         shippingOptions,
       } satisfies CheckoutShippingQuoteActionResult;
@@ -1223,8 +1249,7 @@ export default function CartClient({ customerSession }: Props) {
 
     const result = await quoteCheckoutShippingAction({
       items: actionItems,
-      document: nextCustomer.document,
-      customerType: nextCustomer.customerType,
+      customer: getPricingCustomerPayload(nextCustomer),
       shippingAddress: {
         postalCode: nextCustomer.postalCode,
         street: nextCustomer.street,
@@ -1575,7 +1600,11 @@ export default function CartClient({ customerSession }: Props) {
       ? Promise.resolve({
           ok: true,
           customerType: activeCustomerType,
+          catalogSubtotal:
+            checkoutPreview?.catalogSubtotal ?? cart.subtotal,
           subtotal: checkoutPreview?.subtotal ?? cart.subtotal,
+          productSavingsTotal:
+            checkoutPreview?.productSavingsTotal ?? 0,
           discountTotal: checkoutPreview?.discountTotal ?? 0,
           shippingOptions,
         } satisfies CheckoutShippingQuoteActionResult)
@@ -1684,6 +1713,32 @@ export default function CartClient({ customerSession }: Props) {
     const result = await verifyCheckoutEmailCodeAction({
       email,
       token,
+      customer: {
+        name: customer.name,
+        email,
+        phone: customer.phone,
+        document: customer.document,
+        customerType: getCustomerTypeFromDocumentInput(
+          customer.document,
+          customer.customerType
+        ),
+        legalName: customer.legalName || undefined,
+        stateRegistration:
+          customer.stateRegistrationExempt
+            ? undefined
+            : customer.stateRegistration || undefined,
+        stateRegistrationExempt: customer.stateRegistrationExempt,
+        acceptsMarketing: customer.acceptsMarketing,
+        shippingAddress: {
+          postalCode: customer.postalCode,
+          street: customer.street,
+          number: customer.number,
+          complement: customer.complement,
+          district: customer.district,
+          city: customer.city,
+          state: customer.state.toUpperCase(),
+        },
+      },
     });
 
     setIsVerifyingEmailCode(false);
@@ -1705,6 +1760,8 @@ export default function CartClient({ customerSession }: Props) {
       token: '',
       message: result.message,
     });
+    await refreshPreview(customer);
+    await refreshShippingQuotes(customer, { force: true, silent: true });
   }
 
   async function handleCheckout() {
@@ -2780,7 +2837,21 @@ export default function CartClient({ customerSession }: Props) {
               </div>
 
               <div className="mt-5 space-y-2 border-t border-brand-border-soft pt-4">
-                <SummaryRow label="Subtotal" value={formatCurrency(summarySubtotal)} />
+                <SummaryRow
+                  label={summaryProductSavings > 0 ? 'Subtotal público' : 'Subtotal'}
+                  value={formatCurrency(
+                    summaryProductSavings > 0
+                      ? summaryCatalogSubtotal
+                      : summarySubtotal
+                  )}
+                />
+                {summaryProductSavings > 0 ? (
+                  <SummaryRow
+                    label="Desconto PJ"
+                    value={`- ${formatCurrency(summaryProductSavings)}`}
+                    accent
+                  />
+                ) : null}
                 <SummaryRow
                   label={summaryShippingLabel}
                   value={summaryShipping === 0 ? 'Grátis' : formatCurrency(summaryShipping)}

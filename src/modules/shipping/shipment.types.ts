@@ -127,6 +127,7 @@ export interface ShippingQuoteItem {
 export interface ShippingQuoteInput {
   storeId: string;
   subtotal: number;
+  pricingFingerprint?: string;
   destinationPostalCode: string;
   items: ShippingQuoteItem[];
 }

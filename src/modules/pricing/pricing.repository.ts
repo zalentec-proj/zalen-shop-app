@@ -18,6 +18,9 @@ type PriceListRow = {
   currency: string | null;
   priority: number | null;
   is_default: boolean | null;
+  automatic_discount_enabled: boolean | null;
+  automatic_discount_percentage: number | string | null;
+  promotion_policy: string | null;
   external_provider: string | null;
   external_id: string | null;
   created_at: string | null;
@@ -69,6 +72,14 @@ function isCustomerType(value: string | null | undefined): value is CustomerType
   return value === 'pf' || value === 'pj';
 }
 
+function toPromotionPolicy(value: string | null | undefined) {
+  if (value === 'stack' || value === 'promotion_only') {
+    return value;
+  }
+
+  return 'best_price' as const;
+}
+
 function getSafeRepositoryErrorSignal(error: RepositoryError | null | undefined) {
   if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
     return 'schema_missing';
@@ -109,11 +120,56 @@ function mapPriceList(row: PriceListRow): PriceList {
     currency: row.currency ?? 'BRL',
     priority: row.priority ?? 0,
     isDefault: row.is_default ?? false,
+    automaticDiscountEnabled: row.automatic_discount_enabled ?? false,
+    automaticDiscountPercentage: toNumber(
+      row.automatic_discount_percentage ?? 10
+    ),
+    promotionPolicy: toPromotionPolicy(row.promotion_policy),
     externalProvider: row.external_provider ?? undefined,
     externalId: row.external_id ?? undefined,
     createdAt: row.created_at ?? fallbackDate,
     updatedAt: row.updated_at ?? row.created_at ?? fallbackDate,
   };
+}
+
+export async function updateAutomaticPjDiscountPolicyInRepository(input: {
+  storeId: string;
+  enabled: boolean;
+  percentage: number;
+}): Promise<PriceList | null> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    return null;
+  }
+
+  const priceList = await getDefaultPriceListFromRepository({
+    storeId: input.storeId,
+    customerType: 'pj',
+  });
+
+  if (!priceList) {
+    throw new PricingPersistenceError('price_list_unavailable');
+  }
+
+  const { data, error } = await supabase
+    .from('price_lists')
+    .update({
+      automatic_discount_enabled: input.enabled,
+      automatic_discount_percentage: input.percentage,
+      promotion_policy: 'best_price',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('store_id', input.storeId)
+    .eq('id', priceList.id)
+    .select('*')
+    .single();
+
+  if (error || !data) {
+    throw new PricingPersistenceError('update_automatic_pj_discount', error);
+  }
+
+  return mapPriceList(data as PriceListRow);
 }
 
 function mapVariantPrice(row: ProductVariantPriceRow): ProductVariantPrice {

@@ -900,6 +900,21 @@ export async function upsertCustomerInRepository(
     existing = existing ?? emailOwner;
   }
 
+  const identityConflict = [documentOwner, emailOwner].some(
+    (owner) =>
+      Boolean(
+        owner &&
+          ((existing && owner.id !== existing.id) ||
+            (owner.auth_user_id &&
+              payload.auth_user_id &&
+              owner.auth_user_id !== payload.auth_user_id))
+      )
+  );
+
+  if (identityConflict) {
+    throw new CustomerPersistenceError('customer_identity_conflict');
+  }
+
   const updatePayload = existing
     ? getSafeCustomerUpdatePayload({
         payload,

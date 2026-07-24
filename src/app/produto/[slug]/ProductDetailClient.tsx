@@ -15,14 +15,20 @@ import {
 import Footer from '@/components/layout/Footer';
 import { addStoredCartItem } from '@/modules/cart/cart.storage';
 import type { Product, ProductSummary } from '@/modules/catalog/product.types';
+import { PjDiscountNotice } from '@/components/storefront/PjDiscountNotice';
 import { pushMarketingEvent } from '@/modules/marketing/marketing.client';
 
 interface Props {
   product: Product;
   relatedProducts: ProductSummary[];
+  businessDiscountPercentage?: number;
 }
 
-export default function ProductDetailClient({ product, relatedProducts }: Props) {
+export default function ProductDetailClient({
+  product,
+  relatedProducts,
+  businessDiscountPercentage,
+}: Props) {
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [addedToCart, setAddedToCart] = useState(false);
@@ -111,6 +117,14 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
       </header>
 
       <main className="max-w-7xl mx-auto px-4 md:px-8 pt-32 pb-20">
+        {businessDiscountPercentage ? (
+          <div className="mb-6">
+            <PjDiscountNotice
+              percentage={businessDiscountPercentage}
+              compact
+            />
+          </div>
+        ) : null}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
 
           {/* Left — Images */}

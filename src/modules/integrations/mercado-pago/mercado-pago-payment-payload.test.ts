@@ -9,6 +9,17 @@ const order = {
   storeId: '00000000-0000-0000-0000-000000000001',
   orderNumber: 'BD-TESTE',
   total: 42.5,
+  shippingTotal: 12.5,
+  items: [
+    {
+      productId: 'product-1',
+      variantId: 'variant-1',
+      sku: 'SKU-1',
+      name: 'Produto de teste',
+      quantity: 1,
+      unitPrice: 30,
+    },
+  ],
   customer: {
     name: 'Cliente Teste',
     document: '085.909.619-07',
@@ -56,6 +67,24 @@ describe('Mercado Pago payment payload contract', () => {
         email: 'buyer@example.test',
         first_name: 'APRO',
         identification: { type: 'CPF', number: '12345678909' },
+      },
+      additional_info: {
+        items: [
+          {
+            id: 'variant-1',
+            title: 'Produto de teste',
+            description: 'Produto de teste — SKU SKU-1',
+            quantity: 1,
+            unit_price: 30,
+          },
+        ],
+        shipments: {
+          receiver_address: {
+            zip_code: '85801210',
+            state_name: 'PR',
+            city_name: 'Cascavel',
+          },
+        },
       },
     });
   });

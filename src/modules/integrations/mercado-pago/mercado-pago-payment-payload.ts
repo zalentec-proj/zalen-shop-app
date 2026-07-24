@@ -36,6 +36,10 @@ function getDocumentType(document: string | undefined) {
   return digits.length === 14 ? 'CNPJ' : digits.length === 11 ? 'CPF' : undefined;
 }
 
+function onlyDigits(value: string | undefined) {
+  return value?.replace(/\D/g, '') ?? '';
+}
+
 function getRecordString(
   formData: MercadoPagoBrickPaymentFormData,
   key: string
@@ -140,6 +144,15 @@ export function buildMercadoPagoBrickPaymentPayload(input: {
     storeId: string;
     orderNumber: string;
     total: number;
+    shippingTotal: number;
+    items: Array<{
+      productId: string;
+      variantId: string;
+      sku?: string;
+      name: string;
+      quantity: number;
+      unitPrice: number;
+    }>;
     customer?: {
       name?: string;
       document?: string;
@@ -217,6 +230,29 @@ export function buildMercadoPagoBrickPaymentPayload(input: {
       checkout_mode: 'payment_brick',
     },
     payer,
+    additional_info: {
+      items: input.order.items.map((item) => ({
+        id: item.variantId || item.productId,
+        title: item.name,
+        description: item.sku ? `${item.name} — SKU ${item.sku}` : item.name,
+        category_id: 'others',
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+      })),
+      shipments: input.order.customer?.shippingAddress
+        ? {
+            receiver_address: {
+              zip_code: onlyDigits(
+                input.order.customer.shippingAddress.postalCode
+              ),
+              state_name: input.order.customer.shippingAddress.state,
+              city_name: input.order.customer.shippingAddress.city,
+              street_name: input.order.customer.shippingAddress.street,
+              street_number: input.order.customer.shippingAddress.number,
+            },
+          }
+        : undefined,
+    },
   };
 
   if (paymentKind === 'card') {

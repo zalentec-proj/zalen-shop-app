@@ -242,4 +242,31 @@ describe('shipping quote fallback', () => {
 
     expect(freeCacheKey).not.toBe(paidCacheKey);
   });
+
+  it('partitions the quote cache when the pricing policy changes', async () => {
+    mocks.calculateSuperFreteRates.mockResolvedValue([
+      {
+        methodId: externalMethod.id,
+        kind: 'external',
+        providerKey: 'superfrete',
+        serviceCode: '1',
+        serviceName: 'PAC',
+        price: 18.5,
+      },
+    ]);
+
+    await quoteShipping({
+      ...input,
+      pricingFingerprint: 'pj-discount-10',
+    });
+    const firstCacheKey = mocks.getReusableRates.mock.calls[0][0].cacheKey;
+
+    await quoteShipping({
+      ...input,
+      pricingFingerprint: 'pj-discount-15',
+    });
+    const secondCacheKey = mocks.getReusableRates.mock.calls[1][0].cacheKey;
+
+    expect(secondCacheKey).not.toBe(firstCacheKey);
+  });
 });

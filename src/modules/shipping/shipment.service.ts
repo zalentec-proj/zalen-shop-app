@@ -84,6 +84,7 @@ function getShippingQuoteCacheKey(
         destinationPostalCode: onlyDigits(input.destinationPostalCode),
         itemsHash: getShippingItemsHash(input.items),
         subtotal: roundCurrency(input.subtotal),
+        pricingFingerprint: input.pricingFingerprint,
         productFreeShipping,
       })
     )
@@ -299,6 +300,7 @@ async function quoteAndPersistShippingRates(input: {
     destinationPostalCode,
     itemsHash: getShippingItemsHash(normalizedQuote.items),
     cacheKey,
+    pricingFingerprint: normalizedQuote.pricingFingerprint,
     expiresAt: getQuoteExpiration(),
     rates,
   });
@@ -359,6 +361,7 @@ export async function validateShippingQuoteForCheckout(input: {
   storeId: string;
   quoteId: string;
   subtotal: number;
+  pricingFingerprint?: string;
   destinationPostalCode: string;
   items: ShippingQuoteItem[];
 }): Promise<ShippingQuote> {
@@ -383,9 +386,17 @@ export async function validateShippingQuoteForCheckout(input: {
     throw new Error('shipping_quote_address_changed');
   }
 
+  if (
+    input.pricingFingerprint &&
+    quote.rawPayload.pricingFingerprint !== input.pricingFingerprint
+  ) {
+    throw new Error('shipping_quote_pricing_changed');
+  }
+
   const currentQuoteInput = {
     storeId: input.storeId,
     subtotal: input.subtotal,
+    pricingFingerprint: input.pricingFingerprint,
     destinationPostalCode: input.destinationPostalCode,
     items: input.items,
   };
