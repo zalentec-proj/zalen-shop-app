@@ -65,7 +65,12 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   PostCSS `8.5.23` e Sharp `0.35.3`, sem usar o downgrade incompatível sugerido
   por `npm audit fix --force`. A auditoria de produção passou com zero
   vulnerabilidades; `npm run lint`, os 112 testes, `npm run build`, o scanner
-  de segredos e `git diff --check` também passaram novamente.
+  de segredos e `git diff --check` também passaram novamente. O primeiro
+  rerun do CI (`30116966133`) parou no `npm ci` Linux porque o npm do macOS
+  havia removido do lockfile as entradas raiz opcionais de `@emnapi/core` e
+  `@emnapi/runtime`; as duas entradas multiplataforma foram restauradas com as
+  mesmas versões `1.11.2` já declaradas. Uma nova instalação limpa confirmou
+  ambas no nível raiz, preservou o lockfile e manteve a auditoria zerada.
 
 - Em 2026-07-21 foi concluída a limpeza controlada dos pedidos históricos de
   teste da Brasil Drones. Antes da exclusão havia 34 pedidos; a transação
