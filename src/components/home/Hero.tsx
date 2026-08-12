@@ -1,17 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
-  Battery,
-  Camera,
   Handshake,
   PackageCheck,
   Shield,
   Truck,
-  Wifi,
   Wrench,
   Zap,
 } from 'lucide-react';
 import Logo from '../ui/Logo';
+import djiLogoAsset from '../../assets/dji-logo.svg';
 import brandBgAsset from '../../assets/images/mavic_featured_bg_v2_1779247771069.png';
 import freightPromoBgAsset from '../../assets/images/hero_frete_promocional_brasil_drones_20260708.png';
 import technicianBgAsset from '../../assets/images/hero_tecnicos_assistencias_brasil_drones_20260708.png';
@@ -37,17 +35,21 @@ type HeroSlide = {
     label: string;
     action: 'parts' | 'contact';
   };
-  detailCards?: Array<{
-    label: string;
-    value: string;
-    icon: React.ReactNode;
-    colorClass: string;
-  }>;
+  brandEndorsement?: {
+    title: string;
+    description: React.ReactNode;
+  };
   partnerBullets?: Array<{
     label: string;
     icon: React.ReactNode;
   }>;
 };
+
+type StaticAsset = string | { src: string };
+
+const djiLogo = typeof (djiLogoAsset as StaticAsset) === 'string'
+  ? djiLogoAsset
+  : (djiLogoAsset as { src: string }).src;
 
 const slides: HeroSlide[] = [
   {
@@ -76,32 +78,14 @@ const slides: HeroSlide[] = [
       label: 'Ver peças',
       action: 'parts',
     },
-    detailCards: [
-      {
-        label: 'Transmissão',
-        value: '15 km',
-        icon: <Wifi className="h-5 w-5 text-cyan-400" />,
-        colorClass: 'text-cyan-400 bg-cyan-400/10 border-cyan-400/20',
-      },
-      {
-        label: 'Autonomia',
-        value: 'até 46 min',
-        icon: <Battery className="h-5 w-5 text-[#00E676]" />,
-        colorClass: 'text-[#00E676] bg-[#00E676]/10 border-[#00E676]/20',
-      },
-      {
-        label: 'Detecção',
-        value: '360°',
-        icon: <Shield className="h-5 w-5 text-[#00D4FF]" />,
-        colorClass: 'text-[#00D4FF] bg-[#00D4FF]/10 border-[#00D4FF]/20',
-      },
-      {
-        label: 'Câmera Hasselblad',
-        value: '4/3 CMOS',
-        icon: <Camera className="h-5 w-5 text-emerald-400" />,
-        colorClass: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
-      },
-    ],
+    brandEndorsement: {
+      title: 'Autorizada DJI',
+      description: (
+        <>
+          Drones e peças <span className="text-[#00E676]">DJI</span> originais
+        </>
+      ),
+    },
   },
   {
     id: 'freight-promo',
@@ -316,28 +300,20 @@ export default function Hero({ onExploreClick, onPeasClick }: HeroProps) {
                 : 'justify-start xl:justify-end'
             )}
           >
-            {activeSlide.detailCards ? (
-              <div className="grid w-full max-w-4xl grid-cols-1 gap-3 sm:grid-cols-2 xl:max-w-[280px] xl:grid-cols-1">
-                {activeSlide.detailCards.map((spec) => (
-                  <div
-                    key={spec.label}
-                    className="group/spec flex items-center gap-4 rounded-2xl border border-white/5 bg-black/30 p-4 shadow-[0_12px_40px_rgba(0,0,0,0.6)] backdrop-blur-md transition-all duration-300 hover:border-white/10 hover:bg-white/[0.04]"
-                  >
-                    <div
-                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition-all duration-300 group-hover/spec:scale-105 ${spec.colorClass}`}
-                    >
-                      {spec.icon}
-                    </div>
-                    <div className="flex flex-col text-left">
-                      <span className="text-[12px] font-medium tracking-wide text-[#8F9CAE]">
-                        {spec.label}
-                      </span>
-                      <span className="mt-0.5 text-[14px] font-bold tracking-tight text-white">
-                        {spec.value}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+            {activeSlide.brandEndorsement ? (
+              <div className="flex w-full max-w-xl flex-col items-center text-center xl:max-w-[640px]">
+                <img
+                  src={djiLogo}
+                  alt="DJI"
+                  className="h-auto w-full max-w-[560px] object-contain brightness-0 invert drop-shadow-[0_18px_38px_rgba(0,0,0,0.34)]"
+                  draggable={false}
+                />
+                <p className="mt-5 text-lg font-bold tracking-tight text-white sm:text-xl">
+                  {activeSlide.brandEndorsement.title}
+                </p>
+                <p className="text-lg font-semibold tracking-tight text-white sm:text-xl">
+                  {activeSlide.brandEndorsement.description}
+                </p>
               </div>
             ) : null}
 
