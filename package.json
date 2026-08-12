@@ -39,7 +39,11 @@
     "modelos:dry": "DRY_RUN=true node capture-and-create-bling-model-categories.js",
     "modelos:bling": "DRY_RUN=false MODEL_CATEGORIES_APPROVED=true node capture-and-create-bling-model-categories.js",
     "catalogo:brasil-drones:dry": "DRY_RUN=true node scripts/bling/import-brasil-drones-new-catalog.mjs",
-    "catalogo:brasil-drones:import": "DRY_RUN=false BRASIL_DRONES_IMPORT_APPROVED=true node capture-and-import-brasil-drones-new-catalog.js"
+    "catalogo:brasil-drones:import": "DRY_RUN=false BRASIL_DRONES_IMPORT_APPROVED=true node capture-and-import-brasil-drones-new-catalog.js",
+    "catalogo:brasil-drones:dados:dry": "DRY_RUN=true BRASIL_DRONES_DATA_UPDATE_APPROVED=false node scripts/bling/update-brasil-drones-commercial-data.mjs",
+    "catalogo:brasil-drones:dados:update": "DRY_RUN=false BRASIL_DRONES_DATA_UPDATE_APPROVED=true node capture-and-update-brasil-drones-data.js",
+    "catalogo:brasil-drones:custos:audit": "AUDIT_ONLY=true BRASIL_DRONES_COST_UPDATE_APPROVED=false node capture-and-sync-brasil-drones-costs.js",
+    "catalogo:brasil-drones:custos:update": "AUDIT_ONLY=false BRASIL_DRONES_COST_UPDATE_APPROVED=true node capture-and-sync-brasil-drones-costs.js"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.65.0",

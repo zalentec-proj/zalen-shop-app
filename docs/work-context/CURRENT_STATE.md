@@ -714,6 +714,39 @@ deve expor o valor em terminal, código ou documentação.
 
 ## Decisões de continuidade
 
+### Catálogo Brasil Drones no Bling privado (12/08/2026)
+
+- O catálogo novo continua com 599 produtos derivados de 600 linhas da planilha
+  `Catalogo_Bling_por_Modelo_Editavel (1) (4) (1).xlsx`; a duplicidade do código
+  `593` foi resolvida anteriormente e o lote foi importado no app privado
+  `Brasil Drones Parts GPT`, nunca no conector global da Zalen Shop.
+- Os saldos foram relidos no único depósito ativo `Geral` (`14889026859`) e
+  conferem exatamente com a planilha: 504 unidades, sem divergência por SKU
+  antes ou depois dos lançamentos de custo.
+- Dos 596 GTIN/EAN preenchidos na fonte, 591 foram aceitos pelo Bling. Cinco
+  permaneceram vazios: SKUs `35435`, `37672`, `3923783`, `3243` e `32324`.
+  O painel confirmou que os prefixos `638` e `852` não são válidos no GS1;
+  os dois últimos códigos também falham no dígito verificador. Não corrigir nem
+  inventar esses GTINs sem uma nova fonte válida.
+- A planilha contém preço de custo em 116 produtos. A API de estoque aceitou o
+  custo nos balanços, mas esse valor não alimenta o campo de fornecedor padrão.
+  Como não havia fornecedor cadastrado e o app privado não tem escopo para criar
+  contatos, foi criado pelo painel o contato técnico `Fornecedor não informado
+  - estoque inicial Brasil Drones`.
+- Foram criados 116 vínculos produto-fornecedor padrão via
+  `/produtos/fornecedores`. A auditoria final confirmou 116 de 116 custos
+  exatamente iguais à planilha, zero erro de API e zero divergência.
+- Scripts adicionados: `scripts/bling/update-brasil-drones-commercial-data.mjs`,
+  `scripts/bling/sync-brasil-drones-supplier-costs.mjs` e os respectivos
+  capturadores OAuth. Eles recusam a credencial global e usam somente variáveis
+  `BLING_CUSTOMER_*`.
+- Relatórios locais estão em `saida_bling/`, incluindo
+  `novo_catalogo_relatorio_dados_comerciais.md`. Esses artefatos não devem
+  conter tokens nem ser tratados como substitutos da planilha original.
+- A coleta das imagens do MundoDrone continua pendente. Retomar apenas depois
+  desta auditoria comercial, mantendo a regra de correspondência conservadora,
+  todas as imagens da mesma página de origem e a primeira imagem como principal.
+
 - O estado técnico relevante deve ser atualizado aqui e enviado ao Git.
 - A conversa do Codex é contexto auxiliar; este arquivo e o código versionado são a fonte de verdade entre máquinas.
 - Trabalho incompleto pode ser salvo em commit `wip`, desde que não contenha segredos.
