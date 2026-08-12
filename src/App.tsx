@@ -33,6 +33,7 @@ import {
 } from './modules/cart/cart.storage';
 import { pushMarketingEvent } from './modules/marketing/marketing.client';
 import { PjDiscountNotice } from './components/storefront/PjDiscountNotice';
+import { WhatsAppFloatingButton } from './components/storefront/WhatsAppFloatingButton';
 
 interface AppProps {
   products: Product[];
@@ -231,6 +232,8 @@ export default function App({
         onSearchChange={setSearchQuery}
         searchQuery={searchQuery}
       />
+
+      <WhatsAppFloatingButton />
 
       {businessDiscountPercentage ? (
         <div className="relative z-20 mx-auto max-w-7xl px-4 pt-28 md:px-8">
