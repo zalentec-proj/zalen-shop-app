@@ -23,6 +23,29 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
+- Em 2026-08-12 foi preparado o novo catálogo da Brasil Drones a partir de
+  `Catalogo_Bling_por_Modelo_Editavel (1) (4) (1).xlsx`. As abas por modelo são
+  a fonte de quantidade e categoria: 600 linhas de origem resultam em 599
+  produtos físicos, porque os códigos `12918` e `3345436` descrevem o mesmo
+  DJI RC 2 e foram mesclados. A colisão real do código `593` foi resolvida:
+  o cabo Mavic 3 preserva `593` e o braço dianteiro esquerdo Mini 3 usa
+  `593-MINI3-DE`. A carga deve preservar o estoque das abas por modelo: 504
+  unidades, distribuídas em 111 produtos positivos; os demais ficam em zero.
+  O pipeline usa exclusivamente credenciais `BLING_CUSTOMER_*` do app privado
+  da Brasil Drones, recusa o token global da Zalen, valida o OpenAPI oficial
+  vigente, verifica código antes de criar e não envia GTIN, imagens ou custo.
+  As categorias ausentes `Mini SE`, `Mavic 2` e `Mavic Platinum` serão criadas
+  na mesma autorização antes dos produtos. A execução real foi concluída pelo
+  app privado `Brasil Drones Parts GPT`: 599 produtos criados, zero produtos
+  existentes, zero erros de produto e zero conflitos de código. O depósito
+  `Geral` foi selecionado por ser o único ativo que considera saldo. Foram
+  criados 111 balanços positivos e os outros 488 produtos permaneceram em
+  zero, totalizando 504 unidades. A conferência posterior via API não encontrou
+  divergência de saldo nem erro de estoque. O produto Mini 3 corrigido foi
+  criado com o código `593-MINI3-DE`; o código `593` permaneceu no cabo Mavic 3.
+  As credenciais privadas ficam somente no `.env.local`, com permissão `0600`,
+  e não foram registradas neste handoff ou nos logs versionados.
+
 - Em 2026-08-12 foi corrigido o roteamento do admin no host central. Uma sessão
   autenticada que acessava `app.zalenshop.com.br/admin` não era redirecionada ao
   subdomínio da loja e, por isso, a resolução de storefront a tratava como host

@@ -37,7 +37,9 @@
     "nomes:bling": "DRY_RUN=false NAMES_APPROVED=true node update-product-names.js",
     "nomes:auth": "node capture-and-update-product-names.js",
     "modelos:dry": "DRY_RUN=true node capture-and-create-bling-model-categories.js",
-    "modelos:bling": "DRY_RUN=false MODEL_CATEGORIES_APPROVED=true node capture-and-create-bling-model-categories.js"
+    "modelos:bling": "DRY_RUN=false MODEL_CATEGORIES_APPROVED=true node capture-and-create-bling-model-categories.js",
+    "catalogo:brasil-drones:dry": "DRY_RUN=true node scripts/bling/import-brasil-drones-new-catalog.mjs",
+    "catalogo:brasil-drones:import": "DRY_RUN=false BRASIL_DRONES_IMPORT_APPROVED=true node capture-and-import-brasil-drones-new-catalog.js"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.65.0",
