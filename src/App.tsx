@@ -13,6 +13,7 @@ import CategoryProductSections from './components/home/CategoryProductSections';
 import FeaturedProduct from './components/home/FeaturedProduct';
 import BestSellers from './components/home/BestSellers';
 import TechSection from './components/home/TechSection';
+import GGGroupCompanies from './components/home/GGGroupCompanies';
 import ProductDetailsView from './components/product/ProductDetailsView';
 import CartSidebar from './components/ecommerce/CartSidebar';
 import Footer from './components/layout/Footer';
@@ -295,6 +296,7 @@ export default function App({
           )}
 
           <TechSection />
+          <GGGroupCompanies />
         </main>
       ) : (
         <main className="w-full">
