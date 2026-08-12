@@ -10,6 +10,7 @@ import {
   isReservedPlatformSubdomain,
   normalizeHostname,
 } from '@/modules/stores/host-resolution';
+import { activeStore } from '@/modules/stores/current-store';
 
 const placeholderFragments = [
   '${',
@@ -105,6 +106,33 @@ function shouldResolveCustomAdminHost(
   return hostname !== rootDomain && !hostname.endsWith(`.${rootDomain}`);
 }
 
+function shouldRedirectPlatformAdminToStoreHost(
+  request: NextRequest,
+  rootDomain: string
+) {
+  const hostname = normalizeHostname(
+    getRequestHost(request.headers, request.nextUrl.host)
+  );
+
+  return Boolean(
+    hostname &&
+      !isLocalhostName(hostname) &&
+      (hostname === rootDomain || hostname === `app.${rootDomain}`)
+  );
+}
+
+function getActiveStoreAdminOrigin(request: NextRequest, rootDomain: string) {
+  const requestOrigin = new URL(getRequestOrigin(request));
+  const hostname = normalizeHostname(requestOrigin.host);
+  const port = requestOrigin.port ? `:${requestOrigin.port}` : '';
+
+  if (hostname?.endsWith(`.${DEFAULT_LOCAL_STORE_ROOT_DOMAIN}`)) {
+    return `${requestOrigin.protocol}//${activeStore.slug}.${DEFAULT_LOCAL_STORE_ROOT_DOMAIN}${port}`;
+  }
+
+  return `${requestOrigin.protocol}//${activeStore.slug}.${rootDomain}`;
+}
+
 function redirectWithCookies(
   request: NextRequest,
   response: NextResponse,
@@ -138,6 +166,18 @@ export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request: { headers: requestHeaders } });
   const rootDomain =
     normalizeEnvValue(process.env.PLATFORM_ROOT_DOMAIN) ?? 'zalenshop.com.br';
+
+  if (
+    pathname.startsWith('/admin') &&
+    shouldRedirectPlatformAdminToStoreHost(request, rootDomain)
+  ) {
+    return NextResponse.redirect(
+      new URL(
+        `${pathname}${request.nextUrl.search}`,
+        getActiveStoreAdminOrigin(request, rootDomain)
+      )
+    );
+  }
 
   if (pathname.startsWith('/admin') && shouldResolveCustomAdminHost(request, rootDomain)) {
     const hostname = normalizeHostname(

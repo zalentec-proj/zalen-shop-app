@@ -6,7 +6,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Snapshot
 
-- Atualizado em: 2026-07-24
+- Atualizado em: 2026-08-12
 - Branch: `refactor/migrate-to-next`
 - Commit base antes desta frente: `dfe62df` — `docs(handoff): record pj pricing deployment`
 - A branch e o remoto estavam sincronizados antes da otimização dos jobs de produção.
@@ -22,6 +22,16 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Última mudança conhecida
+
+- Em 2026-08-12 foi corrigido o roteamento do admin no host central. Uma sessão
+  autenticada que acessava `app.zalenshop.com.br/admin` não era redirecionada ao
+  subdomínio da loja e, por isso, a resolução de storefront a tratava como host
+  reservado e exibia “Loja não encontrada”. A proxy agora encaminha o admin do
+  host central para `brasil-drones.zalenshop.com.br/admin`, preservando path e
+  query. A resolução de domínios próprios permanece encaminhada pelo resolver
+  server-side. Os testes de host/store passaram; o typecheck completo estava
+  bloqueado por erros pré-existentes em um arquivo não rastreado da frente de
+  catálogo, fora desta correção.
 
 - Em 2026-07-24 foi identificada a origem do uso elevado de Fluid Active CPU:
   três jobs internos chamavam funções da Vercel a cada 10 minutos mesmo sem
