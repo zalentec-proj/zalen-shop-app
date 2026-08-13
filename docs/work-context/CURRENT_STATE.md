@@ -793,7 +793,7 @@ deve expor o valor em terminal, código ou documentação.
   antigo de reprocessamento completo atingiu o timeout de 300 segundos da
   Vercel antes de processar qualquer item; o job órfão foi encerrado com o erro
   operacional `product_sync_request_timeout`.
-- O sincronizador completo foi alterado para processar uma página de até 100
+- O sincronizador completo foi alterado para processar uma página de até 40
   produtos por requisição. O admin coordena as páginas sequencialmente e soma
   as métricas, evitando o timeout sem mudar o fluxo incremental ou o
   reprocessamento unitário. Como a fila de webhooks também usa a trava de

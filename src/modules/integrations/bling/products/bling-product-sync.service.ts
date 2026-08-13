@@ -27,7 +27,8 @@ import type {
   BlingProductSyncSummary,
 } from './bling-product.types';
 
-const pageLimit = 100;
+const categoryPageLimit = 100;
+const productPageLimit = 40;
 const requestIntervalMs = 400;
 const diagnosticsLimit = 30;
 const rootBlingCategoryParentId = 0;
@@ -404,7 +405,7 @@ export async function runBlingProductSync(
           '/categorias/produtos',
           {
             pagina: categoryPage,
-            limite: pageLimit,
+            limite: categoryPageLimit,
           }
         );
         const items = getBlingCategoryListItems(response);
@@ -415,7 +416,7 @@ export async function runBlingProductSync(
           }
         }
 
-        if (items.length === 0 || items.length < pageLimit) {
+        if (items.length === 0 || items.length < categoryPageLimit) {
           break;
         }
 
@@ -576,7 +577,7 @@ export async function runBlingProductSync(
       while (true) {
         const listResponse = await request<BlingProductListResponse>('/produtos', {
           pagina: page,
-          limite: pageLimit,
+          limite: productPageLimit,
           dataAlteracaoInicial: syncSince,
         });
         const products = Array.isArray(listResponse.data) ? listResponse.data : [];
@@ -595,11 +596,11 @@ export async function runBlingProductSync(
         }
 
         if (batchPage) {
-          summary.hasMore = products.length === pageLimit;
+          summary.hasMore = products.length === productPageLimit;
           break;
         }
 
-        if (products.length < pageLimit) {
+        if (products.length < productPageLimit) {
           break;
         }
 
