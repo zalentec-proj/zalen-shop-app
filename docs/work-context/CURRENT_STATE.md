@@ -796,8 +796,10 @@ deve expor o valor em terminal, código ou documentação.
 - O sincronizador completo foi alterado para processar uma página de até 100
   produtos por requisição. O admin coordena as páginas sequencialmente e soma
   as métricas, evitando o timeout sem mudar o fluxo incremental ou o
-  reprocessamento unitário. A correção precisa estar publicada antes da próxima
-  execução de `Reprocessar tudo`.
+  reprocessamento unitário. Como a fila de webhooks também usa a trava de
+  produtos, o admin aguarda e repete páginas que encontrem um job unitário em
+  andamento. O job unitário não relê mais todas as categorias do Bling; isso
+  reduz sua duração e libera a trava rapidamente.
 - O produto de teste já existe no Bling e na loja: SKU `PRO-TP`, preço R$ 5,00,
   estoque 9, ativo e com frete grátis. O Mercado Pago de produção e o envio
   automático ao Bling estão conectados. O pedido pago `BD-647495`, de R$ 5,00,

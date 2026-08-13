@@ -13,6 +13,13 @@ type SyncResponse = {
   errorCode?: string;
 };
 
+const syncLockRetryLimit = 20;
+const syncLockRetryDelayMs = 3_000;
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 function mergeSyncSummaries(
   current: ProductSyncSummary | undefined,
   next: ProductSyncSummary
@@ -116,6 +123,7 @@ export function BlingProductSyncPanel({
       try {
         let page = mode === 'full' && !productId ? 1 : undefined;
         let accumulatedSummary: ProductSyncSummary | undefined;
+        let lockRetries = 0;
 
         while (true) {
           const response = await fetch('/api/integrations/bling/products/sync', {
@@ -127,6 +135,15 @@ export function BlingProductSyncPanel({
             body: JSON.stringify({ mode, productId, page }),
           });
           const payload = (await response.json()) as SyncResponse;
+
+          if (
+            payload.errorCode === 'product_sync_already_running' &&
+            lockRetries < syncLockRetryLimit
+          ) {
+            lockRetries += 1;
+            await wait(syncLockRetryDelayMs);
+            continue;
+          }
 
           if (!response.ok || payload.status === 'error' || !payload.summary) {
             setStatus('error');
@@ -145,6 +162,7 @@ export function BlingProductSyncPanel({
             accumulatedSummary,
             payload.summary
           );
+          lockRetries = 0;
           setSummary(accumulatedSummary);
 
           if (!page || payload.summary.hasMore !== true) {

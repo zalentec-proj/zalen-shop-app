@@ -484,10 +484,12 @@ export async function runBlingProductSync(
       return stockByProductId;
     };
 
-    try {
-      await syncCategoriesFromBling();
-    } catch {
-      summary.categoriesSkipped += 1;
+    if (!options.productId) {
+      try {
+        await syncCategoriesFromBling();
+      } catch {
+        summary.categoriesSkipped += 1;
+      }
     }
 
     const processProduct = async (listProduct: BlingProductDetail) => {
