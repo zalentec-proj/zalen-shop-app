@@ -454,8 +454,10 @@ export async function runBlingProductSync(
       }
     };
 
-    const getStockByProductId = async (product: BlingProductDetail) => {
-      const productIds = getBlingProductIds(product);
+    const getStockByProducts = async (products: BlingProductDetail[]) => {
+      const productIds = Array.from(
+        new Set(products.flatMap((product) => getBlingProductIds(product)))
+      );
       const stockByProductId = new Map<string, number>();
 
       if (productIds.length === 0) {
@@ -493,29 +495,47 @@ export async function runBlingProductSync(
       }
     }
 
-    const processProduct = async (listProduct: BlingProductDetail) => {
+    const recordProductError = (
+      listProduct: BlingProductDetail,
+      errorCode: string
+    ) => {
+      summary.productsSkipped += 1;
+      summary.errors += 1;
+      addDiagnostic(summary, {
+        externalId: listProduct.id ? String(listProduct.id) : undefined,
+        name: listProduct.nome?.trim(),
+        sku: listProduct.codigo?.trim(),
+        action: 'error',
+        errorCode,
+      });
+    };
+
+    const processProduct = async (
+      listProduct: BlingProductDetail,
+      preloaded?: {
+        product: BlingProductDetail;
+        stockByProductId: Map<string, number>;
+      }
+    ) => {
       if (!listProduct.id) {
-        summary.productsSkipped += 1;
-        summary.errors += 1;
-        addDiagnostic(summary, {
-          name: listProduct.nome?.trim(),
-          sku: listProduct.codigo?.trim(),
-          action: 'error',
-          errorCode: 'missing_bling_product_id',
-        });
+        recordProductError(listProduct, 'missing_bling_product_id');
         return;
       }
 
       try {
-        const detailResponse = await request<BlingProductDetailResponse>(
-          `/produtos/${listProduct.id}`
-        );
-        const product = (detailResponse.data ?? listProduct) as BlingProductDetail;
+        const product = preloaded
+          ? preloaded.product
+          : ((
+              await request<BlingProductDetailResponse>(
+                `/produtos/${listProduct.id}`
+              )
+            ).data ?? listProduct) as BlingProductDetail;
         const categoryId = product.categoria?.id;
         const categoryName = categoryId
           ? await getCategoryName(categoryId)
           : undefined;
-        const stockByProductId = await getStockByProductId(product);
+        const stockByProductId =
+          preloaded?.stockByProductId ?? (await getStockByProducts([product]));
         const mappedProduct = mapBlingProductToCatalogInput({
           storeId,
           product,
@@ -556,15 +576,7 @@ export async function runBlingProductSync(
           stockItems: stockByProductId.size,
         });
       } catch (productError) {
-        summary.productsSkipped += 1;
-        summary.errors += 1;
-        addDiagnostic(summary, {
-          externalId: String(listProduct.id),
-          name: listProduct.nome?.trim(),
-          sku: listProduct.codigo?.trim(),
-          action: 'error',
-          errorCode: toSafeErrorCode(productError),
-        });
+        recordProductError(listProduct, toSafeErrorCode(productError));
       }
     };
 
@@ -591,8 +603,41 @@ export async function runBlingProductSync(
 
         summary.pagesProcessed += 1;
 
-        for (const listProduct of products) {
-          await processProduct(listProduct as BlingProductDetail);
+        const loadedProducts: Array<{
+          listProduct: BlingProductDetail;
+          product: BlingProductDetail;
+        }> = [];
+
+        for (const rawListProduct of products) {
+          const listProduct = rawListProduct as BlingProductDetail;
+
+          if (!listProduct.id) {
+            recordProductError(listProduct, 'missing_bling_product_id');
+            continue;
+          }
+
+          try {
+            const detailResponse = await request<BlingProductDetailResponse>(
+              `/produtos/${listProduct.id}`
+            );
+            loadedProducts.push({
+              listProduct,
+              product: (detailResponse.data ?? listProduct) as BlingProductDetail,
+            });
+          } catch (productError) {
+            recordProductError(listProduct, toSafeErrorCode(productError));
+          }
+        }
+
+        const stockByProductId = await getStockByProducts(
+          loadedProducts.map(({ product }) => product)
+        );
+
+        for (const loadedProduct of loadedProducts) {
+          await processProduct(loadedProduct.listProduct, {
+            product: loadedProduct.product,
+            stockByProductId,
+          });
         }
 
         if (batchPage) {

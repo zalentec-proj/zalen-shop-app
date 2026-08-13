@@ -800,6 +800,9 @@ deve expor o valor em terminal, código ou documentação.
   produtos, o admin aguarda e repete páginas que encontrem um job unitário em
   andamento. O job unitário não relê mais todas as categorias do Bling; isso
   reduz sua duração e libera a trava rapidamente.
+- Cada página completa consulta os detalhes individualmente, mas agrupa os
+  saldos dos produtos em uma única chamada a `/estoques/saldos`. Isso remove
+  dezenas de chamadas redundantes por lote sem alterar os saldos gravados.
 - O produto de teste já existe no Bling e na loja: SKU `PRO-TP`, preço R$ 5,00,
   estoque 9, ativo e com frete grátis. O Mercado Pago de produção e o envio
   automático ao Bling estão conectados. O pedido pago `BD-647495`, de R$ 5,00,
