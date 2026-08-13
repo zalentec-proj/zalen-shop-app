@@ -43,7 +43,13 @@
     "catalogo:brasil-drones:dados:dry": "DRY_RUN=true BRASIL_DRONES_DATA_UPDATE_APPROVED=false node scripts/bling/update-brasil-drones-commercial-data.mjs",
     "catalogo:brasil-drones:dados:update": "DRY_RUN=false BRASIL_DRONES_DATA_UPDATE_APPROVED=true node capture-and-update-brasil-drones-data.js",
     "catalogo:brasil-drones:custos:audit": "AUDIT_ONLY=true BRASIL_DRONES_COST_UPDATE_APPROVED=false node capture-and-sync-brasil-drones-costs.js",
-    "catalogo:brasil-drones:custos:update": "AUDIT_ONLY=false BRASIL_DRONES_COST_UPDATE_APPROVED=true node capture-and-sync-brasil-drones-costs.js"
+    "catalogo:brasil-drones:custos:update": "AUDIT_ONLY=false BRASIL_DRONES_COST_UPDATE_APPROVED=true node capture-and-sync-brasil-drones-costs.js",
+    "catalogo:brasil-drones:imagens:coletar": "MUNDRONE_IMAGE_MODE=collect node scripts/bling/sync-brasil-drones-mundrone-images.mjs",
+    "catalogo:brasil-drones:imagens:auditar": "MUNDRONE_IMAGE_MODE=audit node scripts/bling/sync-brasil-drones-mundrone-images.mjs",
+    "catalogo:brasil-drones:imagens:supabase": "MUNDRONE_IMAGE_MODE=upload node scripts/bling/sync-brasil-drones-mundrone-images.mjs",
+    "catalogo:brasil-drones:imagens:dry": "MUNDRONE_IMAGE_MODE=dry-run node scripts/bling/sync-brasil-drones-mundrone-images.mjs",
+    "catalogo:brasil-drones:imagens:update": "node capture-and-sync-brasil-drones-mundrone-images.js",
+    "catalogo:brasil-drones:imagens:retry": "BRASIL_DRONES_IMAGE_RETRY_FAILED=true node capture-and-sync-brasil-drones-mundrone-images.js"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.65.0",
@@ -58,6 +64,7 @@
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "resend": "^6.17.2",
+    "sharp": "0.35.3",
     "zod": "^4.1.12"
   },
   "devDependencies": {

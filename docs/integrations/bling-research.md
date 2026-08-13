@@ -161,6 +161,32 @@ Regras da v1:
 - produto individual pode ser reprocessado pela rota interna usando `productId`
   numérico, mantendo chamada ao Bling server-side.
 
+### Mídia do catálogo Brasil Drones
+
+Em 13/08/2026, o OpenAPI oficial vigente foi validado antes da carga das
+galerias do novo catálogo. O contrato confirmado foi:
+
+```txt
+PATCH https://api.bling.com.br/Api/v3/produtos/{idProduto}
+midia.imagens.imagensURL[].link
+```
+
+- `imagensURL` é marcado como `writeOnly`; portanto, um `GET` posterior pode
+  não devolver as URLs enviadas, mesmo quando a galeria foi salva.
+- O sucesso operacional é registrado quando o `PATCH` retorna HTTP 200 e é
+  complementado por amostragem visual no painel do Bling.
+- A rotina de catálogo usa exclusivamente `BLING_CUSTOMER_*`, referente ao app
+  privado da Brasil Drones, e altera somente `midia`.
+- As imagens aprovadas são copiadas primeiro para o bucket público
+  `product-images`, no prefixo exclusivo
+  `bling/brasil-drones/catalogo-2026-08/`, antes do envio ao Bling.
+- A correspondência com o MundoDrone é conservadora: modelo, tipo e posição da
+  peça precisam ser compatíveis; banners, placeholders e imagens inválidas são
+  rejeitados.
+- A execução resultou em 572 produtos aceitos pela API, 1.425 imagens únicas e
+  zero erro pendente. Dezoito produtos sem correspondência segura e nove com
+  imagem principal reprovada permaneceram sem imagem para revisão manual.
+
 ## Estoque
 
 Estoque básico é sincronizado a partir de `estoque.saldoVirtualTotal` retornado

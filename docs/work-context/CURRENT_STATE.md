@@ -6,9 +6,9 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Snapshot
 
-- Atualizado em: 2026-08-12
+- Atualizado em: 2026-08-13
 - Branch: `refactor/migrate-to-next`
-- Commit base antes desta frente: `dfe62df` — `docs(handoff): record pj pricing deployment`
+- Commit base antes desta frente: `c50e946` — `feat(bling): sync Brasil Drones commercial data`
 - A branch e o remoto estavam sincronizados antes da otimização dos jobs de produção.
   Preserve os scripts locais não rastreados que não pertencem a esta frente.
 - Guia de continuidade para outra IDE/máquina: `docs/work-context/IDE_HANDOFF.md`.
@@ -22,6 +22,20 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Última mudança conhecida
+
+- Em 2026-08-13 foi concluída a carga auditada de imagens do MundoDrone para o
+  novo catálogo da Brasil Drones. Dos 599 produtos, 581 tiveram página/galeria
+  compatível; 572 passaram pela auditoria visual e receberam 1.425 imagens
+  únicas no bucket público `product-images`, sob o prefixo exclusivo
+  `bling/brasil-drones/catalogo-2026-08/`. O app privado da Brasil Drones enviou
+  somente `midia.imagens.imagensURL` ao Bling. A API aceitou os 572 produtos e
+  terminou sem erro pendente; amostras de duas e sete imagens foram confirmadas
+  diretamente no painel, preservando a primeira imagem como principal. O campo
+  `imagensURL` é `writeOnly` no OpenAPI, por isso o `GET` de produto não serve
+  para conferir as URLs enviadas. Dezoito produtos sem correspondência segura e
+  nove com imagem principal inválida permaneceram sem imagem. A função
+  temporária usada apenas na cópia ao Storage foi neutralizada com resposta 410
+  e exigência de JWT; nenhum segredo foi versionado.
 
 - Em 2026-08-12 foi preparado o novo catálogo da Brasil Drones a partir de
   `Catalogo_Bling_por_Modelo_Editavel (1) (4) (1).xlsx`. As abas por modelo são
@@ -743,9 +757,9 @@ deve expor o valor em terminal, código ou documentação.
 - Relatórios locais estão em `saida_bling/`, incluindo
   `novo_catalogo_relatorio_dados_comerciais.md`. Esses artefatos não devem
   conter tokens nem ser tratados como substitutos da planilha original.
-- A coleta das imagens do MundoDrone continua pendente. Retomar apenas depois
-  desta auditoria comercial, mantendo a regra de correspondência conservadora,
-  todas as imagens da mesma página de origem e a primeira imagem como principal.
+- A coleta das imagens do MundoDrone foi concluída em 13/08/2026 conforme o
+  registro acima. As 27 pendências de imagem devem ser tratadas apenas após
+  revisão manual ou nova fonte confiável.
 
 - O estado técnico relevante deve ser atualizado aqui e enviado ao Git.
 - A conversa do Codex é contexto auxiliar; este arquivo e o código versionado são a fonte de verdade entre máquinas.
