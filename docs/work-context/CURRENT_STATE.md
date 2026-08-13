@@ -803,6 +803,9 @@ deve expor o valor em terminal, código ou documentação.
 - Cada página completa consulta os detalhes individualmente, mas agrupa os
   saldos dos produtos em uma única chamada a `/estoques/saldos`. Isso remove
   dezenas de chamadas redundantes por lote sem alterar os saldos gravados.
+- As leituras de detalhes usam no máximo três requisições simultâneas e mantêm
+  início espaçado em 400 ms. A taxa continua limitada a 2,5 chamadas por
+  segundo, mas a latência de rede deixa de bloquear toda a página.
 - O produto de teste já existe no Bling e na loja: SKU `PRO-TP`, preço R$ 5,00,
   estoque 9, ativo e com frete grátis. O Mercado Pago de produção e o envio
   automático ao Bling estão conectados. O pedido pago `BD-647495`, de R$ 5,00,
