@@ -36,6 +36,8 @@ export interface ProductCategoryRef {
 }
 
 export interface StorefrontCategory extends ProductCategoryRef {
+  externalId?: string;
+  position?: number;
   productCount: number;
   descendantSlugs?: string[];
 }

@@ -13,6 +13,7 @@ export const dynamic = 'force-dynamic';
 function getSyncRequest(body: unknown): {
   mode: 'full' | 'incremental';
   productId?: string;
+  page?: number;
 } {
   const base = {
     mode: 'incremental' as const,
@@ -24,6 +25,10 @@ function getSyncRequest(body: unknown): {
 
   const record = body as Record<string, unknown>;
   const productId = typeof record.productId === 'string' ? record.productId.trim() : '';
+  const page =
+    typeof record.page === 'number' && Number.isInteger(record.page) && record.page > 0
+      ? record.page
+      : undefined;
 
   if (productId && /^\d+$/.test(productId)) {
     return {
@@ -38,6 +43,7 @@ function getSyncRequest(body: unknown): {
   ) {
     return {
       mode: 'full',
+      page,
     };
   }
 

@@ -21,6 +21,7 @@ import {
   getAdminStorefrontNavigation,
   type StorefrontNavigationItem,
 } from '@/modules/catalog/storefront-navigation';
+import { countBlingManagedChildren } from '@/modules/catalog/storefront-navigation.catalog';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 import { saveStorefrontNavigationAction } from './actions';
 
@@ -98,11 +99,13 @@ function NavigationItemRow({
   index,
   parentOptions,
   categoryOptions,
+  blingManagedChildren,
 }: {
   item: StorefrontNavigationItem;
   index: number;
   parentOptions: StorefrontNavigationItem[];
   categoryOptions: Array<{ name: string; slug: string }>;
+  blingManagedChildren: number;
 }) {
   const prefix = `items.${index}`;
   const active = item.enabled;
@@ -128,9 +131,16 @@ function NavigationItemRow({
                 </div>
               </div>
             </div>
-            <SettingsBadge tone={active ? 'success' : 'disabled'}>
-              {active ? 'Visível' : 'Oculto'}
-            </SettingsBadge>
+            <div className="flex flex-wrap items-center gap-2">
+              {blingManagedChildren > 0 ? (
+                <SettingsBadge tone="info">
+                  {blingManagedChildren} subcategorias via Bling
+                </SettingsBadge>
+              ) : null}
+              <SettingsBadge tone={active ? 'success' : 'disabled'}>
+                {active ? 'Visível' : 'Oculto'}
+              </SettingsBadge>
+            </div>
           </div>
 
           <div className="grid min-w-0 gap-2 md:grid-cols-4">
@@ -282,7 +292,7 @@ export default async function OnlineStoreSettingsPage() {
     <div className="space-y-4">
       <SettingsPanel
         title="Loja online"
-        description="Controle quais categorias aparecem no navbar público, no menu Categorias e em submenus."
+        description="Controle a posição e a visibilidade dos itens principais. Subcategorias vinculadas ao catálogo são sincronizadas do Bling."
         action={
           <SettingsBadge tone={navigation.source === 'database' ? 'success' : 'warning'}>
             {navigation.source === 'database' ? 'Configurado' : 'Fallback'}
@@ -333,6 +343,10 @@ export default async function OnlineStoreSettingsPage() {
               index={index}
               parentOptions={parentOptions}
               categoryOptions={categoryOptions}
+              blingManagedChildren={countBlingManagedChildren(
+                item,
+                storefrontCategories
+              )}
             />
           ))}
         </div>
@@ -340,13 +354,13 @@ export default async function OnlineStoreSettingsPage() {
 
       <SettingsPanel
         title="Como funciona no site"
-        description="O menu público lê esta configuração. Se a tabela estiver vazia, a loja usa um fallback curado para evitar navbar sem categorias."
+        description="O menu público combina a configuração editorial com a árvore de categorias sincronizada do ERP."
       >
         <div className="grid gap-2 md:grid-cols-3">
           {[
             'Navbar mostra somente itens ativos marcados para aparecer no topo.',
-            'Menu Categorias usa os itens marcados para dropdown e respeita item pai.',
-            'Categoria desativada some do público, mas continua disponível no admin.',
+            'Linhas vinculadas ao Bling recebem automaticamente suas subcategorias e nomes.',
+            'Compatibilidade múltipla por modelo continua na Zalen sem trocar a categoria principal do produto no ERP.',
           ].map((item) => (
             <div
               key={item}

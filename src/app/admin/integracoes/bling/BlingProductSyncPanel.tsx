@@ -13,6 +13,43 @@ type SyncResponse = {
   errorCode?: string;
 };
 
+function mergeSyncSummaries(
+  current: ProductSyncSummary | undefined,
+  next: ProductSyncSummary
+): ProductSyncSummary {
+  if (!current) {
+    return next;
+  }
+
+  const sum = (left: number | undefined, right: number | undefined) =>
+    (left ?? 0) + (right ?? 0);
+
+  return {
+    ...next,
+    startedAt: current.startedAt ?? next.startedAt,
+    durationMs: sum(current.durationMs, next.durationMs),
+    pagesProcessed: sum(current.pagesProcessed, next.pagesProcessed),
+    productsProcessed: sum(current.productsProcessed, next.productsProcessed),
+    productsCreated: sum(current.productsCreated, next.productsCreated),
+    productsUpdated: sum(current.productsUpdated, next.productsUpdated),
+    productsSkipped: sum(current.productsSkipped, next.productsSkipped),
+    categoriesSynced: next.categoriesSynced,
+    categoriesLinked: sum(current.categoriesLinked, next.categoriesLinked),
+    categoriesCreated: sum(current.categoriesCreated, next.categoriesCreated),
+    categoriesSkipped: sum(current.categoriesSkipped, next.categoriesSkipped),
+    errors: sum(current.errors, next.errors),
+    variantsProcessed: sum(current.variantsProcessed, next.variantsProcessed),
+    stockBalancesSynced: sum(
+      current.stockBalancesSynced,
+      next.stockBalancesSynced
+    ),
+    diagnostics: [
+      ...(current.diagnostics ?? []),
+      ...(next.diagnostics ?? []),
+    ].slice(-30),
+  };
+}
+
 const safeErrorLabel: Record<string, string> = {
   access_denied: 'Sua conta não possui acesso à loja ativa.',
   bling_not_connected: 'Conecte o Bling antes de sincronizar o catálogo.',
@@ -77,26 +114,48 @@ export function BlingProductSyncPanel({
 
     startTransition(async () => {
       try {
-        const response = await fetch('/api/integrations/bling/products/sync', {
-          method: 'POST',
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ mode, productId }),
-        });
-        const payload = (await response.json()) as SyncResponse;
+        let page = mode === 'full' && !productId ? 1 : undefined;
+        let accumulatedSummary: ProductSyncSummary | undefined;
 
-        if (!response.ok || payload.status === 'error') {
-          setStatus('error');
-          setSummary(payload.summary);
-          setErrorCode(payload.errorCode ?? payload.summary?.errorCode ?? 'sync_failed');
-          return;
+        while (true) {
+          const response = await fetch('/api/integrations/bling/products/sync', {
+            method: 'POST',
+            headers: {
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ mode, productId, page }),
+          });
+          const payload = (await response.json()) as SyncResponse;
+
+          if (!response.ok || payload.status === 'error' || !payload.summary) {
+            setStatus('error');
+            setSummary(
+              payload.summary
+                ? mergeSyncSummaries(accumulatedSummary, payload.summary)
+                : accumulatedSummary
+            );
+            setErrorCode(
+              payload.errorCode ?? payload.summary?.errorCode ?? 'sync_failed'
+            );
+            return;
+          }
+
+          accumulatedSummary = mergeSyncSummaries(
+            accumulatedSummary,
+            payload.summary
+          );
+          setSummary(accumulatedSummary);
+
+          if (!page || payload.summary.hasMore !== true) {
+            break;
+          }
+
+          page += 1;
         }
 
         setStatus('success');
         setUpdatedAt(new Date().toISOString());
-        setSummary(payload.summary);
       } catch {
         setStatus('error');
         setErrorCode('sync_failed');

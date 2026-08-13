@@ -274,7 +274,11 @@ function addDiagnostic(
 
 export async function runBlingProductSync(
   storeId: string,
-  options: { mode?: 'full' | 'incremental'; productId?: string } = {}
+  options: {
+    mode?: 'full' | 'incremental';
+    productId?: string;
+    page?: number;
+  } = {}
 ): Promise<BlingProductSyncResult> {
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
@@ -344,8 +348,19 @@ export async function runBlingProductSync(
     });
 
     const categoryCache = new Map<number, string | undefined>();
-    let page = 1;
+    const batchPage =
+      options.mode === 'full' && Number.isInteger(options.page) && options.page! > 0
+        ? options.page
+        : undefined;
+    let page = batchPage ?? 1;
     let lastRequestAt = 0;
+
+    if (batchPage) {
+      summary = {
+        ...summary,
+        batchPage,
+      };
+    }
 
     const request = async <T>(
       path: string,
@@ -565,6 +580,9 @@ export async function runBlingProductSync(
         const products = Array.isArray(listResponse.data) ? listResponse.data : [];
 
         if (products.length === 0) {
+          if (batchPage) {
+            summary.hasMore = false;
+          }
           break;
         }
 
@@ -572,6 +590,11 @@ export async function runBlingProductSync(
 
         for (const listProduct of products) {
           await processProduct(listProduct as BlingProductDetail);
+        }
+
+        if (batchPage) {
+          summary.hasMore = products.length === pageLimit;
+          break;
         }
 
         if (products.length < pageLimit) {

@@ -107,6 +107,8 @@ export interface BlingAdminState {
       variantsProcessed?: number;
       stockBalancesSynced?: number;
       syncMode?: 'full' | 'incremental' | 'single';
+      batchPage?: number;
+      hasMore?: boolean;
       syncSince?: string;
       syncProductId?: string;
       tokenRefreshed?: boolean;

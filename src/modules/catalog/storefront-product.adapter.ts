@@ -93,6 +93,8 @@ export function toStorefrontCategories(
       name: category.name,
       slug: category.slug,
       parentId: category.parentId,
+      externalId: category.externalId,
+      position: category.position,
       productCount: 0,
       descendantSlugs: [],
     });
@@ -110,6 +112,8 @@ export function toStorefrontCategories(
           name: category.name,
           slug: category.slug,
           parentId: category.parentId,
+          externalId: category.externalId,
+          position: category.position,
           productCount: 0,
           descendantSlugs: [],
         });

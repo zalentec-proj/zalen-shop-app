@@ -8,7 +8,7 @@ import {
 describe('drone model definitions', () => {
   it('keeps the requested model taxonomy unique', () => {
     expect(droneModelLineDefinitions).toHaveLength(8);
-    expect(droneModelDefinitions).toHaveLength(31);
+    expect(droneModelDefinitions).toHaveLength(34);
     expect(new Set(droneModelDefinitions.map((model) => model.slug)).size).toBe(
       droneModelDefinitions.length
     );

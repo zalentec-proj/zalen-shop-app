@@ -49,7 +49,9 @@
     "catalogo:brasil-drones:imagens:supabase": "MUNDRONE_IMAGE_MODE=upload node scripts/bling/sync-brasil-drones-mundrone-images.mjs",
     "catalogo:brasil-drones:imagens:dry": "MUNDRONE_IMAGE_MODE=dry-run node scripts/bling/sync-brasil-drones-mundrone-images.mjs",
     "catalogo:brasil-drones:imagens:update": "node capture-and-sync-brasil-drones-mundrone-images.js",
-    "catalogo:brasil-drones:imagens:retry": "BRASIL_DRONES_IMAGE_RETRY_FAILED=true node capture-and-sync-brasil-drones-mundrone-images.js"
+    "catalogo:brasil-drones:imagens:retry": "BRASIL_DRONES_IMAGE_RETRY_FAILED=true node capture-and-sync-brasil-drones-mundrone-images.js",
+    "catalogo:brasil-drones:loja:dry": "DRY_RUN=true STOREFRONT_CATALOG_SYNC_APPROVED=false node scripts/catalog/reconcile-brasil-drones-storefront.mjs",
+    "catalogo:brasil-drones:loja:sync": "DRY_RUN=false STOREFRONT_CATALOG_SYNC_APPROVED=true node scripts/catalog/reconcile-brasil-drones-storefront.mjs"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.65.0",

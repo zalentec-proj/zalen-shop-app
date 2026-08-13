@@ -15,6 +15,7 @@ import {
   droneModelDefinitions,
   droneModelLineDefinitions,
 } from './drone-model.definitions';
+import { mergeBlingCategoriesIntoNavigation } from './storefront-navigation.catalog';
 
 export type StorefrontNavigationItemType = 'category' | 'group' | 'custom';
 export type StorefrontNavigationSource = 'database' | 'fallback';
@@ -319,10 +320,14 @@ function buildNavigationFromRows(
   const items = rows
     .map((row) => rowToItem(row, categories))
     .filter((item): item is StorefrontNavigationItem => Boolean(item));
-  const tree = buildTree(items);
+  const publicItems = mergeBlingCategoriesIntoNavigation(items, categories);
+  const editorialItems = publicItems.filter(
+    (item) => !item.id.startsWith('bling-category-')
+  );
+  const tree = buildTree(publicItems);
   const visibleRoots = filterVisibleTree(tree.roots);
   const categoryDropdownItems = filterVisibleTree(
-    items.filter((item) => {
+    publicItems.filter((item) => {
       if (!item.enabled || item.showInNavbar) return false;
       return item.showInCategoriesDropdown || Boolean(item.parentId);
     })
@@ -342,7 +347,7 @@ function buildNavigationFromRows(
     source,
     navbarItems,
     categoryDropdownItems,
-    adminItems: sortNavigationItems(items),
+    adminItems: sortNavigationItems(editorialItems),
   };
 }
 

@@ -761,6 +761,48 @@ deve expor o valor em terminal, código ou documentação.
   registro acima. As 27 pendências de imagem devem ser tratadas apenas após
   revisão manual ou nova fonte confiável.
 
+### Navegação e catálogo público por categorias Bling (13/08/2026)
+
+- A árvore de categorias Bling já está espelhada no Supabase da Brasil Drones,
+  incluindo as linhas Lito, Neo, Mini, Air, Avata, Mavic e Phantom e seus
+  modelos. O menu público deve manter apenas as raízes editoriais; os filhos são
+  gerados em leitura a partir dessa árvore, evitando a manutenção duplicada no
+  admin da Zalen.
+- A migration `20260810191356_source_storefront_subcategories_from_bling.sql`
+  foi aplicada em produção. Ela vinculou as oito raízes de modelo aos slugs do
+  Bling, removeu 35 cópias manuais de filhos e cadastrou os modelos ausentes
+  Mini SE, Mavic 2 e Mavic Platinum sem IDs fixos.
+- O código local gera os submenus a partir das categorias cujo `external_id`
+  começa com `bling:`, preserva ordem/visibilidade das raízes e encaminha
+  modelos para as páginas de compatibilidade. O admin informa quantas
+  subcategorias de cada raiz são gerenciadas pelo Bling.
+- A auditoria encontrou 435 produtos no catálogo Supabase: 355 pertencem ao
+  lote novo de 599 e 80 são registros antigos. Portanto, o menu pode ser
+  publicado, mas o catálogo público ainda não reflete integralmente o Bling.
+- O dry-run da reconciliação canônica confirmou 599 produtos, 504 unidades,
+  599 categorias principais, 818 vínculos de compatibilidade, 572 produtos com
+  imagem e 1.425 imagens. A reconciliação canônica ampla não foi executada; ela
+  substitui vínculos e imagens e inativa os 80 registros antigos, portanto
+  continua exigindo autorização explícita para essa troca integral.
+- O reconciliador versionado usa apenas os artefatos produzidos pelo app privado
+  Bling da Brasil Drones e recusa qualquer dependência do app global da Zalen.
+  Comandos: `npm run catalogo:brasil-drones:loja:dry` e, após autorização,
+  `npm run catalogo:brasil-drones:loja:sync`.
+- Em 13/08/2026, a auditoria de produção confirmou 435 produtos no Supabase:
+  395 ativos, 40 em rascunho e 355 pertencentes ao lote novo de 599. O botão
+  antigo de reprocessamento completo atingiu o timeout de 300 segundos da
+  Vercel antes de processar qualquer item; o job órfão foi encerrado com o erro
+  operacional `product_sync_request_timeout`.
+- O sincronizador completo foi alterado para processar uma página de até 100
+  produtos por requisição. O admin coordena as páginas sequencialmente e soma
+  as métricas, evitando o timeout sem mudar o fluxo incremental ou o
+  reprocessamento unitário. A correção precisa estar publicada antes da próxima
+  execução de `Reprocessar tudo`.
+- O produto de teste já existe no Bling e na loja: SKU `PRO-TP`, preço R$ 5,00,
+  estoque 9, ativo e com frete grátis. O Mercado Pago de produção e o envio
+  automático ao Bling estão conectados. O pedido pago `BD-647495`, de R$ 5,00,
+  já foi sincronizado com sucesso ao Bling, confirmando o fluxo de pedido.
+
 - O estado técnico relevante deve ser atualizado aqui e enviado ao Git.
 - A conversa do Codex é contexto auxiliar; este arquivo e o código versionado são a fonte de verdade entre máquinas.
 - Trabalho incompleto pode ser salvo em commit `wip`, desde que não contenha segredos.
