@@ -812,6 +812,23 @@ deve expor o valor em terminal, código ou documentação.
   estoque 9, ativo e com frete grátis. O Mercado Pago de produção e o envio
   automático ao Bling estão conectados. O pedido pago `BD-647495`, de R$ 5,00,
   já foi sincronizado com sucesso ao Bling, confirmando o fluxo de pedido.
+- A sincronização paginada de produção foi concluída em 16 páginas. A comparação
+  exata contra os 599 IDs retornados pela importação confirmou 599 presentes e
+  599 ativos, sem ID ausente e sem item do lote em rascunho. O catálogo da loja
+  agora possui 679 registros vinculados ao Bling: 639 ativos e 40 rascunhos
+  antigos, mantidos separados do lote novo.
+- O único item inicialmente ausente, Bling `16690733656`, SKU `825`, foi
+  reprocessado pontualmente e criado como ativo, com categoria `Mini 3`, imagem
+  e saldo sincronizado. O último sync de produto terminou com sucesso em
+  `2026-08-13T13:35:34.307Z`.
+- O storefront de produção foi validado com o produto `PRO-TP` no carrinho:
+  subtotal R$ 5,00, frete grátis e total R$ 5,00. Não foi criada uma nova compra
+  em nome do cliente; o próximo teste real deve usar os dados e o pagamento do
+  próprio operador. Ao aprovar o pagamento, o serviço chama automaticamente o
+  envio do pedido ao Bling.
+- As mudanças de sincronização estão publicadas no deployment de produção
+  `dpl_CzDiCbwrUSAzV6VoYrxUn2w6t7Fp`, com o commit `a153895`. Antes da publicação,
+  lint, build e a suíte completa passaram: 120 testes em 29 arquivos.
 
 - O estado técnico relevante deve ser atualizado aqui e enviado ao Git.
 - A conversa do Codex é contexto auxiliar; este arquivo e o código versionado são a fonte de verdade entre máquinas.
