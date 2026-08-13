@@ -111,6 +111,7 @@ export function BlingProductSyncPanel({
     initialSummary
   );
   const [errorCode, setErrorCode] = useState<string | undefined>();
+  const [manualProductId, setManualProductId] = useState('');
 
   const runSync = (
     mode: 'incremental' | 'full' = 'incremental',
@@ -252,6 +253,30 @@ export function BlingProductSyncPanel({
           className="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/10 disabled:cursor-not-allowed disabled:text-slate-500 disabled:hover:border-white/10 disabled:hover:bg-white/5"
         >
           Reprocessar tudo
+        </button>
+      </div>
+
+      <div className="mt-2 grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+        <label className="grid gap-1 text-[11px] text-slate-400">
+          ID do produto no Bling
+          <input
+            type="text"
+            inputMode="numeric"
+            value={manualProductId}
+            onChange={(event) =>
+              setManualProductId(event.target.value.replace(/\D/g, ''))
+            }
+            placeholder="Ex.: 16690733656"
+            className="min-h-9 rounded-lg border border-white/10 bg-[#081225] px-3 text-xs text-white outline-none transition focus:border-sky-400/50"
+          />
+        </label>
+        <button
+          type="button"
+          onClick={() => runSync('full', manualProductId)}
+          disabled={disabled || !/^\d+$/.test(manualProductId)}
+          className="self-end rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/10 disabled:cursor-not-allowed disabled:text-slate-500"
+        >
+          Reprocessar ID
         </button>
       </div>
 
