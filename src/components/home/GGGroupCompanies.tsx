@@ -59,7 +59,7 @@ export default function GGGroupCompanies() {
               <div
                 className={`absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-gradient-to-r ${company.accent}`}
               />
-              <div className="flex min-h-32 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.035] p-5">
+              <div className="flex min-h-32 items-center justify-center rounded-xl border border-white bg-white p-5 shadow-inner shadow-black/10">
                 <img
                   src={company.logo}
                   alt={company.name}

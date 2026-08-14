@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import nextConfig from './next.config';
+import nextConfig, { buildContentSecurityPolicy } from './next.config';
 
 describe('global security headers', () => {
   it('protects every route from framing, content sniffing and permissive browser APIs', async () => {
@@ -21,7 +21,15 @@ describe('global security headers', () => {
     expect(headers['Content-Security-Policy']).toContain(
       "script-src 'self' 'unsafe-inline' https://sdk.mercadopago.com https://http2.mlstatic.com"
     );
+    expect(headers['Content-Security-Policy']).not.toContain("'unsafe-eval'");
     expect(nextConfig.poweredByHeader).toBe(false);
+  });
+
+  it('allows React development diagnostics without weakening production CSP', () => {
+    expect(buildContentSecurityPolicy('development')).toContain(
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+    );
+    expect(buildContentSecurityPolicy('production')).not.toContain("'unsafe-eval'");
   });
 });
 
