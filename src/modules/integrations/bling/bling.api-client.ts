@@ -11,6 +11,7 @@ import type { BlingTokenResponse } from './bling.types';
 const baseUrl = 'https://api.bling.com.br/Api/v3';
 const minimumRequestIntervalMs = 350;
 const maxRateLimitRetries = 3;
+const requestTimeoutMs = 20_000;
 
 const blingCredentialsSchema = z.object({
   provider: z.literal('bling'),
@@ -170,12 +171,29 @@ export class BlingApiClient {
     }
 
     await this.respectRateLimit();
-    const response = await fetch(url, {
-      method: init.method ?? 'GET',
-      headers,
-      body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
-      cache: 'no-store',
-    });
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
+    let response: Response;
+
+    try {
+      response = await fetch(url, {
+        method: init.method ?? 'GET',
+        headers,
+        body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (controller.signal.aborted) {
+        throw new BlingApiClientError('bling_request_timeout');
+      }
+
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
+
     this.lastRequestAt = Date.now();
     const body = parseJson(await response.text());
 

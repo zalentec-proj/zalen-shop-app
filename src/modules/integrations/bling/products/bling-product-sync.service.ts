@@ -436,6 +436,7 @@ export async function runBlingProductSync(
           }
         );
         const items = getBlingCategoryListItems(response);
+        const categoriesBeforePage = categoriesByExternalId.size;
 
         for (const category of flattenBlingCategories(items)) {
           if (!categoriesByExternalId.has(category.id)) {
@@ -443,7 +444,14 @@ export async function runBlingProductSync(
           }
         }
 
-        if (items.length === 0 || items.length < categoryPageLimit) {
+        // The provider may return the first page again when pagination is
+        // unavailable. Stop on a page without new IDs instead of occupying a
+        // serverless function until its timeout.
+        if (
+          items.length === 0 ||
+          items.length < categoryPageLimit ||
+          categoriesByExternalId.size === categoriesBeforePage
+        ) {
           break;
         }
 
@@ -615,15 +623,19 @@ export async function runBlingProductSync(
         id: Number(options.productId),
       });
     } else {
+      const processedProductIds = new Set<number>();
+
       while (true) {
         const listResponse = await request<BlingProductListResponse>('/produtos', {
           pagina: page,
           limite: productPageLimit,
           dataAlteracaoInicial: syncSince,
         });
-        const products = Array.isArray(listResponse.data) ? listResponse.data : [];
+        const listedProducts = Array.isArray(listResponse.data)
+          ? listResponse.data
+          : [];
 
-        if (products.length === 0) {
+        if (listedProducts.length === 0) {
           if (batchPage) {
             summary.hasMore = false;
           }
@@ -631,6 +643,25 @@ export async function runBlingProductSync(
         }
 
         summary.pagesProcessed += 1;
+
+        const products = listedProducts.filter((product) => {
+          if (!product.id || processedProductIds.has(product.id)) {
+            return false;
+          }
+
+          processedProductIds.add(product.id);
+          return true;
+        });
+
+        // Do not keep requesting an endpoint that is replaying a page already
+        // processed in this run. This protects incremental jobs from timing
+        // out without falsely marking duplicate products as failures.
+        if (products.length === 0) {
+          if (batchPage) {
+            summary.hasMore = false;
+          }
+          break;
+        }
 
         const loadedProducts = (await mapWithConcurrency(
           products,
@@ -673,11 +704,11 @@ export async function runBlingProductSync(
         }
 
         if (batchPage) {
-          summary.hasMore = products.length === productPageLimit;
+          summary.hasMore = listedProducts.length === productPageLimit;
           break;
         }
 
-        if (products.length < productPageLimit) {
+        if (listedProducts.length < productPageLimit) {
           break;
         }
 
