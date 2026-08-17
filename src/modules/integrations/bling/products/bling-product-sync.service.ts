@@ -421,7 +421,7 @@ export async function runBlingProductSync(
     const batchPage = !options.productId
       ? options.mode === 'full'
         ? explicitPage
-        : explicitPage ?? storedResume?.page ?? 1
+        : storedResume?.page ?? explicitPage ?? 1
       : undefined;
     let page = batchPage ?? 1;
     let lastRequestAt = 0;
@@ -569,7 +569,7 @@ export async function runBlingProductSync(
       return stockByProductId;
     };
 
-    if (!options.productId) {
+    if (!options.productId && (!batchPage || batchPage === 1)) {
       try {
         await syncCategoriesFromBling();
       } catch {
