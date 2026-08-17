@@ -6,10 +6,11 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Snapshot
 
-- Atualizado em: 2026-08-13
+- Atualizado em: 2026-08-17
 - Branch: `refactor/migrate-to-next`
-- Commit base antes desta frente: `c50e946` — `feat(bling): sync Brasil Drones commercial data`
-- A branch e o remoto estavam sincronizados antes da otimização dos jobs de produção.
+- Commit atual: `ca16715` — `perf(bling): persist catalog pages concurrently`
+- A branch e o remoto estão sincronizados após a recuperação da sincronização
+  incremental de catálogo Bling em produção.
   Preserve os scripts locais não rastreados que não pertencem a esta frente.
 - Guia de continuidade para outra IDE/máquina: `docs/work-context/IDE_HANDOFF.md`.
 
@@ -22,6 +23,33 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Última mudança conhecida
+
+- Em 2026-08-17 foi recuperada e concluída a sincronização incremental do
+  catálogo Bling da Brasil Drones. A investigação nos erros de runtime da
+  Vercel mostrou que um delta grande de produtos excedia o limite de 300 s e
+  deixava jobs em estado `running`. O client Bling agora tem limite de resposta
+  de 20 s, a sincronização pagina o delta, persiste um cursor de retomada e
+  atualiza categorias somente na primeira página. As gravações de produtos já
+  resolvidos usam concorrência limitada de três, preservando o ritmo de leitura
+  da API Bling. Os commits publicados foram `c3e9165`, `6cbdafc`, `e4eb56b` e
+  `ca16715`; o deployment produtivo final `dpl_AwGXDeMmgjLisv6KxYdsPsNT1zKd`
+  ficou `READY`.
+
+  A execução manual percorreu 14 páginas, atualizou 555 registros e terminou
+  às `2026-08-17T17:34:14Z`; o último lote atualizou 36 produtos sem erro e o
+  estado da integração ficou `success`. Uma página intermediária registrou uma
+  falha transitória entre 40 itens (39 atualizados); o diagnóstico mantido no
+  resumo do job foi deslocado pelos itens posteriores e não conservou o ID
+  daquele item. Os 679 produtos e 679 variantes ligados ao Bling continuam
+  presentes no catálogo. A sincronização de estoque executada em seguida
+  processou as 679 variantes às `2026-08-17T17:36:26Z`, com zero alterações e
+  zero erros. A Vercel não registrou erro de runtime no endpoint de catálogo
+  nos 30 minutos posteriores à correção.
+
+  Próxima melhoria operacional recomendada: preservar diagnósticos de erro
+  independentemente do limite de itens recentes e não avançar `last_sync_at`
+  quando qualquer página incremental tiver erro. Isso permitirá reprocessar
+  precisamente um item transitório sem repetir o catálogo inteiro.
 
 - Em 2026-08-13 foi concluída a carga auditada de imagens do MundoDrone para o
   novo catálogo da Brasil Drones. Dos 599 produtos, 581 tiveram página/galeria
