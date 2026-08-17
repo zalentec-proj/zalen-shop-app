@@ -619,11 +619,12 @@ export async function recordBlingProductSyncEventInRepository(input: {
   environment: BlingEnvironment;
   status: Exclude<BlingSyncJobStatus, 'pending'>;
   summary?: Record<string, unknown>;
+  updateLastSyncAt?: boolean;
 }) {
   return recordBlingSyncEventInRepository({
     ...input,
     settingsKey: 'productSync',
-    updateLastSyncAt: true,
+    updateLastSyncAt: input.updateLastSyncAt ?? true,
   });
 }
 

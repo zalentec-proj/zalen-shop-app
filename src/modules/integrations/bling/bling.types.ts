@@ -110,6 +110,10 @@ export interface BlingAdminState {
       batchPage?: number;
       hasMore?: boolean;
       syncSince?: string;
+      resume?: {
+        page?: number;
+        syncSince?: string;
+      };
       syncProductId?: string;
       tokenRefreshed?: boolean;
       errorCode?: string;

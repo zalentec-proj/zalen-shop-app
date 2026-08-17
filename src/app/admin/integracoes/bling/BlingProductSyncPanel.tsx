@@ -122,7 +122,7 @@ export function BlingProductSyncPanel({
 
     startTransition(async () => {
       try {
-        let page = mode === 'full' && !productId ? 1 : undefined;
+        let page = !productId ? 1 : undefined;
         let accumulatedSummary: ProductSyncSummary | undefined;
         let lockRetries = 0;
 

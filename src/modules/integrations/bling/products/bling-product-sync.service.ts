@@ -41,6 +41,11 @@ type FlattenedBlingProductCategory = {
   parentId?: number;
 };
 
+type IncrementalProductSyncResume = {
+  page: number;
+  syncSince?: string;
+};
+
 function sleep(ms: number) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -260,6 +265,41 @@ function getBlingProductIds(product: BlingProductDetail) {
   return Array.from(ids);
 }
 
+function getIncrementalProductSyncResume(
+  settings: Record<string, unknown> | undefined
+) {
+  const productSync = settings?.productSync;
+
+  if (!productSync || typeof productSync !== 'object' || Array.isArray(productSync)) {
+    return undefined;
+  }
+
+  const summary = (productSync as Record<string, unknown>).summary;
+
+  if (!summary || typeof summary !== 'object' || Array.isArray(summary)) {
+    return undefined;
+  }
+
+  const resume = (summary as Record<string, unknown>).resume;
+
+  if (!resume || typeof resume !== 'object' || Array.isArray(resume)) {
+    return undefined;
+  }
+
+  const page = Number((resume as Record<string, unknown>).page);
+
+  if (!Number.isInteger(page) || page <= 0) {
+    return undefined;
+  }
+
+  const syncSince = (resume as Record<string, unknown>).syncSince;
+
+  return {
+    page,
+    syncSince: typeof syncSince === 'string' && syncSince.trim() ? syncSince : undefined,
+  } satisfies IncrementalProductSyncResume;
+}
+
 function finishSummary(
   summary: BlingProductSyncSummary,
   input: {
@@ -334,10 +374,14 @@ export async function runBlingProductSync(
     environment = clientContext.environment;
     const activeClient = clientContext.client;
     const integration = await getBlingIntegrationFromRepository(storeId);
+    const storedResume =
+      options.mode !== 'full' && !options.productId
+        ? getIncrementalProductSyncResume(integration?.settings)
+        : undefined;
     const syncSince =
       options.mode === 'full' || options.productId
         ? undefined
-        : formatBlingDateTime(integration?.lastSyncAt);
+        : storedResume?.syncSince ?? formatBlingDateTime(integration?.lastSyncAt);
 
     if (options.productId) {
       summary = {
@@ -372,10 +416,13 @@ export async function runBlingProductSync(
     });
 
     const categoryCache = new Map<number, string | undefined>();
-    const batchPage =
-      options.mode === 'full' && Number.isInteger(options.page) && options.page! > 0
-        ? options.page
-        : undefined;
+    const explicitPage =
+      Number.isInteger(options.page) && options.page! > 0 ? options.page : undefined;
+    const batchPage = !options.productId
+      ? options.mode === 'full'
+        ? explicitPage
+        : explicitPage ?? storedResume?.page ?? 1
+      : undefined;
     let page = batchPage ?? 1;
     let lastRequestAt = 0;
     let requestSchedule = Promise.resolve();
@@ -716,6 +763,13 @@ export async function runBlingProductSync(
       }
     }
 
+    if (batchPage && summary.hasMore === true && options.mode !== 'full') {
+      summary.resume = {
+        page: batchPage + 1,
+        syncSince,
+      };
+    }
+
     tokenRefreshed = client.hasRefreshedToken();
     summary = finishSummary(summary, {
       status: 'success',
@@ -734,6 +788,7 @@ export async function runBlingProductSync(
       environment,
       status: 'success',
       summary: summary as unknown as Record<string, unknown>,
+      updateLastSyncAt: summary.hasMore !== true,
     });
 
     return {

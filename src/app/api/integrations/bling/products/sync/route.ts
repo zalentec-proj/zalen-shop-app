@@ -37,17 +37,10 @@ function getSyncRequest(body: unknown): {
     };
   }
 
-  if (
-    'mode' in record &&
-    record.mode === 'full'
-  ) {
-    return {
-      mode: 'full',
-      page,
-    };
-  }
-
-  return base;
+  return {
+    mode: 'mode' in record && record.mode === 'full' ? 'full' : 'incremental',
+    page,
+  };
 }
 
 export async function POST(request: NextRequest) {
