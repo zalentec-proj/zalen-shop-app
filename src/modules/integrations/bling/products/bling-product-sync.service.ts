@@ -743,12 +743,16 @@ export async function runBlingProductSync(
           loadedProducts.map(({ product }) => product)
         );
 
-        for (const loadedProduct of loadedProducts) {
+        // Product details and balances above are fetched with a provider-safe
+        // request cadence. Persist the already-resolved records with bounded
+        // concurrency so a large incremental page does not spend most of a
+        // serverless invocation waiting on independent database round trips.
+        await mapWithConcurrency(loadedProducts, 3, async (loadedProduct) => {
           await processProduct(loadedProduct.listProduct, {
             product: loadedProduct.product,
             stockByProductId,
           });
-        }
+        });
 
         if (batchPage) {
           summary.hasMore = listedProducts.length === productPageLimit;
