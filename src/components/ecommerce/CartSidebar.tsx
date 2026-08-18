@@ -2,6 +2,7 @@ import React from 'react';
 import { X, Trash2, ShieldCheck, ShoppingBag, ArrowRight } from 'lucide-react';
 import type { Cart } from '@/modules/cart/cart.types';
 import { getItemCount } from '@/modules/cart/cart.utils';
+import { SafeCatalogImage } from '@/components/ui/SafeCatalogImage';
 
 interface CartSidebarProps {
   isOpen: boolean;
@@ -68,16 +69,12 @@ export default function CartSidebar({
               >
                 {/* Product thumbnail */}
                 <div className="w-16 h-16 rounded-xl bg-white/[0.02] border border-white/5 p-1 flex items-center justify-center shrink-0">
-                  {item.imageUrl ? (
-                    <img
-                      src={item.imageUrl}
-                      alt={item.name}
-                      className="max-h-full max-w-full object-contain drop-shadow"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <ShoppingBag className="h-7 w-7 text-brand-muted" />
-                  )}
+                  <SafeCatalogImage
+                    src={item.imageUrl}
+                    alt={item.name}
+                    className="h-full w-full rounded-xl object-contain drop-shadow"
+                    referrerPolicy="no-referrer"
+                  />
                 </div>
 
                 {/* Text attributes, counts and prices */}

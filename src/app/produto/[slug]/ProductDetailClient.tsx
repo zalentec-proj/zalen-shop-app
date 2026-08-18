@@ -16,6 +16,7 @@ import Footer from '@/components/layout/Footer';
 import { addStoredCartItem } from '@/modules/cart/cart.storage';
 import type { Product, ProductSummary } from '@/modules/catalog/product.types';
 import { PjDiscountNotice } from '@/components/storefront/PjDiscountNotice';
+import { ProductDescription } from '@/components/product/ProductDescription';
 import { SafeCatalogImage } from '@/components/ui/SafeCatalogImage';
 import { pushMarketingEvent } from '@/modules/marketing/marketing.client';
 
@@ -227,9 +228,7 @@ export default function ProductDetailClient({
             </div>
 
             {/* Description */}
-            {product.description && (
-              <p className="text-sm text-brand-muted leading-relaxed">{product.description}</p>
-            )}
+            <ProductDescription description={product.description} />
 
             {/* Specs */}
             {product.specs && product.specs.length > 0 && (
@@ -359,13 +358,11 @@ export default function ProductDetailClient({
                   className="group glass-panel rounded-[24px] overflow-hidden flex flex-col transition-all duration-500 hover:border-white/20 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.55)]"
                 >
                   <div className="w-full h-56 border-b border-brand-border-soft bg-gradient-to-b from-white/[0.04] via-transparent to-transparent p-5 flex items-center justify-center overflow-hidden">
-                    {relatedProduct.imageUrl && (
-                      <SafeCatalogImage
-                        src={relatedProduct.imageUrl}
-                        alt={relatedProduct.name}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      />
-                    )}
+                    <SafeCatalogImage
+                      src={relatedProduct.imageUrl}
+                      alt={relatedProduct.name}
+                      className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500"
+                    />
                   </div>
 
                   <div className="p-5 flex flex-col gap-3">

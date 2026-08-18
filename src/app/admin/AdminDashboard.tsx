@@ -1686,17 +1686,11 @@ export default function AdminDashboard({
                     key={product.id}
                     className="flex items-center gap-3 border-b border-white/6 pb-2 last:border-b-0 last:pb-0"
                   >
-                    {product.imageUrl ? (
-                      <SafeCatalogImage
-                        src={product.imageUrl}
-                        alt={product.name}
-                        className="h-9 w-9 rounded-md border border-white/8 object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-9 w-9 items-center justify-center rounded-md border border-white/8 bg-[#101F43] text-[10px] font-semibold text-[#A9C7FF]">
-                        {initialsFromName(product.name)}
-                      </div>
-                    )}
+                    <SafeCatalogImage
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className="h-9 w-9 rounded-md border border-white/8 object-contain"
+                    />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-xs font-semibold text-white">
                         {product.name}
@@ -2136,17 +2130,11 @@ export default function AdminDashboard({
                       className="grid grid-cols-[minmax(330px,1.7fr)_150px_185px_185px_200px_90px] items-center gap-3 border-t border-white/6 px-4 py-3 text-xs transition hover:bg-white/[0.015]"
                     >
                       <div className="flex min-w-0 items-center gap-3">
-                        {product.imageUrl ? (
-                          <SafeCatalogImage
-                            src={product.imageUrl}
-                            alt={product.name}
-                            className="h-11 w-11 rounded-lg border border-white/8 object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/8 bg-[linear-gradient(135deg,#1E3DFF,#38BDF8)] text-xs font-semibold text-white">
-                            {initialsFromName(product.name)}
-                          </div>
-                        )}
+                        <SafeCatalogImage
+                          src={product.imageUrl}
+                          alt={product.name}
+                          className="h-11 w-11 rounded-lg border border-white/8 object-contain"
+                        />
                         <div className="min-w-0">
                           <div className="truncate font-semibold text-white">
                             {product.name}

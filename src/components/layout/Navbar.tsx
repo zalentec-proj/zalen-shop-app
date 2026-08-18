@@ -221,15 +221,11 @@ export default function Navbar({
                     className="group/product flex w-full max-w-[320px] flex-col items-center text-center"
                   >
                     <div className="flex h-32 w-full items-center justify-center overflow-hidden">
-                      {previewProduct.imageUrl ? (
-                        <SafeCatalogImage
-                          src={previewProduct.imageUrl}
-                          alt={previewProduct.name}
-                          className="h-full max-w-full object-contain transition duration-300 group-hover/product:scale-105"
-                        />
-                      ) : (
-                        <span className="text-xs text-brand-muted">Imagem indisponível</span>
-                      )}
+                      <SafeCatalogImage
+                        src={previewProduct.imageUrl}
+                        alt={previewProduct.name}
+                        className="h-full max-w-full object-contain transition duration-300 group-hover/product:scale-105"
+                      />
                     </div>
                     <span className="mt-3 line-clamp-2 text-sm font-semibold leading-5 text-white group-hover/product:text-[#8FDFFF]">
                       {previewProduct.name}

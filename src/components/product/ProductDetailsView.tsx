@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ArrowLeft, ShoppingCart, ShieldCheck, Play, Sparkles } from 'lucide-react';
 import { Product } from '../../types';
 import { SafeCatalogImage } from '../ui/SafeCatalogImage';
+import { ProductDescription } from './ProductDescription';
 
 interface ProductDetailsViewProps {
   product: Product;
@@ -33,9 +34,7 @@ export default function ProductDetailsView({ product, onBackToHome, onAddToCart 
     setTimeout(() => setAdded(false), 2000);
   };
 
-  const imagesList = product.images && product.images.length > 0 
-    ? product.images 
-    : [product.image, product.image, product.image, product.image];
+  const imagesList = product.images && product.images.length > 0 ? product.images : [product.image];
 
   return (
     <div className="w-full px-6 md:px-12 pt-28 md:pt-36 pb-20 animate-fade-in" id="detalhes-produto">
@@ -155,9 +154,9 @@ export default function ProductDetailsView({ product, onBackToHome, onAddToCart 
             </div>
 
             {/* Short Technical Description */}
-            <p className="text-xs leading-relaxed text-brand-muted font-normal max-w-xl">
-              {product.description}
-            </p>
+            <div className="max-w-xl text-xs font-normal">
+              <ProductDescription description={product.description} />
+            </div>
 
             {/* Technical Specs quick display (4 items maximum as requested) */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-1">

@@ -24,6 +24,19 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
+- Em 2026-08-18 foi reforçada a apresentação de descrição e imagem do
+  catálogo. A normalização de conteúdo do Bling agora é compartilhada pelo
+  conector e pela leitura do catálogo, de modo que registros antigos com HTML
+  ou Markdown não exibam tags, ícones ou marcação literal no storefront. A
+  página de produto converte esse conteúdo em títulos, parágrafos e listas
+  renderizados exclusivamente como nós de texto React — nunca injeta HTML do
+  ERP. Produtos sem uma imagem permanente renderizável, inclusive no Admin,
+  usam agora um fallback local com fundo preto e a logo Brasil Drones, em vez
+  da imagem genérica. Nenhum produto, preço, estoque, pedido ou dado no Bling
+  foi alterado por esta correção. Validações locais: TypeScript, 140 testes,
+  build de produção e `git diff --check` aprovados. A publicação remota desta
+  mudança ainda precisa ser feita a partir do commit correspondente.
+
 - Em 2026-08-18 foi corrigida a persistência de mídia e descrições retornadas
   pelo Bling. A sincronização agora coleta todas as fotos do produto e de suas
   variações, copia URLs internas assinadas de `orgbling.s3.amazonaws.com` para

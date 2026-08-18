@@ -187,15 +187,11 @@ export default function ModelListingClient({
                   className="group flex min-h-[270px] flex-col overflow-hidden rounded-lg border border-brand-border-soft bg-brand-surface transition hover:border-blue-primary/50 sm:min-h-[320px]"
                 >
                   <div className="flex h-32 items-center justify-center border-b border-brand-border-soft bg-black/10 p-2 sm:h-44 sm:p-3 md:h-52 md:p-4">
-                    {image ? (
-                      <SafeCatalogImage
-                        src={image.url}
-                        alt={image.alt ?? product.name}
-                        className="h-full w-full object-contain transition duration-300 group-hover:scale-[1.03]"
-                      />
-                    ) : (
-                      <span className="text-xs text-brand-muted">Imagem indisponível</span>
-                    )}
+                    <SafeCatalogImage
+                      src={image?.url}
+                      alt={image?.alt ?? product.name}
+                      className="h-full w-full object-contain transition duration-300 group-hover:scale-[1.03]"
+                    />
                   </div>
 
                   <div className="flex flex-1 flex-col p-3 sm:p-4">

@@ -1,5 +1,6 @@
 import type { ProductStatus } from '@/modules/catalog/product.types';
 import { isTemporaryBlingImageUrl } from '@/modules/catalog/catalog-image-url';
+import { normalizeProductDescription } from '@/modules/catalog/product-description';
 import type {
   BlingProductDetail,
   BlingProductImageItem,
@@ -142,61 +143,7 @@ function getImageUrl(product: BlingProductDetail) {
   );
 }
 
-const htmlEntities: Record<string, string> = {
-  amp: '&',
-  apos: "'",
-  gt: '>',
-  lt: '<',
-  nbsp: ' ',
-  quot: '"',
-};
-
-function decodeHtmlEntities(value: string) {
-  return value.replace(
-    /&(#(?:x[0-9a-f]+|\d+)|[a-z]+);/gi,
-    (entity, code: string) => {
-      if (code.startsWith('#x') || code.startsWith('#X')) {
-        const value = Number.parseInt(code.slice(2), 16);
-        return Number.isInteger(value) && value >= 0 && value <= 0x10ffff
-          ? String.fromCodePoint(value)
-          : entity;
-      }
-
-      if (code.startsWith('#')) {
-        const value = Number.parseInt(code.slice(1), 10);
-        return Number.isInteger(value) && value >= 0 && value <= 0x10ffff
-          ? String.fromCodePoint(value)
-          : entity;
-      }
-
-      return htmlEntities[code.toLowerCase()] ?? entity;
-    }
-  );
-}
-
-export function normalizeBlingProductDescription(value: string | undefined) {
-  const trimmed = value?.trim();
-
-  if (!trimmed) {
-    return undefined;
-  }
-
-  const text = decodeHtmlEntities(
-    trimmed
-      .replace(/\r\n?/g, '\n')
-      .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ')
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<li\b[^>]*>/gi, '\n• ')
-      .replace(/<\/(?:p|div|li|ul|ol|h[1-6]|section|article|table|tr)>/gi, '\n')
-      .replace(/<[^>]+>/g, ' ')
-  )
-    .replace(/[ \t]+/g, ' ')
-    .replace(/ *\n */g, '\n')
-    .replace(/\n{2,}/g, '\n')
-    .trim();
-
-  return text || undefined;
-}
+export { normalizeProductDescription as normalizeBlingProductDescription } from '@/modules/catalog/product-description';
 
 function mapProductVariant(input: {
   product: BlingProductDetail | BlingProductVariation;
@@ -293,7 +240,7 @@ export function mapBlingProductToCatalogInput(input: {
     externalId,
     name,
     slug: toSlug(name),
-    description: normalizeBlingProductDescription(input.product.descricaoCurta),
+    description: normalizeProductDescription(input.product.descricaoCurta),
     brand: input.product.marca?.trim() || undefined,
     status: toStatus(input.product.situacao),
     requiresShipping: true,

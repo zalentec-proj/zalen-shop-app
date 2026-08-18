@@ -34,6 +34,7 @@ import {
   isCategoryGroupRoot,
 } from './category-groups';
 import { isRenderableCatalogImageUrl } from './catalog-image-url';
+import { normalizeProductDescription } from './product-description';
 
 export type CatalogDataSource = 'supabase' | 'mock' | 'unavailable';
 
@@ -357,7 +358,7 @@ function mapProduct(
     externalId: row.external_id ?? undefined,
     name: row.name,
     slug: row.slug,
-    description: row.description ?? undefined,
+    description: normalizeProductDescription(row.description ?? undefined),
     brand: row.brand ?? undefined,
     status: row.status as ProductStatus,
     seoTitle: row.seo_title ?? undefined,

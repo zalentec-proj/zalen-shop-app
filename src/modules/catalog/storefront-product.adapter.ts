@@ -1,4 +1,3 @@
-import { droneAccessoriesImage } from '@/assets/images';
 import type {
   Product as StorefrontProduct,
   StorefrontCategory,
@@ -12,8 +11,6 @@ import {
   getCategoryGroupKey,
   isCategoryGroupRoot,
 } from './category-groups';
-
-const fallbackImageUrl = droneAccessoriesImage;
 
 function buildFallbackSpecs(product: CatalogProduct): StorefrontProduct['specs'] {
   const variant = product.variants[0];
@@ -59,8 +56,8 @@ export function toStorefrontProduct(product: CatalogProduct): StorefrontProduct 
     isAvailable: (variant?.stock ?? 0) > 0,
     rating: product.rating ?? 4.8,
     reviewsCount: product.reviewsCount ?? 0,
-    image: images[0] ?? fallbackImageUrl,
-    images: images.length > 0 ? images : [fallbackImageUrl],
+    image: images[0] ?? '',
+    images,
     category: primaryCategory?.name ?? 'Catálogo',
     categorySlug: primaryCategory?.slug,
     categories,
