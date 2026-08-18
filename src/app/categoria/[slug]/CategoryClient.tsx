@@ -121,11 +121,11 @@ export default function CategoryClient({
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-              className="bg-transparent text-sm text-brand-white focus:outline-none cursor-pointer"
+              className="cursor-pointer bg-transparent text-sm text-brand-white outline-none [color-scheme:dark]"
             >
-              <option value="relevance" className="bg-[#05070B]">Relevância</option>
-              <option value="price-asc" className="bg-[#05070B]">Menor preço</option>
-              <option value="price-desc" className="bg-[#05070B]">Maior preço</option>
+              <option value="relevance" className="bg-[#0B1018] text-white">Relevância</option>
+              <option value="price-asc" className="bg-[#0B1018] text-white">Menor preço</option>
+              <option value="price-desc" className="bg-[#0B1018] text-white">Maior preço</option>
             </select>
           </div>
         </div>

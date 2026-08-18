@@ -133,11 +133,13 @@ export default function ModelListingClient({
               id="model-category-filter"
               value={categoryFilter}
               onChange={(event) => setCategoryFilter(event.target.value)}
-              className="h-10 rounded-lg border border-brand-border bg-brand-surface px-3 text-sm text-brand-white outline-none focus:border-blue-primary"
+              className="h-10 rounded-lg border border-brand-border bg-brand-surface px-3 text-sm text-brand-white outline-none [color-scheme:dark] focus:border-blue-primary"
             >
-              <option value="all">Todas as categorias técnicas</option>
+              <option value="all" className="bg-[#0B1018] text-white">
+                Todas as categorias técnicas
+              </option>
               {technicalCategories.map((category) => (
-                <option key={category.slug} value={category.slug}>
+                <option key={category.slug} value={category.slug} className="bg-[#0B1018] text-white">
                   {category.name}
                 </option>
               ))}
@@ -149,11 +151,17 @@ export default function ModelListingClient({
               <select
                 value={sortBy}
                 onChange={(event) => setSortBy(event.target.value as SortBy)}
-                className="min-w-0 flex-1 bg-transparent outline-none"
+                className="min-w-0 flex-1 bg-transparent text-white outline-none [color-scheme:dark]"
               >
-                <option value="relevance">Relevância</option>
-                <option value="price-asc">Menor preço</option>
-                <option value="price-desc">Maior preço</option>
+                <option value="relevance" className="bg-[#0B1018] text-white">
+                  Relevância
+                </option>
+                <option value="price-asc" className="bg-[#0B1018] text-white">
+                  Menor preço
+                </option>
+                <option value="price-desc" className="bg-[#0B1018] text-white">
+                  Maior preço
+                </option>
               </select>
             </label>
           </div>

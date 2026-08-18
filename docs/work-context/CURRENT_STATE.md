@@ -8,7 +8,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-08-18
 - Branch: `refactor/migrate-to-next`
-- Commit funcional atual: `0e92364` — `fix: stabilize catalog sync and storefront`
+- Commit funcional base: `f082981` — `fix: finalize catalog restoration safeguards`
 - A publicação e a restauração seletiva de imagens/compatibilidades devem ser
   conferidas no bloco mais recente antes de iniciar uma nova frente.
   Preserve os scripts locais não rastreados que não pertencem a esta frente.
@@ -23,6 +23,12 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Última mudança conhecida
+
+- Em 2026-08-18 foi corrigido o contraste dos seletores nativos de categoria e
+  ordenação nas páginas públicas de modelos e categorias. Os controles agora
+  declaram esquema de cores escuro e opções com fundo escuro/texto branco,
+  evitando texto branco sobre o menu nativo claro observado no macOS. A
+  alteração passou em TypeScript, 123 testes e build de produção.
 
 - Em 2026-08-18 foi corrigida a causa de o Admin exibir apenas seis produtos:
   as consultas de variantes, imagens e categorias enviavam os 679 UUIDs em um
