@@ -89,7 +89,7 @@ describe('mapBlingProductToCatalogInput', () => {
       product: {
         ...baseProduct,
         descricaoCurta:
-          '<p>Peça DJI &amp; original<br>Pronta para uso.</p><ul><li>Item A</li><li>Item B</li></ul><script>alert(1)</script>',
+          '<p>Peça DJI &amp; original<br>Pronta para uso.</p>\r\n<ul><li>Item A</li><li>Item B</li></ul><script>alert(1)</script>',
       },
     });
 

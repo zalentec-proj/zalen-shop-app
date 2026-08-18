@@ -183,6 +183,7 @@ export function normalizeBlingProductDescription(value: string | undefined) {
 
   const text = decodeHtmlEntities(
     trimmed
+      .replace(/\r\n?/g, '\n')
       .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ')
       .replace(/<br\s*\/?>/gi, '\n')
       .replace(/<li\b[^>]*>/gi, '\n• ')

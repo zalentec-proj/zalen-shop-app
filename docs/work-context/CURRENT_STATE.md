@@ -37,10 +37,12 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
   `descricaoCurta` agora é convertida de HTML do Bling para texto simples
   legível antes da persistência; blocos ativos como `script` e `style` são
-  descartados. O reprocessamento alvo é o produto Bling `16689921780`, que deve
-  passar de uma URL temporária para cinco imagens permanentes. A implementação
-  local passou em TypeScript, 137 testes e build de produção. Publicação e
-  conferência do reprocessamento ainda precisam ser registradas neste bloco.
+  descartados e quebras CRLF são normalizadas. O commit `dabe92b` foi publicado
+  no deployment de produção `dpl_DTYf6E3ZWbo6DeH8FUTpvMLvDwPt`, que ficou
+  `READY`. O produto Bling `16689921780` foi reprocessado com sucesso: passou de
+  uma URL temporária para cinco imagens permanentes nas posições 0–4, ficou sem
+  referência a `orgbling.s3.amazonaws.com` e sem tags HTML na descrição. A
+  implementação local passou em TypeScript, 137 testes e build de produção.
 
 - Em 2026-08-18 foi implementada a reconciliação automática de ausências do
   catálogo Bling. O job diário consulta todas as páginas de `GET /produtos` e
