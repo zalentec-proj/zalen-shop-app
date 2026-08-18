@@ -8,7 +8,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-08-18
 - Branch: `refactor/migrate-to-next`
-- Commit funcional base: `41dbb3a` — `docs: record Bling reconciliation rollout`
+- Commit funcional base: `711e5d2` — `fix: normalize Bling description line endings`
 - A publicação e a restauração seletiva de imagens/compatibilidades devem ser
   conferidas no bloco mais recente antes de iniciar uma nova frente.
   Preserve os scripts locais não rastreados que não pertencem a esta frente.
@@ -37,12 +37,15 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
   `descricaoCurta` agora é convertida de HTML do Bling para texto simples
   legível antes da persistência; blocos ativos como `script` e `style` são
-  descartados e quebras CRLF são normalizadas. O commit `dabe92b` foi publicado
-  no deployment de produção `dpl_DTYf6E3ZWbo6DeH8FUTpvMLvDwPt`, que ficou
-  `READY`. O produto Bling `16689921780` foi reprocessado com sucesso: passou de
-  uma URL temporária para cinco imagens permanentes nas posições 0–4, ficou sem
-  referência a `orgbling.s3.amazonaws.com` e sem tags HTML na descrição. A
-  implementação local passou em TypeScript, 137 testes e build de produção.
+  descartados e quebras CRLF são normalizadas. Os commits `dabe92b` e `711e5d2`
+  foram publicados; o deployment produtivo final da implementação
+  `dpl_79QwL3XpJvjfFjRFES4VcfZJTNKL` ficou `READY`. O produto Bling
+  `16689921780` foi reprocessado com sucesso: passou de uma URL temporária para
+  cinco imagens permanentes nas posições 0–4, ficou sem referência a
+  `orgbling.s3.amazonaws.com`, tags HTML ou caracteres CR na descrição. A
+  página pública carregou as cinco imagens reais do Storage, com dimensões
+  naturais válidas e sem exibir HTML literal. A implementação local passou em
+  TypeScript, 137 testes e build de produção.
 
 - Em 2026-08-18 foi implementada a reconciliação automática de ausências do
   catálogo Bling. O job diário consulta todas as páginas de `GET /produtos` e
