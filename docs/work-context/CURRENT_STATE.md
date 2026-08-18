@@ -8,7 +8,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-08-18
 - Branch: `refactor/migrate-to-next`
-- Commit funcional base: `6399b7b` — `fix: reject temporary Bling catalog images`
+- Commit funcional base: `ae28884` — `feat: reconcile missing Bling products`
 - A publicação e a restauração seletiva de imagens/compatibilidades devem ser
   conferidas no bloco mais recente antes de iniciar uma nova frente.
   Preserve os scripts locais não rastreados que não pertencem a esta frente.
@@ -40,8 +40,14 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   06:15 UTC (03:15 BRT). Os testes locais cobrem snapshot paginado, página
   repetida e falha parcial sem inativação. TypeScript, 132 testes, build,
   scanner de segredos, `git diff --check` e auditoria npm sem vulnerabilidades
-  altas/críticas passaram. A migration ainda deve ser aplicada depois que o
-  código for publicado.
+  altas/críticas passaram. O commit `ae28884` foi publicado e o deployment de
+  produção `dpl_G67m9vZFmYBN6UAGBv4JG1r6yyBo` ficou `READY`; a rota respondeu
+  corretamente `401` sem o segredo interno. A migration foi aplicada ao
+  Supabase de produção e `zalen-bling-product-reconciliation` está agendado
+  para `15 6 * * *` (06:15 UTC / 03:15 BRT). O histórico de migrations local e
+  remoto está alinhado. Os Advisors não apontaram regressão: permanecem o aviso
+  global conhecido de proteção contra senhas vazadas e avisos de performance
+  preexistentes sobre FKs/políticas.
 
   Antes dessa migration, os três timestamps divergentes do histórico local de
   migrations foram comparados ao schema remoto e alinhados aos registros já
@@ -696,11 +702,10 @@ entregue ou processado.
 
 ## Em andamento
 
-A reconciliação automática está pronta localmente e aguardando publicação do
-código seguida da aplicação da migration de agenda. Ela não deve ser disparada
-manualmente em produção antes da rota estar disponível; o primeiro cron diário
-deve registrar `product_reconciliation` com snapshot completo e zero
-inativações para o catálogo atual de 556 itens ativos.
+A reconciliação automática está publicada e agendada em produção. Ela não foi
+disparada manualmente: a primeira execução diária deve registrar
+`product_reconciliation` com snapshot completo e zero inativações para o
+catálogo atual de 556 itens ativos.
 
 A correção `enable-jwt: 1`, a resolução de referências de contato/produto e a
 rotação segura de chave estão publicadas. A homologação de pedido criou e depois
@@ -733,14 +738,11 @@ exclusivamente server-side e a habilitação permanece restrita à allowlist.
 
 ## Próximo passo exato
 
-0. Publicar o código, confirmar que a rota
-   `/api/jobs/bling/products/reconcile` responde como endpoint interno e só
-   então aplicar `20260818193356_bling_product_reconciliation_schedule.sql`.
-1. Após 06:15 UTC do dia seguinte, conferir o último `sync_jobs` de
+0. Após 06:15 UTC do dia seguinte, conferir o último `sync_jobs` de
    `product_reconciliation`: status `success`, snapshot completo e nenhuma
    inativação inesperada. Se houver erro, investigar o código seguro sem repetir
    a baixa manualmente.
-2. Acompanhar o próximo pedido novo pago da Brasil Drones e confirmar que o
+1. Acompanhar o próximo pedido novo pago da Brasil Drones e confirmar que o
    webhook produtivo permanece HTTP 200 e que o pedido foi criado uma única vez
    no Bling, com `external_erp_sync_status = synced`.
 
