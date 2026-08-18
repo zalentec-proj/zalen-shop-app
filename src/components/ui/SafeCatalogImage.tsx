@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ImgHTMLAttributes } from 'react';
 import { droneAccessoriesImage } from '@/assets/images';
+import { isRenderableCatalogImageUrl } from '@/modules/catalog/catalog-image-url';
 
 type SafeCatalogImageProps = Omit<
   ImgHTMLAttributes<HTMLImageElement>,
@@ -17,11 +18,12 @@ export function SafeCatalogImage({
   onError,
   ...props
 }: SafeCatalogImageProps) {
-  const [resolvedSrc, setResolvedSrc] = useState(src || fallbackSrc);
+  const safeSource = isRenderableCatalogImageUrl(src) ? src : fallbackSrc;
+  const [resolvedSrc, setResolvedSrc] = useState(safeSource);
 
   useEffect(() => {
-    setResolvedSrc(src || fallbackSrc);
-  }, [fallbackSrc, src]);
+    setResolvedSrc(safeSource);
+  }, [safeSource]);
 
   return (
     <img

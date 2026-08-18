@@ -7,6 +7,7 @@ import type {
   Category as CatalogCategory,
   Product as CatalogProduct,
 } from './product.types';
+import { isRenderableCatalogImageUrl } from './catalog-image-url';
 import {
   getCategoryGroupKey,
   isCategoryGroupRoot,
@@ -34,7 +35,9 @@ function buildFallbackSpecs(product: CatalogProduct): StorefrontProduct['specs']
 
 export function toStorefrontProduct(product: CatalogProduct): StorefrontProduct {
   const variant = product.variants[0];
-  const images = product.images.map((image) => image.url);
+  const images = product.images
+    .map((image) => image.url)
+    .filter(isRenderableCatalogImageUrl);
   const categories = product.categories.map((category) => ({
     id: category.id,
     name: category.name,

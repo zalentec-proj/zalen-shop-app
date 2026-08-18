@@ -1,4 +1,5 @@
 import type { ProductStatus } from '@/modules/catalog/product.types';
+import { isTemporaryBlingImageUrl } from '@/modules/catalog/catalog-image-url';
 import type {
   BlingProductDetail,
   BlingProductImageItem,
@@ -92,11 +93,7 @@ function normalizeImageUrl(value: string | undefined) {
       // Internal Bling media is returned as a signed S3 URL. It is only a
       // temporary preview and must not replace the permanent storefront
       // gallery, otherwise the image disappears when `Expires` is reached.
-      if (
-        url.searchParams.has('Expires') ||
-        url.searchParams.has('AWSAccessKeyId') ||
-        url.hostname === 'orgbling.s3.amazonaws.com'
-      ) {
+      if (isTemporaryBlingImageUrl(url.toString())) {
         return undefined;
       }
 
