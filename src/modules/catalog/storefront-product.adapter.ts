@@ -52,6 +52,8 @@ export function toStorefrontProduct(product: CatalogProduct): StorefrontProduct 
     subtitle: product.seoDescription ?? product.brand,
     price: variant?.promotionalPrice ?? variant?.price ?? 0,
     originalPrice: variant?.promotionalPrice ? variant.price : undefined,
+    stock: variant?.stock ?? 0,
+    isAvailable: (variant?.stock ?? 0) > 0,
     rating: product.rating ?? 4.8,
     reviewsCount: product.reviewsCount ?? 0,
     image: images[0] ?? fallbackImageUrl,
@@ -69,7 +71,9 @@ export function toStorefrontProduct(product: CatalogProduct): StorefrontProduct 
 export function toStorefrontProducts(
   products: CatalogProduct[]
 ): StorefrontProduct[] {
-  return products.map(toStorefrontProduct);
+  return products
+    .map(toStorefrontProduct)
+    .sort((left, right) => Number(right.isAvailable) - Number(left.isAvailable));
 }
 
 export function toStorefrontCategories(

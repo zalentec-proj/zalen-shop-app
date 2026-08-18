@@ -7,6 +7,8 @@ export interface Product {
   subtitle?: string;
   price: number;
   originalPrice?: number;
+  stock: number;
+  isAvailable: boolean;
   rating: number;
   reviewsCount: number;
   image: string;

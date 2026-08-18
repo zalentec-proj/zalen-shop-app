@@ -34,7 +34,7 @@ import {
   isCategoryGroupRoot,
 } from './category-groups';
 
-export type CatalogDataSource = 'supabase' | 'mock';
+export type CatalogDataSource = 'supabase' | 'mock' | 'unavailable';
 
 export interface CatalogRepositoryResult<T> {
   data: T;
@@ -434,41 +434,64 @@ async function mapSupabaseProductsWithRelations(
     return { data: [], error: null };
   }
 
-  const [
-    { data: variantRows, error: variantsError },
-    { data: imageRows, error: imagesError },
-    { data: productCategoryRows, error: productCategoriesError },
-  ] = await Promise.all([
-    supabase
-      .from('product_variants')
-      .select('*')
-      .eq('store_id', storeId)
-      .in('product_id', productIds)
-      .order('created_at', { ascending: true }),
-    supabase
-      .from('product_images')
-      .select('*')
-      .eq('store_id', storeId)
-      .in('product_id', productIds)
-      .order('position', { ascending: true }),
-    supabase
-      .from('product_categories')
-      .select('product_id, category_id')
-      .in('product_id', productIds),
-  ]);
+  // PostgREST serializes `.in()` values into the URL. Sending hundreds of UUIDs
+  // in one request crosses the request-line limit and made the production admin
+  // silently fall back to the six demo products once the catalog reached 679
+  // items. Small batches also keep every relation query below the API row cap.
+  const relationBatchSize = 100;
+  const productIdBatches: string[][] = [];
 
-  if (
-    variantsError ||
-    imagesError ||
-    productCategoriesError ||
-    !variantRows ||
-    !imageRows ||
-    !productCategoryRows
-  ) {
-    return {
-      data: null,
-      error: variantsError ?? imagesError ?? productCategoriesError ?? null,
-    };
+  for (let index = 0; index < productIds.length; index += relationBatchSize) {
+    productIdBatches.push(productIds.slice(index, index + relationBatchSize));
+  }
+
+  const relationBatches = await Promise.all(
+    productIdBatches.map(async (batch) => {
+      const [variants, images, productCategories] = await Promise.all([
+        supabase
+          .from('product_variants')
+          .select('*')
+          .eq('store_id', storeId)
+          .in('product_id', batch)
+          .order('created_at', { ascending: true }),
+        supabase
+          .from('product_images')
+          .select('*')
+          .eq('store_id', storeId)
+          .in('product_id', batch)
+          .order('position', { ascending: true }),
+        supabase
+          .from('product_categories')
+          .select('product_id, category_id')
+          .in('product_id', batch),
+      ]);
+
+      return { variants, images, productCategories };
+    })
+  );
+  const variantRows: unknown[] = [];
+  const imageRows: unknown[] = [];
+  const productCategoryRows: unknown[] = [];
+
+  for (const batch of relationBatches) {
+    const error =
+      batch.variants.error ??
+      batch.images.error ??
+      batch.productCategories.error ??
+      null;
+
+    if (
+      error ||
+      !batch.variants.data ||
+      !batch.images.data ||
+      !batch.productCategories.data
+    ) {
+      return { data: null, error };
+    }
+
+    variantRows.push(...batch.variants.data);
+    imageRows.push(...batch.images.data);
+    productCategoryRows.push(...batch.productCategories.data);
   }
 
   const categoryIds = Array.from(
@@ -1246,7 +1269,7 @@ export async function listStorefrontProductsFromRepository(
     return supabaseProducts;
   }
 
-  return mockProducts;
+  return process.env.NODE_ENV === 'production' ? [] : mockProducts;
 }
 
 export async function listProductsByIdsFromRepository(
@@ -1276,8 +1299,8 @@ export async function listProductsWithSourceFromRepository(
   }
 
   return {
-    data: getMockProductSummaries(),
-    source: 'mock',
+    data: process.env.NODE_ENV === 'production' ? [] : getMockProductSummaries(),
+    source: process.env.NODE_ENV === 'production' ? 'unavailable' : 'mock',
   };
 }
 
@@ -1299,8 +1322,11 @@ export async function listAdminProductsWithSourceFromRepository(
   }
 
   return {
-    data: mockProducts.map(toProductSummary),
-    source: 'mock',
+    data:
+      process.env.NODE_ENV === 'production'
+        ? []
+        : mockProducts.map(toProductSummary),
+    source: process.env.NODE_ENV === 'production' ? 'unavailable' : 'mock',
   };
 }
 
@@ -1325,8 +1351,8 @@ export async function listCategoriesWithSourceFromRepository(
   }
 
   return {
-    data: mockCategories,
-    source: 'mock',
+    data: process.env.NODE_ENV === 'production' ? [] : mockCategories,
+    source: process.env.NODE_ENV === 'production' ? 'unavailable' : 'mock',
   };
 }
 
@@ -1340,7 +1366,9 @@ export async function getProductBySlugFromRepository(
     return supabaseProduct;
   }
 
-  return getMockProductBySlug(slug) ?? null;
+  return process.env.NODE_ENV === 'production'
+    ? null
+    : getMockProductBySlug(slug) ?? null;
 }
 
 export async function getProductByIdFromRepository(
@@ -1353,7 +1381,9 @@ export async function getProductByIdFromRepository(
     return supabaseProduct;
   }
 
-  return mockProducts.find((product) => product.id === id) ?? null;
+  return process.env.NODE_ENV === 'production'
+    ? null
+    : mockProducts.find((product) => product.id === id) ?? null;
 }
 
 export async function getCategoryBySlugFromRepository(
@@ -1382,7 +1412,9 @@ export async function getCategoryBySlugFromRepository(
     return null;
   }
 
-  return getMockCategoryBySlug(slug) ?? null;
+  return process.env.NODE_ENV === 'production'
+    ? null
+    : getMockCategoryBySlug(slug) ?? null;
 }
 
 export async function listCategoryProductsFromRepository(
@@ -1398,7 +1430,9 @@ export async function listCategoryProductsFromRepository(
     return supabaseProducts;
   }
 
-  return getMockProductsByCategory(categorySlug);
+  return process.env.NODE_ENV === 'production'
+    ? []
+    : getMockProductsByCategory(categorySlug);
 }
 
 export async function listProductsByCategoryFromRepository(
@@ -1424,7 +1458,9 @@ export async function listRelatedProductsFromRepository(
     return supabaseProducts;
   }
 
-  return getMockRelatedProducts(productSlug, limit).map(toProductSummary);
+  return process.env.NODE_ENV === 'production'
+    ? []
+    : getMockRelatedProducts(productSlug, limit).map(toProductSummary);
 }
 
 export async function updateProductStatusInRepository(
@@ -1860,16 +1896,10 @@ export async function upsertIntegrationProductInRepository(
       }
     }
 
-    const { error: staleImagesError } = await supabase
-      .from('product_images')
-      .delete()
-      .eq('store_id', input.storeId)
-      .eq('product_id', productId)
-      .neq('url', input.imageUrl);
-
-    if (staleImagesError) {
-      throw new Error('Unable to remove stale integration product images.');
-    }
+    // A product can have an audited storefront gallery that is richer and more
+    // durable than the single image returned by an ERP detail response. Never
+    // delete those images during a catalog sync. Explicit gallery maintenance
+    // is performed by its own audited workflow.
   }
 
   let categoryLinked = false;

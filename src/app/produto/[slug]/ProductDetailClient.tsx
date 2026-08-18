@@ -16,6 +16,7 @@ import Footer from '@/components/layout/Footer';
 import { addStoredCartItem } from '@/modules/cart/cart.storage';
 import type { Product, ProductSummary } from '@/modules/catalog/product.types';
 import { PjDiscountNotice } from '@/components/storefront/PjDiscountNotice';
+import { SafeCatalogImage } from '@/components/ui/SafeCatalogImage';
 import { pushMarketingEvent } from '@/modules/marketing/marketing.client';
 
 interface Props {
@@ -141,7 +142,7 @@ export default function ProductDetailClient({
                   Mais Vendido
                 </span>
               )}
-              <img
+              <SafeCatalogImage
                 src={product.images[selectedImage]?.url}
                 alt={product.images[selectedImage]?.alt ?? product.name}
                 className="w-full h-full object-contain drop-shadow-[0_15px_35px_rgba(0,0,0,0.6)] select-none"
@@ -161,7 +162,7 @@ export default function ProductDetailClient({
                         : 'border-brand-border bg-brand-surface hover:border-white/20'
                     }`}
                   >
-                    <img src={img.url} alt={img.alt ?? ''} className="w-full h-full object-contain" />
+                    <SafeCatalogImage src={img.url} alt={img.alt ?? ''} className="w-full h-full object-contain" />
                   </button>
                 ))}
               </div>
@@ -359,7 +360,7 @@ export default function ProductDetailClient({
                 >
                   <div className="w-full h-56 border-b border-brand-border-soft bg-gradient-to-b from-white/[0.04] via-transparent to-transparent p-5 flex items-center justify-center overflow-hidden">
                     {relatedProduct.imageUrl && (
-                      <img
+                      <SafeCatalogImage
                         src={relatedProduct.imageUrl}
                         alt={relatedProduct.name}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"

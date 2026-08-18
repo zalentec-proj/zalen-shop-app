@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import Footer from '@/components/layout/Footer';
 import Navbar from '@/components/layout/Navbar';
+import { SafeCatalogImage } from '@/components/ui/SafeCatalogImage';
 import { getItemCount } from '@/modules/cart/cart.utils';
 import {
   getStoredCart,
@@ -173,7 +174,7 @@ export default function CategoryClient({
                         Novo
                       </span>
                     )}
-                    <img
+                    <SafeCatalogImage
                       src={product.images[0]?.url}
                       alt={product.images[0]?.alt ?? product.name}
                       className="h-full w-full select-none object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.6)] transition-all duration-500 group-hover:scale-105"

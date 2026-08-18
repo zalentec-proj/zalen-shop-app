@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ShoppingCart, Heart, Eye } from 'lucide-react';
 import { Product } from '../../types';
+import { SafeCatalogImage } from '../ui/SafeCatalogImage';
 
 interface ProductCardProps {
   product: Product;
@@ -59,12 +60,18 @@ export default function ProductCard({ product, onProductClick, onAddToCart }: Pr
         </button>
 
         {/* Drone Image: Perfectly balanced space sizing taking up the full area optimally */}
-        <img
+        <SafeCatalogImage
           src={product.image}
           alt={product.name}
           className="z-10 h-full w-full select-none object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.6)] transition-all duration-500 group-hover:scale-105 pointer-events-none"
           referrerPolicy="no-referrer"
         />
+
+        {!product.isAvailable ? (
+          <span className="absolute bottom-2 left-2 z-20 rounded-full border border-amber-300/25 bg-[#050A14]/95 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-amber-100 sm:bottom-3 sm:left-3">
+            Esgotado
+          </span>
+        ) : null}
         
         {/* Soft hovering quick view circle overlay */}
         <div className="absolute inset-0 bg-brand-bg/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-350 z-15">
@@ -111,10 +118,14 @@ export default function ProductCard({ product, onProductClick, onAddToCart }: Pr
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onAddToCart(product);
+              if (product.isAvailable) {
+                onAddToCart(product);
+              }
             }}
-            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-blue-primary/20 bg-blue-primary/10 text-blue-primary shadow-[0_0_12px_rgba(30,61,255,0.1)] transition-all duration-300 hover:border-blue-primary hover:bg-blue-primary hover:text-white active:scale-95 sm:h-9 sm:w-9 sm:rounded-xl md:h-10 md:w-10"
-            title="Adicionar ao carrinho"
+            disabled={!product.isAvailable}
+            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-blue-primary/20 bg-blue-primary/10 text-blue-primary shadow-[0_0_12px_rgba(30,61,255,0.1)] transition-all duration-300 hover:border-blue-primary hover:bg-blue-primary hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:border-white/8 disabled:bg-white/5 disabled:text-slate-600 sm:h-9 sm:w-9 sm:rounded-xl md:h-10 md:w-10"
+            title={product.isAvailable ? 'Adicionar ao carrinho' : 'Produto esgotado'}
+            aria-label={product.isAvailable ? 'Adicionar ao carrinho' : 'Produto esgotado'}
           >
             <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </button>

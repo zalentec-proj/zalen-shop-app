@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Star, ShoppingCart, ShieldCheck, HelpCircle, Play, Sparkles, Check } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { ArrowLeft, ShoppingCart, ShieldCheck, Play, Sparkles } from 'lucide-react';
 import { Product } from '../../types';
+import { SafeCatalogImage } from '../ui/SafeCatalogImage';
 
 interface ProductDetailsViewProps {
   product: Product;
@@ -13,6 +14,12 @@ export default function ProductDetailsView({ product, onBackToHome, onAddToCart 
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
+  useEffect(() => {
+    setSelectedImage(product.image);
+    setQuantity(1);
+    setAdded(false);
+  }, [product]);
+
   // Installment computations
   const monthlyInstallment = (product.price / 12).toLocaleString('pt-BR', {
     minimumFractionDigits: 2,
@@ -20,6 +27,7 @@ export default function ProductDetailsView({ product, onBackToHome, onAddToCart 
   });
 
   const handleAddToCartClick = () => {
+    if (!product.isAvailable) return;
     onAddToCart(product, quantity);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
@@ -58,7 +66,7 @@ export default function ProductDetailsView({ product, onBackToHome, onAddToCart 
               {/* Inner ambient light overlay */}
               <div className="absolute inset-0 bg-blue-primary/[0.01] pointer-events-none"></div>
               
-              <img
+              <SafeCatalogImage
                 src={selectedImage}
                 alt={product.name}
                 className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700 select-none pointer-events-none"
@@ -89,7 +97,7 @@ export default function ProductDetailsView({ product, onBackToHome, onAddToCart 
                         : 'border-white/5 hover:border-white/10'
                     }`}
                   >
-                    <img
+                    <SafeCatalogImage
                       src={imgUrl}
                       alt={`Thumb ${idx}`}
                       className="w-full h-full object-cover filter hover:brightness-110 select-none pointer-events-none"
@@ -109,9 +117,11 @@ export default function ProductDetailsView({ product, onBackToHome, onAddToCart 
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1 bg-blue-primary/10 border border-blue-primary/20 rounded py-0.5 px-2 text-[9px] font-semibold tracking-wider text-blue-primary uppercase font-mono">
                 <Sparkles className="w-2.5 h-2.5 text-blue-primary" />
-                Lançamento Premium
+                {product.isAvailable ? 'Disponível para compra' : 'Temporariamente esgotado'}
               </span>
-              <span className="text-[10px] text-brand-muted font-normal">Garantia DJI Brasil inclusa</span>
+              {product.sku ? (
+                <span className="text-[10px] text-brand-muted font-normal">SKU {product.sku}</span>
+              ) : null}
             </div>
 
             {/* Headings */}
@@ -124,17 +134,6 @@ export default function ProductDetailsView({ product, onBackToHome, onAddToCart 
               </p>
             </div>
 
-            {/* Micro rating stars stars */}
-            <div className="flex items-center gap-1.5">
-              <div className="flex text-yellow-500">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-3 h-3 fill-yellow-500" />
-                ))}
-              </div>
-              <span className="text-[10px] font-bold text-white">4.9</span>
-              <span className="text-[10px] text-brand-muted">(128 avaliações recomendadas de pilotos)</span>
-            </div>
-
             {/* Pricing Section - Green emphasis price */}
             <div className="p-4 sm:p-5 rounded-2xl bg-white/[0.01] border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex flex-col gap-0.5">
@@ -142,7 +141,9 @@ export default function ProductDetailsView({ product, onBackToHome, onAddToCart 
                 <span className="text-2xl md:text-3xl font-bold text-green-accent font-sans">
                   R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
-                <span className="text-[10px] text-brand-muted">ou 5% de desconto via PIX</span>
+                <span className="text-[10px] text-brand-muted">
+                  Valor confirmado novamente no checkout
+                </span>
               </div>
               
               <div className="h-[1px] sm:h-10 w-full sm:w-[1px] bg-brand-border-soft"></div>
@@ -186,8 +187,9 @@ export default function ProductDetailsView({ product, onBackToHome, onAddToCart 
                     {quantity}
                   </span>
                   <button
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="w-6 h-6 flex items-center justify-center text-brand-muted hover:bg-white/5 hover:text-white rounded font-bold select-none cursor-pointer"
+                    disabled={!product.isAvailable || quantity >= product.stock}
+                    onClick={() => setQuantity(Math.min(quantity + 1, product.stock))}
+                    className="w-6 h-6 flex items-center justify-center text-brand-muted hover:bg-white/5 hover:text-white rounded font-bold select-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     +
                   </button>
@@ -199,16 +201,22 @@ export default function ProductDetailsView({ product, onBackToHome, onAddToCart 
                 {/* Comprar agora: triggers direct checkout simulation or direct cart adding */}
                 <button
                   onClick={handleAddToCartClick}
-                  className="flex-1 h-11 rounded-full text-xs font-semibold tracking-wide text-white gradient-button relative group flex items-center justify-center gap-1.5 cursor-pointer shadow-[0_10px_20px_rgba(30,61,255,0.25)] active:scale-[0.98] transition-all"
+                  disabled={!product.isAvailable}
+                  className="flex-1 h-11 rounded-full text-xs font-semibold tracking-wide text-white gradient-button relative group flex items-center justify-center gap-1.5 cursor-pointer shadow-[0_10px_20px_rgba(30,61,255,0.25)] active:scale-[0.98] transition-all disabled:cursor-not-allowed disabled:bg-slate-700 disabled:shadow-none"
                 >
                   <ShoppingCart className="w-3.5 h-3.5" />
-                  {added ? 'ADICIONADO AO CARRINHO!' : 'Comprar agora'}
+                  {!product.isAvailable
+                    ? 'Produto esgotado'
+                    : added
+                      ? 'ADICIONADO AO CARRINHO!'
+                      : 'Comprar agora'}
                 </button>
 
                 {/* Adicionar ao carrinho CTA */}
                 <button
                   onClick={handleAddToCartClick}
-                  className="px-6 h-11 rounded-full text-xs font-semibold tracking-wide text-brand-white bg-white/[0.03] border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98]"
+                  disabled={!product.isAvailable}
+                  className="px-6 h-11 rounded-full text-xs font-semibold tracking-wide text-brand-white bg-white/[0.03] border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:cursor-not-allowed disabled:text-slate-600"
                 >
                   Adicionar ao carrinho
                 </button>

@@ -112,7 +112,7 @@ function buildSidebarGroups(counts?: AdminSidebarCounts): AdminSidebarGroup[] {
           viewKey: 'products',
           label: 'Produtos',
           icon: Package2,
-          count: counts?.products ?? '06',
+          count: counts?.products ?? '--',
           href: '/admin?view=products',
         },
         {
@@ -120,7 +120,7 @@ function buildSidebarGroups(counts?: AdminSidebarCounts): AdminSidebarGroup[] {
           viewKey: 'customers',
           label: 'Clientes',
           icon: UsersRound,
-          count: counts?.customers ?? '01',
+          count: counts?.customers ?? '--',
           href: '/admin?view=customers',
         },
       ],
@@ -221,7 +221,7 @@ export function AdminSidebar({
   counts,
   footerLabel = 'Modo',
   footerTitle = 'Fonte atual',
-  footerDescription = 'Catálogo Supabase; pedidos Supabase.',
+  footerDescription = 'Operação da loja ativa.',
   onSelectView,
 }: AdminSidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);

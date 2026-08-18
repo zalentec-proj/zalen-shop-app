@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -13,6 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import Logo from '../ui/Logo';
+import { SafeCatalogImage } from '../ui/SafeCatalogImage';
 import type { StorefrontCategory } from '../../types';
 import { getPrimaryStorefrontCategories } from '../home/category-display';
 import type {
@@ -95,6 +96,23 @@ export default function Navbar({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [previewIndexes, setPreviewIndexes] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMobileMenuOpen(false);
+    };
+
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', closeOnEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [mobileMenuOpen]);
 
   const navLinks = useMemo(() => {
     if (navigation?.navbarItems.length) {
@@ -204,7 +222,7 @@ export default function Navbar({
                   >
                     <div className="flex h-32 w-full items-center justify-center overflow-hidden">
                       {previewProduct.imageUrl ? (
-                        <img
+                        <SafeCatalogImage
                           src={previewProduct.imageUrl}
                           alt={previewProduct.name}
                           className="h-full max-w-full object-contain transition duration-300 group-hover/product:scale-105"
@@ -379,7 +397,13 @@ export default function Navbar({
       </nav>
 
       {mobileMenuOpen && (
-        <div className="glass-panel-strong absolute left-4 right-4 top-full z-40 mt-2 flex flex-col gap-4 rounded-2xl p-5 animate-in fade-in duration-300 xl:hidden" id="mobile-menu">
+        <div
+          className="fixed inset-x-0 bottom-0 top-[80px] z-40 flex flex-col gap-4 overflow-y-auto border-t border-white/10 bg-[#050A14] px-4 pb-8 pt-5 shadow-[0_24px_80px_rgba(0,0,0,0.8)] animate-in fade-in duration-200 xl:hidden"
+          id="mobile-menu"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menu de navegação"
+        >
           <div className="flex flex-col gap-2">
             <span className="text-[11px] font-bold tracking-widest text-brand-muted uppercase mb-2 px-3">
               Categorias

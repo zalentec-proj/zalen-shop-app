@@ -50,28 +50,28 @@ export default function GGGroupCompanies() {
           </p>
         </div>
 
-        <div className="mt-10 grid gap-4 md:grid-cols-3 md:gap-5">
+        <div className="-mx-4 mt-8 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:mt-10 md:grid md:grid-cols-3 md:gap-5 md:overflow-visible md:px-0 md:pb-0">
           {companies.map((company) => (
             <article
               key={company.name}
-              className="group relative flex min-h-[300px] flex-col rounded-2xl border border-white/10 bg-[#0D111A]/85 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.28)] transition duration-300 hover:-translate-y-1 hover:border-white/20"
+              className="group relative flex min-h-[240px] w-[78vw] max-w-[310px] shrink-0 snap-start flex-col rounded-2xl border border-white/10 bg-[#0D111A]/85 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.28)] transition duration-300 hover:-translate-y-1 hover:border-white/20 md:min-h-[280px] md:w-auto md:max-w-none md:p-5"
             >
               <div
                 className={`absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-gradient-to-r ${company.accent}`}
               />
-              <div className="flex min-h-32 items-center justify-center rounded-xl border border-white bg-white p-5 shadow-inner shadow-black/10">
+              <div className="flex min-h-24 items-center justify-center rounded-xl border border-white bg-white p-4 shadow-inner shadow-black/10 md:min-h-28">
                 <img
                   src={company.logo}
                   alt={company.name}
-                  className="h-auto max-h-24 w-full max-w-[240px] object-contain"
+                  className="h-auto max-h-16 w-full max-w-[220px] object-contain md:max-h-20"
                   loading="lazy"
                 />
               </div>
-              <h3 className="mt-6 font-display text-xl font-semibold tracking-[-0.03em] text-white">
+              <h3 className="mt-4 font-display text-lg font-semibold tracking-[-0.03em] text-white md:text-xl">
                 {company.name}
               </h3>
               <p className="mt-2 text-sm text-brand-muted">{company.description}</p>
-              <div className="mt-auto pt-6">
+              <div className="mt-auto pt-4">
                 {'href' in company ? (
                   <a
                     href={company.href}

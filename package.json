@@ -51,7 +51,9 @@
     "catalogo:brasil-drones:imagens:update": "node capture-and-sync-brasil-drones-mundrone-images.js",
     "catalogo:brasil-drones:imagens:retry": "BRASIL_DRONES_IMAGE_RETRY_FAILED=true node capture-and-sync-brasil-drones-mundrone-images.js",
     "catalogo:brasil-drones:loja:dry": "DRY_RUN=true STOREFRONT_CATALOG_SYNC_APPROVED=false node scripts/catalog/reconcile-brasil-drones-storefront.mjs",
-    "catalogo:brasil-drones:loja:sync": "DRY_RUN=false STOREFRONT_CATALOG_SYNC_APPROVED=true node scripts/catalog/reconcile-brasil-drones-storefront.mjs"
+    "catalogo:brasil-drones:loja:sync": "DRY_RUN=false STOREFRONT_CATALOG_SYNC_APPROVED=true node scripts/catalog/reconcile-brasil-drones-storefront.mjs",
+    "catalogo:brasil-drones:assets:dry": "DRY_RUN=true STOREFRONT_ASSET_RESTORE_APPROVED=false node scripts/catalog/restore-brasil-drones-storefront-assets.mjs",
+    "catalogo:brasil-drones:assets:restore": "DRY_RUN=false STOREFRONT_ASSET_RESTORE_APPROVED=true node scripts/catalog/restore-brasil-drones-storefront-assets.mjs"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.65.0",

@@ -316,40 +316,51 @@ export default async function OnlineStoreSettingsPage() {
       </SettingsPanel>
 
       <form action={saveStorefrontNavigationAction} className="space-y-3">
-        <input type="hidden" name="itemCount" value={items.length} />
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/6 bg-[#0A1730]/95 p-3">
-          <div>
-            <h2 className="text-sm font-semibold text-white">
-              Categorias e itens do menu
-            </h2>
-            <p className="mt-1 text-xs leading-5 text-slate-400">
-              Categorias apontam para `/categoria/[slug]`. Itens customizados aceitam somente rotas internas, como `/modelos/mini-3`.
-            </p>
-          </div>
-          <button
-            type="submit"
-            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-4 text-xs font-semibold text-white"
-          >
-            <Save className="h-3.5 w-3.5" />
-            Salvar navegação
-          </button>
-        </div>
+        <details className="group overflow-hidden rounded-lg border border-white/6 bg-[#0A1730]/95">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4">
+            <div>
+              <h2 className="text-sm font-semibold text-white">
+                Editar categorias e itens do menu
+              </h2>
+              <p className="mt-1 text-xs leading-5 text-slate-400">
+                Abra somente quando precisar alterar a navegação pública.
+              </p>
+            </div>
+            <Menu className="h-4 w-4 text-slate-400 transition group-open:rotate-90" />
+          </summary>
 
-        <div className="grid gap-3">
-          {items.map((item, index) => (
-            <NavigationItemRow
-              key={item.id}
-              item={item}
-              index={index}
-              parentOptions={parentOptions}
-              categoryOptions={categoryOptions}
-              blingManagedChildren={countBlingManagedChildren(
-                item,
-                storefrontCategories
-              )}
-            />
-          ))}
-        </div>
+          <div className="space-y-3 border-t border-white/6 p-3">
+            <input type="hidden" name="itemCount" value={items.length} />
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/6 bg-[#081225] p-3">
+              <p className="max-w-2xl text-xs leading-5 text-slate-400">
+                Categorias apontam para `/categoria/[slug]`. Itens customizados aceitam somente rotas internas, como `/modelos/mini-3`.
+              </p>
+              <button
+                type="submit"
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-4 text-xs font-semibold text-white"
+              >
+                <Save className="h-3.5 w-3.5" />
+                Salvar navegação
+              </button>
+            </div>
+
+            <div className="grid gap-3">
+              {items.map((item, index) => (
+                <NavigationItemRow
+                  key={item.id}
+                  item={item}
+                  index={index}
+                  parentOptions={parentOptions}
+                  categoryOptions={categoryOptions}
+                  blingManagedChildren={countBlingManagedChildren(
+                    item,
+                    storefrontCategories
+                  )}
+                />
+              ))}
+            </div>
+          </div>
+        </details>
       </form>
 
       <SettingsPanel

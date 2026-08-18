@@ -16,7 +16,6 @@ import {
   LogOut,
   MapPin,
   ShieldCheck,
-  SlidersHorizontal,
   Store,
 } from 'lucide-react';
 
@@ -190,14 +189,6 @@ export function SettingsShell({
                   </button>
                 </form>
 
-                <button
-                  type="button"
-                  disabled
-                  className="inline-flex items-center gap-2 rounded-lg border border-white/8 bg-[#081225] px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-[#1E3DFF]/35 hover:text-white"
-                >
-                  <SlidersHorizontal className="h-3.5 w-3.5" />
-                  Exportação indisponível
-                </button>
               </div>
             </header>
 

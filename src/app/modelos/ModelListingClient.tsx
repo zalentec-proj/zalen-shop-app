@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowUpRight, ShoppingCart, SlidersHorizontal } from 'lucide-react';
 import Footer from '@/components/layout/Footer';
 import Navbar from '@/components/layout/Navbar';
+import { SafeCatalogImage } from '@/components/ui/SafeCatalogImage';
 import { getItemCount } from '@/modules/cart/cart.utils';
 import { getStoredCart, subscribeToStoredCart } from '@/modules/cart/cart.storage';
 import type { Product } from '@/modules/catalog/product.types';
@@ -179,7 +180,7 @@ export default function ModelListingClient({
                 >
                   <div className="flex h-32 items-center justify-center border-b border-brand-border-soft bg-black/10 p-2 sm:h-44 sm:p-3 md:h-52 md:p-4">
                     {image ? (
-                      <img
+                      <SafeCatalogImage
                         src={image.url}
                         alt={image.alt ?? product.name}
                         className="h-full w-full object-contain transition duration-300 group-hover:scale-[1.03]"

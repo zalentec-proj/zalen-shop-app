@@ -42,6 +42,7 @@ import {
 } from '@/components/admin/AdminLayout';
 import type { AdminVariantPriceSummary } from '@/modules/pricing/pricing.types';
 import { platformBrand } from '@/lib/branding/platform-brand';
+import { SafeCatalogImage } from '@/components/ui/SafeCatalogImage';
 import type { StoreContext } from '@/modules/stores/store.types';
 import {
   Boxes,
@@ -355,10 +356,10 @@ function cn(...classes: Array<string | false | null | undefined>) {
 
 function sourceLabel(source: AdminDataSource) {
   if (source === 'supabase') {
-    return 'Supabase';
+    return 'Operacional';
   }
 
-  return source === 'mock' ? 'Mock' : 'Indisponível';
+  return source === 'mock' ? 'Demonstração' : 'Indisponível';
 }
 
 function isAdminView(value: string | null): value is AdminView {
@@ -1296,10 +1297,6 @@ export default function AdminDashboard({
   const categoriesSourceLabel = sourceLabel(dataSources.categories);
   const ordersSourceLabel = sourceLabel(dataSources.orders);
   const integrationsSourceLabel = sourceLabel(dataSources.integrations);
-  const catalogSourceLabel =
-    dataSources.products === 'supabase' || dataSources.categories === 'supabase'
-      ? 'Supabase'
-      : 'Mock';
   const canManageStore = adminUser.role !== 'store_viewer';
   const canEditProducts =
     canManageStore && dataSources.products === 'supabase';
@@ -1657,7 +1654,7 @@ export default function AdminDashboard({
                     className="flex items-center gap-3 border-b border-white/6 pb-2 last:border-b-0 last:pb-0"
                   >
                     {product.imageUrl ? (
-                      <img
+                      <SafeCatalogImage
                         src={product.imageUrl}
                         alt={product.name}
                         className="h-9 w-9 rounded-md border border-white/8 object-cover"
@@ -1858,9 +1855,6 @@ export default function AdminDashboard({
             </SmallBadge>
             <SmallBadge className="border-amber-400/20 bg-amber-400/10 text-amber-200">
               {lowStockProducts.length} estoque baixo
-            </SmallBadge>
-            <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
-              {catalogSourceLabel}
             </SmallBadge>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -2134,7 +2128,7 @@ export default function AdminDashboard({
                     >
                       <div className="flex min-w-0 items-center gap-3">
                         {product.imageUrl ? (
-                          <img
+                          <SafeCatalogImage
                             src={product.imageUrl}
                             alt={product.name}
                             className="h-11 w-11 rounded-lg border border-white/8 object-cover"
@@ -3042,10 +3036,7 @@ export default function AdminDashboard({
               <SettingsField label="Empresa" value={store.name} />
               <SettingsField label="Interface" value="Admin operacional" />
               <SettingsField label="Status" value="Sessão ativa" />
-              <SettingsField
-                label="Origem"
-                value={`Catálogo ${catalogSourceLabel}; pedidos ${ordersSourceLabel}`}
-              />
+              <SettingsField label="Dados" value="Loja ativa" />
             </div>
           </Panel>
         </div>
@@ -3058,7 +3049,7 @@ export default function AdminDashboard({
             description="Leitura dos dados e integrações configurados para a loja ativa."
           >
             <div className="space-y-1">
-              <SettingsField label="Catálogo" value={`${products.length} produtos via ${productsSourceLabel}`} />
+              <SettingsField label="Catálogo" value={`${products.length} produtos`} />
               <SettingsField label="Categorias" value={`${categories.length} categorias prontas para filtro`} />
               <SettingsField label="Pedidos" value={`${orders.length} pedidos via ${ordersSourceLabel}`} />
               <SettingsField
@@ -3115,13 +3106,18 @@ export default function AdminDashboard({
           integrations: String(integrations.length).padStart(2, '0'),
           primaryErp: primaryErpIntegration?.integration?.status === 'connected' ? 'ON' : 'ERP',
         }}
-        footerDescription={`Catálogo ${catalogSourceLabel}; pedidos ${ordersSourceLabel}.`}
+        footerDescription="Operação da loja ativa."
         onSelectView={handleSelectAdminView}
       />
 
       <main className="min-w-0 transition-[padding] duration-200 xl:pl-[var(--admin-shell-sidebar-width,15rem)]">
         <AdminPageFrame>
           <div className="space-y-4">
+            {dataSources.products === 'unavailable' ? (
+              <div className="rounded-xl border border-rose-400/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
+                O catálogo está temporariamente indisponível. Nenhum dado de demonstração foi exibido; tente recarregar a página ou consulte a integração Bling.
+              </div>
+            ) : null}
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <div className="space-y-1">
                 <div>
@@ -3159,14 +3155,6 @@ export default function AdminDashboard({
                   </button>
                 </form>
 
-                <button
-                  type="button"
-                  disabled
-                  className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl border border-white/8 bg-[#081225] px-3 py-2 text-xs font-medium text-slate-500"
-                >
-                  <SlidersHorizontal className="h-3.5 w-3.5" />
-                  Exportação indisponível
-                </button>
               </div>
             </div>
 
@@ -3183,13 +3171,13 @@ export default function AdminDashboard({
 
               <div className="flex flex-wrap gap-2">
                 <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
-                  {products.length} produtos · {productsSourceLabel}
+                  {products.length} produtos
                 </SmallBadge>
                 <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
-                  {orders.length} pedidos · {ordersSourceLabel}
+                  {orders.length} pedidos
                 </SmallBadge>
                 <SmallBadge className="border-white/8 bg-[#081225] text-slate-300">
-                  {customers.length} clientes · {customersSourceLabel}
+                  {customers.length} clientes
                 </SmallBadge>
                 <SmallBadge className="border-emerald-400/20 bg-emerald-400/10 text-emerald-200">
                   Admin {platformBrand.shortName}

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeft, ExternalLink, ShieldCheck, Wifi } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ExternalLink, ShieldCheck } from 'lucide-react';
 import { AdminSidebar } from '@/app/admin/AdminSidebar';
 import { AdminPageFrame } from '@/components/admin/AdminLayout';
 import { logoutAction } from '@/app/login/actions';
@@ -243,8 +243,15 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
                 ) : null}
               </section>
 
-              <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_360px] 2xl:items-start">
-                <div className="space-y-4">
+              <details className="group rounded-lg border border-white/8 bg-[#07101F]" open>
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4">
+                  <div>
+                    <h2 className="text-base font-semibold">Catálogo e estoque</h2>
+                    <p className="mt-1 text-xs text-slate-400">Sincronização de produtos, preços e disponibilidade.</p>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-slate-400 transition group-open:rotate-180" />
+                </summary>
+                <div className="space-y-4 border-t border-white/8 p-4">
                   <BlingProductSyncPanel
                     canRun={canRunBlingJobs}
                     initialStatus={state.productSync?.status}
@@ -259,29 +266,35 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
                     initialSummary={state.inventorySync?.summary}
                   />
                 </div>
+              </details>
 
-                <aside className="space-y-4">
+              <details className="group rounded-lg border border-white/8 bg-[#07101F]">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4">
+                  <div>
+                    <h2 className="text-base font-semibold">Webhooks e automação</h2>
+                    <p className="mt-1 text-xs text-slate-400">Eventos recebidos e envio automático de pedidos.</p>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-slate-400 transition group-open:rotate-180" />
+                </summary>
+                <div className="border-t border-white/8 p-4">
                   <BlingWebhookProcessPanel
                     canRun={canRunBlingJobs}
                     initialSummary={state.webhooks}
                     orderSend={state.orderSend}
                   />
+                </div>
+              </details>
 
-                  <section className="rounded-xl border border-white/8 bg-[#0A1730]/95 p-4">
-                    <Wifi className="h-5 w-5 text-[#7EC3FF]" />
-                    <h2 className="mt-3 text-base font-semibold">Teste de conexão</h2>
-                    <p className="mt-1 text-xs leading-5 text-slate-400">
-                      Ficará disponível depois que os tokens estiverem salvos e o client Bling operacional for implementado.
-                    </p>
-                    <button
-                      type="button"
-                      disabled
-                      className="mt-4 w-full cursor-not-allowed rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-500"
-                    >
-                      Testar conexão
-                    </button>
-                  </section>
-
+              {managementAccess.allowed ? (
+                <details className="group rounded-lg border border-white/8 bg-[#07101F]">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4">
+                    <div>
+                      <h2 className="text-base font-semibold">Ferramentas avançadas</h2>
+                      <p className="mt-1 text-xs text-slate-400">Homologação e envio manual controlado para diagnóstico.</p>
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-slate-400 transition group-open:rotate-180" />
+                  </summary>
+                  <div className="grid gap-4 border-t border-white/8 p-4 2xl:grid-cols-2">
                   <BlingHomologationPanel
                     canRun={canRunBlingJobs && managementAccess.allowed}
                     initialStatus={state.homologation?.status}
@@ -291,8 +304,9 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
                   <BlingTestOrderSendPanel
                     canRun={canRunBlingJobs && managementAccess.allowed}
                   />
-                </aside>
-              </div>
+                  </div>
+                </details>
+              ) : null}
             </div>
           </div>
         </AdminPageFrame>

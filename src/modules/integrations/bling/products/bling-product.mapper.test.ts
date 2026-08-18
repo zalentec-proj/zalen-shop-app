@@ -40,4 +40,31 @@ describe('mapBlingProductToCatalogInput', () => {
 
     expect(result.freeShipping).toBe(false);
   });
+
+  it('rejects temporary signed Bling image URLs', () => {
+    const result = mapBlingProductToCatalogInput({
+      storeId: 'store-1',
+      product: {
+        ...baseProduct,
+        imagemURL:
+          'https://orgbling.s3.amazonaws.com/catalog/image?AWSAccessKeyId=temporary&Expires=1786989721&Signature=value',
+      },
+    });
+
+    expect(result.imageUrl).toBeUndefined();
+  });
+
+  it('keeps permanent public catalog image URLs', () => {
+    const imageUrl =
+      'https://project.supabase.co/storage/v1/object/public/product-images/catalog/image.webp';
+    const result = mapBlingProductToCatalogInput({
+      storeId: 'store-1',
+      product: {
+        ...baseProduct,
+        imagemURL: imageUrl,
+      },
+    });
+
+    expect(result.imageUrl).toBe(imageUrl);
+  });
 });

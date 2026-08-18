@@ -10,7 +10,6 @@ import Navbar from './components/layout/Navbar';
 import Hero from './components/home/Hero';
 import BenefitsBar from './components/home/BenefitsBar';
 import CategoryProductSections from './components/home/CategoryProductSections';
-import FeaturedProduct from './components/home/FeaturedProduct';
 import BestSellers from './components/home/BestSellers';
 import TechSection from './components/home/TechSection';
 import GGGroupCompanies from './components/home/GGGroupCompanies';
@@ -108,7 +107,7 @@ export default function App({
   };
 
   const handleAddToCart = (product: Product, quantity: number = 1) => {
-    if (!product.catalogProductId || !product.variantId) {
+    if (!product.isAvailable || !product.catalogProductId || !product.variantId) {
       return;
     }
 
@@ -266,14 +265,6 @@ export default function App({
             onProductClick={handleProductSelect}
             onAddToCart={(prod) => handleAddToCart(prod, 1)}
             onExploreSection={handleExploreSection}
-          />
-
-          <FeaturedProduct
-            onProductClick={handleProductSelect}
-            onAddToCart={(id) => {
-              const prodSelect = products.find((p) => p.id === id);
-              if (prodSelect) handleAddToCart(prodSelect, 1);
-            }}
           />
 
           {shouldShowCatalog ? (
