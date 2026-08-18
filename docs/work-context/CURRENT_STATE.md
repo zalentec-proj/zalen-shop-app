@@ -24,6 +24,11 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
+- Em 2026-08-18 o aviso público de desconto PJ recebeu espaçamento responsivo
+  compatível com as duas linhas do cabeçalho desktop. Em telas `xl`, a faixa
+  agora começa abaixo do menu fixo de categorias; em tablet/mobile preserva o
+  deslocamento menor do cabeçalho de uma linha.
+
 - Em 2026-08-18 foi corrigido o contraste dos seletores nativos de categoria e
   ordenação nas páginas públicas de modelos e categorias. Os controles agora
   declaram esquema de cores escuro e opções com fundo escuro/texto branco,
