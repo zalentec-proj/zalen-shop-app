@@ -78,6 +78,8 @@ type AdminView =
 type SettingsSection = 'profile' | 'operations';
 type ProductFilter = 'all' | ProductStatus;
 type ProductSourceFilter = 'all' | 'zalen' | 'bling';
+const productPageSizeOptions = [50, 100] as const;
+type ProductPageSize = (typeof productPageSizeOptions)[number];
 type OrderFilter = 'all' | OrderStatus;
 type AdminAccessRole = PlatformRole | StoreRole;
 type AdminDataSource = 'supabase' | 'mock' | 'unavailable';
@@ -1103,11 +1105,24 @@ export default function AdminDashboard({
   const [productCategoryFilter, setProductCategoryFilter] = useState('all');
   const [productSourceFilter, setProductSourceFilter] =
     useState<ProductSourceFilter>('all');
+  const [productPage, setProductPage] = useState(1);
+  const [productPageSize, setProductPageSize] =
+    useState<ProductPageSize>(50);
   const [orderFilter, setOrderFilter] = useState<OrderFilter>('all');
 
   useEffect(() => {
     setActiveView(isAdminView(requestedView) ? requestedView : 'dashboard');
   }, [requestedView]);
+
+  useEffect(() => {
+    setProductPage(1);
+  }, [
+    productCategoryFilter,
+    productFilter,
+    productPageSize,
+    productSourceFilter,
+    searchQuery,
+  ]);
 
   function handleSelectAdminView(view: AdminView) {
     setActiveView(view);
@@ -1255,6 +1270,19 @@ export default function AdminDashboard({
 
     return statusMatches && categoryMatches && sourceMatches && textMatches;
   });
+  const productTotalPages = Math.max(
+    1,
+    Math.ceil(filteredProducts.length / productPageSize)
+  );
+  const currentProductPage = Math.min(productPage, productTotalPages);
+  const productPageStart = (currentProductPage - 1) * productPageSize;
+  const paginatedProducts = filteredProducts.slice(
+    productPageStart,
+    productPageStart + productPageSize
+  );
+  const productVisibleStart =
+    filteredProducts.length === 0 ? 0 : productPageStart + 1;
+  const productVisibleEnd = productPageStart + paginatedProducts.length;
 
   const filteredOrders = orders.filter((order) => {
     const statusMatches = orderFilter === 'all' || order.status === orderFilter;
@@ -2071,7 +2099,8 @@ export default function AdminDashboard({
               </div>
 
               <div className="text-[11px] text-slate-400">
-                Mostrando {filteredProducts.length} de {products.length}
+                {paginatedProducts.length} nesta página · {filteredProducts.length}{' '}
+                encontrado(s)
               </div>
             </div>
 
@@ -2092,7 +2121,7 @@ export default function AdminDashboard({
                   </div>
                 ) : null}
 
-                {filteredProducts.map((product) => {
+                {paginatedProducts.map((product) => {
                   const primaryCategory = product.categories[0];
                   const extraCategoriesCount = Math.max(0, product.categories.length - 1);
                   const priceValue = product.promotionalPrice ?? product.price;
@@ -2190,23 +2219,57 @@ export default function AdminDashboard({
 
             <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] text-slate-400">
               <span>
-                Mostrando {filteredProducts.length} de {products.length} produtos
+                Mostrando {productVisibleStart}–{productVisibleEnd} de{' '}
+                {filteredProducts.length} produtos
               </span>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="flex items-center gap-2 text-[11px] text-slate-400">
+                  Por página
+                  <select
+                    aria-label="Produtos por página"
+                    value={productPageSize}
+                    onChange={(event) =>
+                      setProductPageSize(
+                        Number(event.target.value) as ProductPageSize
+                      )
+                    }
+                    className="h-8 rounded-md border border-white/8 bg-[#081225] px-2 text-xs font-semibold text-slate-100 outline-none [color-scheme:dark] focus:border-[#1E3DFF]/35"
+                  >
+                    {productPageSizeOptions.map((pageSize) => (
+                      <option
+                        key={pageSize}
+                        value={pageSize}
+                        className="bg-[#081225] text-white"
+                      >
+                        {pageSize}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <button
                   type="button"
-                  disabled
-                  className="inline-flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-500"
+                  aria-label="Página anterior de produtos"
+                  onClick={() =>
+                    setProductPage((page) => Math.max(1, page - 1))
+                  }
+                  disabled={currentProductPage <= 1}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-300 transition hover:border-[#1E3DFF]/35 hover:text-white disabled:cursor-not-allowed disabled:text-slate-600"
                 >
                   ‹
                 </button>
                 <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-md border border-[#1E3DFF]/35 bg-[#1E3DFF]/12 px-2 text-xs font-semibold text-[#A9C7FF]">
-                  1
+                  {currentProductPage} / {productTotalPages}
                 </span>
                 <button
                   type="button"
-                  disabled
-                  className="inline-flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-500"
+                  aria-label="Próxima página de produtos"
+                  onClick={() =>
+                    setProductPage((page) =>
+                      Math.min(productTotalPages, page + 1)
+                    )
+                  }
+                  disabled={currentProductPage >= productTotalPages}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/8 bg-[#081225] text-slate-300 transition hover:border-[#1E3DFF]/35 hover:text-white disabled:cursor-not-allowed disabled:text-slate-600"
                 >
                   ›
                 </button>

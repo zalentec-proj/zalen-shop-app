@@ -24,6 +24,15 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
+- Em 2026-08-18 o catálogo de produtos do Admin passou a ter paginação real.
+  A tela renderiza 50 produtos por página por padrão, permite alternar para
+  100 e calcula 14 ou 7 páginas, respectivamente, para os 679 produtos atuais.
+  Os controles anterior/próxima agora são funcionais, o intervalo exibido é
+  informado no rodapé e qualquer alteração em busca, categoria, origem, status
+  ou tamanho da página retorna à primeira página. A implementação passou em
+  TypeScript, 126 testes em 30 arquivos, build de produção e
+  `git diff --check`.
+
 - Em 2026-08-18 foi concluído o reparo das imagens temporárias do catálogo
   legado. A API do Bling devolvia mídia interna como URLs S3 assinadas com
   `AWSAccessKeyId`, `Expires` e `Signature`; a sincronização antiga persistiu
