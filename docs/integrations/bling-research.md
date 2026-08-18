@@ -173,6 +173,10 @@ midia.imagens.imagensURL[].link
 
 - `imagensURL` é marcado como `writeOnly`; portanto, um `GET` posterior pode
   não devolver as URLs enviadas, mesmo quando a galeria foi salva.
+- Quando o Bling devolve uma mídia interna no `GET`, a URL observada pertence a
+  `orgbling.s3.amazonaws.com` e contém assinatura e expiração. Ela serve apenas
+  para acesso temporário e não pode ser a fonte persistida do storefront. A
+  Zalen mantém a cópia pública durável no Storage e rejeita a URL assinada.
 - O sucesso operacional é registrado quando o `PATCH` retorna HTTP 200 e é
   complementado por amostragem visual no painel do Bling.
 - A rotina de catálogo usa exclusivamente `BLING_CUSTOMER_*`, referente ao app
@@ -186,6 +190,9 @@ midia.imagens.imagensURL[].link
 - A execução resultou em 572 produtos aceitos pela API, 1.425 imagens únicas e
   zero erro pendente. Dezoito produtos sem correspondência segura e nove com
   imagem principal reprovada permaneceram sem imagem para revisão manual.
+- Em 18/08/2026, 72 produtos do lote legado tiveram 91 vínculos permanentes
+  restaurados a partir do artefato auditado `16_imagens_supabase.json`. A
+  restauração foi transacional e alterou somente `product_images`.
 
 ## Estoque
 

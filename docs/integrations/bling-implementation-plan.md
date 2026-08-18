@@ -237,13 +237,13 @@ Regras implementadas:
 - Produtos com `variacoes` geram variantes separadas no catálogo Zalen.
 - Estoque usa `/estoques/saldos` por produto/variação quando disponível; se o
   escopo de estoque falhar, o sync continua com o saldo do payload de produto.
-- Imagens são gravadas como URL em `product_images` quando o payload Bling traz
-  campos como `imagemURL`, `imageUrl`, `urlImagem`, `imagem`, `imagens` ou
-  `midia.imagens`. Quando o produto pai não tem imagem, o sync tenta a primeira
-  imagem disponível nas variações.
-- Quando o Bling retorna imagem, o sync coloca essa URL como imagem primária
-  (`position = 0`) e remove imagens antigas daquele produto sincronizado para
-  evitar fallback ou imagem de produto anterior no storefront.
+- Imagens públicas permanentes são gravadas em `product_images` quando o payload
+  Bling traz campos como `imagemURL`, `imageUrl`, `urlImagem`, `imagem`,
+  `imagens` ou `midia.imagens`. URLs internas assinadas do Bling são rejeitadas,
+  pois expiram e não podem ser usadas pelo storefront.
+- A sincronização preserva galerias permanentes já auditadas. A leitura do
+  catálogo também elimina referências temporárias antes de escolher a imagem
+  principal, evitando que uma URL expirada esconda uma cópia válida do Storage.
 - Status do produto é normalizado antes de gravar no catálogo. Valores ativos
   conhecidos (`A`, `Ativo`, `Active`, `S`, `Sim`, `true`, `1`) publicam o produto;
   valores inativos conhecidos (`I`, `Inativo`, `Inactive`, `N`, `Não`, `false`,

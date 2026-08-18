@@ -24,6 +24,25 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
+- Em 2026-08-18 foi reparado o vínculo das imagens do lote legado da Brasil
+  Drones. O Bling devolvia as mídias internas como URLs S3 assinadas e
+  temporárias; elas expiraram e fizeram Admin e storefront exibirem o fallback.
+  O artefato auditado de julho ainda continha 91 imagens públicas permanentes
+  para 72 produtos identificados pelos IDs reais do Bling. A restauração foi
+  executada em uma única transação e alterou somente `product_images`, sem tocar
+  em produtos, variantes, preços, estoque, pedidos ou categorias.
+
+  A quantidade de produtos com imagem permanente passou de 597 para 645 e as
+  referências temporárias restantes caíram de 53 para 5. Os cinco produtos
+  restantes não pertencem ao conjunto aprovado; outros 29 não possuem linha de
+  imagem. O código do repositório agora descarta URL não renderizável antes de
+  montar a galeria. A validação no domínio público encontrou 64 imagens do
+  Storage entre 75 imagens renderizadas, quatro fallbacks legítimos e zero
+  imagem quebrada. No Admin, os produtos citados na falha — FPV Controller 3,
+  DJI Neo 2, HUB Flip, HUB Mini 5 Pro e controle Mavic — carregaram as imagens
+  reais, também sem erro no console. O reparo reproduzível está em
+  `scripts/catalog/restore-brasil-drones-legacy-images.mjs`.
+
 - Em 2026-08-18 o catálogo de produtos do Admin passou a ter paginação real.
   A tela renderiza 50 produtos por página por padrão, permite alternar para
   100 e calcula 14 ou 7 páginas, respectivamente, para os 679 produtos atuais.

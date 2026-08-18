@@ -33,6 +33,7 @@ import {
   getCategoryGroupKey,
   isCategoryGroupRoot,
 } from './category-groups';
+import { isRenderableCatalogImageUrl } from './catalog-image-url';
 
 export type CatalogDataSource = 'supabase' | 'mock' | 'unavailable';
 
@@ -531,6 +532,10 @@ async function mapSupabaseProductsWithRelations(
   });
 
   (imageRows as ProductImageRow[]).forEach((row) => {
+    if (!isRenderableCatalogImageUrl(row.url)) {
+      return;
+    }
+
     const images = imagesByProductId.get(row.product_id) ?? [];
     images.push(mapImage(row));
     imagesByProductId.set(row.product_id, images);
