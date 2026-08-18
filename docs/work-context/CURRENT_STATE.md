@@ -6,11 +6,11 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Snapshot
 
-- Atualizado em: 2026-08-17
+- Atualizado em: 2026-08-18
 - Branch: `refactor/migrate-to-next`
-- Commit atual: `ca16715` — `perf(bling): persist catalog pages concurrently`
-- A branch e o remoto estão sincronizados após a recuperação da sincronização
-  incremental de catálogo Bling em produção.
+- Commit funcional atual: `0e92364` — `fix: stabilize catalog sync and storefront`
+- A publicação e a restauração seletiva de imagens/compatibilidades devem ser
+  conferidas no bloco mais recente antes de iniciar uma nova frente.
   Preserve os scripts locais não rastreados que não pertencem a esta frente.
 - Guia de continuidade para outra IDE/máquina: `docs/work-context/IDE_HANDOFF.md`.
 
@@ -23,6 +23,34 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Última mudança conhecida
+
+- Em 2026-08-18 foi corrigida a causa de o Admin exibir apenas seis produtos:
+  as consultas de variantes, imagens e categorias enviavam os 679 UUIDs em um
+  único `.in()`, excediam o limite da URL do PostgREST e acionavam silenciosamente
+  o catálogo de demonstração. As relações agora são consultadas em lotes de 100,
+  e produção nunca mais substitui uma falha real por dados mockados; o painel
+  mostra indisponibilidade explícita.
+
+  O sync Bling deixou de apagar galerias auditadas e passou a rejeitar URLs
+  assinadas/temporárias de `orgbling.s3.amazonaws.com`. O script seletivo
+  `scripts/catalog/restore-brasil-drones-storefront-assets.mjs` foi criado com
+  dry-run e trava de autorização. O plano auditado contém 599 produtos, 1.425
+  imagens permanentes no Storage e 818 vínculos de compatibilidade, sem tocar
+  em produtos, variantes, preços, estoque, pedidos ou categorias. Executar a
+  restauração real somente depois que o commit protetor estiver em produção.
+
+  O storefront agora ordena itens disponíveis antes dos esgotados, bloqueia
+  compra sem estoque e troca imagens inválidas por fallback local. O menu móvel
+  é opaco, fixo, rolável e bloqueia o scroll do fundo; os filtros mostram 12
+  categorias inicialmente e oferecem busca/expansão; as empresas do Grupo GG
+  usam carrossel horizontal compacto no mobile. Admin e configuração Bling
+  foram simplificados com seções recolhíveis e sem rótulos técnicos de
+  Supabase/Mock para o lojista.
+
+  Validações concluídas: TypeScript, 123 testes em 29 arquivos, build de
+  produção, scanner de segredos, `git diff --check` e teste responsivo local.
+  O teste visual confirmou página com conteúdo, sem overlay/erro de console,
+  nenhuma imagem quebrada após fallback, menu móvel opaco e filtro limitado.
 
 - Em 2026-08-17 foi recuperada e concluída a sincronização incremental do
   catálogo Bling da Brasil Drones. A investigação nos erros de runtime da
