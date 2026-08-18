@@ -38,6 +38,14 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   imagens permanentes no Storage e 818 vínculos de compatibilidade, sem tocar
   em produtos, variantes, preços, estoque, pedidos ou categorias. Executar a
   restauração real somente depois que o commit protetor estiver em produção.
+  O commit foi publicado no deployment produtivo
+  `dpl_397ofhJpmmBBB8iqPuzdsWTWiAFK`, que ficou `READY`, e então a restauração
+  foi executada em 12 transações idempotentes. A verificação final confirmou
+  599 produtos, 1.425 imagens, 572 produtos com galeria, 818 vínculos e zero
+  URL não permanente nesse conjunto. Os 80 produtos anteriores ao novo
+  catálogo foram preservados; 40 continuam ativos e 37 deles possuem estoque
+  positivo. Eles não pertencem ao artefato auditado e, por isso, não tiveram
+  suas imagens substituídas automaticamente.
 
   O storefront agora ordena itens disponíveis antes dos esgotados, bloqueia
   compra sem estoque e troca imagens inválidas por fallback local. O menu móvel
@@ -51,6 +59,10 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   produção, scanner de segredos, `git diff --check` e teste responsivo local.
   O teste visual confirmou página com conteúdo, sem overlay/erro de console,
   nenhuma imagem quebrada após fallback, menu móvel opaco e filtro limitado.
+  No domínio comercial, o Admin autenticado passou a carregar 679 produtos
+  reais (594 ativos), sem fallback de demonstração. A integração Bling de
+  produção permanece `connected`, com envio automático ligado; catálogo e
+  estoque registraram `success` em 18/08/2026 às 11:00 e 11:01 BRT.
 
 - Em 2026-08-17 foi recuperada e concluída a sincronização incremental do
   catálogo Bling da Brasil Drones. A investigação nos erros de runtime da

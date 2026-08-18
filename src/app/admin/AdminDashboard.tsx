@@ -61,7 +61,6 @@ import {
   Search,
   ShieldCheck,
   ShoppingCart,
-  SlidersHorizontal,
   Store,
   Truck,
   UserRound,
@@ -113,6 +112,7 @@ const currencyFormatter = new Intl.NumberFormat('pt-BR', {
 const shortDateFormatter = new Intl.DateTimeFormat('pt-BR', {
   day: '2-digit',
   month: 'short',
+  timeZone: 'America/Sao_Paulo',
 });
 
 const longDateFormatter = new Intl.DateTimeFormat('pt-BR', {
@@ -121,6 +121,14 @@ const longDateFormatter = new Intl.DateTimeFormat('pt-BR', {
   year: 'numeric',
   hour: '2-digit',
   minute: '2-digit',
+  timeZone: 'America/Sao_Paulo',
+});
+
+const calendarDateKeyFormatter = new Intl.DateTimeFormat('en-CA', {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  timeZone: 'America/Sao_Paulo',
 });
 
 const viewMeta: Record<
@@ -274,12 +282,9 @@ function formatDateTime(value: string) {
 }
 
 function isSameCalendarDate(value: string, date = new Date()) {
-  const current = new Date(value);
-
   return (
-    current.getFullYear() === date.getFullYear() &&
-    current.getMonth() === date.getMonth() &&
-    current.getDate() === date.getDate()
+    calendarDateKeyFormatter.format(new Date(value)) ===
+    calendarDateKeyFormatter.format(date)
   );
 }
 
@@ -1856,31 +1861,6 @@ export default function AdminDashboard({
             <SmallBadge className="border-amber-400/20 bg-amber-400/10 text-amber-200">
               {lowStockProducts.length} estoque baixo
             </SmallBadge>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled
-              className="inline-flex h-9 cursor-not-allowed items-center gap-2 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs font-semibold text-slate-300 opacity-80"
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              Organizar
-            </button>
-            <button
-              type="button"
-              disabled
-              className="inline-flex h-9 cursor-not-allowed items-center gap-2 rounded-lg border border-white/8 bg-[#081225] px-3 text-xs font-semibold text-slate-300 opacity-80"
-            >
-              Exportar e importar
-            </button>
-            <button
-              type="button"
-              disabled
-              className="inline-flex h-9 cursor-not-allowed items-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-3 text-xs font-semibold text-white opacity-90"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Adicionar produto
-            </button>
           </div>
         </div>
 

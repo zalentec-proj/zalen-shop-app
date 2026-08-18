@@ -15,6 +15,8 @@ const EXPECTED_IMAGES = 1425;
 const EXPECTED_PRODUCTS_WITH_IMAGES = 572;
 const EXPECTED_COMPATIBILITY_LINKS = 818;
 const BATCH_SIZE = 100;
+const SQL_BATCH_SIZE = 50;
+const SQL_BATCH_INDEX = process.env.STOREFRONT_ASSET_SQL_BATCH_INDEX;
 const DRY_RUN = process.env.DRY_RUN !== 'false';
 const APPROVED = process.env.STOREFRONT_ASSET_RESTORE_APPROVED === 'true';
 const SOURCE_FILE = path.join(process.cwd(), 'saida_bling', 'novo_catalogo_produtos.json');
@@ -167,6 +169,150 @@ function buildPlan() {
   }
 
   return { desired, imageCount, productsWithImages, compatibilityLinks };
+}
+
+function encodeJsonForSql(value) {
+  return Buffer.from(JSON.stringify(value), 'utf8').toString('base64');
+}
+
+function buildSqlBatch(plan, batchIndex) {
+  const batch = plan.desired.slice(
+    batchIndex * SQL_BATCH_SIZE,
+    (batchIndex + 1) * SQL_BATCH_SIZE
+  );
+  if (batch.length === 0) throw new Error(`Lote SQL inexistente: ${batchIndex}`);
+
+  const expectedImages = batch.reduce((sum, product) => sum + product.images.length, 0);
+  const expectedCompatibility = batch.reduce(
+    (sum, product) => sum + product.compatibilitySlugs.length,
+    0
+  );
+  const encoded = encodeJsonForSql(
+    batch.map((product) => ({
+      external_id: product.externalId,
+      name: product.name,
+      images: product.images,
+      compatibility: product.compatibilitySlugs,
+    }))
+  );
+
+  return `
+begin;
+
+create temporary table desired_storefront_assets on commit drop as
+select *
+from jsonb_to_recordset(
+  convert_from(decode('${encoded}', 'base64'), 'utf8')::jsonb
+) as desired(external_id text, name text, images jsonb, compatibility jsonb);
+
+do $$
+declare matched integer;
+begin
+  select count(*) into matched
+  from desired_storefront_assets desired
+  join public.stores stores on stores.slug = '${STORE_SLUG}'
+  join public.products products
+    on products.store_id = stores.id
+    and products.external_provider = '${PROVIDER}'
+    and products.external_id = desired.external_id;
+  if matched <> ${batch.length} then
+    raise exception 'Produtos do lote divergentes: %/${batch.length}', matched;
+  end if;
+end $$;
+
+delete from public.product_images images
+using desired_storefront_assets desired, public.stores stores, public.products products
+where stores.slug = '${STORE_SLUG}'
+  and products.store_id = stores.id
+  and products.external_provider = '${PROVIDER}'
+  and products.external_id = desired.external_id
+  and images.store_id = stores.id
+  and images.product_id = products.id;
+
+insert into public.product_images (store_id, product_id, variant_id, url, position, alt)
+select stores.id, products.id, null, image.url, (image.ordinality - 1)::integer, desired.name
+from desired_storefront_assets desired
+join public.stores stores on stores.slug = '${STORE_SLUG}'
+join public.products products
+  on products.store_id = stores.id
+  and products.external_provider = '${PROVIDER}'
+  and products.external_id = desired.external_id
+cross join lateral jsonb_array_elements_text(desired.images) with ordinality image(url, ordinality);
+
+delete from public.product_drone_models links
+using desired_storefront_assets desired, public.stores stores, public.products products
+where stores.slug = '${STORE_SLUG}'
+  and products.store_id = stores.id
+  and products.external_provider = '${PROVIDER}'
+  and products.external_id = desired.external_id
+  and links.store_id = stores.id
+  and links.product_id = products.id;
+
+insert into public.product_drone_models (
+  store_id, product_id, drone_model_id, source, confidence, updated_at
+)
+select stores.id, products.id, models.id, 'import', 'confirmed', now()
+from desired_storefront_assets desired
+join public.stores stores on stores.slug = '${STORE_SLUG}'
+join public.products products
+  on products.store_id = stores.id
+  and products.external_provider = '${PROVIDER}'
+  and products.external_id = desired.external_id
+cross join lateral jsonb_array_elements_text(desired.compatibility) model_slug
+join public.drone_models models
+  on models.store_id = stores.id
+  and models.slug = model_slug;
+
+do $$
+declare image_count integer;
+declare compatibility_count integer;
+begin
+  select count(*) into image_count
+  from public.product_images images
+  join public.products products on products.id = images.product_id
+  join public.stores stores on stores.id = products.store_id
+  join desired_storefront_assets desired on desired.external_id = products.external_id
+  where stores.slug = '${STORE_SLUG}' and products.external_provider = '${PROVIDER}';
+
+  select count(*) into compatibility_count
+  from public.product_drone_models links
+  join public.products products on products.id = links.product_id
+  join public.stores stores on stores.id = products.store_id
+  join desired_storefront_assets desired on desired.external_id = products.external_id
+  where stores.slug = '${STORE_SLUG}' and products.external_provider = '${PROVIDER}';
+
+  if image_count <> ${expectedImages} or compatibility_count <> ${expectedCompatibility} then
+    raise exception 'Validação do lote falhou: imagens=%/${expectedImages}, compatibilidades=%/${expectedCompatibility}', image_count, compatibility_count;
+  end if;
+end $$;
+
+commit;
+`;
+}
+
+function buildSqlVerification(plan) {
+  const encoded = encodeJsonForSql(plan.desired.map((product) => product.externalId));
+  return `
+with desired as (
+  select jsonb_array_elements_text(
+    convert_from(decode('${encoded}', 'base64'), 'utf8')::jsonb
+  ) as external_id
+), target_products as (
+  select products.id
+  from desired
+  join public.stores stores on stores.slug = '${STORE_SLUG}'
+  join public.products products
+    on products.store_id = stores.id
+    and products.external_provider = '${PROVIDER}'
+    and products.external_id = desired.external_id
+)
+select
+  (select count(*) from target_products) as products,
+  (select count(*) from public.product_images images join target_products target on target.id = images.product_id) as images,
+  (select count(distinct images.product_id) from public.product_images images join target_products target on target.id = images.product_id) as products_with_images,
+  (select count(*) from public.product_drone_models links join target_products target on target.id = links.product_id) as compatibility_links,
+  (select count(*) from public.product_images images join target_products target on target.id = images.product_id where images.url not like 'https://%.supabase.co/storage/v1/object/public/product-images/%') as non_permanent_images;
+`;
 }
 
 async function main() {
@@ -344,7 +490,15 @@ async function main() {
   console.log(JSON.stringify(report, null, 2));
 }
 
-main().catch((error) => {
+const operation = SQL_BATCH_INDEX === 'verify'
+  ? Promise.resolve().then(() => console.log(buildSqlVerification(buildPlan())))
+  : /^\d+$/.test(SQL_BATCH_INDEX ?? '')
+    ? Promise.resolve().then(() =>
+        console.log(buildSqlBatch(buildPlan(), Number(SQL_BATCH_INDEX)))
+      )
+    : main();
+
+operation.catch((error) => {
   const report = {
     status: 'error',
     message: error instanceof Error ? error.message : 'erro desconhecido',
