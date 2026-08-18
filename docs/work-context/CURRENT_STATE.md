@@ -8,7 +8,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-08-18
 - Branch: `refactor/migrate-to-next`
-- Commit funcional base: `ae28884` — `feat: reconcile missing Bling products`
+- Commit funcional base: `41dbb3a` — `docs: record Bling reconciliation rollout`
 - A publicação e a restauração seletiva de imagens/compatibilidades devem ser
   conferidas no bloco mais recente antes de iniciar uma nova frente.
   Preserve os scripts locais não rastreados que não pertencem a esta frente.
@@ -23,6 +23,24 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Última mudança conhecida
+
+- Em 2026-08-18 foi corrigida a persistência de mídia e descrições retornadas
+  pelo Bling. A sincronização agora coleta todas as fotos do produto e de suas
+  variações, copia URLs internas assinadas de `orgbling.s3.amazonaws.com` para
+  o bucket permanente `product-images` e vincula a galeria completa ao produto.
+  O download é estritamente server-side, valida hostname HTTPS, tipo, limite de
+  10 MiB, timeout de 15 segundos e não segue redirecionamentos. Os caminhos no
+  Storage são determinísticos por loja/produto/origem, permitindo reexecução
+  idempotente sem expor a assinatura temporária. Galerias permanentes auditadas
+  são preservadas e referências temporárias só são removidas depois de existir
+  imagem durável.
+
+  `descricaoCurta` agora é convertida de HTML do Bling para texto simples
+  legível antes da persistência; blocos ativos como `script` e `style` são
+  descartados. O reprocessamento alvo é o produto Bling `16689921780`, que deve
+  passar de uma URL temporária para cinco imagens permanentes. A implementação
+  local passou em TypeScript, 137 testes e build de produção. Publicação e
+  conferência do reprocessamento ainda precisam ser registradas neste bloco.
 
 - Em 2026-08-18 foi implementada a reconciliação automática de ausências do
   catálogo Bling. O job diário consulta todas as páginas de `GET /produtos` e

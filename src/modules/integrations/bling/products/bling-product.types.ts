@@ -116,6 +116,9 @@ export interface BlingProductSyncDiagnostic {
   category?: string;
   categoryLinked?: boolean;
   imageFound?: boolean;
+  imagesFound?: number;
+  imagesCopied?: number;
+  imageErrors?: number;
   variants?: number;
   stockItems?: number;
   errorCode?: string;

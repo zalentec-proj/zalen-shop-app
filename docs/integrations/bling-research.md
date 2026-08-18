@@ -195,6 +195,22 @@ midia.imagens.imagensURL[].link
   `orgbling.s3.amazonaws.com` e contém assinatura e expiração. Ela serve apenas
   para acesso temporário e não pode ser a fonte persistida do storefront. A
   Zalen mantém a cópia pública durável no Storage e rejeita a URL assinada.
+- O sync de produto coleta todas as imagens do produto e de suas variações. Para
+  mídia interna, aceita download somente via HTTPS e no hostname exato
+  `orgbling.s3.amazonaws.com`, sem seguir redirecionamentos; valida tipo de
+  imagem, limita cada arquivo a 10 MiB e usa timeout de 15 segundos.
+- Cada imagem interna é copiada server-side para o bucket público
+  `product-images`, em caminho determinístico isolado por `store_id` e ID do
+  produto. A URL permanente é então vinculada em `product_images`. A referência
+  temporária anterior só é removida depois de existir ao menos uma URL
+  renderizável, preservando galerias auditadas que já estavam no Storage.
+- O sync completo reutiliza uma galeria permanente com quantidade suficiente
+  para evitar downloads repetidos do catálogo inteiro. Sync incremental,
+  webhook e reprocessamento individual conferem a mídia alterada; o caminho
+  determinístico também torna reexecuções idempotentes.
+- `descricaoCurta` pode chegar como HTML. O conector remove `script`/`style`,
+  converte blocos, quebras, listas e entidades HTML em texto simples legível e
+  nunca envia HTML livre ao componente visual.
 - O sucesso operacional é registrado quando o `PATCH` retorna HTTP 200 e é
   complementado por amostragem visual no painel do Bling.
 - A rotina de catálogo usa exclusivamente `BLING_CUSTOMER_*`, referente ao app

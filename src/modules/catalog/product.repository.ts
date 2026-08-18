@@ -128,6 +128,7 @@ export interface UpsertIntegrationProductInput {
   }>;
   category?: UpsertIntegrationCategoryInput;
   imageUrl?: string;
+  imageUrls?: string[];
 }
 
 export interface UpsertIntegrationProductResult {
@@ -135,6 +136,49 @@ export interface UpsertIntegrationProductResult {
   productId: string;
   categoryLinked: boolean;
   categoryCreated: boolean;
+}
+
+export async function listIntegrationProductImageUrlsInRepository(input: {
+  storeId: string;
+  externalProvider: string;
+  externalId: string;
+}): Promise<string[]> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    throw new Error('Supabase admin client is not configured.');
+  }
+
+  const { data: product, error: productError } = await supabase
+    .from('products')
+    .select('id')
+    .eq('store_id', input.storeId)
+    .eq('external_provider', input.externalProvider)
+    .eq('external_id', input.externalId)
+    .limit(1)
+    .maybeSingle();
+
+  if (productError) {
+    throw new Error('Unable to query integration product images.');
+  }
+
+  if (!product) {
+    return [];
+  }
+
+  const { data: images, error: imagesError } = await supabase
+    .from('product_images')
+    .select('url')
+    .eq('store_id', input.storeId)
+    .eq('product_id', product.id);
+
+  if (imagesError) {
+    throw new Error('Unable to query integration product images.');
+  }
+
+  return (images as Array<{ url: string }> | null ?? [])
+    .map((image) => image.url?.trim())
+    .filter((url): url is string => Boolean(url));
 }
 
 export interface IntegrationProductVariantStockRow {
@@ -1957,13 +2001,19 @@ export async function upsertIntegrationProductInRepository(
     }
   }
 
-  if (input.imageUrl) {
+  const imageUrls = Array.from(
+    new Set([...(input.imageUrls ?? []), input.imageUrl].filter(
+      (url): url is string => isRenderableCatalogImageUrl(url)
+    ))
+  );
+
+  for (const [position, imageUrl] of imageUrls.entries()) {
     const { data: existingImage, error: existingImageError } = await supabase
       .from('product_images')
       .select('id')
       .eq('store_id', input.storeId)
       .eq('product_id', productId)
-      .eq('url', input.imageUrl)
+      .eq('url', imageUrl)
       .limit(1)
       .maybeSingle();
 
@@ -1974,10 +2024,7 @@ export async function upsertIntegrationProductInRepository(
     if (existingImage) {
       const { error } = await supabase
         .from('product_images')
-        .update({
-          position: 0,
-          alt: input.name,
-        })
+        .update({ position, alt: input.name })
         .eq('store_id', input.storeId)
         .eq('product_id', productId)
         .eq('id', existingImage.id);
@@ -1989,8 +2036,8 @@ export async function upsertIntegrationProductInRepository(
       const { error } = await supabase.from('product_images').insert({
         store_id: input.storeId,
         product_id: productId,
-        url: input.imageUrl,
-        position: 0,
+        url: imageUrl,
+        position,
         alt: input.name,
       });
 
@@ -1998,9 +2045,38 @@ export async function upsertIntegrationProductInRepository(
         throw new Error('Unable to create integration product image.');
       }
     }
+  }
+
+  if (imageUrls.length > 0) {
+    const { data: storedImages, error: storedImagesError } = await supabase
+      .from('product_images')
+      .select('id, url')
+      .eq('store_id', input.storeId)
+      .eq('product_id', productId);
+
+    if (storedImagesError) {
+      throw new Error('Unable to inspect integration product images.');
+    }
+
+    const temporaryImageIds = (storedImages as Array<{ id: string; url: string }> | null ?? [])
+      .filter((image) => !isRenderableCatalogImageUrl(image.url))
+      .map((image) => image.id);
+
+    if (temporaryImageIds.length > 0) {
+      const { error } = await supabase
+        .from('product_images')
+        .delete()
+        .eq('store_id', input.storeId)
+        .eq('product_id', productId)
+        .in('id', temporaryImageIds);
+
+      if (error) {
+        throw new Error('Unable to remove temporary integration product images.');
+      }
+    }
 
     // A product can have an audited storefront gallery that is richer and more
-    // durable than the single image returned by an ERP detail response. Never
+    // durable than the images returned by an ERP detail response. Never
     // delete those images during a catalog sync. Explicit gallery maintenance
     // is performed by its own audited workflow.
   }

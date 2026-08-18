@@ -1,6 +1,7 @@
 import 'server-only';
 
 import {
+  listIntegrationProductImageUrlsInRepository,
   upsertIntegrationCategoryInRepository,
   upsertIntegrationProductInRepository,
 } from '@/modules/catalog/product.repository';
@@ -15,6 +16,7 @@ import {
   recordBlingProductSyncEventInRepository,
 } from '../bling.repository';
 import { mapBlingProductToCatalogInput } from './bling-product.mapper';
+import { resolveBlingProductMedia } from './bling-product-media.service';
 import type {
   BlingProductCategoryItem,
   BlingProductCategoryListResponse,
@@ -618,11 +620,23 @@ export async function runBlingProductSync(
           : undefined;
         const stockByProductId =
           preloaded?.stockByProductId ?? (await getStockByProducts([product]));
+        const existingImageUrls = await listIntegrationProductImageUrlsInRepository({
+          storeId,
+          externalProvider: 'bling',
+          externalId: String(product.id),
+        });
+        const media = await resolveBlingProductMedia({
+          storeId,
+          product,
+          existingImageUrls,
+          forceRefresh: summary.syncMode !== 'full',
+        });
         const mappedProduct = mapBlingProductToCatalogInput({
           storeId,
           product,
           categoryName,
           stockByProductId,
+          resolvedImageUrls: media.urls,
         });
         const result = await upsertIntegrationProductInRepository(mappedProduct);
 
@@ -653,7 +667,10 @@ export async function runBlingProductSync(
           status: mappedProduct.status,
           category: mappedProduct.category?.name,
           categoryLinked: result.categoryLinked,
-          imageFound: Boolean(mappedProduct.imageUrl),
+          imageFound: media.imagesFound > 0,
+          imagesFound: media.imagesFound,
+          imagesCopied: media.imagesCopied,
+          imageErrors: media.imageErrors,
           variants: mappedProduct.variants?.length ?? 1,
           stockItems: getBlingProductIds(product).filter((productId) =>
             stockByProductId.has(String(productId))

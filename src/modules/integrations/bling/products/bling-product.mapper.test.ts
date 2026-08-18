@@ -67,4 +67,34 @@ describe('mapBlingProductToCatalogInput', () => {
 
     expect(result.imageUrl).toBe(imageUrl);
   });
+
+  it('uses all permanent URLs resolved by the media service', () => {
+    const imageUrls = [
+      'https://project.supabase.co/storage/v1/object/public/product-images/one.webp',
+      'https://project.supabase.co/storage/v1/object/public/product-images/two.webp',
+    ];
+    const result = mapBlingProductToCatalogInput({
+      storeId: 'store-1',
+      product: baseProduct,
+      resolvedImageUrls: imageUrls,
+    });
+
+    expect(result.imageUrl).toBe(imageUrls[0]);
+    expect(result.imageUrls).toEqual(imageUrls);
+  });
+
+  it('converts Bling HTML descriptions to readable plain text', () => {
+    const result = mapBlingProductToCatalogInput({
+      storeId: 'store-1',
+      product: {
+        ...baseProduct,
+        descricaoCurta:
+          '<p>Peça DJI &amp; original<br>Pronta para uso.</p><ul><li>Item A</li><li>Item B</li></ul><script>alert(1)</script>',
+      },
+    });
+
+    expect(result.description).toBe(
+      'Peça DJI & original\nPronta para uso.\n• Item A\n• Item B'
+    );
+  });
 });
