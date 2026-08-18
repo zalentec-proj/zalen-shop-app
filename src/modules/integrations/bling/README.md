@@ -13,7 +13,8 @@ Status atual:
 - Envio beta de pedidos implementado com trava por loja e retry admin.
 - Webhook v1 implementado como validar, deduplicar, salvar e enfileirar.
 - Worker de webhooks implementado para produto/estoque, com retry seguro.
-- Supabase Cron implementado para processar webhooks e rodar sync incremental.
+- Supabase Cron implementado para processar webhooks, rodar sync incremental e
+  reconciliar diariamente produtos ausentes do Bling.
 
 Arquivos principais:
 
@@ -22,6 +23,8 @@ Arquivos principais:
 - `bling.repository.ts`: leitura/gravação de status por `storeId`.
 - `bling.service.ts`: orquestração server-side.
 - `products/`: sync de catálogo Bling para Supabase.
+- `products/bling-product-reconciliation.service.ts`: snapshot paginado dos
+  IDs da fonte e inativação segura de ausências.
 - `inventory/`: sync de estoque Bling para variantes Supabase.
 - `jobs/`: auth interna e sync agendado.
 - `orders/`: envio server-side de pedido com idempotência e trava por loja.

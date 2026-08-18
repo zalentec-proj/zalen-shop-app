@@ -21,6 +21,7 @@ type BlingIntegrationRow = {
 type BlingSyncJobStatus = 'pending' | 'running' | 'success' | 'error';
 type BlingSyncJobType =
   | 'product_sync'
+  | 'product_reconciliation'
   | 'inventory_sync'
   | 'order_send'
   | 'webhook_process';
@@ -546,7 +547,11 @@ async function completeBlingSyncJobInRepository(input: {
 async function recordBlingSyncEventInRepository(input: {
   storeId: string;
   environment: BlingEnvironment;
-  settingsKey: 'productSync' | 'inventorySync' | 'orderSend';
+  settingsKey:
+    | 'productSync'
+    | 'productReconciliation'
+    | 'inventorySync'
+    | 'orderSend';
   status: Exclude<BlingSyncJobStatus, 'pending'>;
   summary?: Record<string, unknown>;
   updateLastSyncAt?: boolean;
@@ -625,6 +630,48 @@ export async function recordBlingProductSyncEventInRepository(input: {
     ...input,
     settingsKey: 'productSync',
     updateLastSyncAt: input.updateLastSyncAt ?? true,
+  });
+}
+
+export async function hasRunningBlingProductReconciliationJobInRepository(
+  storeId: string
+) {
+  return hasRunningBlingSyncJobInRepository(storeId, 'product_reconciliation');
+}
+
+export async function createBlingProductReconciliationJobInRepository(input: {
+  storeId: string;
+  summary?: Record<string, unknown>;
+}) {
+  return createBlingSyncJobInRepository({
+    ...input,
+    jobType: 'product_reconciliation',
+  });
+}
+
+export async function completeBlingProductReconciliationJobInRepository(input: {
+  jobId: string;
+  storeId: string;
+  status: Exclude<BlingSyncJobStatus, 'pending' | 'running'>;
+  summary: Record<string, unknown>;
+  lastError?: string;
+}) {
+  return completeBlingSyncJobInRepository({
+    ...input,
+    jobType: 'product_reconciliation',
+  });
+}
+
+export async function recordBlingProductReconciliationEventInRepository(input: {
+  storeId: string;
+  environment: BlingEnvironment;
+  status: Exclude<BlingSyncJobStatus, 'pending'>;
+  summary?: Record<string, unknown>;
+}) {
+  return recordBlingSyncEventInRepository({
+    ...input,
+    settingsKey: 'productReconciliation',
+    updateLastSyncAt: false,
   });
 }
 

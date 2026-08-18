@@ -73,6 +73,18 @@ export interface MarkIntegrationProductInactiveInput {
   externalId: string;
 }
 
+export interface ReconcileIntegrationProductsInput {
+  storeId: string;
+  externalProvider: string;
+  sourceExternalIds: Iterable<string>;
+  snapshotStartedAt: string;
+}
+
+export interface ReconcileIntegrationProductsResult {
+  productsMissingFromSource: number;
+  productsInactivated: number;
+}
+
 export interface UpsertIntegrationCategoryInput {
   externalId: string;
   name: string;
@@ -1553,6 +1565,92 @@ export async function markIntegrationProductInactiveInRepository(
     persisted: false,
     source: 'supabase',
     error: 'integration-product-inactivate-failed',
+  };
+}
+
+const reconciliationUpdateBatchSize = 100;
+
+function chunkValues<T>(values: T[], size: number) {
+  const chunks: T[][] = [];
+
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+
+  return chunks;
+}
+
+/**
+ * Applies the absence reconciliation only after the caller completed a source
+ * snapshot. Records changed while that snapshot was being collected are left
+ * untouched, so a concurrent product sync can never be overwritten here.
+ */
+export async function reconcileIntegrationProductsInRepository(
+  input: ReconcileIntegrationProductsInput
+): Promise<ReconcileIntegrationProductsResult> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    throw new Error('supabase_admin_not_configured');
+  }
+  const sourceExternalIds = new Set(
+    Array.from(input.sourceExternalIds).filter((externalId) => externalId.trim())
+  );
+  const { data, error } = await supabase
+    .from('products')
+    .select('id, external_id')
+    .eq('store_id', input.storeId)
+    .eq('external_provider', input.externalProvider)
+    .eq('status', 'active')
+    .not('external_id', 'is', null)
+    .lt('updated_at', input.snapshotStartedAt);
+
+  if (error || !data) {
+    throw new Error('integration_product_reconciliation_lookup_failed');
+  }
+
+  const productIds = data
+    .filter(
+      (product) =>
+        typeof product.external_id === 'string' &&
+        !sourceExternalIds.has(product.external_id)
+    )
+    .map((product) => product.id)
+    .filter((productId): productId is string => typeof productId === 'string');
+
+  if (productIds.length === 0) {
+    return {
+      productsMissingFromSource: 0,
+      productsInactivated: 0,
+    };
+  }
+
+  let productsInactivated = 0;
+
+  for (const batch of chunkValues(productIds, reconciliationUpdateBatchSize)) {
+    const { data: updatedProducts, error: updateError } = await supabase
+      .from('products')
+      .update({
+        status: 'inactive',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('store_id', input.storeId)
+      .eq('external_provider', input.externalProvider)
+      .eq('status', 'active')
+      .lt('updated_at', input.snapshotStartedAt)
+      .in('id', batch)
+      .select('id');
+
+    if (updateError || !updatedProducts) {
+      throw new Error('integration_product_reconciliation_update_failed');
+    }
+
+    productsInactivated += updatedProducts.length;
+  }
+
+  return {
+    productsMissingFromSource: productIds.length,
+    productsInactivated,
   };
 }
 

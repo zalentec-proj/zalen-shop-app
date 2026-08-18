@@ -1,6 +1,6 @@
 # Pesquisa Técnica — Bling
 
-> Status: **App público / OAuth Ready / Product Sync v1 / Inventory Sync v1 / Order Send beta / Webhook worker v1 / Cron sync v1**
+> Status: **App público / OAuth Ready / Product Sync v1 / Inventory Sync v1 / Order Send beta / Webhook worker v1 / Cron sync + reconciliação de ausências v1**
 > Fontes oficiais consultadas: https://developer.bling.com.br
 
 ## Fonte oficial
@@ -160,6 +160,24 @@ Regras da v1:
   processados, sem payload bruto.
 - produto individual pode ser reprocessado pela rota interna usando `productId`
   numérico, mantendo chamada ao Bling server-side.
+
+### Reconciliação de produtos ausentes
+
+Webhook de exclusão é o caminho de baixa latência, mas não é a única garantia de
+consistência. Uma vez ao dia, a Zalen lê todas as páginas de `GET /produtos`,
+sem filtro incremental, para formar um snapshot dos IDs externos existentes no
+Bling. Somente depois que a leitura termina com sucesso, produtos locais
+`active` ligados ao Bling e ausentes desse snapshot passam para `inactive`.
+
+- a rotina não apaga produto, variante, imagem, pedido ou histórico;
+- resposta sem `data`, ID ausente, ID duplicado, página repetida, timeout ou
+  outro erro encerram o job sem inativar nada;
+- registros modificados no Supabase depois do início do snapshot não são
+  tocados, evitando sobrescrever um sync concorrente;
+- a execução fica em `sync_jobs` como `product_reconciliation` e grava resumo
+  sanitizado em `store_integrations.settings_json.productReconciliation`;
+- o snapshot de ausências não substitui o sync incremental: ele não atualiza
+  preço, estoque, imagens ou categorias.
 
 ### Mídia do catálogo Brasil Drones
 
@@ -400,6 +418,9 @@ Regras:
 - o sync incremental geral roda uma vez por hora como camada de reconciliação e
   contingência do webhook. Catálogo e estoque normalmente chegam pelo webhook,
   mas podem levar até uma hora quando dependerem desse fallback;
+- a reconciliação diária de ausências roda às 06:15 UTC (03:15 BRT), chama a
+  rota interna protegida `/api/jobs/bling/products/reconcile` e só revalida o
+  catálogo quando algum produto foi efetivamente inativado;
 - as rotas de sync e de processamento de webhooks só invalidam o cache público
   quando produtos, estoque ou inativações foram efetivamente processados;
 - em 2026-07-20 o servidor `Zalen Shop Produção` foi salvo no aplicativo público

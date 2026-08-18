@@ -47,6 +47,8 @@ está aprovado/publicado no Bling.
   pública do Bling.
 - Supabase Cron para processar webhooks pendentes e rodar sync incremental de
   segurança a cada 10 minutos.
+- Reconciliação diária de ausências: snapshot completo e paginado dos IDs de
+  produtos do Bling antes de inativar registros locais ausentes.
 - Admin do Bling com ação manual para processar pendências de webhook.
 
 ## Rotas
@@ -352,6 +354,10 @@ Regras implementadas:
 - para cada loja, roda sync incremental de produtos e sync de estoque;
 - jobs simultâneos continuam bloqueados pelos serviços existentes de produto e
   estoque.
+- uma vez por dia, o job de reconciliação lê todo o catálogo sem filtro de
+  alteração; falha, resposta malformada ou repetição de página impedem qualquer
+  inativação. Em sucesso, apenas produtos Bling ativos ausentes do snapshot e
+  sem alteração durante a leitura passam para `inactive`.
 
 ## Próximas etapas
 

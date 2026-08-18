@@ -24,6 +24,31 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
+- Em 2026-08-18 foi implementada a reconciliação automática de ausências do
+  catálogo Bling. O job diário consulta todas as páginas de `GET /produtos` e
+  só então inativa registros locais `active` cujo `external_id` não apareceu no
+  snapshot. Falha de rede, resposta sem lista, ID inválido, duplicidade ou
+  repetição de página encerra o job sem alterar produto algum. Produtos
+  atualizados após o início da leitura também são preservados para não competir
+  com o sync incremental/webhook. A auditoria fica em `sync_jobs` com
+  `job_type = product_reconciliation` e em
+  `store_integrations.settings_json.productReconciliation`.
+
+  A rota interna protegida é
+  `/api/jobs/bling/products/reconcile`; a migration
+  `20260818193356_bling_product_reconciliation_schedule.sql` a agenda para
+  06:15 UTC (03:15 BRT). Os testes locais cobrem snapshot paginado, página
+  repetida e falha parcial sem inativação. TypeScript, 132 testes, build,
+  scanner de segredos, `git diff --check` e auditoria npm sem vulnerabilidades
+  altas/críticas passaram. A migration ainda deve ser aplicada depois que o
+  código for publicado.
+
+  Antes dessa migration, os três timestamps divergentes do histórico local de
+  migrations foram comparados ao schema remoto e alinhados aos registros já
+  aplicados (`20260721104839`, `20260724173855` e `20260813114549`), sem rodar
+  SQL ou alterar dados. `supabase migration list --linked` ficou sem
+  divergências.
+
 - Em 2026-08-18 foi reparado o vínculo das imagens do lote legado da Brasil
   Drones. O Bling devolvia as mídias internas como URLs S3 assinadas e
   temporárias; elas expiraram e fizeram Admin e storefront exibirem o fallback.
@@ -664,13 +689,18 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Objetivo atual
 
-Acompanhar o primeiro pedido novo pago enviado automaticamente ao Bling pela
-Brasil Drones, confirmando criação única e ausência de erro. Configurar e validar
-o webhook Bling na conta criadora do aplicativo Zalen, substituindo a
-contingência temporária de polling. Preservar em paralelo os bloqueios e
-validações pendentes do Mercado Pago, domínios e compatibilidade descritos abaixo.
+Publicar e observar a primeira execução da reconciliação automática de produtos
+ausentes do Bling. O sync incremental e os webhooks continuam sendo o caminho
+rápido; a varredura diária é a proteção contra exclusões cujo webhook não foi
+entregue ou processado.
 
 ## Em andamento
+
+A reconciliação automática está pronta localmente e aguardando publicação do
+código seguida da aplicação da migration de agenda. Ela não deve ser disparada
+manualmente em produção antes da rota estar disponível; o primeiro cron diário
+deve registrar `product_reconciliation` com snapshot completo e zero
+inativações para o catálogo atual de 556 itens ativos.
 
 A correção `enable-jwt: 1`, a resolução de referências de contato/produto e a
 rotação segura de chave estão publicadas. A homologação de pedido criou e depois
@@ -703,15 +733,16 @@ exclusivamente server-side e a habilitação permanece restrita à allowlist.
 
 ## Próximo passo exato
 
-0. Acompanhar o próximo pedido novo pago da Brasil Drones e confirmar que o
+0. Publicar o código, confirmar que a rota
+   `/api/jobs/bling/products/reconcile` responde como endpoint interno e só
+   então aplicar `20260818193356_bling_product_reconciliation_schedule.sql`.
+1. Após 06:15 UTC do dia seguinte, conferir o último `sync_jobs` de
+   `product_reconciliation`: status `success`, snapshot completo e nenhuma
+   inativação inesperada. Se houver erro, investigar o código seguro sem repetir
+   a baixa manualmente.
+2. Acompanhar o próximo pedido novo pago da Brasil Drones e confirmar que o
    webhook produtivo permanece HTTP 200 e que o pedido foi criado uma única vez
    no Bling, com `external_erp_sync_status = synced`.
-1. Gerar uma alteração controlada no produto de teste do Bling e confirmar no
-   painel Zalen o primeiro webhook assinado válido de produto; depois repetir
-   com estoque e conferir processamento sem erro ou duplicidade.
-2. Acompanhar o uso da Vercel por 24 horas após a migration de otimização. Em
-   repouso, webhooks Bling e reconciliação Mercado Pago não devem gerar chamadas;
-   apenas o sync incremental Bling horário deve permanecer.
 
 ### Pendências paralelas já registradas
 
