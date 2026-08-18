@@ -8,7 +8,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-08-18
 - Branch: `refactor/migrate-to-next`
-- Commit funcional base: `f082981` — `fix: finalize catalog restoration safeguards`
+- Commit funcional base: `6399b7b` — `fix: reject temporary Bling catalog images`
 - A publicação e a restauração seletiva de imagens/compatibilidades devem ser
   conferidas no bloco mais recente antes de iniciar uma nova frente.
   Preserve os scripts locais não rastreados que não pertencem a esta frente.
@@ -23,6 +23,29 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Última mudança conhecida
+
+- Em 2026-08-18 foi concluído o reparo das imagens temporárias do catálogo
+  legado. A API do Bling devolvia mídia interna como URLs S3 assinadas com
+  `AWSAccessKeyId`, `Expires` e `Signature`; a sincronização antiga persistiu
+  esses endereços como se fossem permanentes. Havia 78 produtos nesse estado,
+  76 URLs já expiradas, 39 produtos ativos e 36 ativos com estoque.
+
+  O commit `6399b7b` centralizou a detecção dessas URLs e passou a descartá-las
+  tanto no adapter server-side quanto no componente visual antes da primeira
+  renderização. O deployment produtivo
+  `dpl_4qUsSHMWrkpWjSCVe7UtM9GDCW9i` ficou `READY`. A auditoria encontrou 25
+  correspondências únicas por nome normalizado com produtos do catálogo
+  permanente e zero correspondências ambíguas. Uma transação atômica removeu
+  25 linhas temporárias e copiou 63 imagens permanentes do Storage para esses
+  25 produtos, sem alterar produtos, variantes, estoque, preços ou pedidos.
+
+  Restaram 53 produtos legados com a referência temporária preservada apenas
+  para auditoria; 24 estão ativos e com estoque. No storefront, eles recebem o
+  fallback local antes de qualquer requisição ao S3. A verificação final
+  confirmou 679 produtos, 679 variantes, 594 ativos, 597 produtos com imagens
+  permanentes e 1.488 linhas permanentes. O navegador confirmou zero imagens
+  quebradas, zero URL temporária no DOM, fallback local carregado e nenhuma
+  mensagem de erro no console.
 
 - Em 2026-08-18 o aviso público de desconto PJ recebeu espaçamento responsivo
   compatível com as duas linhas do cabeçalho desktop. Em telas `xl`, a faixa
