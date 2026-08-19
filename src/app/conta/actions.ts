@@ -288,9 +288,11 @@ export async function customerOtpAction(
     };
   }
 
+  let delivery: Awaited<ReturnType<typeof requestCustomerLoginCode>>;
+
   try {
     const store = await resolveCurrentStoreFromHeaders();
-    await requestCustomerLoginCode({
+    delivery = await requestCustomerLoginCode({
       storeId: store.id,
       storeName: store.name,
       email: parsed.data.email,
@@ -316,7 +318,9 @@ export async function customerOtpAction(
         ? onlyDigits(registration.data.document)
         : undefined,
     },
-    message: 'Enviamos um código de acesso para o seu e-mail.',
+    message: delivery.whatsappQueued
+      ? 'Enviamos o mesmo código de acesso para seu e-mail e WhatsApp confirmado.'
+      : 'Enviamos um código de acesso para o seu e-mail.',
   };
 }
 

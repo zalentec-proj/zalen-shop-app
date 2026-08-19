@@ -840,7 +840,7 @@ export async function requestCheckoutEmailCodeAction(
   try {
     const store = await resolveCurrentStoreFromHeaders();
 
-    await requestCustomerLoginCode({
+    const delivery = await requestCustomerLoginCode({
       storeId: store.id,
       storeName: store.name,
       email,
@@ -851,7 +851,9 @@ export async function requestCheckoutEmailCodeAction(
     return {
       ok: true,
       email,
-      message: 'Enviamos um código para validar seu e-mail.',
+      message: delivery.whatsappQueued
+        ? 'Enviamos o mesmo código para seu e-mail e WhatsApp confirmado.'
+        : 'Enviamos um código para validar seu e-mail.',
     };
   } catch (error) {
     return {
@@ -987,7 +989,7 @@ export async function requestCheckoutAccountCodeAction(
 
     return {
       ok: true,
-      message: 'Se houver uma conta correspondente, enviaremos um código para o e-mail cadastrado.',
+      message: 'Se houver uma conta correspondente, enviaremos o código pelos canais confirmados.',
     };
   } catch (error) {
     return {

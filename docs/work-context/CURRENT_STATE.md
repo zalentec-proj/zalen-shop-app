@@ -79,6 +79,18 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   `cedeb6f` enviado ao branch padrão (deployment em andamento no momento do
   handoff).
 
+- No teste do checkout em 2026-08-19, o WhatsApp recebeu com atraso um código
+  de confirmação de telefone, que pertence a outro desafio e, portanto, não
+  pode validar o OTP de login emitido pelo Supabase. O serviço de login foi
+  ajustado para usar a preferência de WhatsApp já verificada e com opt-in como
+  critério de elegibilidade, sem exigir novamente que o vínculo `authUserId`
+  esteja preenchido no mesmo registro de cliente. Assim, quando elegível, o
+  mesmo OTP recém-emitido segue para e-mail e WhatsApp. As telas de conta e
+  checkout agora confirmam explicitamente se o segundo canal foi enfileirado;
+  mensagens genéricas de busca de conta não revelam a existência do cadastro.
+  Não reutilizar códigos anteriores: sempre solicitar um novo código após o
+  deploy desta correção.
+
 - Em 2026-08-19, os cards de produto passaram a apresentar uma etiqueta
   prioritária e visível de `Sem estoque` no canto superior da imagem, tanto em
   desktop quanto em mobile. A etiqueta substitui o aviso discreto anterior no

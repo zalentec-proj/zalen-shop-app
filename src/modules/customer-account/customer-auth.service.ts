@@ -101,11 +101,13 @@ export async function requestCustomerLoginCode(input: {
     },
   });
 
-  // WhatsApp complements the e-mail after the customer has an established,
-  // authenticated account and explicitly opted into transactional messages.
-  // It never becomes the first-account authentication channel.
+  // WhatsApp complements the e-mail only when this same customer has a
+  // previously confirmed and opted-in phone. The preference is created from an
+  // authenticated account flow, so requiring authUserId again would incorrectly
+  // exclude already verified customer records that were linked later.
+  // WhatsApp never becomes the first-account authentication channel.
   const customer = await findCustomerByEmail({ storeId: input.storeId, email });
-  const whatsappDelivery = customer?.authUserId
+  const whatsappDelivery = customer
     ? await enqueueLoginCodeViaWhatsApp({
         storeId: input.storeId,
         customerId: customer.id,
