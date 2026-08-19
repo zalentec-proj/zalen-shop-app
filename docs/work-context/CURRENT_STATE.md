@@ -108,6 +108,19 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   é precisa: informa e-mail e WhatsApp quando a entrega complementar foi
   enfileirada, ou somente e-mail quando não há preferência elegível.
 
+- Em 2026-08-19, um novo teste deslogado com uma conta já configurada não criou
+  entrega WhatsApp. A auditoria de produção confirmou um único cliente para a
+  conta, vínculo com Auth, telefone confirmado e opt-in transacional ativo; também
+  confirmou integração conectada, notificações globais ativas e worker com
+  respostas HTTP 200. A causa foi exclusivamente operacional: o array
+  `enabledEvents` havia sido salvo sem `access_code`, mantendo apenas
+  `order_received` e `operator_payment_approved`. O evento `access_code` foi
+  reativado diretamente na configuração da integração Brasil Drones, sem
+  alterar os demais eventos e sem disparar um OTP durante a correção. O próximo
+  teste deve solicitar um código novo; a evidência esperada é uma única linha
+  `customer_login` na fila, seguida de `accepted`/`delivered`, sempre com o
+  mesmo OTP enviado pelo e-mail.
+
 - A revisão final de QA do WhatsApp em 2026-08-19 encontrou e corrigiu riscos
   que ainda impediam considerar a entrega pronta: workers concorrentes podiam
   reivindicar a mesma linha; códigos permaneciam legíveis na fila; eventos
