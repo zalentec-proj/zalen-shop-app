@@ -54,6 +54,8 @@ const serverEnvSchema = z.object({
   SUPERFRETE_USER_AGENT: optionalSecretString,
   ENABLE_MANUAL_SHIPPING_FALLBACK: optionalSecretString,
   GEMINI_API_KEY: optionalSecretString,
+  EVOLUTION_API_BASE_URL: z.string().trim().url().optional(),
+  EVOLUTION_API_GLOBAL_API_KEY: optionalSecretString,
 });
 
 type ServerEnv = z.infer<typeof serverEnvSchema>;
@@ -178,6 +180,10 @@ function parseServerEnv(): ServerEnv {
       process.env.ENABLE_MANUAL_SHIPPING_FALLBACK
     ),
     GEMINI_API_KEY: normalizeEnvValue(process.env.GEMINI_API_KEY),
+    EVOLUTION_API_BASE_URL: normalizeEnvValue(process.env.EVOLUTION_API_BASE_URL),
+    EVOLUTION_API_GLOBAL_API_KEY: normalizeEnvValue(
+      process.env.EVOLUTION_API_GLOBAL_API_KEY
+    ),
   });
 
   if (!result.success) {

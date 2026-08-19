@@ -14,6 +14,7 @@ import {
   getStoreByIdFromRepository,
 } from '@/modules/stores/store.repository';
 import { sendPaymentStatusStoreEmail } from '@/modules/email/store-transactional-email.service';
+import { enqueueOrderWhatsAppNotification } from '@/modules/integrations/evolution-whatsapp/evolution-whatsapp.service';
 import { dispatchPurchaseMarketingEvent } from '@/modules/marketing/marketing.service';
 import {
   getOrderByIdFromRepository,
@@ -410,6 +411,7 @@ export async function processMercadoPagoPaymentUpdate(input: {
       order,
       status: 'approved',
     }).catch(() => undefined);
+    await enqueueOrderWhatsAppNotification({ storeId: input.storeId, storeName: store.shortName, order, eventKey: 'payment_approved' }).catch(() => undefined);
   } else if (mapping.orderPaymentStatus === 'pending' && input.source !== 'poll') {
     await sendPaymentStatusStoreEmail({
       storeId: input.storeId,
@@ -417,6 +419,7 @@ export async function processMercadoPagoPaymentUpdate(input: {
       order,
       status: 'pending',
     }).catch(() => undefined);
+    await enqueueOrderWhatsAppNotification({ storeId: input.storeId, storeName: store.shortName, order, eventKey: 'payment_pending', idempotencySuffix: payment.id }).catch(() => undefined);
   } else if (mapping.orderPaymentStatus === 'failed') {
     await sendPaymentStatusStoreEmail({
       storeId: input.storeId,
@@ -424,6 +427,7 @@ export async function processMercadoPagoPaymentUpdate(input: {
       order,
       status: 'failed',
     }).catch(() => undefined);
+    await enqueueOrderWhatsAppNotification({ storeId: input.storeId, storeName: store.shortName, order, eventKey: 'payment_failed', idempotencySuffix: payment.id }).catch(() => undefined);
   }
 
   return {

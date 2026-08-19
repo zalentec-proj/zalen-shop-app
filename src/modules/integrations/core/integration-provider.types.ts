@@ -11,7 +11,8 @@ export type IntegrationProviderCategory =
   | 'shipping'
   | 'sales_channel'
   | 'ai'
-  | 'analytics';
+  | 'analytics'
+  | 'communication';
 
 export type IntegrationProviderStatus =
   | 'planned'

@@ -12,6 +12,7 @@ import { sendShipmentTrackingStoreEmail } from '@/modules/email/store-transactio
 import { upsertManualShipment } from '@/modules/shipping/shipment.service';
 import type { ShipmentStatus } from '@/modules/shipping/shipment.types';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
+import { enqueueShipmentWhatsAppNotification } from '@/modules/integrations/evolution-whatsapp/evolution-whatsapp.service';
 
 const writableStoreRoles: StoreRole[] = [
   'store_owner',
@@ -130,6 +131,13 @@ export async function upsertOrderShipmentAction(formData: FormData) {
     storeName: store.shortName,
     order,
     shipment,
+  }).catch(() => undefined);
+  await enqueueShipmentWhatsAppNotification({
+    storeId: store.id,
+    storeName: store.shortName,
+    order,
+    shipmentStatus: shipment.status,
+    trackingUrl: shipment.trackingUrl,
   }).catch(() => undefined);
 
   revalidatePath('/admin');

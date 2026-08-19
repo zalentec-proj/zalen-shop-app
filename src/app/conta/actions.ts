@@ -17,6 +17,12 @@ import {
 } from '@/modules/customer-account/customer-auth.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 import { getRateLimitErrorMessage } from '@/modules/security/rate-limit.service';
+import {
+  confirmCustomerWhatsAppVerification,
+  requestCustomerWhatsAppVerification,
+} from '@/modules/integrations/evolution-whatsapp/evolution-whatsapp.service';
+
+export type WhatsAppContactState = { step?: 'phone' | 'code'; phone?: string; error?: string; message?: string };
 
 export type CustomerAuthState = {
   step: 'email' | 'code';
@@ -408,4 +414,27 @@ export async function updateBusinessProfileAction(
     ok: true,
     message: 'Dados empresariais atualizados. O benefício PJ já pode ser recalculado.',
   };
+}
+
+export async function updateWhatsAppContactAction(_previousState: WhatsAppContactState, formData: FormData): Promise<WhatsAppContactState> {
+  const supabase = await createOptionalClient();
+  const { data } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+  if (!data.user) return { error: 'Entre novamente para atualizar seu WhatsApp.' };
+  const store = await resolveCurrentStoreFromHeaders();
+  const customer = await findCustomerByAuthUserId({ storeId: store.id, authUserId: data.user.id });
+  if (!customer) return { error: 'Não foi possível localizar sua conta nesta loja.' };
+  const phone = formValue(formData, 'phone');
+  const optedIn = formData.get('optedIn') === 'on';
+  const intent = formValue(formData, 'intent');
+  try {
+    if (intent === 'confirm') {
+      await confirmCustomerWhatsAppVerification({ storeId: store.id, customerId: customer.id, phone, code: formValue(formData, 'code'), optedIn });
+      revalidatePath('/conta');
+      return { step: 'phone', phone, message: 'WhatsApp confirmado. Você pode desativar as mensagens a qualquer momento.' };
+    }
+    await requestCustomerWhatsAppVerification({ storeId: store.id, customerId: customer.id, phone, storeName: store.shortName });
+    return { step: 'code', phone, message: 'Enviamos um código para seu WhatsApp.' };
+  } catch (error) {
+    return { step: intent === 'confirm' ? 'code' : 'phone', phone, error: error instanceof Error && error.message === 'invalid_whatsapp_phone' ? 'Informe um telefone WhatsApp válido.' : 'Não foi possível confirmar este WhatsApp agora.' };
+  }
 }

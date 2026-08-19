@@ -66,6 +66,23 @@
 
 ---
 
+## Evolution API — WhatsApp
+
+| Recurso | URL |
+|---|---|
+| Criar instância | https://docs.evolutionfoundation.com.br/en/evolution-api/create-instance |
+| Estado da conexão | https://docs.evolutionfoundation.com.br/evolution-api/get-connection-state |
+| Enviar texto | https://docs.evolutionfoundation.com.br/evolution-api/send-text-message |
+| Configurar webhook | https://docs.evolutionfoundation.com.br/evolution-api/set-webhook |
+
+**Notas:**
+- A URL e a chave global pertencem à plataforma e ficam exclusivamente no ambiente server-side.
+- Cada loja vincula uma única instância em `store_integrations`; QR Code nunca é persistido.
+- Webhooks precisam de segredo exclusivo por integração, idempotência e payload sanitizado.
+- A versão efetivamente instalada precisa ser registrada na pesquisa técnica antes de ativar o envio.
+
+---
+
 ## ViaCEP
 
 | Recurso | URL |

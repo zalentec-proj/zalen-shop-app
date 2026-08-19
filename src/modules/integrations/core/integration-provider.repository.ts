@@ -34,6 +34,7 @@ const providerCategories: IntegrationProviderCategory[] = [
   'sales_channel',
   'ai',
   'analytics',
+  'communication',
 ];
 
 const providerStatuses: IntegrationProviderStatus[] = [
@@ -46,6 +47,17 @@ const providerStatuses: IntegrationProviderStatus[] = [
 const fallbackDate = new Date(0).toISOString();
 
 export const mockIntegrationProviders: IntegrationProvider[] = [
+  {
+    id: 'provider-evolution-whatsapp',
+    key: 'evolution_whatsapp',
+    name: 'WhatsApp',
+    category: 'communication',
+    status: 'beta',
+    description:
+      'Mensagens transacionais por loja via Evolution API, com conexão protegida por QR Code.',
+    createdAt: fallbackDate,
+    updatedAt: fallbackDate,
+  },
   {
     id: 'provider-bling',
     key: 'bling',

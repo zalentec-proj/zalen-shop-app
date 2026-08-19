@@ -226,6 +226,7 @@ const providerCategoryLabel: Record<IntegrationProviderCategory, string> = {
   sales_channel: 'Canal',
   ai: 'IA',
   analytics: 'Analytics',
+  communication: 'Comunicação',
 };
 
 const providerStatusLabel: Record<IntegrationProviderStatus, string> = {
@@ -411,6 +412,10 @@ function integrationActionLabel(item: StoreIntegrationListItem) {
 function integrationActionHref(item: StoreIntegrationListItem) {
   if (item.provider.key === 'bling') {
     return '/admin/integracoes/bling';
+  }
+
+  if (item.provider.key === 'evolution_whatsapp') {
+    return '/admin/integracoes/whatsapp';
   }
 
   return null;

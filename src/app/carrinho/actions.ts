@@ -56,6 +56,7 @@ import {
   resolveCheckoutPricing,
 } from '@/modules/pricing/pricing.service';
 import { sendOrderReceivedStoreEmail } from '@/modules/email/store-transactional-email.service';
+import { enqueueOrderWhatsAppNotification } from '@/modules/integrations/evolution-whatsapp/evolution-whatsapp.service';
 import {
   enforceRateLimit,
   getRateLimitFailureCode,
@@ -1549,6 +1550,13 @@ export async function checkoutCartAction(
       storeName: store.shortName,
       order,
       baseUrl,
+    }).catch(() => undefined);
+
+    await enqueueOrderWhatsAppNotification({
+      storeId: store.id,
+      storeName: store.shortName,
+      order,
+      eventKey: 'order_received',
     }).catch(() => undefined);
 
     return buildMercadoPagoStartResult({

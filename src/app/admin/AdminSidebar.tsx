@@ -10,6 +10,7 @@ import {
   Database,
   LayoutGrid,
   Menu,
+  MessageCircle,
   Megaphone,
   Package2,
   PanelLeftClose,
@@ -34,6 +35,7 @@ export type AdminSidebarKey =
   | 'marketplaces'
   | 'integrations'
   | 'bling'
+  | 'whatsapp'
   | 'marketing'
   | 'payments'
   | 'pricing'
@@ -161,6 +163,13 @@ function buildSidebarGroups(counts?: AdminSidebarCounts): AdminSidebarGroup[] {
           icon: Database,
           count: counts?.primaryErp ?? 'ERP',
           href: '/admin/integracoes/bling',
+        },
+        {
+          key: 'whatsapp',
+          label: 'WhatsApp',
+          icon: MessageCircle,
+          count: 'Msg',
+          href: '/admin/integracoes/whatsapp',
         },
         {
           key: 'marketing',

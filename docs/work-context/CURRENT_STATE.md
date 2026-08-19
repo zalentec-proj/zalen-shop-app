@@ -24,6 +24,47 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
+- Em 2026-08-19 foi implementada localmente a integração transacional de
+  WhatsApp por loja com Evolution API. Ela usa o provider global
+  `evolution_whatsapp`, uma integração de produção por `store_id`, QR Code
+  efêmero no Admin e uma fila idempotente para notificações de pedido,
+  pagamento e envio. A URL e a chave global nunca entram no frontend, no banco
+  ou no Git; o segredo de webhook é exclusivo por loja e criptografado no cofre
+  já existente. O cliente só recebe mensagens depois de confirmar o telefone
+  em "Minha conta" e optar pelas mensagens transacionais. O e-mail continua
+  obrigatório no primeiro vínculo; para contas já autenticadas e com opt-in,
+  o mesmo OTP também é enviado imediatamente pelo WhatsApp.
+
+  A VPS central foi inspecionada sem expor segredos: Evolution API `2.3.7`,
+  imagem `evoapicloud/evolution-api:latest`, volume persistente em
+  `/evolution/instances` e instância existente `brasil_drones` no estado
+  `open`. Ela deve ser vinculada pelo Admin, não recriada. O webhook ainda não
+  estava configurado na instância. A pesquisa técnica está em
+  `docs/integrations/evolution-whatsapp-research.md`.
+
+  A migration `20260819210003_whatsapp_evolution_integration.sql` foi aplicada
+  ao projeto Supabase de produção `xtwobxfepsdfjrtducqb`. Ela cria
+  preferências/validação de contato, fila, auditoria de webhook, provider, RLS
+  de service role e cron de entregas a cada cinco minutos; o provider e as
+  quatro tabelas com RLS foram conferidos após a aplicação. O advisor de
+  segurança não apontou regressão nesta frente; permanece apenas o aviso
+  preexistente de proteção contra senhas vazadas desativada no Supabase Auth.
+
+  `EVOLUTION_API_BASE_URL` e `EVOLUTION_API_GLOBAL_API_KEY` foram salvas como
+  segredos criptografados na Vercel; a chave global também ficou disponível em
+  Preview e deve ser restrita a Production antes da liberação final. Nunca
+  registrar os valores dessas variáveis neste arquivo. O deployment feito em
+  2026-08-19 está `Ready`, mas a tela de integrações revelou uma correção local
+  pendente de publicação: o normalizador de providers convertia a categoria
+  `communication` para `erp` e o card WhatsApp não abria sua rota própria. A
+  correção já está implementada e validada. Depois de publicá-la, vincular a
+  instância existente `brasil_drones`, salvar telefone operacional, configurar
+  o webhook e realizar o teste.
+  Validações locais concluídas: `npm run lint` e `npm test` (140 testes). O
+  build compilou e passou no TypeScript, mas a execução nesta sessão não
+  retornou após a etapa de coleta de dados; repetir `npm run build` antes do
+  deploy.
+
 - Em 2026-08-19, os cards de produto passaram a apresentar uma etiqueta
   prioritária e visível de `Sem estoque` no canto superior da imagem, tanto em
   desktop quanto em mobile. A etiqueta substitui o aviso discreto anterior no

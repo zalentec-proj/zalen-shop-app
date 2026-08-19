@@ -4,6 +4,8 @@ import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { renderCustomerLoginCodeEmail } from '@/modules/email/email.templates';
 import { sendStoreEmail } from '@/modules/email/email.service';
 import { enforceRateLimit } from '@/modules/security/rate-limit.service';
+import { findCustomerByEmail } from '@/modules/customers/customer.service';
+import { enqueueLoginCodeViaWhatsApp } from '@/modules/integrations/evolution-whatsapp/evolution-whatsapp.service';
 import { linkOrCreateCustomerAccount } from './customer-account.service';
 
 type SupabaseGenerateLinkData = {
@@ -99,7 +101,21 @@ export async function requestCustomerLoginCode(input: {
     },
   });
 
-  if (!emailResult.ok) {
+  // WhatsApp complements the e-mail after the customer has an established,
+  // authenticated account and explicitly opted into transactional messages.
+  // It never becomes the first-account authentication channel.
+  const customer = await findCustomerByEmail({ storeId: input.storeId, email });
+  const whatsappDelivery = customer?.authUserId
+    ? await enqueueLoginCodeViaWhatsApp({
+        storeId: input.storeId,
+        customerId: customer.id,
+        storeName: input.storeName,
+        code,
+        idempotencyKey: `customer-login-whatsapp:${input.storeId}:${customer.id}:${code}`,
+      }).catch(() => null)
+    : null;
+
+  if (!emailResult.ok && !whatsappDelivery) {
     throw new Error(
       `customer_login_email_not_sent:${emailResult.errorCode ?? emailResult.status}`
     );
@@ -108,6 +124,8 @@ export async function requestCustomerLoginCode(input: {
   return {
     email,
     next,
+    emailSent: emailResult.ok,
+    whatsappQueued: Boolean(whatsappDelivery),
   };
 }
 

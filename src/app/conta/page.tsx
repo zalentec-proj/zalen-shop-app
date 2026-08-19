@@ -13,6 +13,7 @@ import { noindexMetadata } from '@/modules/seo/seo.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 import CustomerAccountHeader from './CustomerAccountHeader';
 import BusinessProfileForm from './BusinessProfileForm';
+import WhatsAppContactForm from './WhatsAppContactForm';
 
 export const metadata: Metadata = {
   title: 'Minha conta — Brasil Drones & Parts',
@@ -127,6 +128,8 @@ export default async function CustomerAccountPage() {
         {account?.customer ? (
           <BusinessProfileForm customer={account.customer} />
         ) : null}
+
+        {account?.customer ? <WhatsAppContactForm /> : null}
 
         <section className="rounded-2xl border border-brand-border bg-[#090E17]/90 p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
