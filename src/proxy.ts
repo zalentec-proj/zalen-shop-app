@@ -210,7 +210,9 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  const cookieDomain = getAuthCookieDomain();
+  const cookieDomain = getAuthCookieDomain(
+    getRequestHost(request.headers, request.nextUrl.host)
+  );
   const supabase = createServerClient(supabaseUrl, supabasePublishableKey, {
     ...(cookieDomain ? { cookieOptions: { domain: cookieDomain } } : {}),
     cookies: {

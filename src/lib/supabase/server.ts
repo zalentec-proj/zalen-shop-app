@@ -8,8 +8,9 @@ import 'server-only';
 
 import { createServerClient } from '@supabase/ssr';
 import { createClient as createSupabaseJsClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { getAuthCookieDomain } from '@/lib/auth/cookie-domain';
+import { getRequestHost } from '@/modules/stores/host-resolution';
 import {
   getServerEnv,
   isSupabaseAdminConfigured,
@@ -23,8 +24,8 @@ export async function createClient() {
     throw new Error('Supabase server environment is not configured.');
   }
 
-  const cookieStore = await cookies();
-  const authCookieDomain = getAuthCookieDomain();
+  const [cookieStore, requestHeaders] = await Promise.all([cookies(), headers()]);
+  const authCookieDomain = getAuthCookieDomain(getRequestHost(requestHeaders));
   const cookieOptions = authCookieDomain
     ? { domain: authCookieDomain }
     : undefined;
