@@ -135,8 +135,8 @@ export default function CategoryProductSections({
           ? findCategorySlug(categories, definition.categoryCandidates)
           : undefined;
         const matchedProducts = products.filter((product) => {
-          if (categorySlug && productMatchesCategory(product, categories, categorySlug)) {
-            return true;
+          if (categorySlug) {
+            return productMatchesCategory(product, categories, categorySlug);
           }
 
           return productMatchesTerms(product, definition.terms);

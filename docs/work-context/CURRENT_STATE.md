@@ -24,6 +24,21 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
+- Em 2026-08-19 foi corrigida a seleção da vitrine "Drones" da home. Quando
+  uma seção possui categoria sincronizada, a vitrine agora usa exclusivamente
+  seus vínculos de categoria e descendentes, sem complementar por palavras do
+  título/descrição. Isso impedia que hélices, placas e outras peças cujo nome
+  contém "drone" aparecessem como se fossem aeronaves. A categoria Bling
+  `Semi novos` já possui o produto SKU `1251` vinculado; `Novos` está criada
+  como filha de `Drones`, mas ainda não possui produto vinculado no Bling.
+  A navegação editorial `Drones` também foi ajustada no banco da loja para
+  expandir os filhos vindos do Bling, exibindo `Novos` e `Semi novos` no menu.
+  Nenhum produto, preço, estoque, pedido ou categoria no Bling foi alterado.
+  Validações locais: TypeScript, 140 testes, build de produção e
+  `git diff --check` aprovados. A mudança de código ainda precisa de commit e
+  publicação para alcançar o storefront; a alteração de navegação já está
+  persistida para a loja Brasil Drones.
+
 - Em 2026-08-19 foi simplificado o menu desktop de categorias do storefront.
   O item `Categorias` agora abre apenas por clique um dropdown compacto,
   acessível por teclado e fechado por clique externo ou `Esc`. O antigo
