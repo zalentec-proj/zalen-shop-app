@@ -979,7 +979,7 @@ export async function requestCheckoutAccountCodeAction(
   }
 
   try {
-    await requestCustomerLoginCode({
+    const delivery = await requestCustomerLoginCode({
       storeId: store.id,
       storeName: store.name,
       email,
@@ -989,7 +989,9 @@ export async function requestCheckoutAccountCodeAction(
 
     return {
       ok: true,
-      message: 'Se houver uma conta correspondente, enviaremos o código pelos canais confirmados.',
+      message: delivery.whatsappQueued
+        ? 'Enviamos o mesmo código para o e-mail e WhatsApp confirmado.'
+        : 'Enviamos o código para o e-mail cadastrado.',
     };
   } catch (error) {
     return {

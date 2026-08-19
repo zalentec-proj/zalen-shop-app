@@ -2044,6 +2044,8 @@ export default function CartClient({ customerSession }: Props) {
                         Encontramos um cadastro para os dados informados. Para
                         proteger seus dados salvos, confirme o código enviado
                         para {accountValidation.emailHint ?? 'o e-mail cadastrado'}.
+                        Se o WhatsApp estiver confirmado, ele recebe o mesmo
+                        código junto com o e-mail.
                       </p>
                     </div>
 

@@ -102,6 +102,11 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   verificada em produção: não restaram linhas aceitas/na fila e o índice de
   busca passou a cobrir somente `queued`.
 
+- A etapa de validação de conta no checkout explica que o WhatsApp confirmado
+  recebe o mesmo código do e-mail. Depois de solicitar o código, a confirmação
+  é precisa: informa e-mail e WhatsApp quando a entrega complementar foi
+  enfileirada, ou somente e-mail quando não há preferência elegível.
+
 - Em 2026-08-19, os cards de produto passaram a apresentar uma etiqueta
   prioritária e visível de `Sem estoque` no canto superior da imagem, tanto em
   desktop quanto em mobile. A etiqueta substitui o aviso discreto anterior no
