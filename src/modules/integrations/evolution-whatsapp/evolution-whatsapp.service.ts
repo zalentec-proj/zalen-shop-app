@@ -15,10 +15,13 @@ import {
   consumeCustomerWhatsAppVerification,
   getEvolutionWhatsAppIntegration,
   getEvolutionWhatsAppIntegrationByInstance,
+  claimWhatsAppDelivery,
   insertWhatsAppDelivery,
   listDueWhatsAppDeliveries,
+  releaseStaleWhatsAppDeliveryClaims,
   saveEvolutionWhatsAppIntegration,
   updateWhatsAppDelivery,
+  updateWhatsAppDeliveryFromReceipt,
   upsertCustomerWhatsAppPreference,
   saveWhatsAppWebhookEvent,
 } from './evolution-whatsapp.repository';
@@ -40,8 +43,12 @@ function asSettings(value: Record<string, unknown>): EvolutionWhatsAppSettings {
 
 export function normalizeWhatsAppPhone(value: string) {
   const digits = value.replace(/\D/g, '');
-  const normalized = digits.startsWith('55') ? digits : `55${digits}`;
-  return normalized.length >= 10 && normalized.length <= 15 ? `+${normalized}` : null;
+  const national = digits.startsWith('55') && digits.length > 11
+    ? digits.slice(2)
+    : digits;
+  if (national.length !== 10 && national.length !== 11) return null;
+  if (national.startsWith('0') || national.slice(2).startsWith('0')) return null;
+  return `+55${national}`;
 }
 
 function maskPhone(value?: string) {
@@ -72,6 +79,63 @@ function makeWebhookSecret() {
 function getRetryAt(attempt: number) {
   const delaySeconds = Math.min(30 * 2 ** Math.max(0, attempt - 1), 60 * 30);
   return new Date(Date.now() + delaySeconds * 1000).toISOString();
+}
+
+const redactedMessage = '[redacted]';
+
+function encryptWhatsAppMessage(messageText: string) {
+  return encryptIntegrationCredentials({
+    provider: 'evolution_whatsapp_message',
+    text: messageText,
+  });
+}
+
+function decryptWhatsAppMessage(messagePayload: string) {
+  if (!messagePayload.startsWith('v1:')) return messagePayload;
+  const payload = decryptIntegrationCredentials<{ text?: unknown }>(messagePayload);
+  if (typeof payload.text !== 'string' || !payload.text.trim()) {
+    throw new Error('whatsapp_message_payload_invalid');
+  }
+  return payload.text;
+}
+
+function normalizeWebhookEventType(value: string) {
+  return value.trim().toUpperCase().replace(/[.\s-]+/g, '_');
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+export function getEvolutionMessageReceipt(payload: Record<string, unknown>) {
+  const data = asRecord(payload.data);
+  const key = asRecord(data.key ?? payload.key);
+  const providerMessageId = typeof key.id === 'string'
+    ? key.id
+    : typeof data.id === 'string'
+      ? data.id
+      : undefined;
+  const rawStatus = data.status ?? asRecord(data.update).status ?? payload.status;
+  const normalizedStatus = typeof rawStatus === 'number'
+    ? rawStatus
+    : String(rawStatus ?? '').trim().toUpperCase();
+
+  if (!providerMessageId) return null;
+  if (
+    (typeof normalizedStatus === 'number' && normalizedStatus >= 3) ||
+    ['DELIVERY_ACK', 'READ', 'PLAYED'].includes(normalizedStatus as string)
+  ) {
+    return { providerMessageId, status: 'delivered' as const };
+  }
+  if (
+    normalizedStatus === 0 ||
+    ['ERROR', 'FAILED'].includes(normalizedStatus as string)
+  ) {
+    return { providerMessageId, status: 'failed' as const };
+  }
+  return null;
 }
 
 function isRetryable(error: unknown) {
@@ -255,7 +319,9 @@ export async function saveWhatsAppNotificationSettings(input: {
 }) {
   const integration = await getEvolutionWhatsAppIntegration(input.storeId);
   const settings = asSettings(integration?.settings ?? {});
-  const alertPhoneE164 = input.alertPhone ? normalizeWhatsAppPhone(input.alertPhone) ?? undefined : undefined;
+  const alertPhoneE164 = input.alertPhone
+    ? normalizeWhatsAppPhone(input.alertPhone) ?? undefined
+    : settings.alertPhoneE164;
   if (input.alertPhone && !alertPhoneE164) throw new Error('invalid_alert_phone');
   return saveEvolutionWhatsAppIntegration({
     storeId: input.storeId,
@@ -283,25 +349,46 @@ export async function saveCustomerWhatsAppConsent(input: {
   return upsertCustomerWhatsAppPreference({ ...input, phoneE164 });
 }
 
+export async function getCustomerWhatsAppContactState(input: {
+  storeId: string;
+  customerId: string;
+}) {
+  const preference = await getCustomerWhatsAppPreference(input);
+  return {
+    phoneE164: preference?.phoneE164 ?? undefined,
+    verified: Boolean(preference?.phoneE164 && preference.verifiedAt),
+    optedIn: Boolean(
+      preference?.verifiedAt &&
+      preference.optedInAt &&
+      !preference.optedOutAt
+    ),
+    verifiedAt: preference?.verifiedAt ?? undefined,
+  };
+}
+
 export async function requestCustomerWhatsAppVerification(input: { storeId: string; customerId: string; phone: string; storeName: string }) {
   const phoneE164 = normalizeWhatsAppPhone(input.phone);
   if (!phoneE164) throw new Error('invalid_whatsapp_phone');
   const code = String(randomInt(100000, 1000000));
   const salt = randomBytes(16).toString('hex');
-  await createCustomerWhatsAppVerification({
+  const verification = await createCustomerWhatsAppVerification({
     storeId: input.storeId, customerId: input.customerId, phoneE164,
     codeHash: `${salt}:${getWhatsappVerificationHash({ code, salt })}`,
     expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
   });
   const delivery = await queueWhatsAppNotification({
     storeId: input.storeId, eventKey: 'access_code', entityType: 'whatsapp_phone_verification', entityId: input.customerId,
-    recipientKind: 'customer', recipientPhone: phoneE164,
+    recipientKind: 'customer', customerId: input.customerId, recipientPhone: phoneE164,
     messageText: `${input.storeName}: seu código para confirmar este WhatsApp é ${code}. Não compartilhe este código.`,
-    idempotencyKey: `whatsapp-phone-verify:${input.customerId}:${code}`,
+    idempotencyKey: `whatsapp-phone-verify:${input.customerId}:${verification.id}`,
+    expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
   });
   if (!delivery) throw new Error('whatsapp_verification_not_queued');
-  await processDelivery(delivery);
-  return { phoneE164 };
+  const status = await processWhatsAppDelivery(delivery);
+  if (status === 'failed' || status === 'skipped') {
+    throw new Error('whatsapp_verification_send_failed');
+  }
+  return { phoneE164, deliveryStatus: status };
 }
 
 export async function confirmCustomerWhatsAppVerification(input: { storeId: string; customerId: string; phone: string; code: string; optedIn: boolean }) {
@@ -327,6 +414,7 @@ export async function queueWhatsAppNotification(input: {
   recipientPhone?: string;
   messageText: string;
   idempotencyKey: string;
+  expiresAt?: string;
 }) {
   const integration = await getEvolutionWhatsAppIntegration(input.storeId);
   const settings = asSettings(integration?.settings ?? {});
@@ -337,12 +425,23 @@ export async function queueWhatsAppNotification(input: {
     const preference = await getCustomerWhatsAppPreference({ storeId: input.storeId, customerId: input.customerId });
     if (preference?.verifiedAt && preference.optedInAt && !preference.optedOutAt) phoneE164 = preference.phoneE164 ?? undefined;
   }
-  if (!phoneE164 && input.recipientPhone) phoneE164 = normalizeWhatsAppPhone(input.recipientPhone) ?? undefined;
+  // A phone supplied by the caller may only bypass an existing preference
+  // while confirming that exact phone from an authenticated customer flow.
+  // Every other customer message requires a previously verified opt-in.
+  if (
+    !phoneE164 &&
+    input.recipientPhone &&
+    input.recipientKind === 'customer' &&
+    input.entityType === 'whatsapp_phone_verification'
+  ) {
+    phoneE164 = normalizeWhatsAppPhone(input.recipientPhone) ?? undefined;
+  }
   if (!phoneE164) return null;
   return insertWhatsAppDelivery({
     ...input,
     integrationId: integration.id,
     recipientPhoneE164: phoneE164,
+    messageText: encryptWhatsAppMessage(input.messageText),
   });
 }
 
@@ -362,9 +461,13 @@ export async function enqueueLoginCodeViaWhatsApp(input: {
     customerId: input.customerId,
     messageText: buildWhatsAppLoginCodeMessage(input),
     idempotencyKey: input.idempotencyKey,
+    expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
   });
-  if (delivery) await processDelivery(delivery);
-  return delivery;
+  if (!delivery) return null;
+  return {
+    delivery,
+    status: await processWhatsAppDelivery(delivery),
+  };
 }
 
 export async function enqueueOperationalWhatsAppTest(input: {
@@ -372,7 +475,7 @@ export async function enqueueOperationalWhatsAppTest(input: {
   storeName: string;
   idempotencyKey: string;
 }) {
-  return queueWhatsAppNotification({
+  const delivery = await queueWhatsAppNotification({
     storeId: input.storeId,
     eventKey: 'operator_order_received',
     entityType: 'whatsapp_test',
@@ -380,6 +483,11 @@ export async function enqueueOperationalWhatsAppTest(input: {
     messageText: `${input.storeName}: teste de conexão WhatsApp concluído.`,
     idempotencyKey: input.idempotencyKey,
   });
+  if (!delivery) return null;
+  return {
+    delivery,
+    status: await processWhatsAppDelivery(delivery),
+  };
 }
 
 export async function enqueueOrderWhatsAppNotification(input: {
@@ -456,38 +564,76 @@ export async function enqueueShipmentWhatsAppNotification(input: {
   });
 }
 
-async function processDelivery(delivery: WhatsAppDelivery) {
-  const integration = await getEvolutionWhatsAppIntegration(delivery.storeId);
+export async function processWhatsAppDelivery(delivery: WhatsAppDelivery) {
+  const claimed = await claimWhatsAppDelivery(delivery.id);
+  if (!claimed) return 'in_progress' as const;
+
+  if (claimed.expiresAt && Date.parse(claimed.expiresAt) <= Date.now()) {
+    await updateWhatsAppDelivery({
+      id: claimed.id,
+      status: 'skipped',
+      errorCode: 'message_expired',
+      redactMessage: true,
+    });
+    return 'skipped' as const;
+  }
+
+  const integration = await getEvolutionWhatsAppIntegration(claimed.storeId);
   const settings = asSettings(integration?.settings ?? {});
   if (!integration || settings.connectionStatus !== 'connected' || !settings.instanceName) {
-    await updateWhatsAppDelivery({ id: delivery.id, status: 'skipped', errorCode: 'integration_not_connected' });
-    return 'skipped';
+    const nextAttempt = claimed.attemptCount + 1;
+    const retryable = nextAttempt < 5;
+    await updateWhatsAppDelivery({
+      id: claimed.id,
+      status: retryable ? 'queued' : 'failed',
+      errorCode: 'integration_not_connected',
+      retryAt: retryable ? getRetryAt(nextAttempt) : null,
+      incrementAttempt: true,
+      redactMessage: !retryable,
+    });
+    return retryable ? 'queued' as const : 'failed' as const;
   }
   try {
+    const text = decryptWhatsAppMessage(claimed.messageText);
+    if (text === redactedMessage) throw new Error('whatsapp_message_already_redacted');
     const sent = await new EvolutionWhatsAppClient().sendText({
       instanceName: settings.instanceName,
-      phoneE164: delivery.recipientPhoneE164,
-      text: delivery.messageText,
+      phoneE164: claimed.recipientPhoneE164,
+      text,
     });
-    await updateWhatsAppDelivery({ id: delivery.id, status: 'accepted', providerMessageId: sent.providerMessageId, incrementAttempt: true });
-    return 'accepted';
-  } catch (error) {
-    const nextAttempt = delivery.attemptCount + 1;
     await updateWhatsAppDelivery({
-      id: delivery.id,
-      status: isRetryable(error) && nextAttempt < 5 ? 'queued' : 'failed',
-      errorCode: error instanceof EvolutionWhatsAppClientError ? `provider_${error.status}` : 'send_failed',
-      retryAt: isRetryable(error) && nextAttempt < 5 ? getRetryAt(nextAttempt) : null,
+      id: claimed.id,
+      status: 'accepted',
+      providerMessageId: sent.providerMessageId,
       incrementAttempt: true,
+      redactMessage: true,
     });
-    return 'failed';
+    return 'accepted' as const;
+  } catch (error) {
+    const nextAttempt = claimed.attemptCount + 1;
+    const retryable = isRetryable(error) && nextAttempt < 5;
+    await updateWhatsAppDelivery({
+      id: claimed.id,
+      status: retryable ? 'queued' : 'failed',
+      errorCode: error instanceof EvolutionWhatsAppClientError ? `provider_${error.status}` : 'send_failed',
+      retryAt: retryable ? getRetryAt(nextAttempt) : null,
+      incrementAttempt: true,
+      redactMessage: !retryable,
+    });
+    return retryable ? 'queued' as const : 'failed' as const;
   }
 }
 
 export async function processDueWhatsAppDeliveries(limit = 30) {
+  await releaseStaleWhatsAppDeliveryClaims();
   const deliveries = await listDueWhatsAppDeliveries(limit);
-  const results = await Promise.all(deliveries.map(processDelivery));
-  return { processed: deliveries.length, accepted: results.filter((result) => result === 'accepted').length };
+  const results = await Promise.all(deliveries.map(processWhatsAppDelivery));
+  return {
+    processed: deliveries.length,
+    accepted: results.filter((result) => result === 'accepted').length,
+    deferred: results.filter((result) => result === 'queued').length,
+    skippedClaims: results.filter((result) => result === 'in_progress').length,
+  };
 }
 
 export function buildWhatsAppLoginCodeMessage(input: { storeName: string; code: string }) {
@@ -517,22 +663,49 @@ export async function processEvolutionWebhook(input: {
     return { ok: false as const, errorCode: 'unauthorized' as const };
   }
   const settings = asSettings(integration.settings ?? {});
-  const state = String((input.payload.instance as Record<string, unknown> | undefined)?.state ?? (input.payload.data as Record<string, unknown> | undefined)?.state ?? '');
-  if (input.eventType === 'CONNECTION_UPDATE' && state) {
+  const normalizedEventType = normalizeWebhookEventType(input.eventType);
+  const state = String(asRecord(input.payload.instance).state ?? asRecord(input.payload.data).state ?? '');
+  if (normalizedEventType === 'CONNECTION_UPDATE' && state) {
     const connectionStatus = toConnectionStatus(state);
     await saveEvolutionWhatsAppIntegration({
       storeId: integration.storeId,
       status: toIntegrationStatus(connectionStatus),
-      settings: { ...settings, connectionStatus, lastConnectionCheckAt: new Date().toISOString() },
+      settings: {
+        ...settings,
+        connectionStatus,
+        connectedAt: connectionStatus === 'connected'
+          ? settings.connectedAt ?? new Date().toISOString()
+          : settings.connectedAt,
+        lastConnectionCheckAt: new Date().toISOString(),
+      },
     });
   }
+  const receipt = normalizedEventType === 'MESSAGES_UPDATE'
+    ? getEvolutionMessageReceipt(input.payload)
+    : null;
+  if (receipt) {
+    await updateWhatsAppDeliveryFromReceipt({
+      storeId: integration.storeId,
+      providerMessageId: receipt.providerMessageId,
+      status: receipt.status,
+      errorCode: receipt.status === 'failed' ? 'provider_delivery_failed' : undefined,
+    });
+  }
+  const externalEventId = input.eventId ?? (receipt
+    ? `${receipt.providerMessageId}:${receipt.status}`
+    : undefined);
   await saveWhatsAppWebhookEvent({
     storeId: integration.storeId,
     integrationId: integration.id,
-    externalEventId: input.eventId,
-    eventType: input.eventType,
+    externalEventId,
+    eventType: normalizedEventType,
     instanceName: input.instanceName,
-    sanitizedPayload: { eventType: input.eventType, hasData: Boolean(input.payload.data), receivedAt: new Date().toISOString() },
+    sanitizedPayload: {
+      eventType: normalizedEventType,
+      hasData: Boolean(input.payload.data),
+      receiptProcessed: Boolean(receipt),
+      receivedAt: new Date().toISOString(),
+    },
   });
   return { ok: true as const };
 }

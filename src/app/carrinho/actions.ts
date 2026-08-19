@@ -320,6 +320,8 @@ export type CheckoutAccountCodeActionResult =
       ok: true;
       emailHint?: string;
       message: string;
+      deliveredChannels?: Array<'email' | 'whatsapp'>;
+      pendingChannels?: Array<'whatsapp'>;
     }
   | {
       ok: false;
@@ -337,6 +339,27 @@ export type CheckoutAccountCodeVerificationActionResult =
       ok: false;
       error: string;
     };
+
+function getLoginCodeDeliveryMessage(
+  delivery: Awaited<ReturnType<typeof requestCustomerLoginCode>>
+) {
+  const whatsappSent = delivery.whatsappStatus === 'accepted';
+  const whatsappPending = delivery.whatsappStatus === 'queued';
+
+  if (delivery.emailSent && whatsappSent) {
+    return 'Enviamos o mesmo código para o e-mail e o WhatsApp confirmados.';
+  }
+  if (delivery.emailSent && whatsappPending) {
+    return 'Código enviado por e-mail. O WhatsApp será tentado novamente automaticamente.';
+  }
+  if (whatsappSent) {
+    return 'Código enviado para o WhatsApp confirmado.';
+  }
+  if (whatsappPending) {
+    return 'O envio pelo WhatsApp está em processamento. Aguarde alguns instantes.';
+  }
+  return 'Enviamos o código para o e-mail cadastrado.';
+}
 
 export type SwitchCheckoutAccountActionResult =
   | {
@@ -851,9 +874,7 @@ export async function requestCheckoutEmailCodeAction(
     return {
       ok: true,
       email,
-      message: delivery.whatsappQueued
-        ? 'Enviamos o mesmo código para seu e-mail e WhatsApp confirmado.'
-        : 'Enviamos um código para validar seu e-mail.',
+      message: getLoginCodeDeliveryMessage(delivery),
     };
   } catch (error) {
     return {
@@ -989,9 +1010,12 @@ export async function requestCheckoutAccountCodeAction(
 
     return {
       ok: true,
-      message: delivery.whatsappQueued
-        ? 'Enviamos o mesmo código para o e-mail e WhatsApp confirmado.'
-        : 'Enviamos o código para o e-mail cadastrado.',
+      message: getLoginCodeDeliveryMessage(delivery),
+      deliveredChannels: [
+        ...(delivery.emailSent ? ['email' as const] : []),
+        ...(delivery.whatsappStatus === 'accepted' ? ['whatsapp' as const] : []),
+      ],
+      pendingChannels: delivery.whatsappStatus === 'queued' ? ['whatsapp'] : [],
     };
   } catch (error) {
     return {

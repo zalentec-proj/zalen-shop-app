@@ -11,6 +11,7 @@ import {
   configureEvolutionWebhook,
   createEvolutionInstance,
   enqueueOperationalWhatsAppTest,
+  getWhatsAppAdminState,
   reconnectEvolutionInstance,
   refreshEvolutionConnection,
   saveWhatsAppNotificationSettings,
@@ -32,32 +33,33 @@ function refresh() {
   revalidatePath('/admin/integracoes/whatsapp');
 }
 
+async function refreshedState(storeId: string) {
+  refresh();
+  return getWhatsAppAdminState(storeId);
+}
+
 export async function adoptExistingWhatsAppInstanceAction(instanceName: string) {
   const store = await getManagedStore();
   const result = await adoptExistingEvolutionInstance({ storeId: store.id, instanceName: instanceName.trim() });
-  refresh();
-  return { ok: true, status: result.status };
+  return { ok: true, status: result.status, state: await refreshedState(store.id) };
 }
 
 export async function createWhatsAppConnectionAction() {
   const store = await getManagedStore();
   const qrCodeDataUrl = await createEvolutionInstance({ storeId: store.id, storeSlug: store.slug });
-  refresh();
-  return { ok: true, qrCodeDataUrl };
+  return { ok: true, qrCodeDataUrl, state: await refreshedState(store.id) };
 }
 
 export async function reconnectWhatsAppAction() {
   const store = await getManagedStore();
   const qrCodeDataUrl = await reconnectEvolutionInstance({ storeId: store.id });
-  refresh();
-  return { ok: true, qrCodeDataUrl };
+  return { ok: true, qrCodeDataUrl, state: await refreshedState(store.id) };
 }
 
 export async function refreshWhatsAppConnectionAction() {
   const store = await getManagedStore();
   await refreshEvolutionConnection({ storeId: store.id });
-  refresh();
-  return { ok: true };
+  return { ok: true, state: await refreshedState(store.id) };
 }
 
 export async function configureWhatsAppWebhookAction() {
@@ -65,8 +67,7 @@ export async function configureWhatsAppWebhookAction() {
   const appUrl = getServerEnv().APP_URL;
   if (!appUrl) throw new Error('app_url_not_configured');
   await configureEvolutionWebhook({ storeId: store.id, appUrl });
-  refresh();
-  return { ok: true };
+  return { ok: true, state: await refreshedState(store.id) };
 }
 
 const notificationSettingsSchema = z.object({
@@ -84,8 +85,7 @@ export async function saveWhatsAppNotificationSettingsAction(input: z.infer<type
     notificationsEnabled: parsed.notificationsEnabled,
     enabledEvents: parsed.enabledEvents as WhatsAppNotificationEvent[],
   });
-  refresh();
-  return { ok: true };
+  return { ok: true, state: await refreshedState(store.id) };
 }
 
 export async function sendWhatsAppOperationalTestAction() {
@@ -96,8 +96,12 @@ export async function sendWhatsAppOperationalTestAction() {
   const result = await enqueueOperationalWhatsAppTest({
     storeId: store.id,
     storeName: store.shortName,
-    idempotencyKey: `whatsapp-operational-test:${store.id}:${new Date().toISOString().slice(0, 16)}`,
+    idempotencyKey: `whatsapp-operational-test:${store.id}:${Date.now()}`,
   });
   if (!result) throw new Error('whatsapp_test_not_queued');
-  return { ok: true };
+  return {
+    ok: true,
+    deliveryStatus: result.status,
+    state: await refreshedState(store.id),
+  };
 }

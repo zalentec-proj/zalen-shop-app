@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { randomUUID } from 'node:crypto';
+
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { renderCustomerLoginCodeEmail } from '@/modules/email/email.templates';
 import { sendStoreEmail } from '@/modules/email/email.service';
@@ -113,11 +115,15 @@ export async function requestCustomerLoginCode(input: {
         customerId: customer.id,
         storeName: input.storeName,
         code,
-        idempotencyKey: `customer-login-whatsapp:${input.storeId}:${customer.id}:${code}`,
+        idempotencyKey: `customer-login-whatsapp:${input.storeId}:${customer.id}:${randomUUID()}`,
       }).catch(() => null)
     : null;
 
-  if (!emailResult.ok && !whatsappDelivery) {
+  const whatsappStatus = whatsappDelivery?.status ?? 'not_eligible';
+  const whatsappAccepted = whatsappStatus === 'accepted';
+  const whatsappPending = whatsappStatus === 'queued';
+
+  if (!emailResult.ok && !whatsappAccepted && !whatsappPending) {
     throw new Error(
       `customer_login_email_not_sent:${emailResult.errorCode ?? emailResult.status}`
     );
@@ -127,7 +133,7 @@ export async function requestCustomerLoginCode(input: {
     email,
     next,
     emailSent: emailResult.ok,
-    whatsappQueued: Boolean(whatsappDelivery),
+    whatsappStatus,
   };
 }
 

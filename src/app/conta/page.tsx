@@ -14,6 +14,7 @@ import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolutio
 import CustomerAccountHeader from './CustomerAccountHeader';
 import BusinessProfileForm from './BusinessProfileForm';
 import WhatsAppContactForm from './WhatsAppContactForm';
+import { getCustomerWhatsAppContactState } from '@/modules/integrations/evolution-whatsapp/evolution-whatsapp.service';
 
 export const metadata: Metadata = {
   title: 'Minha conta — Brasil Drones & Parts',
@@ -73,6 +74,12 @@ export default async function CustomerAccountPage() {
   });
 
   const latestOrders = account?.orders.slice(0, 3) ?? [];
+  const whatsappContact = account?.customer
+    ? await getCustomerWhatsAppContactState({
+        storeId: store.id,
+        customerId: account.customer.id,
+      })
+    : null;
   const paidOrders = account?.orders.filter((order) => order.paymentStatus === 'paid').length ?? 0;
   const shippedOrders =
     account?.orders.filter((order) => order.shipments.length > 0).length ?? 0;
@@ -129,7 +136,13 @@ export default async function CustomerAccountPage() {
           <BusinessProfileForm customer={account.customer} />
         ) : null}
 
-        {account?.customer ? <WhatsAppContactForm /> : null}
+        {account?.customer ? (
+          <WhatsAppContactForm
+            initialPhone={whatsappContact?.phoneE164}
+            initialVerified={whatsappContact?.verified}
+            initialOptedIn={whatsappContact?.optedIn}
+          />
+        ) : null}
 
         <section className="rounded-2xl border border-brand-border bg-[#090E17]/90 p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">

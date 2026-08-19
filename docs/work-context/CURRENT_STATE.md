@@ -8,7 +8,8 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-08-19
 - Branch: `refactor/migrate-to-next`
-- Commit funcional base: `711e5d2` — `fix: normalize Bling description line endings`
+- Commit funcional base antes desta revisão: `179c479` —
+  `fix: clarify login code delivery channels`
 - A publicação e a restauração seletiva de imagens/compatibilidades devem ser
   conferidas no bloco mais recente antes de iniciar uma nova frente.
   Preserve os scripts locais não rastreados que não pertencem a esta frente.
@@ -106,6 +107,30 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   recebe o mesmo código do e-mail. Depois de solicitar o código, a confirmação
   é precisa: informa e-mail e WhatsApp quando a entrega complementar foi
   enfileirada, ou somente e-mail quando não há preferência elegível.
+
+- A revisão final de QA do WhatsApp em 2026-08-19 encontrou e corrigiu riscos
+  que ainda impediam considerar a entrega pronta: workers concorrentes podiam
+  reivindicar a mesma linha; códigos permaneciam legíveis na fila; eventos
+  reais `messages.update` da Evolution 2.3.7 não eram reconhecidos; números
+  nacionais com DDD 55 podiam ser confundidos com código do país; o admin
+  podia apagar o telefone operacional ao salvar outro campo; e telas exibiam
+  estado antigo após Server Actions. A UI do checkout agora mostra os canais
+  efetivamente usados, bloqueia reenvio por 60 segundos e deixa claro que o
+  mesmo OTP vale no e-mail e no WhatsApp. Em "Minha conta", a pessoa vê o
+  número confirmado, pode trocar o número e pode ativar ou desativar o opt-in
+  sem repetir a confirmação.
+
+  As migrations `20260819235900_harden_whatsapp_delivery_queue.sql` e
+  `20260820001000_add_whatsapp_foreign_key_indexes.sql` foram aplicadas ao
+  Supabase de produção. A auditoria posterior confirmou zero linha em fila ou
+  processamento, zero mensagem terminal não redigida, políticas das quatro
+  tabelas restritas explicitamente a `service_role`, colunas de expiração e
+  trava presentes e todos os índices desta frente criados. O advisor não
+  apontou problema de performance nessas tabelas; na segurança permaneceu
+  somente o aviso preexistente de proteção contra senhas vazadas desativada.
+  Validações locais: 158 testes em 38 arquivos, TypeScript, build de produção,
+  scanner de segredos e `git diff --check` aprovados. O próximo passo exato é
+  publicar o código e repetir uma jornada supervisionada com um OTP novo.
 
 - Em 2026-08-19, os cards de produto passaram a apresentar uma etiqueta
   prioritária e visível de `Sem estoque` no canto superior da imagem, tanto em

@@ -16,13 +16,25 @@ import {
   verifyCustomerLoginCode,
 } from '@/modules/customer-account/customer-auth.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
-import { getRateLimitErrorMessage } from '@/modules/security/rate-limit.service';
+import {
+  enforceRateLimit,
+  getRateLimitErrorMessage,
+} from '@/modules/security/rate-limit.service';
 import {
   confirmCustomerWhatsAppVerification,
+  getCustomerWhatsAppContactState,
   requestCustomerWhatsAppVerification,
+  saveCustomerWhatsAppConsent,
 } from '@/modules/integrations/evolution-whatsapp/evolution-whatsapp.service';
 
-export type WhatsAppContactState = { step?: 'phone' | 'code'; phone?: string; error?: string; message?: string };
+export type WhatsAppContactState = {
+  step?: 'phone' | 'code' | 'verified';
+  phone?: string;
+  optedIn?: boolean;
+  verified?: boolean;
+  error?: string;
+  message?: string;
+};
 
 export type CustomerAuthState = {
   step: 'email' | 'code';
@@ -318,9 +330,12 @@ export async function customerOtpAction(
         ? onlyDigits(registration.data.document)
         : undefined,
     },
-    message: delivery.whatsappQueued
-      ? 'Enviamos o mesmo código de acesso para seu e-mail e WhatsApp confirmado.'
-      : 'Enviamos um código de acesso para o seu e-mail.',
+    message:
+      delivery.emailSent && delivery.whatsappStatus === 'accepted'
+        ? 'Enviamos o mesmo código de acesso para seu e-mail e WhatsApp confirmados.'
+        : delivery.whatsappStatus === 'accepted'
+          ? 'Enviamos o código de acesso para seu WhatsApp confirmado.'
+          : 'Enviamos um código de acesso para o seu e-mail.',
   };
 }
 
@@ -431,14 +446,71 @@ export async function updateWhatsAppContactAction(_previousState: WhatsAppContac
   const optedIn = formData.get('optedIn') === 'on';
   const intent = formValue(formData, 'intent');
   try {
+    if (intent === 'preferences') {
+      const preference = await getCustomerWhatsAppContactState({
+        storeId: store.id,
+        customerId: customer.id,
+      });
+      if (!preference.verified || !preference.phoneE164 || !preference.verifiedAt) {
+        return {
+          step: 'phone',
+          error: 'Confirme primeiro o número que deseja usar no WhatsApp.',
+        };
+      }
+      await saveCustomerWhatsAppConsent({
+        storeId: store.id,
+        customerId: customer.id,
+        phone: preference.phoneE164,
+        optedIn,
+        verifiedAt: preference.verifiedAt,
+      });
+      revalidatePath('/conta');
+      return {
+        step: 'verified',
+        phone: preference.phoneE164,
+        optedIn,
+        verified: true,
+        message: optedIn
+          ? 'Mensagens transacionais por WhatsApp ativadas.'
+          : 'Mensagens por WhatsApp desativadas. O e-mail continua ativo.',
+      };
+    }
     if (intent === 'confirm') {
+      await enforceRateLimit({ scope: 'customer_otp_verify', storeId: store.id, subject: `${customer.id}:${phone}` });
       await confirmCustomerWhatsAppVerification({ storeId: store.id, customerId: customer.id, phone, code: formValue(formData, 'code'), optedIn });
       revalidatePath('/conta');
-      return { step: 'phone', phone, message: 'WhatsApp confirmado. Você pode desativar as mensagens a qualquer momento.' };
+      return {
+        step: 'verified',
+        phone,
+        optedIn,
+        verified: true,
+        message: optedIn
+          ? 'WhatsApp confirmado. Os códigos e avisos transacionais estão ativos.'
+          : 'WhatsApp confirmado. Os avisos permanecem desativados.',
+      };
     }
-    await requestCustomerWhatsAppVerification({ storeId: store.id, customerId: customer.id, phone, storeName: store.shortName });
-    return { step: 'code', phone, message: 'Enviamos um código para seu WhatsApp.' };
+    await enforceRateLimit({ scope: 'customer_otp_send', storeId: store.id, subject: `${customer.id}:${phone}` });
+    const result = await requestCustomerWhatsAppVerification({ storeId: store.id, customerId: customer.id, phone, storeName: store.shortName });
+    return {
+      step: 'code',
+      phone,
+      optedIn,
+      message: result.deliveryStatus === 'accepted'
+        ? 'Código enviado. Ele é válido por 10 minutos.'
+        : 'O envio está sendo tentado novamente. Aguarde alguns instantes.',
+    };
   } catch (error) {
-    return { step: intent === 'confirm' ? 'code' : 'phone', phone, error: error instanceof Error && error.message === 'invalid_whatsapp_phone' ? 'Informe um telefone WhatsApp válido.' : 'Não foi possível confirmar este WhatsApp agora.' };
+    let message = getRateLimitErrorMessage(error);
+    if (error instanceof Error && error.message === 'invalid_whatsapp_phone') {
+      message = 'Informe um WhatsApp válido com DDD.';
+    } else if (error instanceof Error && error.message === 'whatsapp_verification_invalid') {
+      message = 'Código inválido ou expirado. Solicite um novo código.';
+    }
+    return {
+      step: intent === 'confirm' ? 'code' : intent === 'preferences' ? 'verified' : 'phone',
+      phone,
+      optedIn,
+      error: message,
+    };
   }
 }

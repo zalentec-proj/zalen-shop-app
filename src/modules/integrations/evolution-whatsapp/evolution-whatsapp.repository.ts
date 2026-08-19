@@ -41,6 +41,8 @@ type DeliveryRow = {
   status: WhatsAppDeliveryStatus;
   attempt_count: number | null;
   next_attempt_at: string | null;
+  locked_at: string | null;
+  expires_at: string | null;
   accepted_at: string | null;
   delivered_at: string | null;
   last_error_code: string | null;
@@ -89,6 +91,8 @@ function mapDelivery(row: DeliveryRow): WhatsAppDelivery {
     status: row.status,
     attemptCount: row.attempt_count ?? 0,
     nextAttemptAt: row.next_attempt_at ?? undefined,
+    lockedAt: row.locked_at ?? undefined,
+    expiresAt: row.expires_at ?? undefined,
     acceptedAt: row.accepted_at ?? undefined,
     deliveredAt: row.delivered_at ?? undefined,
     lastErrorCode: row.last_error_code ?? undefined,
@@ -205,15 +209,28 @@ export async function createCustomerWhatsAppVerification(input: {
   expiresAt: string;
 }) {
   const supabase = requireAdminClient();
-  const { error } = await supabase.from('customer_contact_verifications').insert({
-    store_id: input.storeId,
-    customer_id: input.customerId,
-    channel: 'whatsapp',
-    phone_e164: input.phoneE164,
-    code_hash: input.codeHash,
-    expires_at: input.expiresAt,
-  });
-  if (error) throw new Error('customer_whatsapp_verification_create_failed');
+  const now = new Date().toISOString();
+  await supabase
+    .from('customer_contact_verifications')
+    .update({ consumed_at: now })
+    .eq('store_id', input.storeId)
+    .eq('customer_id', input.customerId)
+    .eq('channel', 'whatsapp')
+    .is('consumed_at', null);
+  const { data, error } = await supabase
+    .from('customer_contact_verifications')
+    .insert({
+      store_id: input.storeId,
+      customer_id: input.customerId,
+      channel: 'whatsapp',
+      phone_e164: input.phoneE164,
+      code_hash: input.codeHash,
+      expires_at: input.expiresAt,
+    })
+    .select('id')
+    .single();
+  if (error || !data) throw new Error('customer_whatsapp_verification_create_failed');
+  return { id: data.id as string };
 }
 
 export async function getActiveCustomerWhatsAppVerification(input: { storeId: string; customerId: string; phoneE164: string }) {
@@ -248,6 +265,7 @@ export async function insertWhatsAppDelivery(input: {
   recipientPhoneE164: string;
   messageText: string;
   idempotencyKey: string;
+  expiresAt?: string;
 }) {
   const supabase = requireAdminClient();
   const { data, error } = await supabase
@@ -264,6 +282,7 @@ export async function insertWhatsAppDelivery(input: {
         recipient_phone_e164: input.recipientPhoneE164,
         message_text: input.messageText,
         idempotency_key: input.idempotencyKey,
+        expires_at: input.expiresAt ?? null,
       },
       { onConflict: 'store_id,idempotency_key', ignoreDuplicates: true }
     )
@@ -271,6 +290,34 @@ export async function insertWhatsAppDelivery(input: {
     .maybeSingle();
   if (error) throw new Error('whatsapp_delivery_enqueue_failed');
   return data ? mapDelivery(data as DeliveryRow) : null;
+}
+
+export async function claimWhatsAppDelivery(id: string) {
+  const supabase = requireAdminClient();
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('whatsapp_message_deliveries')
+    .update({ status: 'processing', locked_at: now, updated_at: now })
+    .eq('id', id)
+    .eq('status', 'queued')
+    .or(`next_attempt_at.is.null,next_attempt_at.lte.${now}`)
+    .select('*')
+    .maybeSingle();
+  if (error) throw new Error('whatsapp_delivery_claim_failed');
+  return data ? mapDelivery(data as DeliveryRow) : null;
+}
+
+export async function releaseStaleWhatsAppDeliveryClaims() {
+  const supabase = createOptionalAdminClient();
+  if (!supabase) return;
+  const now = new Date().toISOString();
+  const staleBefore = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  const { error } = await supabase
+    .from('whatsapp_message_deliveries')
+    .update({ status: 'queued', locked_at: null, next_attempt_at: now, updated_at: now })
+    .eq('status', 'processing')
+    .lt('locked_at', staleBefore);
+  if (error) throw new Error('whatsapp_delivery_claim_recovery_failed');
 }
 
 export async function listDueWhatsAppDeliveries(limit = 30) {
@@ -297,6 +344,7 @@ export async function updateWhatsAppDelivery(input: {
   errorCode?: string;
   retryAt?: string | null;
   incrementAttempt?: boolean;
+  redactMessage?: boolean;
 }) {
   const supabase = requireAdminClient();
   const payload: Record<string, unknown> = {
@@ -304,10 +352,12 @@ export async function updateWhatsAppDelivery(input: {
     updated_at: new Date().toISOString(),
     next_attempt_at: input.retryAt ?? null,
     last_error_code: input.errorCode ?? null,
+    locked_at: null,
   };
   if (input.providerMessageId) payload.provider_message_id = input.providerMessageId;
   if (input.status === 'accepted') payload.accepted_at = new Date().toISOString();
   if (input.status === 'delivered') payload.delivered_at = new Date().toISOString();
+  if (input.redactMessage) payload.message_text = '[redacted]';
   if (input.incrementAttempt) {
     const { data: current } = await supabase
       .from('whatsapp_message_deliveries')
@@ -318,6 +368,32 @@ export async function updateWhatsAppDelivery(input: {
   }
   const { error } = await supabase.from('whatsapp_message_deliveries').update(payload).eq('id', input.id);
   if (error) throw new Error('whatsapp_delivery_update_failed');
+}
+
+export async function updateWhatsAppDeliveryFromReceipt(input: {
+  storeId: string;
+  providerMessageId: string;
+  status: Extract<WhatsAppDeliveryStatus, 'delivered' | 'failed'>;
+  errorCode?: string;
+}) {
+  const supabase = requireAdminClient();
+  const now = new Date().toISOString();
+  const payload: Record<string, unknown> = {
+    status: input.status,
+    updated_at: now,
+    next_attempt_at: null,
+    locked_at: null,
+    last_error_code: input.errorCode ?? null,
+    message_text: '[redacted]',
+  };
+  if (input.status === 'delivered') payload.delivered_at = now;
+  const { error } = await supabase
+    .from('whatsapp_message_deliveries')
+    .update(payload)
+    .eq('store_id', input.storeId)
+    .eq('provider_message_id', input.providerMessageId)
+    .in('status', ['accepted', 'delivered']);
+  if (error) throw new Error('whatsapp_delivery_receipt_update_failed');
 }
 
 export async function saveWhatsAppWebhookEvent(input: {

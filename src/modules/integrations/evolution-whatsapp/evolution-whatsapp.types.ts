@@ -97,6 +97,7 @@ export interface WhatsAppAdminState {
 
 export type WhatsAppDeliveryStatus =
   | 'queued'
+  | 'processing'
   | 'accepted'
   | 'delivered'
   | 'failed'
@@ -117,6 +118,8 @@ export interface WhatsAppDelivery {
   status: WhatsAppDeliveryStatus;
   attemptCount: number;
   nextAttemptAt?: string;
+  lockedAt?: string;
+  expiresAt?: string;
   acceptedAt?: string;
   deliveredAt?: string;
   lastErrorCode?: string;

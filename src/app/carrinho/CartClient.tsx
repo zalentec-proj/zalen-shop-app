@@ -161,6 +161,8 @@ type AccountValidationState = {
   token: string;
   message?: string;
   error?: string;
+  deliveredChannels?: Array<'email' | 'whatsapp'>;
+  pendingChannels?: Array<'whatsapp'>;
 };
 
 type PostalCodeLookupState = {
@@ -684,10 +686,19 @@ export default function CartClient({ customerSession }: Props) {
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [isQuotingShipping, setIsQuotingShipping] = useState(false);
   const [isSendingAccountCode, setIsSendingAccountCode] = useState(false);
+  const [accountCodeCooldown, setAccountCodeCooldown] = useState(0);
   const [isVerifyingAccountCode, setIsVerifyingAccountCode] = useState(false);
   const [isSendingEmailCode, setIsSendingEmailCode] = useState(false);
   const [isVerifyingEmailCode, setIsVerifyingEmailCode] = useState(false);
   const [isSwitchingAccount, setIsSwitchingAccount] = useState(false);
+
+  useEffect(() => {
+    if (accountCodeCooldown <= 0) return;
+    const timer = window.setInterval(() => {
+      setAccountCodeCooldown((current) => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [accountCodeCooldown]);
   const checkoutAttemptIdRef = useRef<string | null>(null);
   const shippingQuoteRequestKeyRef = useRef<string | null>(null);
   const shippingQuoteRequestIdRef = useRef(0);
@@ -1363,7 +1374,10 @@ export default function CartClient({ customerSession }: Props) {
         emailHint: codeResult.ok ? codeResult.emailHint : current.emailHint,
         message: codeResult.ok ? codeResult.message : undefined,
         error: codeResult.ok ? undefined : codeResult.error,
+        deliveredChannels: codeResult.ok ? codeResult.deliveredChannels : [],
+        pendingChannels: codeResult.ok ? codeResult.pendingChannels : [],
       }));
+      if (codeResult.ok) setAccountCodeCooldown(60);
       return;
     }
 
@@ -1395,6 +1409,8 @@ export default function CartClient({ customerSession }: Props) {
       return;
     }
 
+    if (accountCodeCooldown > 0) return;
+
     setIsSendingAccountCode(true);
 
     const result = await requestCheckoutAccountCodeAction({
@@ -1417,7 +1433,10 @@ export default function CartClient({ customerSession }: Props) {
       emailHint: result.emailHint,
       message: result.message,
       error: undefined,
+      deliveredChannels: result.deliveredChannels,
+      pendingChannels: result.pendingChannels,
     }));
+    setAccountCodeCooldown(60);
   }
 
   async function handleVerifyAccountCode() {
@@ -1426,7 +1445,7 @@ export default function CartClient({ customerSession }: Props) {
     if (!accountValidation.identifier || token.length < 4) {
       setAccountValidation((current) => ({
         ...current,
-        error: 'Informe o código recebido por e-mail.',
+        error: 'Informe o código recebido por e-mail ou WhatsApp.',
       }));
       return;
     }
@@ -2035,18 +2054,37 @@ export default function CartClient({ customerSession }: Props) {
                   <div className="rounded-2xl border border-blue-primary/25 bg-blue-primary/8 p-5">
                     <div className="flex flex-col gap-2">
                       <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-blue-primary">
-                        Conta encontrada
+                        Validação de acesso
                       </p>
                       <h2 className="text-lg font-black text-white">
                         Valide seu acesso para continuar
                       </h2>
                       <p className="max-w-2xl text-sm leading-6 text-brand-muted">
-                        Encontramos um cadastro para os dados informados. Para
-                        proteger seus dados salvos, confirme o código enviado
-                        para {accountValidation.emailHint ?? 'o e-mail cadastrado'}.
-                        Se o WhatsApp estiver confirmado, ele recebe o mesmo
-                        código junto com o e-mail.
+                        Para proteger seus dados, confirme o código enviado aos
+                        canais já validados da sua conta. Quando e-mail e
+                        WhatsApp estão ativos, os dois recebem exatamente o
+                        mesmo código.
                       </p>
+                      {accountValidation.deliveredChannels?.length ||
+                      accountValidation.pendingChannels?.length ? (
+                        <div className="mt-2 flex flex-wrap gap-2" aria-label="Canais usados para enviar o código">
+                          {accountValidation.deliveredChannels?.includes('email') ? (
+                            <span className="rounded-full border border-green-accent/35 bg-green-accent/10 px-2.5 py-1 text-[11px] font-bold text-green-accent">
+                              E-mail enviado
+                            </span>
+                          ) : null}
+                          {accountValidation.deliveredChannels?.includes('whatsapp') ? (
+                            <span className="rounded-full border border-green-accent/35 bg-green-accent/10 px-2.5 py-1 text-[11px] font-bold text-green-accent">
+                              WhatsApp enviado
+                            </span>
+                          ) : null}
+                          {accountValidation.pendingChannels?.includes('whatsapp') ? (
+                            <span className="rounded-full border border-amber-300/35 bg-amber-300/10 px-2.5 py-1 text-[11px] font-bold text-amber-200">
+                              WhatsApp em nova tentativa
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </div>
 
                     <div className="mt-5 grid gap-3 md:grid-cols-[1fr_180px]">
@@ -2102,10 +2140,14 @@ export default function CartClient({ customerSession }: Props) {
                       <button
                         type="button"
                         onClick={handleSendAccountCode}
-                        disabled={isSendingAccountCode}
+                        disabled={isSendingAccountCode || accountCodeCooldown > 0}
                         className="h-10 rounded-xl border border-blue-primary/40 px-4 text-xs font-bold text-blue-primary transition hover:bg-blue-primary hover:text-white disabled:cursor-wait disabled:opacity-60"
                       >
-                        {isSendingAccountCode ? 'Enviando...' : 'Enviar código'}
+                        {isSendingAccountCode
+                          ? 'Enviando...'
+                          : accountCodeCooldown > 0
+                            ? `Reenviar em ${accountCodeCooldown}s`
+                            : 'Reenviar código'}
                       </button>
                     </div>
                   </div>
