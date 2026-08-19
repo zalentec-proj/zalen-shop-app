@@ -280,7 +280,10 @@ export async function listDueWhatsAppDeliveries(limit = 30) {
   const { data, error } = await supabase
     .from('whatsapp_message_deliveries')
     .select('*')
-    .in('status', ['queued', 'accepted'])
+    // `accepted` means Evolution already accepted the message. It is terminal
+    // for outbound retry purposes; delivery receipts may refine it to
+    // `delivered`, but must never cause the same text to be sent again.
+    .eq('status', 'queued')
     .or(`next_attempt_at.is.null,next_attempt_at.lte.${now}`)
     .order('created_at', { ascending: true })
     .limit(limit);

@@ -91,6 +91,17 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   Não reutilizar códigos anteriores: sempre solicitar um novo código após o
   deploy desta correção.
 
+- Ainda em 2026-08-19 foi corrigido um retry indevido da fila WhatsApp. Após a
+  Evolution aceitar uma mensagem, o worker voltava a selecionar a linha com
+  status `accepted` a cada cron de cinco minutos e reenviava o mesmo conteúdo.
+  `accepted` agora é terminal para o envio; somente `queued` pode entrar no
+  worker de retry, enquanto um webhook futuro pode promover o estado para
+  `delivered` sem reenviar a mensagem. A entrega que já havia sido aceita na
+  Brasil Drones foi marcada como `delivered` e a migration
+  `20260819234000_stop_accepted_whatsapp_delivery_retries.sql` foi aplicada e
+  verificada em produção: não restaram linhas aceitas/na fila e o índice de
+  busca passou a cobrir somente `queued`.
+
 - Em 2026-08-19, os cards de produto passaram a apresentar uma etiqueta
   prioritária e visível de `Sem estoque` no canto superior da imagem, tanto em
   desktop quanto em mobile. A etiqueta substitui o aviso discreto anterior no
