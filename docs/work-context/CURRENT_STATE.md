@@ -34,8 +34,9 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   usam agora um fallback local com fundo preto e a logo Brasil Drones, em vez
   da imagem genérica. Nenhum produto, preço, estoque, pedido ou dado no Bling
   foi alterado por esta correção. Validações locais: TypeScript, 140 testes,
-  build de produção e `git diff --check` aprovados. A publicação remota desta
-  mudança ainda precisa ser feita a partir do commit correspondente.
+  build de produção e `git diff --check` aprovados. A mudança foi publicada em
+  2026-08-19 no commit `d129bbd` (`fix: render Bling catalog content safely`)
+  no branch `refactor/migrate-to-next`.
 
 - Em 2026-08-18 foi corrigida a persistência de mídia e descrições retornadas
   pelo Bling. A sincronização agora coleta todas as fotos do produto e de suas
