@@ -129,8 +129,13 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   apontou problema de performance nessas tabelas; na segurança permaneceu
   somente o aviso preexistente de proteção contra senhas vazadas desativada.
   Validações locais: 158 testes em 38 arquivos, TypeScript, build de produção,
-  scanner de segredos e `git diff --check` aprovados. O próximo passo exato é
-  publicar o código e repetir uma jornada supervisionada com um OTP novo.
+  scanner de segredos e `git diff --check` aprovados. O commit `9df60c5`
+  (`fix: harden WhatsApp delivery experience`) foi publicado e o deployment de
+  produção `dpl_4qKgieMSWzRj3qzUTndjnTpvy7Xi` chegou a `READY`. A inspeção
+  autenticada de `/conta` confirmou número atual, consentimento marcado e as
+  ações de salvar preferência e trocar número; a Vercel não registrou erro de
+  runtime no deployment. O próximo passo exato é repetir uma jornada
+  supervisionada com um OTP novo e confirmar o mesmo código uma única vez.
 
 - Em 2026-08-19, os cards de produto passaram a apresentar uma etiqueta
   prioritária e visível de `Sem estoque` no canto superior da imagem, tanto em
