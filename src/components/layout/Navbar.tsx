@@ -1,8 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
-  ArrowLeft,
-  ArrowRight,
   ChevronDown,
   ReceiptText,
   Search,
@@ -13,7 +11,6 @@ import {
   X,
 } from 'lucide-react';
 import Logo from '../ui/Logo';
-import { SafeCatalogImage } from '../ui/SafeCatalogImage';
 import type { StorefrontCategory } from '../../types';
 import { getPrimaryStorefrontCategories } from '../home/category-display';
 import type {
@@ -22,15 +19,6 @@ import type {
 } from '@/modules/catalog/storefront-navigation';
 
 const INSTAGRAM_URL = 'https://www.instagram.com/dronesepartsbrasildji/';
-
-export interface NavbarProductPreview {
-  id: string;
-  name: string;
-  href: string;
-  imageUrl?: string;
-  price?: number;
-  searchText?: string;
-}
 
 interface NavbarProps {
   categories: StorefrontCategory[];
@@ -42,43 +30,6 @@ interface NavbarProps {
   onNavigateToHome: () => void;
   onSearchChange: (query: string) => void;
   searchQuery: string;
-  productPreviews?: NavbarProductPreview[];
-}
-
-function normalizePreviewText(value: string) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase('pt-BR');
-}
-
-function getMenuProductPreviews(
-  item: StorefrontNavigationItem,
-  products: NavbarProductPreview[]
-) {
-  if (products.length === 0) return [];
-
-  const terms = (item.children.length > 0 ? item.children : [item])
-    .map((child) => normalizePreviewText(child.label))
-    .filter((label) => label.length >= 3)
-    .sort((left, right) => right.length - left.length);
-  const matchingProducts = products.filter((product) => {
-    const haystack = normalizePreviewText(
-      `${product.name} ${product.searchText ?? ''}`
-    );
-    return terms.some((term) => haystack.includes(term));
-  });
-
-  return (matchingProducts.length > 0 ? matchingProducts : products).slice(0, 6);
-}
-
-function formatPrice(price: number | undefined) {
-  if (typeof price !== 'number') return undefined;
-
-  return price.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  });
 }
 
 export default function Navbar({
@@ -91,11 +42,11 @@ export default function Navbar({
   onNavigateToHome,
   onSearchChange,
   searchQuery,
-  productPreviews = [],
 }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [previewIndexes, setPreviewIndexes] = useState<Record<string, number>>({});
+  const [categoriesMenuOpen, setCategoriesMenuOpen] = useState(false);
+  const categoriesMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
@@ -113,6 +64,30 @@ export default function Navbar({
       window.removeEventListener('keydown', closeOnEscape);
     };
   }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    if (!categoriesMenuOpen) return;
+
+    const closeOnOutsideInteraction = (event: MouseEvent | TouchEvent) => {
+      const target = event.target;
+      if (target instanceof Node && !categoriesMenuRef.current?.contains(target)) {
+        setCategoriesMenuOpen(false);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setCategoriesMenuOpen(false);
+    };
+
+    document.addEventListener('mousedown', closeOnOutsideInteraction);
+    document.addEventListener('touchstart', closeOnOutsideInteraction);
+    window.addEventListener('keydown', closeOnEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutsideInteraction);
+      document.removeEventListener('touchstart', closeOnOutsideInteraction);
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [categoriesMenuOpen]);
 
   const navLinks = useMemo(() => {
     if (navigation?.navbarItems.length) {
@@ -134,6 +109,42 @@ export default function Navbar({
     }));
   }, [categories, navigation]);
 
+  const categoryProductCountBySlug = useMemo(
+    () => new Map(categories.map((category) => [category.slug, category.productCount])),
+    [categories]
+  );
+
+  const visibleNavLinks = useMemo(() => {
+    const isCategoriesRoot = (item: StorefrontNavigationItem) =>
+      item.label.trim().toLocaleLowerCase('pt-BR') === 'categorias';
+    const hasProductsInBranch = (item: StorefrontNavigationItem): boolean => {
+      const productCount = item.categorySlug
+        ? categoryProductCountBySlug.get(item.categorySlug)
+        : undefined;
+
+      return (
+        productCount === undefined ||
+        productCount > 0 ||
+        item.children.some(hasProductsInBranch)
+      );
+    };
+
+    return navLinks
+      .filter((item) => isCategoriesRoot(item) || hasProductsInBranch(item))
+      .map((item) => ({
+        ...item,
+        children: item.children.filter(hasProductsInBranch),
+      }));
+  }, [categoryProductCountBySlug, navLinks]);
+
+  const compactCategoryMenuItems = useMemo(
+    () =>
+      visibleNavLinks.filter(
+        (item) => item.label.trim().toLocaleLowerCase('pt-BR') !== 'categorias'
+      ),
+    [visibleNavLinks]
+  );
+
   const handleLinkClick = (categoryValue: string | null) => {
     onCategorySelect(categoryValue);
     setMobileMenuOpen(false);
@@ -146,15 +157,7 @@ export default function Navbar({
 
   const renderDesktopItem = (item: StorefrontNavigationItem) => {
     const isActive = activeCategory === item.categorySlug;
-    const hasChildren = item.children.length > 0;
     const isCategoriesRoot = item.label.trim().toLocaleLowerCase('pt-BR') === 'categorias';
-    const previewProducts = getMenuProductPreviews(item, productPreviews);
-    const selectedPreviewIndex = previewIndexes[item.id] ?? 0;
-    const previewProduct =
-      previewProducts.length > 0
-        ? previewProducts[selectedPreviewIndex % previewProducts.length]
-        : undefined;
-    const hasPreviewCarousel = previewProducts.length > 1;
     const className = `inline-flex h-10 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 text-[13px] font-medium tracking-wide transition-colors duration-200 cursor-pointer hover:text-white ${
       isActive ? 'text-white' : 'text-brand-muted'
     } ${isActive ? 'border-blue-primary' : 'border-transparent hover:border-white/30'}`;
@@ -162,13 +165,27 @@ export default function Navbar({
       <>
         {isCategoriesRoot ? <Menu className="h-4 w-4 text-green-accent" /> : null}
         <span>{item.label}</span>
-        {hasChildren ? <ChevronDown className="h-3.5 w-3.5" /> : null}
+        {isCategoriesRoot ? <ChevronDown className="h-3.5 w-3.5" /> : null}
       </>
     );
 
     return (
-      <div key={item.id} className="group relative">
-        {item.href ? (
+      <div
+        key={item.id}
+        className="relative"
+        ref={isCategoriesRoot ? categoriesMenuRef : undefined}
+      >
+        {isCategoriesRoot ? (
+          <button
+            type="button"
+            className={className}
+            onClick={() => setCategoriesMenuOpen((open) => !open)}
+            aria-haspopup="menu"
+            aria-expanded={categoriesMenuOpen}
+          >
+            {content}
+          </button>
+        ) : item.href ? (
           <Link href={item.href} className={className}>
             {content}
           </Link>
@@ -182,96 +199,64 @@ export default function Navbar({
           </button>
         )}
 
-        {hasChildren ? (
-          <div className="invisible absolute left-1/2 top-full z-50 mt-2 w-[min(760px,calc(100vw-64px))] -translate-x-1/2 overflow-hidden rounded-xl border border-white/10 bg-[#071124]/95 opacity-0 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl transition duration-200 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
-            <div className="grid min-h-[260px] grid-cols-[minmax(180px,0.7fr)_minmax(0,1.3fr)]">
-              <div className="border-r border-white/10 py-3">
-                <span className="block px-5 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-muted">
-                  {item.label}
-                </span>
-                <div className="max-h-[244px] overflow-y-auto px-2">
-                  {item.children.map((child) => {
-                    const childContent = (
-                      <>
-                        <span>{child.label}</span>
-                        {child.children.length > 0 ? (
-                          <ChevronDown className="h-3.5 w-3.5 -rotate-90" />
+        {isCategoriesRoot && categoriesMenuOpen ? (
+          <div
+            role="menu"
+            aria-label="Categorias da loja"
+            className="absolute left-0 top-full z-50 mt-2 w-[min(340px,calc(100vw-32px))] overflow-hidden rounded-xl border border-white/10 bg-[#071124] p-2 shadow-[0_24px_80px_rgba(0,0,0,0.52)]"
+          >
+            <div className="max-h-[min(65vh,520px)] space-y-1 overflow-y-auto pr-1">
+              {compactCategoryMenuItems.length > 0 ? (
+                compactCategoryMenuItems.map((menuItem) =>
+                  menuItem.children.length > 0 ? (
+                    <details key={menuItem.id} className="group/menu rounded-lg">
+                      <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-3 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.07]">
+                        <span>{menuItem.label}</span>
+                        <ChevronDown className="h-4 w-4 text-brand-muted transition group-open/menu:rotate-180" />
+                      </summary>
+                      <div className="mb-1 ml-3 border-l border-white/10 py-1 pl-2">
+                        {menuItem.href ? (
+                          <Link
+                            href={menuItem.href}
+                            role="menuitem"
+                            onClick={() => setCategoriesMenuOpen(false)}
+                            className="block rounded-md px-3 py-2 text-xs font-medium text-brand-muted transition hover:bg-white/[0.06] hover:text-white"
+                          >
+                            Ver todos em {menuItem.label}
+                          </Link>
                         ) : null}
-                      </>
-                    );
-                    const childClassName = "flex min-h-10 items-center justify-between gap-3 rounded-lg px-3 text-sm font-medium text-slate-200 transition hover:bg-white/[0.07] hover:text-white";
-
-                    return child.href ? (
-                      <Link key={child.id} href={child.href} className={childClassName}>
-                        {childContent}
-                      </Link>
-                    ) : (
-                      <span key={child.id} className={`${childClassName} cursor-default`}>
-                        {childContent}
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {previewProduct ? (
-                <div className="relative flex items-center justify-center bg-[#050A14]/55 p-4">
-                  <Link
-                    href={previewProduct.href}
-                    className="group/product flex w-full max-w-[320px] flex-col items-center text-center"
-                  >
-                    <div className="flex h-32 w-full items-center justify-center overflow-hidden">
-                      <SafeCatalogImage
-                        src={previewProduct.imageUrl}
-                        alt={previewProduct.name}
-                        className="h-full max-w-full object-contain transition duration-300 group-hover/product:scale-105"
-                      />
-                    </div>
-                    <span className="mt-3 line-clamp-2 text-sm font-semibold leading-5 text-white group-hover/product:text-[#8FDFFF]">
-                      {previewProduct.name}
-                    </span>
-                    {formatPrice(previewProduct.price) ? (
-                      <span className="mt-1 text-base font-bold text-green-accent">
-                        {formatPrice(previewProduct.price)}
-                      </span>
-                    ) : null}
-                  </Link>
-
-                  {hasPreviewCarousel ? (
-                    <>
-                      <button
-                        type="button"
-                        aria-label="Produto anterior"
-                        onClick={() => {
-                          setPreviewIndexes((current) => ({
-                            ...current,
-                            [item.id]: (selectedPreviewIndex - 1 + previewProducts.length) % previewProducts.length,
-                          }));
-                        }}
-                        className="absolute left-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-[#071124]/85 text-white transition hover:border-blue-primary hover:bg-blue-primary"
-                      >
-                        <ArrowLeft className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Próximo produto"
-                        onClick={() => {
-                          setPreviewIndexes((current) => ({
-                            ...current,
-                            [item.id]: (selectedPreviewIndex + 1) % previewProducts.length,
-                          }));
-                        }}
-                        className="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-[#071124]/85 text-white transition hover:border-blue-primary hover:bg-blue-primary"
-                      >
-                        <ArrowRight className="h-4 w-4" />
-                      </button>
-                    </>
-                  ) : null}
-                </div>
+                        {menuItem.children.map((child) => (
+                          <Link
+                            key={child.id}
+                            href={child.href ?? '#'}
+                            role="menuitem"
+                            onClick={(event) => {
+                              if (!child.href) event.preventDefault();
+                              setCategoriesMenuOpen(false);
+                            }}
+                            className="block rounded-md px-3 py-2 text-sm text-slate-300 transition hover:bg-white/[0.06] hover:text-white"
+                          >
+                            {child.label}
+                          </Link>
+                        ))}
+                      </div>
+                    </details>
+                  ) : menuItem.href ? (
+                    <Link
+                      key={menuItem.id}
+                      href={menuItem.href}
+                      role="menuitem"
+                      onClick={() => setCategoriesMenuOpen(false)}
+                      className="flex min-h-10 items-center rounded-lg px-3 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.07] hover:text-white"
+                    >
+                      {menuItem.label}
+                    </Link>
+                  ) : null
+                )
               ) : (
-                <div className="flex items-center justify-center px-8 text-center text-sm text-brand-muted">
-                  Produtos desta categoria aparecerão aqui.
-                </div>
+                <p className="px-3 py-4 text-sm text-brand-muted">
+                  Categorias disponíveis em breve.
+                </p>
               )}
             </div>
           </div>
@@ -388,7 +373,7 @@ export default function Navbar({
         className="mx-auto mt-2 hidden max-w-7xl overflow-visible rounded-xl border border-[#315de0]/35 bg-[#0A1B4D]/95 shadow-[0_10px_28px_rgba(0,0,0,0.28)] backdrop-blur-xl xl:block"
       >
         <div className="flex h-10 items-stretch overflow-visible px-4 md:px-5">
-          {navLinks.map(renderDesktopItem)}
+          {visibleNavLinks.map(renderDesktopItem)}
         </div>
       </nav>
 

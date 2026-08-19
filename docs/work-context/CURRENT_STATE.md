@@ -6,7 +6,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Snapshot
 
-- Atualizado em: 2026-08-18
+- Atualizado em: 2026-08-19
 - Branch: `refactor/migrate-to-next`
 - Commit funcional base: `711e5d2` — `fix: normalize Bling description line endings`
 - A publicação e a restauração seletiva de imagens/compatibilidades devem ser
@@ -23,6 +23,23 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Última mudança conhecida
+
+- Em 2026-08-19 foi simplificado o menu desktop de categorias do storefront.
+  O item `Categorias` agora abre apenas por clique um dropdown compacto,
+  acessível por teclado e fechado por clique externo ou `Esc`. O antigo
+  mega-menu por hover, com preview de produto e coluna vazia quando a página
+  não possuía produtos, foi removido. O dropdown parte somente dos itens
+  editoriais da navegação, mantém filhos úteis em uma expansão curta e oculta
+  ramos sem produtos. As categorias e vínculos no Bling não foram modificados
+  por essa alteração de interface. TypeScript e 140 testes passaram; o build
+  de produção compilou, concluiu a checagem de tipos e gerou as 21 páginas.
+
+  Foi iniciada pelo Admin a sincronização incremental do catálogo para trazer
+  uma mudança feita no Bling no produto SKU `1251` (Drone DJI Avata 2 seminovo).
+  Antes do job, as categorias Bling `Novos` e `Semi novos` já existiam como
+  filhas de `Drones`, mas ainda não tinham produtos vinculados no espelho. O
+  job deve ser conferido até o estado final `success` antes de validar a página
+  pública de `Semi novos`; não iniciar outro sync concorrente.
 
 - Em 2026-08-19 foi removida a nuvem de tags técnicas da página pública de
   categoria. A rota não repassa mais toda a árvore de categorias sincronizada
