@@ -72,6 +72,13 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   ou sem código do país e exibe `(DD) 9XXXX-XXXX`. Commit `bdf5c41` enviado ao
   branch padrão; o deployment de produção correspondente ficou `READY`.
 
+- A mesma máscara reutilizável foi aplicada ao telefone operacional da
+  integração WhatsApp. O admin e "Minha conta" aceitam dígitos ou colagem em
+  E.164, exibem o número nacional formatado e mantêm a normalização E.164 no
+  servidor. Teste unitário em `src/lib/phone/brazilian-phone.test.ts`; commit
+  `cedeb6f` enviado ao branch padrão (deployment em andamento no momento do
+  handoff).
+
 - Em 2026-08-19, os cards de produto passaram a apresentar uma etiqueta
   prioritária e visível de `Sem estoque` no canto superior da imagem, tanto em
   desktop quanto em mobile. A etiqueta substitui o aviso discreto anterior no
