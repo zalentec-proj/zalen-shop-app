@@ -24,6 +24,15 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
+- Em 2026-08-19, os cards de produto passaram a apresentar uma etiqueta
+  prioritária e visível de `Sem estoque` no canto superior da imagem, tanto em
+  desktop quanto em mobile. A etiqueta substitui o aviso discreto anterior no
+  rodapé da imagem; o botão de adicionar ao carrinho continua bloqueado para
+  esses itens. A alteração é exclusivamente visual, centralizada em
+  `ProductCard`, portanto cobre vitrines, busca e categorias sem alterar
+  estoque, catálogo ou Bling. TypeScript e 140 testes foram aprovados; o build
+  de produção compilou e concluiu a checagem de tipos.
+
 - Em 2026-08-19 foi restaurada a navegação com submenus e preview visual no
   desktop, sem reintroduzir o mega-menu vazio. `Categorias` conserva seu
   dropdown compacto por clique; cada item editorial que possui filhos também

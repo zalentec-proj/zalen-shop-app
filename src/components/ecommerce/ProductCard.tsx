@@ -31,7 +31,12 @@ export default function ProductCard({ product, onProductClick, onAddToCart }: Pr
         className="relative flex h-32 w-full cursor-pointer items-center justify-center overflow-hidden border-b border-brand-border-soft bg-gradient-to-b from-white/[0.04] via-transparent to-transparent p-2 sm:h-44 sm:p-3 md:h-52 md:p-4"
       >
         {/* Absolute Badges on top of image */}
-        <div className="pointer-events-none absolute left-2 top-2 z-20 hidden flex-col gap-1.5 sm:left-3 sm:top-3 sm:flex md:left-4 md:top-4">
+        <div className="pointer-events-none absolute left-2 top-2 z-20 flex flex-col items-start gap-1.5 sm:left-3 sm:top-3 md:left-4 md:top-4">
+          {!product.isAvailable && (
+            <span className="inline-flex items-center rounded-full border border-red-300/45 bg-red-600 px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.12em] text-white shadow-[0_0_14px_rgba(239,68,68,0.45)]">
+              Sem estoque
+            </span>
+          )}
           {product.isNew && (
             <span className="inline-flex items-center bg-blue-primary/10 border border-blue-primary/40 rounded-full px-2.5 py-0.5 text-[9px] font-bold text-blue-primary uppercase tracking-wider shadow-[0_0_8px_rgba(30,61,255,0.3)]">
               Novo
@@ -67,12 +72,6 @@ export default function ProductCard({ product, onProductClick, onAddToCart }: Pr
           referrerPolicy="no-referrer"
         />
 
-        {!product.isAvailable ? (
-          <span className="absolute bottom-2 left-2 z-20 rounded-full border border-amber-300/25 bg-[#050A14]/95 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-amber-100 sm:bottom-3 sm:left-3">
-            Esgotado
-          </span>
-        ) : null}
-        
         {/* Soft hovering quick view circle overlay */}
         <div className="absolute inset-0 bg-brand-bg/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-350 z-15">
           <div className="w-10 h-10 rounded-full bg-blue-primary text-white flex items-center justify-center shadow-[0_0_15px_#1E3DFF]">
