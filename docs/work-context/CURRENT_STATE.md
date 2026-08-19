@@ -37,9 +37,9 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
   A VPS central foi inspecionada sem expor segredos: Evolution API `2.3.7`,
   imagem `evoapicloud/evolution-api:latest`, volume persistente em
-  `/evolution/instances` e instância existente `brasil_drones` no estado
-  `open`. Ela deve ser vinculada pelo Admin, não recriada. O webhook ainda não
-  estava configurado na instância. A pesquisa técnica está em
+  `/evolution/instances` e instância existente `brasil_drones`. Em 2026-08-19
+  ela foi vinculada pelo Admin à loja Brasil Drones sem recriação, conferida
+  como `connected` e teve o webhook configurado. A pesquisa técnica está em
   `docs/integrations/evolution-whatsapp-research.md`.
 
   A migration `20260819210003_whatsapp_evolution_integration.sql` foi aplicada
@@ -53,17 +53,16 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   `EVOLUTION_API_BASE_URL` e `EVOLUTION_API_GLOBAL_API_KEY` foram salvas como
   segredos criptografados na Vercel; a chave global também ficou disponível em
   Preview e deve ser restrita a Production antes da liberação final. Nunca
-  registrar os valores dessas variáveis neste arquivo. O deployment feito em
-  2026-08-19 está `Ready`, mas a tela de integrações revelou uma correção local
-  pendente de publicação: o normalizador de providers convertia a categoria
-  `communication` para `erp` e o card WhatsApp não abria sua rota própria. A
-  correção já está implementada e validada. Depois de publicá-la, vincular a
-  instância existente `brasil_drones`, salvar telefone operacional, configurar
-  o webhook e realizar o teste.
-  Validações locais concluídas: `npm run lint` e `npm test` (140 testes). O
-  build compilou e passou no TypeScript, mas a execução nesta sessão não
-  retornou após a etapa de coleta de dados; repetir `npm run build` antes do
-  deploy.
+  registrar os valores dessas variáveis neste arquivo. O commit `1c5c2db`
+  (`feat: add per-store WhatsApp integration`) foi enviado ao branch padrão
+  `refactor/migrate-to-next`; ele inclui a correção de categoria `communication`
+  e o link direto do card para a integração. As notificações e o telefone
+  operacional permanecem desligados até a operação definir o número de alerta
+  e os eventos desejados; próximo passo é salvar esse número, ativar somente
+  os eventos aprovados e disparar o teste operacional. Validações locais
+  concluídas: `npm run lint` e `npm test` (143 testes). O build compilou e
+  passou no TypeScript, mas a execução nesta sessão não retornou após a etapa
+  de coleta de dados; repetir `npm run build` antes de outro deploy manual.
 
 - Em 2026-08-19, os cards de produto passaram a apresentar uma etiqueta
   prioritária e visível de `Sem estoque` no canto superior da imagem, tanto em
