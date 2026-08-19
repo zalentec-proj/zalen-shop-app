@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
+  ArrowLeft,
+  ArrowRight,
   ChevronDown,
   ReceiptText,
   Search,
@@ -11,6 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import Logo from '../ui/Logo';
+import { SafeCatalogImage } from '../ui/SafeCatalogImage';
 import type { StorefrontCategory } from '../../types';
 import { getPrimaryStorefrontCategories } from '../home/category-display';
 import type {
@@ -19,6 +22,15 @@ import type {
 } from '@/modules/catalog/storefront-navigation';
 
 const INSTAGRAM_URL = 'https://www.instagram.com/dronesepartsbrasildji/';
+
+export interface NavbarProductPreview {
+  id: string;
+  name: string;
+  href: string;
+  imageUrl?: string;
+  price?: number;
+  searchText?: string;
+}
 
 interface NavbarProps {
   categories: StorefrontCategory[];
@@ -30,6 +42,43 @@ interface NavbarProps {
   onNavigateToHome: () => void;
   onSearchChange: (query: string) => void;
   searchQuery: string;
+  productPreviews?: NavbarProductPreview[];
+}
+
+function normalizePreviewText(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR');
+}
+
+function getMenuProductPreviews(
+  item: StorefrontNavigationItem,
+  products: NavbarProductPreview[]
+) {
+  if (products.length === 0) return [];
+
+  const terms = (item.children.length > 0 ? item.children : [item])
+    .map((child) => normalizePreviewText(child.label))
+    .filter((label) => label.length >= 3)
+    .sort((left, right) => right.length - left.length);
+  const matchingProducts = products.filter((product) => {
+    const haystack = normalizePreviewText(
+      `${product.name} ${product.searchText ?? ''}`
+    );
+    return terms.some((term) => haystack.includes(term));
+  });
+
+  return (matchingProducts.length > 0 ? matchingProducts : products).slice(0, 6);
+}
+
+function formatPrice(price: number | undefined) {
+  if (typeof price !== 'number') return undefined;
+
+  return price.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  });
 }
 
 export default function Navbar({
@@ -42,10 +91,12 @@ export default function Navbar({
   onNavigateToHome,
   onSearchChange,
   searchQuery,
+  productPreviews = [],
 }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [categoriesMenuOpen, setCategoriesMenuOpen] = useState(false);
+  const [previewIndexes, setPreviewIndexes] = useState<Record<string, number>>({});
   const categoriesMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -133,7 +184,10 @@ export default function Navbar({
       .filter((item) => isCategoriesRoot(item) || hasProductsInBranch(item))
       .map((item) => ({
         ...item,
-        children: item.children.filter(hasProductsInBranch),
+        children: item.children.filter(
+          (child) =>
+            hasProductsInBranch(child) || child.id.startsWith('bling-category-')
+        ),
       }));
   }, [categoryProductCountBySlug, navLinks]);
 
@@ -158,6 +212,15 @@ export default function Navbar({
   const renderDesktopItem = (item: StorefrontNavigationItem) => {
     const isActive = activeCategory === item.categorySlug;
     const isCategoriesRoot = item.label.trim().toLocaleLowerCase('pt-BR') === 'categorias';
+    const hasChildren = !isCategoriesRoot && item.children.length > 0;
+    const previewProducts = hasChildren
+      ? getMenuProductPreviews(item, productPreviews)
+      : [];
+    const selectedPreviewIndex = previewIndexes[item.id] ?? 0;
+    const previewProduct = previewProducts.length > 0
+      ? previewProducts[selectedPreviewIndex % previewProducts.length]
+      : undefined;
+    const hasPreviewCarousel = previewProducts.length > 1;
     const className = `inline-flex h-10 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 text-[13px] font-medium tracking-wide transition-colors duration-200 cursor-pointer hover:text-white ${
       isActive ? 'text-white' : 'text-brand-muted'
     } ${isActive ? 'border-blue-primary' : 'border-transparent hover:border-white/30'}`;
@@ -165,14 +228,14 @@ export default function Navbar({
       <>
         {isCategoriesRoot ? <Menu className="h-4 w-4 text-green-accent" /> : null}
         <span>{item.label}</span>
-        {isCategoriesRoot ? <ChevronDown className="h-3.5 w-3.5" /> : null}
+        {isCategoriesRoot || hasChildren ? <ChevronDown className="h-3.5 w-3.5" /> : null}
       </>
     );
 
     return (
       <div
         key={item.id}
-        className="relative"
+        className={hasChildren ? 'group relative' : 'relative'}
         ref={isCategoriesRoot ? categoriesMenuRef : undefined}
       >
         {isCategoriesRoot ? (
@@ -198,6 +261,95 @@ export default function Navbar({
             {content}
           </button>
         )}
+
+        {hasChildren ? (
+          <div className="invisible absolute left-1/2 top-full z-50 mt-2 w-[min(720px,calc(100vw-64px))] -translate-x-1/2 overflow-hidden rounded-xl border border-white/10 bg-[#071124]/95 opacity-0 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl transition duration-200 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+            <div className="grid min-h-[240px] grid-cols-[minmax(180px,0.7fr)_minmax(0,1.3fr)]">
+              <div className="border-r border-white/10 py-3">
+                <span className="block px-5 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-muted">
+                  {item.label}
+                </span>
+                <div className="max-h-[224px] overflow-y-auto px-2">
+                  {item.children.map((child) => (
+                    child.href ? (
+                      <Link
+                        key={child.id}
+                        href={child.href}
+                        className="flex min-h-10 items-center justify-between gap-3 rounded-lg px-3 text-sm font-medium text-slate-200 transition hover:bg-white/[0.07] hover:text-white"
+                      >
+                        <span>{child.label}</span>
+                        {child.children.length > 0 ? <ChevronDown className="h-3.5 w-3.5 -rotate-90" /> : null}
+                      </Link>
+                    ) : (
+                      <span
+                        key={child.id}
+                        className="flex min-h-10 cursor-default items-center justify-between gap-3 rounded-lg px-3 text-sm font-medium text-slate-200"
+                      >
+                        <span>{child.label}</span>
+                      </span>
+                    )
+                  ))}
+                </div>
+              </div>
+
+              {previewProduct ? (
+                <div className="relative flex items-center justify-center bg-[#050A14]/55 p-4">
+                  <Link
+                    href={previewProduct.href}
+                    className="group/product flex w-full max-w-[320px] flex-col items-center text-center"
+                  >
+                    <div className="flex h-32 w-full items-center justify-center overflow-hidden">
+                      <SafeCatalogImage
+                        src={previewProduct.imageUrl}
+                        alt={previewProduct.name}
+                        className="h-full max-w-full object-contain transition duration-300 group-hover/product:scale-105"
+                      />
+                    </div>
+                    <span className="mt-3 line-clamp-2 text-sm font-semibold leading-5 text-white group-hover/product:text-[#8FDFFF]">
+                      {previewProduct.name}
+                    </span>
+                    {formatPrice(previewProduct.price) ? (
+                      <span className="mt-1 text-base font-bold text-green-accent">
+                        {formatPrice(previewProduct.price)}
+                      </span>
+                    ) : null}
+                  </Link>
+
+                  {hasPreviewCarousel ? (
+                    <>
+                      <button
+                        type="button"
+                        aria-label="Produto anterior"
+                        onClick={() => setPreviewIndexes((current) => ({
+                          ...current,
+                          [item.id]: (selectedPreviewIndex - 1 + previewProducts.length) % previewProducts.length,
+                        }))}
+                        className="absolute left-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-[#071124]/85 text-white transition hover:border-blue-primary hover:bg-blue-primary"
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Próximo produto"
+                        onClick={() => setPreviewIndexes((current) => ({
+                          ...current,
+                          [item.id]: (selectedPreviewIndex + 1) % previewProducts.length,
+                        }))}
+                        className="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-[#071124]/85 text-white transition hover:border-blue-primary hover:bg-blue-primary"
+                      >
+                        <ArrowRight className="h-4 w-4" />
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center px-8 text-center text-sm text-brand-muted">
+                  Produtos desta categoria aparecerão aqui.
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
 
         {isCategoriesRoot && categoriesMenuOpen ? (
           <div

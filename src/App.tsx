@@ -212,6 +212,18 @@ export default function App({
       <Navbar
         categories={categories}
         navigation={navigation}
+        productPreviews={products.map((product) => ({
+          id: product.id,
+          name: product.name,
+          href: `/produto/${product.id}`,
+          imageUrl: product.image,
+          price: product.price,
+          searchText: [
+            product.sku,
+            product.category,
+            ...(product.categories?.map((category) => category.name) ?? []),
+          ].filter(Boolean).join(' '),
+        }))}
         cartItemsCount={cartItemsCount}
         onCartToggle={() => setCartOpen(!cartOpen)}
         activeCategory={activeCategory}

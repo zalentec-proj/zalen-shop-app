@@ -84,6 +84,22 @@ export default function ModelListingClient({
       <Navbar
         categories={storefrontCategories}
         navigation={navigation}
+        productPreviews={products.map((product) => {
+          const variant = product.variants[0];
+
+          return {
+            id: product.id,
+            name: product.name,
+            href: `/produto/${product.slug}`,
+            imageUrl: product.images[0]?.url,
+            price: variant?.promotionalPrice ?? variant?.price,
+            searchText: [
+              variant?.sku,
+              product.brand,
+              ...product.categories.map((item) => item.name),
+            ].filter(Boolean).join(' '),
+          };
+        })}
         cartItemsCount={cartItemsCount}
         onCartToggle={() => {
           window.location.href = '/carrinho';

@@ -24,6 +24,16 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
+- Em 2026-08-19 foi restaurada a navegação com submenus e preview visual no
+  desktop, sem reintroduzir o mega-menu vazio. `Categorias` conserva seu
+  dropdown compacto por clique; cada item editorial que possui filhos também
+  volta a exibir seta e, no hover/foco, apresenta seus links e preview de
+  produto. As categorias filhas do Bling permanecem visíveis no submenu mesmo
+  se ainda estiverem sem produtos, permitindo que `Novos` e `Semi novos`
+  apareçam sob `Drones`. A alteração é somente de interface e não modifica
+  dados do catálogo ou do Bling. Validações locais: TypeScript, 140 testes,
+  build de produção e `git diff --check` aprovados.
+
 - Em 2026-08-19 foi corrigida a seleção da vitrine "Drones" da home. Quando
   uma seção possui categoria sincronizada, a vitrine agora usa exclusivamente
   seus vínculos de categoria e descendentes, sem complementar por palavras do
