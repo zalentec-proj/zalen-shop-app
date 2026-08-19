@@ -56,13 +56,21 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   registrar os valores dessas variáveis neste arquivo. O commit `1c5c2db`
   (`feat: add per-store WhatsApp integration`) foi enviado ao branch padrão
   `refactor/migrate-to-next`; ele inclui a correção de categoria `communication`
-  e o link direto do card para a integração. As notificações e o telefone
-  operacional permanecem desligados até a operação definir o número de alerta
-  e os eventos desejados; próximo passo é salvar esse número, ativar somente
-  os eventos aprovados e disparar o teste operacional. Validações locais
+  e o link direto do card para a integração. As notificações foram ativadas
+  para `access_code`, `order_received`, `payment_approved` e os dois alertas
+  operacionais; o telefone de alerta ainda não foi definido. Validações locais
   concluídas: `npm run lint` e `npm test` (143 testes). O build compilou e
   passou no TypeScript, mas a execução nesta sessão não retornou após a etapa
   de coleta de dados; repetir `npm run build` antes de outro deploy manual.
+
+- Ainda em 2026-08-19, o primeiro teste de confirmação de telefone falhou
+  antes de enfileirar a mensagem. A causa foi a expressão regular E.164 da
+  migration inicial, que escapava o `+` duas vezes e rejeitava números válidos.
+  A migration `20260819223000_fix_whatsapp_phone_e164_validation.sql` foi
+  aplicada no Supabase de produção e validada com um formato `+55…`. O campo de
+  telefone da conta agora remove caracteres não numéricos, aceita colagem com
+  ou sem código do país e exibe `(DD) 9XXXX-XXXX`. Commit `bdf5c41` enviado ao
+  branch padrão; o deployment de produção correspondente ficou `READY`.
 
 - Em 2026-08-19, os cards de produto passaram a apresentar uma etiqueta
   prioritária e visível de `Sem estoque` no canto superior da imagem, tanto em
