@@ -107,7 +107,6 @@ export default async function CategoryPage({ params }: Props) {
       <CategoryClient
         category={category}
         products={products}
-        categories={categories}
         storefrontCategories={storefrontCategories}
         navigation={navigation}
       />

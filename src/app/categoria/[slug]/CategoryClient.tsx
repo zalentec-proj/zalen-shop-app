@@ -23,7 +23,6 @@ import type { StorefrontCategory } from '@/types';
 interface Props {
   category: Category;
   products: Product[];
-  categories: Category[];
   storefrontCategories: StorefrontCategory[];
   navigation: StorefrontNavigation;
 }
@@ -31,7 +30,6 @@ interface Props {
 export default function CategoryClient({
   category,
   products,
-  categories,
   storefrontCategories,
   navigation,
 }: Props) {
@@ -128,25 +126,6 @@ export default function CategoryClient({
               <option value="price-desc" className="bg-[#0B1018] text-white">Maior preço</option>
             </select>
           </div>
-        </div>
-
-        <div className="flex flex-wrap gap-3 mb-10">
-          {categories.map((item) => {
-            const isActive = item.slug === category.slug;
-            return (
-              <Link
-                key={item.id}
-                href={`/categoria/${item.slug}`}
-                className={`h-10 px-4 rounded-full border text-sm font-medium transition-colors flex items-center ${
-                  isActive
-                    ? 'border-blue-primary bg-blue-primary/10 text-white'
-                    : 'border-brand-border-soft bg-white/[0.02] text-brand-muted hover:text-white hover:border-white/20'
-                }`}
-              >
-              {item.name}
-              </Link>
-            );
-          })}
         </div>
 
         {/* Grid */}

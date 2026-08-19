@@ -24,6 +24,15 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Última mudança conhecida
 
+- Em 2026-08-19 foi removida a nuvem de tags técnicas da página pública de
+  categoria. A rota não repassa mais toda a árvore de categorias sincronizada
+  do Bling para renderização como chips; preserva título, contagem de produtos,
+  ordenação e grade. A navegação superior e os filtros próprios continuam
+  disponíveis em seus respectivos contextos. A correção não altera categorias,
+  produtos, preços, estoque, pedidos ou qualquer dado no Bling. Validações
+  locais: TypeScript, 140 testes, build de produção e `git diff --check`
+  aprovados.
+
 - Em 2026-08-18 foi reforçada a apresentação de descrição e imagem do
   catálogo. A normalização de conteúdo do Bling agora é compartilhada pelo
   conector e pela leitura do catálogo, de modo que registros antigos com HTML
