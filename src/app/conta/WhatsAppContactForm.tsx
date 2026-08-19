@@ -2,24 +2,9 @@
 
 import { useActionState, useState } from 'react';
 import { updateWhatsAppContactAction, type WhatsAppContactState } from './actions';
+import { formatBrazilianPhone } from '@/lib/phone/brazilian-phone';
 
 const initialState: WhatsAppContactState = { step: 'phone' };
-
-function formatBrazilianPhone(value: string) {
-  let digits = value.replace(/\D/g, '');
-
-  // A pessoa pode colar um número com +55. Para números nacionais, o DDD 55
-  // continua válido porque só removemos o país quando existem mais de 11 dígitos.
-  if (digits.startsWith('55') && digits.length > 11) digits = digits.slice(2);
-  digits = digits.slice(0, 11);
-
-  if (digits.length <= 2) return digits ? `(${digits}` : '';
-  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-  if (digits.length <= 10) {
-    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
-  }
-  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
-}
 
 export default function WhatsAppContactForm() {
   const [state, action, pending] = useActionState(updateWhatsAppContactAction, initialState);
