@@ -8,8 +8,8 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-08-20
 - Branch: `refactor/migrate-to-next`
-- Commit funcional base antes desta revisão: `dd1c6d5` —
-  `docs: record WhatsApp production configuration fix`
+- Commit funcional base antes desta revisão: `510b841` —
+  `fix: recover checkout from stale shipping quotes`
 - A publicação e a restauração seletiva de imagens/compatibilidades devem ser
   conferidas no bloco mais recente antes de iniciar uma nova frente.
   Preserve os scripts locais não rastreados que não pertencem a esta frente.
@@ -24,6 +24,28 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Última mudança conhecida
+
+- Em 2026-08-20 foi implementado o checkout expresso para clientes
+  recorrentes. Depois que uma conta existente é validada, clientes com dados
+  cadastrais e endereço completos seguem diretamente para a revisão e o
+  pagamento. A tela final mostra o endereço salvo e a modalidade de envio,
+  ambos com ação `Alterar`; as etapas completas continuam disponíveis quando
+  faltam dados ou quando o comprador deseja fazer uma mudança. Clientes novos
+  permanecem no fluxo integral de identificação, cadastro e entrega.
+
+  As cotações de frete passam a ser solicitadas imediatamente para o cliente
+  recorrente assim que carrinho e endereço ficam disponíveis. O pagamento fica
+  bloqueado enquanto o frete está sendo calculado ou quando nenhuma cotação
+  válida foi selecionada, evitando iniciar uma cobrança com frete ausente ou
+  divergente. Após validar o OTP, os endereços da conta são carregados no
+  servidor e devolvidos somente para a sessão autenticada da mesma loja.
+  Nenhuma migration ou alteração de integração externa foi necessária.
+
+  Validações locais concluídas: TypeScript, 174 testes em 40 arquivos, build
+  de produção, scanner de segredos e `git diff --check`. A automação visual no
+  navegador local não ficou disponível nesta sessão; repetir uma compra
+  supervisionada no deployment de produção, primeiro com uma conta recorrente
+  e depois com uma conta nova.
 
 - Em 2026-08-20, a primeira tentativa de pagamento após a homologação do OTP
   foi bloqueada antes de criar pedido ou chamar o Mercado Pago. A auditoria da

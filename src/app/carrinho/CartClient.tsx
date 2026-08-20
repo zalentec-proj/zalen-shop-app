@@ -10,6 +10,7 @@ import {
   FileText,
   IdCard,
   Mail,
+  MapPin,
   Minus,
   Package,
   Plus,
@@ -55,6 +56,7 @@ import type { Cart } from '@/modules/cart/cart.types';
 import { pushMarketingEvent } from '@/modules/marketing/marketing.client';
 import type { CustomerType } from '@/modules/pricing/pricing.types';
 import { PixPaymentStatusScreen } from './PixPaymentStatusScreen';
+import { resolveCheckoutEntryStep } from './checkout-experience';
 
 type CheckoutSessionCustomer = {
   name?: string;
@@ -329,13 +331,13 @@ function getDocumentValidationState(document: string, customerType: CustomerType
 function getInitialCheckoutStep(
   customerSession: Props['customerSession']
 ): CheckoutStep {
-  if (!customerSession?.email) {
-    return 'identificacao';
-  }
-
   const initialCustomer = getInitialCustomerState(customerSession);
 
-  return hasRequiredCustomerData(initialCustomer) ? 'entrega' : 'cadastro';
+  return resolveCheckoutEntryStep({
+    hasVerifiedSession: Boolean(customerSession?.email),
+    hasCustomerData: hasRequiredCustomerData(initialCustomer),
+    hasDeliveryData: hasRequiredDeliveryData(initialCustomer),
+  });
 }
 
 function getInitialCustomerState(
@@ -387,6 +389,18 @@ function formatSavedAddress(address: CheckoutSessionAddress) {
     address.district,
     [address.city, address.state].filter(Boolean).join('/'),
     address.postalCode ? `CEP ${address.postalCode}` : undefined,
+  ]
+    .filter(Boolean)
+    .join(' • ');
+}
+
+function formatCustomerAddress(customer: CustomerState) {
+  return [
+    [customer.street, customer.number].filter(Boolean).join(', '),
+    customer.complement,
+    customer.district,
+    [customer.city, customer.state].filter(Boolean).join('/'),
+    customer.postalCode ? `CEP ${customer.postalCode}` : undefined,
   ]
     .filter(Boolean)
     .join(' • ');
@@ -631,7 +645,7 @@ export default function CartClient({ customerSession }: Props) {
   const [customer, setCustomer] = useState<CustomerState>(() =>
     getInitialCustomerState(customerSession)
   );
-  const [savedAddresses] = useState<CheckoutSessionAddress[]>(
+  const [savedAddresses, setSavedAddresses] = useState<CheckoutSessionAddress[]>(
     () => customerSession?.customer?.addresses ?? []
   );
   const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<
@@ -691,6 +705,9 @@ export default function CartClient({ customerSession }: Props) {
   const [isSendingEmailCode, setIsSendingEmailCode] = useState(false);
   const [isVerifyingEmailCode, setIsVerifyingEmailCode] = useState(false);
   const [isSwitchingAccount, setIsSwitchingAccount] = useState(false);
+  const [isKnownCustomer, setIsKnownCustomer] = useState(
+    () => Boolean(customerSession?.email && customerSession.customer)
+  );
 
   useEffect(() => {
     if (accountCodeCooldown <= 0) return;
@@ -707,7 +724,10 @@ export default function CartClient({ customerSession }: Props) {
   const viewCartTrackedRef = useRef(false);
 
   const itemCount = getItemCount(cart);
-  const stepIndex = steps.findIndex((step) => step.id === checkoutStep);
+  const isExpressCheckout =
+    isKnownCustomer && hasRequiredCustomerData(customer);
+  const visibleSteps = isExpressCheckout ? steps.slice(3) : steps;
+  const stepIndex = visibleSteps.findIndex((step) => step.id === checkoutStep);
   const activeCustomerType = getCustomerTypeFromDocumentInput(
     customer.document,
     customer.customerType
@@ -783,12 +803,12 @@ export default function CartClient({ customerSession }: Props) {
 
     const timeoutId = window.setTimeout(() => {
       void refreshShippingQuotes(customer, {
-        silent: true,
+        silent: !isExpressCheckout,
       });
-    }, 450);
+    }, isExpressCheckout ? 0 : 450);
 
     return () => window.clearTimeout(timeoutId);
-  }, [shippingQuoteRequestKey]);
+  }, [isExpressCheckout, shippingQuoteRequestKey]);
 
   useEffect(() => {
     if (viewCartTrackedRef.current || cart.items.length === 0) {
@@ -1171,9 +1191,16 @@ export default function CartClient({ customerSession }: Props) {
 
   async function applyHydratedCustomer(snapshot: CheckoutSessionCustomer) {
     const nextCustomer = getCustomerFromSnapshot(snapshot);
+    const nextAddresses = snapshot.addresses ?? [];
+    const defaultAddress = nextAddresses.find((address) => address.isDefault);
 
     resetCheckoutAttempt();
     setCustomer(nextCustomer);
+    setSavedAddresses(nextAddresses);
+    setSelectedSavedAddressId(
+      defaultAddress?.id ?? nextAddresses[0]?.id ?? null
+    );
+    setIsKnownCustomer(true);
     setIdentifier(nextCustomer.document || nextCustomer.email);
     setCheckoutError(null);
     setEmailVerification({
@@ -1182,10 +1209,14 @@ export default function CartClient({ customerSession }: Props) {
       token: '',
       message: 'E-mail validado.',
     });
-    await refreshPreview(nextCustomer);
     setCheckoutStep(
-      hasRequiredCustomerData(nextCustomer) ? 'entrega' : 'cadastro'
+      resolveCheckoutEntryStep({
+        hasVerifiedSession: true,
+        hasCustomerData: hasRequiredCustomerData(nextCustomer),
+        hasDeliveryData: hasRequiredDeliveryData(nextCustomer),
+      })
     );
+    await refreshPreview(nextCustomer);
   }
 
   function persistCart(nextCart: Cart) {
@@ -1505,6 +1536,9 @@ export default function CartClient({ customerSession }: Props) {
       identifier: '',
       token: '',
     });
+    setSavedAddresses([]);
+    setSelectedSavedAddressId(null);
+    setIsKnownCustomer(false);
     setCheckoutError(null);
     setCheckoutStep('identificacao');
   }
@@ -1990,16 +2024,23 @@ export default function CartClient({ customerSession }: Props) {
                 Checkout
               </p>
               <h1 className="font-display text-2xl font-black text-white">
-                Compra sem senha obrigatória
+                {isExpressCheckout
+                  ? 'Finalizar compra'
+                  : 'Compra sem senha obrigatória'}
               </h1>
               <p className="max-w-2xl text-sm leading-6 text-brand-muted">
-                Validamos o e-mail para ligar o pedido ao comprador e usamos CPF
-                ou CNPJ para aplicar a regra correta de cliente.
+                {isExpressCheckout
+                  ? 'Seus dados já estão carregados. Revise a entrega e siga para o pagamento.'
+                  : 'Validamos o e-mail para ligar o pedido ao comprador e usamos CPF ou CNPJ para aplicar a regra correta de cliente.'}
               </p>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
-              {steps.map((step, index) => (
+            <div
+              className={`mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 ${
+                isExpressCheckout ? '' : 'xl:grid-cols-6'
+              }`}
+            >
+              {visibleSteps.map((step, index) => (
                 <StepCard
                   key={step.id}
                   active={checkoutStep === step.id}
@@ -2492,9 +2533,17 @@ export default function CartClient({ customerSession }: Props) {
                     />
                   </div>
                   <CheckoutActionBar
-                    onBack={() => setCheckoutStep('cadastro')}
+                    onBack={() =>
+                      setCheckoutStep(
+                        isExpressCheckout ? 'pagamento' : 'cadastro'
+                      )
+                    }
                     onNext={handleContinueFromDelivery}
-                    nextLabel="Continuar para envio"
+                    nextLabel={
+                      isExpressCheckout
+                        ? 'Atualizar endereço e frete'
+                        : 'Continuar para envio'
+                    }
                   />
                 </div>
               ) : null}
@@ -2582,7 +2631,11 @@ export default function CartClient({ customerSession }: Props) {
                     ) : null}
                   </div>
                   <CheckoutActionBar
-                    onBack={() => setCheckoutStep('entrega')}
+                    onBack={() =>
+                      setCheckoutStep(
+                        isExpressCheckout ? 'pagamento' : 'entrega'
+                      )
+                    }
                     onNext={handleContinueFromShipping}
                     nextLabel="Continuar para pagamento"
                     disabled={
@@ -2600,9 +2653,96 @@ export default function CartClient({ customerSession }: Props) {
                       Forma de pagamento
                     </h2>
                     <p className="mt-1 text-sm text-brand-muted">
-                      Valide o e-mail antes de abrir o pagamento seguro.
+                      {isExpressCheckout
+                        ? 'Confirme o endereço e o frete calculado antes de pagar.'
+                        : 'Valide o e-mail antes de abrir o pagamento seguro.'}
                     </p>
                   </div>
+                  {isExpressCheckout ? (
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="rounded-2xl border border-brand-border-soft bg-white/[0.02] p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-start gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-primary/15">
+                              <MapPin className="h-5 w-5 text-blue-primary" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-brand-muted">
+                                Entrega para
+                              </p>
+                              <p className="mt-1 text-xs font-semibold leading-5 text-white">
+                                {formatCustomerAddress(customer)}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCheckoutError(null);
+                              setCheckoutStep('entrega');
+                            }}
+                            className="shrink-0 text-xs font-bold text-blue-primary transition hover:text-white"
+                          >
+                            Alterar
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-brand-border-soft bg-white/[0.02] p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-start gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-accent/15">
+                              <Truck className="h-5 w-5 text-green-accent" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-brand-muted">
+                                Frete
+                              </p>
+                              {selectedShippingOption ? (
+                                <>
+                                  <p className="mt-1 text-xs font-bold text-white">
+                                    {selectedShippingOption.serviceName} ·{' '}
+                                    {selectedShippingOption.price === 0
+                                      ? 'Grátis'
+                                      : formatCurrency(selectedShippingOption.price)}
+                                  </p>
+                                  <p className="mt-1 text-[11px] text-brand-muted">
+                                    {formatDeliveryWindow(selectedShippingOption)}
+                                  </p>
+                                </>
+                              ) : (
+                                <p className="mt-1 text-xs font-semibold text-brand-muted">
+                                  {isQuotingShipping
+                                    ? 'Calculando automaticamente...'
+                                    : 'Frete ainda não calculado.'}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCheckoutError(null);
+                              if (!selectedShippingOption) {
+                                void refreshShippingQuotes(customer, {
+                                  force: true,
+                                });
+                                return;
+                              }
+
+                              setCheckoutStep('envio');
+                            }}
+                            disabled={
+                              isQuotingShipping && shippingOptions.length === 0
+                            }
+                            className="shrink-0 text-xs font-bold text-blue-primary transition hover:text-white disabled:cursor-wait disabled:opacity-50"
+                          >
+                            {selectedShippingOption ? 'Alterar' : 'Recalcular'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                   <div
                     className={`rounded-2xl border p-4 ${
                       isCheckoutEmailVerified
@@ -2776,9 +2916,18 @@ export default function CartClient({ customerSession }: Props) {
                       nextLabel={
                         isSubmitting
                           ? 'Preparando pagamento...'
-                          : 'Abrir pagamento'
+                          : isQuotingShipping
+                            ? 'Calculando frete...'
+                            : !selectedShippingQuoteId
+                              ? 'Frete indisponível'
+                              : 'Abrir pagamento'
                       }
-                      disabled={isSubmitting || !isCheckoutEmailVerified}
+                      disabled={
+                        isSubmitting ||
+                        !isCheckoutEmailVerified ||
+                        isQuotingShipping ||
+                        !selectedShippingQuoteId
+                      }
                     />
                   )}
                 </div>

@@ -11,6 +11,7 @@ import { isValidCpfOrCnpj, onlyDigits } from '@/modules/customers/br-document';
 import {
   findCheckoutCustomerByIdentifier,
   isEligibleBusinessCustomer,
+  listCustomerAddresses,
   upsertCheckoutCustomer,
 } from '@/modules/customers/customer.service';
 import { CustomerPersistenceError } from '@/modules/customers/customer.repository';
@@ -216,6 +217,20 @@ type CheckoutCustomerSnapshot = {
   stateRegistration?: string;
   stateRegistrationExempt?: boolean;
   acceptsMarketing?: boolean;
+  addresses?: Array<{
+    id: string;
+    label: string;
+    recipientName?: string;
+    phone?: string;
+    postalCode?: string;
+    street?: string;
+    number?: string;
+    complement?: string;
+    district?: string;
+    city?: string;
+    state?: string;
+    isDefault: boolean;
+  }>;
   shippingAddress?: {
     postalCode?: string;
     street?: string;
@@ -635,7 +650,8 @@ function maskEmail(email: string) {
 }
 
 function mapCheckoutCustomerSnapshot(
-  customer: NonNullable<Awaited<ReturnType<typeof findCheckoutCustomerByIdentifier>>>
+  customer: NonNullable<Awaited<ReturnType<typeof findCheckoutCustomerByIdentifier>>>,
+  addresses: Awaited<ReturnType<typeof listCustomerAddresses>> = []
 ): CheckoutCustomerSnapshot {
   return {
     name: customer.name,
@@ -647,6 +663,20 @@ function mapCheckoutCustomerSnapshot(
     stateRegistration: customer.stateRegistration,
     stateRegistrationExempt: customer.stateRegistrationExempt,
     acceptsMarketing: customer.acceptsMarketing,
+    addresses: addresses.map((address) => ({
+      id: address.id,
+      label: address.label,
+      recipientName: address.recipientName,
+      phone: address.phone,
+      postalCode: address.postalCode,
+      street: address.street,
+      number: address.number,
+      complement: address.complement,
+      district: address.district,
+      city: address.city,
+      state: address.state,
+      isDefault: address.isDefault,
+    })),
     shippingAddress: customer.defaultAddress
       ? {
           postalCode: customer.defaultAddress.postalCode,
@@ -1098,12 +1128,16 @@ export async function verifyCheckoutAccountCodeAction(
       storeId: store.id,
       authUserId: data.user.id,
     })) ?? customer;
+  const addresses = await listCustomerAddresses({
+    storeId: store.id,
+    customerId: hydratedCustomer.id,
+  });
 
   return {
     ok: true,
     email,
     message: 'Conta validada. Seus dados foram carregados.',
-    customer: mapCheckoutCustomerSnapshot(hydratedCustomer),
+    customer: mapCheckoutCustomerSnapshot(hydratedCustomer, addresses),
   };
 }
 
