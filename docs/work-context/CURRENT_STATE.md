@@ -43,8 +43,12 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
   Validações locais concluídas: TypeScript, 174 testes em 40 arquivos, build
   de produção, scanner de segredos e `git diff --check`. A automação visual no
-  navegador local não ficou disponível nesta sessão; repetir uma compra
-  supervisionada no deployment de produção, primeiro com uma conta recorrente
+  navegador local não ficou disponível nesta sessão. O commit `c3024e4`
+  (`feat: streamline checkout for returning customers`) foi enviado ao branch
+  padrão; o deployment de produção `dpl_5st9qSdrAZvKujNbJ7qULAJbMkkQ` chegou a
+  `READY`, recebeu os domínios públicos da Brasil Drones, respondeu HTTP 200 em
+  `/carrinho` e não apresentou erros de runtime após a publicação. O próximo
+  passo é repetir uma compra supervisionada, primeiro com uma conta recorrente
   e depois com uma conta nova.
 
 - Em 2026-08-20, a primeira tentativa de pagamento após a homologação do OTP
