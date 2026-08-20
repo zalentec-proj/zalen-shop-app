@@ -45,6 +45,8 @@ import {
   markCheckoutAttemptError,
   reserveCheckoutAttempt,
 } from '@/modules/payments/checkout-attempt.repository';
+import { grantGuestCheckoutAccess } from '@/modules/payments/guest-checkout-session';
+import { getGuestCheckoutOrderAccess } from '@/modules/payments/guest-checkout-access.service';
 import { processMercadoPagoPaymentUpdate } from '@/modules/payments/mercado-pago-payment.service';
 import { getLatestPaymentTransactionByOrderId } from '@/modules/payments/payment-transaction.repository';
 import {
@@ -546,22 +548,17 @@ function getSafeCheckoutError(error: unknown) {
       'shipping_quote_address_changed',
       'shipping_quote_pricing_changed',
       'shipping_quote_stale',
-      'checkout_email_not_verified',
       'checkout_email_mismatch',
       'checkout_customer_account_mismatch',
       'fetch failed',
     ]);
 
-    if (error.message === 'checkout_email_not_verified') {
-      return 'Valide o e-mail com o código recebido antes de iniciar o pagamento.';
-    }
-
     if (error.message === 'checkout_email_mismatch') {
-      return 'O e-mail validado não corresponde ao e-mail informado no checkout.';
+      return 'Use o e-mail da conta conectada ou saia da conta para comprar como convidado.';
     }
 
     if (error.message === 'checkout_customer_account_mismatch') {
-      return 'Os dados da conta mudaram. Valide novamente o e-mail antes de continuar.';
+      return 'Os dados informados não correspondem à conta conectada. Revise o cadastro antes de continuar.';
     }
 
     if (error.message.startsWith('checkout_email_typo:')) {
@@ -720,7 +717,7 @@ function getSavedCustomerEmailTypoErrorMessage(email: string) {
   return `O e-mail cadastrado parece incorreto (${maskEmail(email)}). Use Alterar e-mail/CPF/CNPJ e informe o e-mail correto, ou fale com atendimento.`;
 }
 
-async function requireVerifiedCheckoutEmail(input: {
+async function resolveCheckoutIdentity(input: {
   email: string;
 }) {
   const checkoutEmail = normalizeEmailAddress(input.email);
@@ -730,7 +727,10 @@ async function requireVerifiedCheckoutEmail(input: {
   const { data, error } = await supabase.auth.getUser();
 
   if (error || !data.user) {
-    throw new Error('checkout_email_not_verified');
+    return {
+      kind: 'guest' as const,
+      email: checkoutEmail,
+    };
   }
 
   const sessionEmail = normalizeEmailAddress(data.user.email ?? '');
@@ -740,12 +740,13 @@ async function requireVerifiedCheckoutEmail(input: {
   }
 
   return {
+    kind: 'authenticated' as const,
     authUserId: data.user.id,
     email: sessionEmail,
   };
 }
 
-async function getAuthenticatedPricingCustomerType(
+async function getTrustedPricingCustomerType(
   storeId: string,
   submittedCustomer?: z.infer<typeof checkoutPricingCustomerSchema>
 ): Promise<CustomerType> {
@@ -753,7 +754,11 @@ async function getAuthenticatedPricingCustomerType(
   const { data, error } = await supabase.auth.getUser();
 
   if (error || !data.user) {
-    return 'pf';
+    if (!submittedCustomer) {
+      return 'pf';
+    }
+
+    return getCustomerTypeFromDocument(submittedCustomer.document);
   }
 
   const sessionEmail = normalizeEmailAddress(data.user.email ?? '');
@@ -853,8 +858,60 @@ async function buildMercadoPagoStartResult(input: {
   };
 }
 
-function getPaymentRedirectPath(orderId: string, status: string) {
-  return `/conta/pedidos/${orderId}?payment=${encodeURIComponent(status)}`;
+function getPaymentRedirectPath(
+  orderId: string,
+  status: string,
+  accessKind: 'authenticated' | 'guest'
+) {
+  const basePath =
+    accessKind === 'guest'
+      ? `/pedido/${orderId}`
+      : `/conta/pedidos/${orderId}`;
+
+  return `${basePath}?payment=${encodeURIComponent(status)}`;
+}
+
+async function getCheckoutOrderAccess(input: {
+  storeId: string;
+  orderId: string;
+}) {
+  const supabase = await createClient();
+  const [{ data }, order] = await Promise.all([
+    supabase.auth.getUser(),
+    getOrderByIdFromRepository(input.storeId, input.orderId),
+  ]);
+
+  if (data.user && order) {
+    const customer = await findCustomerByAuthUserId({
+      storeId: input.storeId,
+      authUserId: data.user.id,
+    });
+    const sessionEmail = normalizeEmailAddress(data.user.email ?? '');
+    const orderEmail = normalizeEmailAddress(order.customerEmail ?? '');
+    const belongsToCustomer = Boolean(
+      customer &&
+        (order.customerId === customer.id ||
+          (sessionEmail && orderEmail && sessionEmail === orderEmail))
+    );
+
+    if (belongsToCustomer) {
+      return {
+        kind: 'authenticated' as const,
+        subject: data.user.id,
+        order,
+      };
+    }
+  }
+
+  const guestAccess = await getGuestCheckoutOrderAccess(input);
+
+  return guestAccess
+    ? {
+        kind: 'guest' as const,
+        subject: guestAccess.attempt.id,
+        order: guestAccess.order,
+      }
+    : null;
 }
 
 const checkoutEmailCodeRequestSchema = z.object({
@@ -1445,69 +1502,79 @@ export async function checkoutCartAction(
       storeId: store.id,
       subject: normalizeEmailAddress(parsed.data.customer.email),
     });
-    const verifiedEmail = await requireVerifiedCheckoutEmail({
+    const checkoutIdentity = await resolveCheckoutIdentity({
       email: parsed.data.customer.email,
     });
     const submittedCustomerType = getCustomerTypeFromDocument(
       parsed.data.customer.document
     );
-    const accountCustomer = await upsertCheckoutCustomer({
-      storeId: store.id,
-      authUserId: verifiedEmail.authUserId,
-      name: parsed.data.customer.name,
-      email: verifiedEmail.email,
-      phone: parsed.data.customer.phone,
-      document: parsed.data.customer.document,
-      customerType: submittedCustomerType,
-      legalName:
-        submittedCustomerType === 'pj'
-          ? parsed.data.customer.legalName
-          : undefined,
-      stateRegistration:
-        submittedCustomerType === 'pj'
-          ? parsed.data.customer.stateRegistration
-          : undefined,
-      stateRegistrationExempt:
-        submittedCustomerType === 'pj'
-          ? parsed.data.customer.stateRegistrationExempt
-          : false,
-      acceptsMarketing: parsed.data.customer.acceptsMarketing,
-      source: 'checkout',
-      address: parsed.data.customer.shippingAddress,
-    });
+    const accountCustomer =
+      checkoutIdentity.kind === 'authenticated'
+        ? await upsertCheckoutCustomer({
+            storeId: store.id,
+            authUserId: checkoutIdentity.authUserId,
+            name: parsed.data.customer.name,
+            email: checkoutIdentity.email,
+            phone: parsed.data.customer.phone,
+            document: parsed.data.customer.document,
+            customerType: submittedCustomerType,
+            legalName:
+              submittedCustomerType === 'pj'
+                ? parsed.data.customer.legalName
+                : undefined,
+            stateRegistration:
+              submittedCustomerType === 'pj'
+                ? parsed.data.customer.stateRegistration
+                : undefined,
+            stateRegistrationExempt:
+              submittedCustomerType === 'pj'
+                ? parsed.data.customer.stateRegistrationExempt
+                : false,
+            acceptsMarketing: parsed.data.customer.acceptsMarketing,
+            source: 'checkout',
+            address: parsed.data.customer.shippingAddress,
+          })
+        : null;
 
     if (
+      accountCustomer &&
       onlyDigits(accountCustomer.document) !==
         onlyDigits(parsed.data.customer.document)
     ) {
       throw new Error('checkout_customer_account_mismatch');
     }
 
-    const trustedCustomerType = isEligibleBusinessCustomer(accountCustomer)
-      ? 'pj'
-      : 'pf';
+    const trustedCustomerType = accountCustomer
+      ? isEligibleBusinessCustomer(accountCustomer)
+        ? 'pj'
+        : 'pf'
+      : submittedCustomerType;
     const checkoutInput = {
       ...parsed.data,
       customer: {
         ...parsed.data.customer,
-        name: accountCustomer.name,
-        email: verifiedEmail.email,
-        phone: accountCustomer.phone ?? parsed.data.customer.phone,
-        document: accountCustomer.document ?? parsed.data.customer.document,
+        name: accountCustomer?.name ?? parsed.data.customer.name,
+        email: checkoutIdentity.email,
+        phone: accountCustomer?.phone ?? parsed.data.customer.phone,
+        document: accountCustomer?.document ?? parsed.data.customer.document,
         customerType: trustedCustomerType,
         legalName:
           trustedCustomerType === 'pj'
-            ? accountCustomer.legalName
+            ? accountCustomer?.legalName ?? parsed.data.customer.legalName
             : undefined,
         stateRegistration:
           trustedCustomerType === 'pj'
-            ? accountCustomer.stateRegistration
+            ? accountCustomer?.stateRegistration ??
+              parsed.data.customer.stateRegistration
             : undefined,
         stateRegistrationExempt:
           trustedCustomerType === 'pj'
-            ? accountCustomer.stateRegistrationExempt
+            ? accountCustomer?.stateRegistrationExempt ??
+              parsed.data.customer.stateRegistrationExempt
             : false,
-        acceptsMarketing: accountCustomer.acceptsMarketing,
+        acceptsMarketing:
+          accountCustomer?.acceptsMarketing ??
+          parsed.data.customer.acceptsMarketing,
       },
     } satisfies CheckoutInput;
     const baseUrl = await getCurrentStorefrontOrigin(store);
@@ -1527,6 +1594,14 @@ export async function checkoutCartAction(
       );
 
       if (reusableOrder && canReusePaymentOrder(reusableOrder)) {
+        if (checkoutIdentity.kind === 'guest') {
+          await grantGuestCheckoutAccess({
+            storeId: store.id,
+            orderId: reusableOrder.id,
+            attemptKey: reusableAttempt.attemptKey,
+          });
+        }
+
         return buildMercadoPagoStartResult({
           storeId: store.id,
           order: reusableOrder,
@@ -1550,6 +1625,14 @@ export async function checkoutCartAction(
         : null;
 
       if (existingOrder && canReusePaymentOrder(existingOrder)) {
+        if (checkoutIdentity.kind === 'guest') {
+          await grantGuestCheckoutAccess({
+            storeId: store.id,
+            orderId: existingOrder.id,
+            attemptKey: reservation.attempt.attemptKey,
+          });
+        }
+
         return buildMercadoPagoStartResult({
           storeId: store.id,
           order: existingOrder,
@@ -1589,8 +1672,12 @@ export async function checkoutCartAction(
       storeId: store.id,
       customer: {
         ...checkoutInput.customer,
-        authUserId: verifiedEmail.authUserId,
+        authUserId:
+          checkoutIdentity.kind === 'authenticated'
+            ? checkoutIdentity.authUserId
+            : undefined,
       },
+      persistCustomer: checkoutIdentity.kind === 'authenticated',
       items: checkoutInput.items,
       shippingQuoteId: checkoutInput.shippingQuoteId,
       marketingContext: parseMarketingContextCookie(
@@ -1604,7 +1691,7 @@ export async function checkoutCartAction(
       baseUrl,
     });
 
-    await completeCheckoutAttempt({
+    const completedAttempt = await completeCheckoutAttempt({
       storeId: store.id,
       attemptId: reservation.attempt.id,
       orderId: order.id,
@@ -1613,6 +1700,14 @@ export async function checkoutCartAction(
       checkoutUrl: payment.checkoutUrl,
       sandboxCheckoutUrl: payment.sandboxInitPoint,
     });
+
+    if (checkoutIdentity.kind === 'guest') {
+      await grantGuestCheckoutAccess({
+        storeId: store.id,
+        orderId: order.id,
+        attemptKey: completedAttempt.attemptKey,
+      });
+    }
 
     await sendOrderReceivedStoreEmail({
       storeId: store.id,
@@ -1684,13 +1779,15 @@ export async function processMercadoPagoBrickPaymentAction(
 
   try {
     const store = await resolveCurrentStoreFromHeaders();
-    const supabase = await createClient();
-    const { data, error } = await supabase.auth.getUser();
+    const access = await getCheckoutOrderAccess({
+      storeId: store.id,
+      orderId: parsed.data.orderId,
+    });
 
-    if (error || !data.user) {
+    if (!access) {
       return {
         ok: false,
-        error: 'Entre na sua conta para concluir o pagamento.',
+        error: 'Não encontramos este pedido para pagamento.',
         status: 'error',
       };
     }
@@ -1698,39 +1795,9 @@ export async function processMercadoPagoBrickPaymentAction(
     await enforceRateLimit({
       scope: 'payment_submit',
       storeId: store.id,
-      subject: `${data.user.id}:${parsed.data.orderId}`,
+      subject: `${access.subject}:${parsed.data.orderId}`,
     });
-
-    const customer = await findCustomerByAuthUserId({
-      storeId: store.id,
-      authUserId: data.user.id,
-    });
-    const order = await getOrderByIdFromRepository(
-      store.id,
-      parsed.data.orderId
-    );
-
-    if (!customer || !order) {
-      return {
-        ok: false,
-        error: 'Não encontramos este pedido para pagamento.',
-        status: 'error',
-      };
-    }
-
-    const sessionEmail = normalizeEmailAddress(data.user.email ?? '');
-    const orderEmail = normalizeEmailAddress(order.customerEmail ?? '');
-    const belongsToCustomer =
-      order.customerId === customer.id ||
-      (sessionEmail && orderEmail && sessionEmail === orderEmail);
-
-    if (!belongsToCustomer) {
-      return {
-        ok: false,
-        error: 'Não encontramos este pedido para pagamento.',
-        status: 'error',
-      };
-    }
+    const order = access.order;
 
     if (!canReusePaymentOrder(order)) {
       return {
@@ -1795,7 +1862,11 @@ export async function processMercadoPagoBrickPaymentAction(
         paymentId: attemptReservation.attempt.externalPaymentId,
         paymentMethodId: attemptReservation.attempt.paymentMethodId,
         status: existingStatus,
-        redirectPath: getPaymentRedirectPath(order.id, existingStatus),
+        redirectPath: getPaymentRedirectPath(
+          order.id,
+          existingStatus,
+          access.kind
+        ),
         message: getBrickPaymentMessage(existingStatus),
       };
     }
@@ -1807,7 +1878,11 @@ export async function processMercadoPagoBrickPaymentAction(
         orderNumber: order.orderNumber,
         paymentId: '',
         status: 'pending',
-        redirectPath: getPaymentRedirectPath(order.id, 'pending'),
+        redirectPath: getPaymentRedirectPath(
+          order.id,
+          'pending',
+          access.kind
+        ),
         message: 'Já estamos processando esta tentativa. Acompanhe o status do pedido.',
       };
     }
@@ -1852,7 +1927,7 @@ export async function processMercadoPagoBrickPaymentAction(
       instructions: (payment.paymentInstructions ?? {}) as Record<string, unknown>,
       lastError: reconciliation.ok ? undefined : reconciliation.errorCode,
     });
-    const redirectPath = getPaymentRedirectPath(order.id, status);
+    const redirectPath = getPaymentRedirectPath(order.id, status, access.kind);
     const message = getBrickPaymentMessage(status);
 
     if (status === 'rejected' || status === 'cancelled' || status === 'error') {
@@ -1913,57 +1988,40 @@ export async function getMercadoPagoCheckoutPaymentStatusAction(
     };
   }
 
+  let fallbackAccessKind: 'authenticated' | 'guest' = 'guest';
+
   try {
     const store = await resolveCurrentStoreFromHeaders();
-    const supabase = await createClient();
-    const { data, error } = await supabase.auth.getUser();
+    const access = await getCheckoutOrderAccess({
+      storeId: store.id,
+      orderId: parsed.data.orderId,
+    });
 
-    if (error || !data.user) {
+    if (!access) {
       return {
         ok: false,
-        error: 'Entre na sua conta para acompanhar o pagamento.',
+        error: 'Não foi possível localizar este pagamento.',
       };
     }
+
+    fallbackAccessKind = access.kind;
 
     await enforceRateLimit({
       scope: 'payment_status_poll',
       storeId: store.id,
-      subject: `${data.user.id}:${parsed.data.orderId}`,
+      subject: `${access.subject}:${parsed.data.orderId}`,
     });
-
-    const [customer, order] = await Promise.all([
-      findCustomerByAuthUserId({
-        storeId: store.id,
-        authUserId: data.user.id,
-      }),
-      getOrderByIdFromRepository(store.id, parsed.data.orderId),
-    ]);
-
-    if (!customer || !order) {
-      return {
-        ok: false,
-        error: 'Não foi possível localizar este pagamento.',
-      };
-    }
-
-    const sessionEmail = normalizeEmailAddress(data.user.email ?? '');
-    const orderEmail = normalizeEmailAddress(order.customerEmail ?? '');
-    const belongsToCustomer =
-      order.customerId === customer.id ||
-      (sessionEmail && orderEmail && sessionEmail === orderEmail);
-
-    if (!belongsToCustomer) {
-      return {
-        ok: false,
-        error: 'Não foi possível localizar este pagamento.',
-      };
-    }
+    const order = access.order;
 
     if (order.paymentStatus === 'paid') {
       return {
         ok: true,
         status: 'approved',
-        redirectPath: getPaymentRedirectPath(order.id, 'approved'),
+        redirectPath: getPaymentRedirectPath(
+          order.id,
+          'approved',
+          access.kind
+        ),
       };
     }
 
@@ -1994,7 +2052,7 @@ export async function getMercadoPagoCheckoutPaymentStatusAction(
       return {
         ok: true,
         status: 'pending',
-        redirectPath: getPaymentRedirectPath(order.id, 'pending'),
+        redirectPath: getPaymentRedirectPath(order.id, 'pending', access.kind),
       };
     }
 
@@ -2003,13 +2061,17 @@ export async function getMercadoPagoCheckoutPaymentStatusAction(
     return {
       ok: true,
       status,
-      redirectPath: getPaymentRedirectPath(order.id, status),
+      redirectPath: getPaymentRedirectPath(order.id, status, access.kind),
     };
   } catch {
     return {
       ok: true,
       status: 'pending',
-      redirectPath: getPaymentRedirectPath(parsed.data.orderId, 'pending'),
+      redirectPath: getPaymentRedirectPath(
+        parsed.data.orderId,
+        'pending',
+        fallbackAccessKind
+      ),
     };
   }
 }
@@ -2136,7 +2198,7 @@ export async function previewCheckoutCartAction(
 
   try {
     const store = await resolveCurrentStoreFromHeaders();
-    const customerType = await getAuthenticatedPricingCustomerType(
+    const customerType = await getTrustedPricingCustomerType(
       store.id,
       parsed.data.customer
     );
@@ -2199,7 +2261,7 @@ export async function quoteCheckoutShippingAction(
 
   try {
     const store = await resolveCurrentStoreFromHeaders();
-    const customerType = await getAuthenticatedPricingCustomerType(
+    const customerType = await getTrustedPricingCustomerType(
       store.id,
       parsed.data.customer
     );

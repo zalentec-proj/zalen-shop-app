@@ -1,5 +1,4 @@
 export type CheckoutEntryStep =
-  | 'identificacao'
   | 'cadastro'
   | 'entrega'
   | 'pagamento';
@@ -10,7 +9,7 @@ export function resolveCheckoutEntryStep(input: {
   hasDeliveryData: boolean;
 }): CheckoutEntryStep {
   if (!input.hasVerifiedSession) {
-    return 'identificacao';
+    return 'cadastro';
   }
 
   if (!input.hasCustomerData) {

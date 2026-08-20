@@ -5,6 +5,7 @@ import { MarketingDataLayer } from '@/modules/marketing/MarketingDataLayer';
 import { MarketingScripts } from '@/modules/marketing/MarketingScripts';
 import { getMarketingRuntimeConfig } from '@/modules/marketing/marketing.service';
 import { noindexMetadata } from '@/modules/seo/seo.service';
+import { getGuestCheckoutOrderAccess } from '@/modules/payments/guest-checkout-access.service';
 import {
   getCurrentStorefrontOrigin,
   resolveCurrentStoreFromHeaders,
@@ -33,15 +34,23 @@ export default async function MercadoPagoSuccessPage({
   const isApproved = result?.status === 'approved';
   const isPending = result?.status === 'pending';
   const store = await resolveCurrentStoreFromHeaders();
-  const storefrontOrigin = await getCurrentStorefrontOrigin(store);
-  const [marketingConfig, order] = await Promise.all([
+  const [storefrontOrigin, marketingConfig, order, guestAccess] = await Promise.all([
+    getCurrentStorefrontOrigin(store),
     getMarketingRuntimeConfig(store),
     isApproved && result?.orderId
       ? getOrderById(store.id, result.orderId)
       : Promise.resolve(null),
+    result?.orderId
+      ? getGuestCheckoutOrderAccess({
+          storeId: store.id,
+          orderId: result.orderId,
+        })
+      : Promise.resolve(null),
   ]);
-  const accountHref = result?.orderId
-    ? `${storefrontOrigin}/conta/entrar?next=${encodeURIComponent(`/conta/pedidos/${result.orderId}`)}`
+  const orderHref = guestAccess
+    ? `${storefrontOrigin}/pedido/${guestAccess.order.id}`
+    : result?.orderId
+      ? `${storefrontOrigin}/conta/entrar?next=${encodeURIComponent(`/conta/pedidos/${result.orderId}`)}`
     : `${storefrontOrigin}/conta/entrar?next=/conta/pedidos`;
 
   return (
@@ -87,7 +96,7 @@ export default async function MercadoPagoSuccessPage({
         <h1 className="text-2xl font-black">Recebemos sua compra</h1>
         <p className="text-sm leading-6 text-brand-muted">
           {isApproved
-            ? 'O Mercado Pago confirmou o pagamento e a Zalen atualizou o pedido no painel operacional.'
+            ? 'O Mercado Pago confirmou o pagamento e a loja já está preparando o pedido.'
             : isPending
               ? 'O Mercado Pago recebeu o pagamento, mas ainda está concluindo a análise. O pedido permanece salvo.'
               : 'Recebemos o retorno do Mercado Pago. Se o status ainda não estiver finalizado, o webhook concluirá a atualização.'}
@@ -100,7 +109,7 @@ export default async function MercadoPagoSuccessPage({
         {isApproved ? <ClearCartOnApproved /> : null}
         <div className="mt-2 grid w-full gap-2 sm:grid-cols-2">
           <Link
-            href={accountHref}
+            href={orderHref}
             className="flex h-12 items-center justify-center rounded-xl bg-blue-primary px-4 text-sm font-bold text-white"
           >
             Acompanhar pedido

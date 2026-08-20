@@ -1,4 +1,4 @@
-import React from 'react';
+import { useEffect, useRef } from 'react';
 import { X, Trash2, ShieldCheck, ShoppingBag, ArrowRight } from 'lucide-react';
 import type { Cart } from '@/modules/cart/cart.types';
 import { getItemCount } from '@/modules/cart/cart.utils';
@@ -21,28 +21,82 @@ export default function CartSidebar({
   onRemoveItem,
   onCheckout,
 }: CartSidebarProps) {
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previouslyFocusedElement =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    closeButtonRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+        return;
+      }
+
+      if (event.key === 'Tab') {
+        const focusableElements = panelRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        const firstElement = focusableElements?.[0];
+        const lastElement = focusableElements?.[focusableElements.length - 1];
+
+        if (!firstElement || !lastElement) return;
+
+        if (event.shiftKey && document.activeElement === firstElement) {
+          event.preventDefault();
+          lastElement.focus();
+        } else if (!event.shiftKey && document.activeElement === lastElement) {
+          event.preventDefault();
+          firstElement.focus();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+      previouslyFocusedElement?.focus();
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const itemCount = getItemCount(cart);
   const subtotal = cart.subtotal;
-  const total = subtotal;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden flex justify-end animate-in fade-in duration-300">
+    <div
+      className="fixed inset-0 z-[80] overflow-hidden flex justify-end animate-in fade-in duration-300"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="cart-sidebar-title"
+    >
       
       {/* Backdrop glass overlay */}
-      <div 
+      <button
+        type="button"
+        aria-label="Fechar carrinho"
         onClick={onClose}
         className="absolute inset-0 bg-[#05070B]/70 backdrop-blur-md cursor-pointer"
-      ></div>
+      />
 
       {/* Cart Drawer container panel */}
-      <div className="relative w-full max-w-md h-full glass-panel-strong border-l border-brand-border/40 p-6 sm:p-8 flex flex-col justify-between shadow-[0_0_80px_rgba(0,0,0,0.85)] z-10 animate-slide-in">
+      <div ref={panelRef} className="relative w-full max-w-md h-full glass-panel-strong border-l border-brand-border/40 p-6 sm:p-8 flex flex-col justify-between shadow-[0_0_80px_rgba(0,0,0,0.85)] z-10 animate-slide-in">
         
         {/* Top Header info */}
         <div className="flex items-center justify-between border-b border-brand-border-soft pb-4">
           <div className="flex flex-col text-left">
-            <h2 className="text-xl font-extrabold text-white tracking-tight font-display flex items-center gap-2">
+            <h2 id="cart-sidebar-title" className="text-xl font-extrabold text-white tracking-tight font-display flex items-center gap-2">
               <ShoppingBag className="w-5 h-5 text-blue-primary" />
               Seu carrinho
             </h2>
@@ -52,7 +106,9 @@ export default function CartSidebar({
           </div>
 
           <button
+            ref={closeButtonRef}
             onClick={onClose}
+            aria-label="Fechar carrinho"
             className="w-8 h-8 rounded-full border border-white/10 hover:border-white/25 flex items-center justify-center text-[#8A93A3] hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
@@ -84,7 +140,7 @@ export default function CartSidebar({
                       {item.name}
                     </span>
                     <span className="text-[10px] uppercase font-mono tracking-wider text-brand-muted">
-                      {item.sku ? `SKU: ${item.sku}` : 'Produto Brasil Drones'}
+                      {item.sku ? `SKU: ${item.sku}` : 'Produto da loja'}
                     </span>
                   </div>
 
@@ -95,6 +151,7 @@ export default function CartSidebar({
                     <div className="h-8 bg-white/[0.03] border border-white/10 rounded-lg flex items-center px-1">
                       <button
                         disabled={item.quantity <= 1}
+                        aria-label={`Diminuir quantidade de ${item.name}`}
                         onClick={() => onUpdateQuantity(item.productId, item.variantId, item.quantity - 1)}
                         className="w-6 h-6 flex items-center justify-center text-[#8A93A3] hover:text-white transition-colors disabled:opacity-30"
                       >
@@ -104,6 +161,7 @@ export default function CartSidebar({
                         {item.quantity}
                       </span>
                       <button
+                        aria-label={`Aumentar quantidade de ${item.name}`}
                         onClick={() => onUpdateQuantity(item.productId, item.variantId, item.quantity + 1)}
                         className="w-6 h-6 flex items-center justify-center text-[#8A93A3] hover:text-white transition-colors"
                       >
@@ -122,6 +180,7 @@ export default function CartSidebar({
                 {/* Trash delete button */}
                 <button
                   onClick={() => onRemoveItem(item.productId, item.variantId)}
+                  aria-label={`Remover ${item.name} do carrinho`}
                   className="absolute top-4 right-4 text-brand-muted hover:text-red-500 transition-colors cursor-pointer"
                   title="Remover item"
                 >
@@ -153,19 +212,19 @@ export default function CartSidebar({
             
             {/* Value computations layout */}
             <div className="flex flex-col gap-2.5 text-sm">
-              <div className="flex justify-between text-[#8A93A3]">
+              <div className="flex justify-between text-slate-300">
                 <span>Subtotal:</span>
                 <span className="font-mono">R$ {subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
               </div>
-              <div className="flex justify-between text-[#8A93A3]">
+              <div className="flex justify-between text-slate-300">
                 <span>Frete:</span>
-                <span className="text-green-accent font-semibold uppercase tracking-wider text-xs">Grátis</span>
+                <span className="text-xs font-semibold text-brand-muted">Calculado no checkout</span>
               </div>
               <div className="h-[1px] bg-brand-border-soft my-1"></div>
               <div className="flex justify-between items-baseline">
-                <span className="font-bold text-white font-display">Total:</span>
+                <span className="font-bold text-white font-display">Total dos produtos:</span>
                 <span className="text-xl font-extrabold text-green-accent font-sans">
-                  R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  R$ {subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
@@ -175,8 +234,16 @@ export default function CartSidebar({
               onClick={onCheckout}
               className="w-full h-14 rounded-full text-sm font-semibold tracking-wide text-white gradient-button relative group flex items-center justify-center gap-2 cursor-pointer shadow-[0_15px_30px_rgba(30,61,255,0.3)] hover:opacity-90 active:scale-95 transition-all"
             >
-              FINALIZAR COMPRA
+              IR PARA O CHECKOUT
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-10 text-xs font-semibold text-brand-muted transition hover:text-white"
+            >
+              Continuar comprando
             </button>
 
             {/* Security banner */}
@@ -184,7 +251,7 @@ export default function CartSidebar({
               <ShieldCheck className="w-5 h-5 text-green-accent shrink-0" />
               <div className="flex flex-col">
                 <span className="text-[11px] font-bold text-white uppercase tracking-wider">COMPRA 100% SEGURA</span>
-                <span className="text-[10px] text-brand-muted leading-tight">Seus dados protegidos por criptografia SSL militar.</span>
+                <span className="text-[10px] text-brand-muted leading-tight">Pagamento processado em ambiente seguro.</span>
               </div>
             </div>
 

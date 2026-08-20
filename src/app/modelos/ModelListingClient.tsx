@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowUpRight, ShoppingCart, SlidersHorizontal } from 'lucide-react';
 import Footer from '@/components/layout/Footer';
 import Navbar from '@/components/layout/Navbar';
 import { SafeCatalogImage } from '@/components/ui/SafeCatalogImage';
 import { getItemCount } from '@/modules/cart/cart.utils';
-import { getStoredCart, subscribeToStoredCart } from '@/modules/cart/cart.storage';
+import { useStorefrontCart } from '@/modules/cart/StorefrontCartProvider';
 import type { Product } from '@/modules/catalog/product.types';
 import type { StorefrontNavigation } from '@/modules/catalog/storefront-navigation';
 import type { StorefrontCategory } from '@/types';
@@ -34,17 +34,12 @@ export default function ModelListingClient({
   storefrontCategories,
   navigation,
 }: ModelListingClientProps) {
-  const [cartItemsCount, setCartItemsCount] = useState(0);
+  const { cart, toggleCart } = useStorefrontCart();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortBy>('relevance');
   const [categoryFilter, setCategoryFilter] = useState('all');
 
-  useEffect(() => {
-    setCartItemsCount(getItemCount(getStoredCart()));
-    return subscribeToStoredCart(() => {
-      setCartItemsCount(getItemCount(getStoredCart()));
-    });
-  }, []);
+  const cartItemsCount = getItemCount(cart);
 
   const technicalCategories = useMemo(() => {
     const bySlug = new Map<string, { name: string; slug: string }>();
@@ -101,9 +96,7 @@ export default function ModelListingClient({
           };
         })}
         cartItemsCount={cartItemsCount}
-        onCartToggle={() => {
-          window.location.href = '/carrinho';
-        }}
+        onCartToggle={toggleCart}
         activeCategory={null}
         onCategorySelect={() => undefined}
         onNavigateToHome={() => {

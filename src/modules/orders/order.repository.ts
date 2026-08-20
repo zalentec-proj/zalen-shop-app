@@ -700,6 +700,36 @@ export async function getOrderByIdForCustomerFromRepository(input: {
   );
 }
 
+export async function claimGuestOrdersForCustomerInRepository(input: {
+  storeId: string;
+  customerId: string;
+  verifiedEmail: string;
+}): Promise<number> {
+  const supabase = createOptionalAdminClient();
+  const verifiedEmail = input.verifiedEmail.trim().toLowerCase();
+
+  if (!supabase || !verifiedEmail) {
+    return 0;
+  }
+
+  const { data, error } = await supabase
+    .from('orders')
+    .update({
+      customer_id: input.customerId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('store_id', input.storeId)
+    .is('customer_id', null)
+    .eq('customer_email', verifiedEmail)
+    .select('id');
+
+  if (error) {
+    throw new Error('guest_order_claim_failed');
+  }
+
+  return data?.length ?? 0;
+}
+
 export async function updateOrderExternalErpStateInRepository(input: {
   storeId: string;
   orderId: string;

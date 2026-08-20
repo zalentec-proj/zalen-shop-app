@@ -12,6 +12,7 @@ import {
   getOrderByIdForCustomer,
   listOrdersByCustomerId,
 } from '@/modules/orders/order.service';
+import { claimGuestOrdersForCustomerInRepository } from '@/modules/orders/order.repository';
 import type { OrderListItem } from '@/modules/orders/order.types';
 import {
   getLatestPaymentTransactionByOrderId,
@@ -44,16 +45,12 @@ export async function linkOrCreateCustomerAccount(input: {
   authUserId: string;
   email?: string;
 }): Promise<Customer | null> {
-  const existingByAuth = await findCustomerByAuthUserId({
+  let customer = await findCustomerByAuthUserId({
     storeId: input.storeId,
     authUserId: input.authUserId,
   });
 
-  if (existingByAuth) {
-    return existingByAuth;
-  }
-
-  if (input.email) {
+  if (!customer && input.email) {
     const existingByEmail = await findCustomerByEmail({
       storeId: input.storeId,
       email: input.email,
@@ -64,23 +61,31 @@ export async function linkOrCreateCustomerAccount(input: {
     }
 
     if (existingByEmail) {
-      return linkCustomerAuthUser({
+      customer = await linkCustomerAuthUser({
         storeId: input.storeId,
         customerId: existingByEmail.id,
         authUserId: input.authUserId,
       });
+    } else {
+      customer = await upsertCustomer({
+        storeId: input.storeId,
+        authUserId: input.authUserId,
+        name: nameFromEmail(input.email),
+        email: input.email,
+        source: 'checkout',
+      });
     }
+  }
 
-    return upsertCustomer({
+  if (customer && input.email) {
+    await claimGuestOrdersForCustomerInRepository({
       storeId: input.storeId,
-      authUserId: input.authUserId,
-      name: nameFromEmail(input.email),
-      email: input.email,
-      source: 'checkout',
+      customerId: customer.id,
+      verifiedEmail: input.email,
     });
   }
 
-  return null;
+  return customer;
 }
 
 function groupPaymentsByOrderId(payments: PaymentTransaction[]) {

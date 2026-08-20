@@ -16,6 +16,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
         '/login',
         '/conta',
         '/carrinho',
+        '/pedido',
         '/pagamento',
       ],
     },

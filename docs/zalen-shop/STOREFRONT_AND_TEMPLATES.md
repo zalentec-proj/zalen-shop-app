@@ -55,25 +55,31 @@ Storefront chama services internos da Zalen Shop.
 - `/carrinho`
 - `/conta/entrar`
 - `/conta/cadastro`
+- `/pedido/[id]`
 - `/checkout`
 - `/pedido-confirmado`
 
 O catálogo continua público. Para finalizar uma compra, o comprador informa
-e-mail, endereço de entrega e CPF/CNPJ para nota fiscal. Antes do pagamento, o
-e-mail precisa ser validado por código enviado pela loja. Não há senha
-obrigatória no checkout, mas o cliente é criado ou vinculado a Supabase Auth para
-garantir rastreio, área do comprador e pedidos associados ao cadastro correto.
-O carrinho é persistido no navegador e o pedido é criado server-side no core da
-Zalen Shop.
+e-mail, endereço de entrega e CPF/CNPJ para nota fiscal. Não há senha, conta nem
+OTP obrigatório antes do pagamento. O carrinho é persistido no navegador e o
+pedido é criado server-side no core da Zalen Shop. Para visitante, os dados são
+salvos somente no snapshot do pedido; o cadastro permanente não é criado nem
+alterado antes da verificação do e-mail.
 
 O fluxo de checkout operacional é:
 
-1. Identificação por e-mail, CPF ou CNPJ.
-2. Cadastro rápido PF ou PJ, sem exigir senha.
+1. Adicionar abre o carrinho lateral; “Comprar agora” abre o checkout.
+2. Dados rápidos PF ou PJ, com opção separada para entrar na conta.
 3. Endereço de entrega e dados fiscais.
-4. Envio operacional inicial.
-5. Validação do e-mail por código.
-6. Pagamento via Mercado Pago Checkout Pro.
+4. Escolha do frete calculado no servidor.
+5. Pagamento via Mercado Pago.
+6. Acompanhamento temporário do pedido ou ativação opcional da conta por OTP.
+
+Clientes autenticados e com dados completos mantêm o checkout expresso, indo
+diretamente à revisão de entrega, frete e pagamento. O acesso temporário ao
+pedido convidado usa cookie HttpOnly sem PII, validado contra a tentativa de
+checkout persistida e isolada por loja. Ao validar depois o mesmo e-mail, os
+pedidos convidados sem `customer_id` são associados à conta daquela loja.
 
 No endereço de entrega, o CEP é consultado server-side e pode preencher
 logradouro, bairro, cidade e UF automaticamente. Campos continuam editáveis para

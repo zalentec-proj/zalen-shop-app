@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   ShoppingCart,
@@ -12,10 +12,7 @@ import Footer from '@/components/layout/Footer';
 import Navbar from '@/components/layout/Navbar';
 import { SafeCatalogImage } from '@/components/ui/SafeCatalogImage';
 import { getItemCount } from '@/modules/cart/cart.utils';
-import {
-  getStoredCart,
-  subscribeToStoredCart,
-} from '@/modules/cart/cart.storage';
+import { useStorefrontCart } from '@/modules/cart/StorefrontCartProvider';
 import type { Category, Product } from '@/modules/catalog/product.types';
 import type { StorefrontNavigation } from '@/modules/catalog/storefront-navigation';
 import type { StorefrontCategory } from '@/types';
@@ -34,15 +31,10 @@ export default function CategoryClient({
   navigation,
 }: Props) {
   const [sortBy, setSortBy] = useState<'relevance' | 'price-asc' | 'price-desc'>('relevance');
-  const [cartItemsCount, setCartItemsCount] = useState(0);
+  const { cart, toggleCart } = useStorefrontCart();
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    setCartItemsCount(getItemCount(getStoredCart()));
-    return subscribeToStoredCart(() => {
-      setCartItemsCount(getItemCount(getStoredCart()));
-    });
-  }, []);
+  const cartItemsCount = getItemCount(cart);
 
   const filteredProducts = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -90,9 +82,7 @@ export default function CategoryClient({
           };
         })}
         cartItemsCount={cartItemsCount}
-        onCartToggle={() => {
-          window.location.href = '/carrinho';
-        }}
+        onCartToggle={toggleCart}
         activeCategory={category.slug}
         onCategorySelect={() => undefined}
         onNavigateToHome={() => {

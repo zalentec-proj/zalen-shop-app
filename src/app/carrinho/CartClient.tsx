@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   CreditCard,
   FileText,
-  IdCard,
   Mail,
   MapPin,
   Minus,
@@ -23,20 +22,15 @@ import {
 import Footer from '@/components/layout/Footer';
 import {
   checkoutCartAction,
-  identifyCheckoutCustomerAction,
   lookupCheckoutPostalCodeAction,
   processMercadoPagoBrickPaymentAction,
   previewCheckoutCartAction,
   quoteCheckoutShippingAction,
-  requestCheckoutAccountCodeAction,
-  requestCheckoutEmailCodeAction,
   switchCheckoutAccountAction,
   type CheckoutPreviewActionResult,
   type CheckoutShippingQuoteActionResult,
-  verifyCheckoutAccountCodeAction,
-  verifyCheckoutEmailCodeAction,
 } from './actions';
-import { isValidCnpj, isValidCpf, isValidCpfOrCnpj, onlyDigits } from '@/modules/customers/br-document';
+import { isValidCnpj, isValidCpf, onlyDigits } from '@/modules/customers/br-document';
 import {
   getEmailTypoErrorMessage,
   normalizeEmailAddress,
@@ -102,13 +96,7 @@ interface Props {
   } | null;
 }
 
-type CheckoutStep =
-  | 'identificacao'
-  | 'validacao'
-  | 'cadastro'
-  | 'entrega'
-  | 'envio'
-  | 'pagamento';
+type CheckoutStep = 'cadastro' | 'entrega' | 'envio' | 'pagamento';
 
 type CheckoutPreview = Extract<CheckoutPreviewActionResult, { ok: true }>;
 type CheckoutShippingOption = Extract<
@@ -147,25 +135,6 @@ type ShippingQuoteRefreshOptions = {
 };
 
 type ValidationState = 'empty' | 'valid' | 'invalid' | 'neutral';
-type EmailVerificationStatus = 'idle' | 'sent' | 'verified';
-
-type EmailVerificationState = {
-  email: string;
-  status: EmailVerificationStatus;
-  token: string;
-  message?: string;
-  error?: string;
-};
-
-type AccountValidationState = {
-  identifier: string;
-  emailHint?: string;
-  token: string;
-  message?: string;
-  error?: string;
-  deliveredChannels?: Array<'email' | 'whatsapp'>;
-  pendingChannels?: Array<'whatsapp'>;
-};
 
 type PostalCodeLookupState = {
   postalCode?: string;
@@ -189,6 +158,7 @@ type PixPaymentStatusSession = {
   orderNumber: string;
   paymentId: string;
   publicKey: string;
+  orderPath: string;
 };
 
 type MercadoPagoBrickController = {
@@ -227,13 +197,11 @@ declare global {
   }
 }
 
-const steps: Array<{ id: CheckoutStep; label: string; title: string }> = [
-  { id: 'identificacao', label: '1', title: 'Identificação' },
-  { id: 'validacao', label: '2', title: 'Conta' },
-  { id: 'cadastro', label: '3', title: 'Dados' },
-  { id: 'entrega', label: '4', title: 'Entrega' },
-  { id: 'envio', label: '5', title: 'Envio' },
-  { id: 'pagamento', label: '6', title: 'Pagamento' },
+const steps: Array<{ id: CheckoutStep; title: string }> = [
+  { id: 'cadastro', title: 'Dados' },
+  { id: 'entrega', title: 'Entrega' },
+  { id: 'envio', title: 'Envio' },
+  { id: 'pagamento', title: 'Pagamento' },
 ];
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', {
@@ -636,12 +604,6 @@ export default function CartClient({ customerSession }: Props) {
   const [cart, setCart] = useState<Cart>(() => createEmptyCart());
   const [checkoutStep, setCheckoutStep] =
     useState<CheckoutStep>(() => getInitialCheckoutStep(customerSession));
-  const [identifier, setIdentifier] = useState(
-    customerSession?.customer?.document ??
-      customerSession?.customer?.email ??
-      customerSession?.email ??
-      ''
-  );
   const [customer, setCustomer] = useState<CustomerState>(() =>
     getInitialCustomerState(customerSession)
   );
@@ -657,21 +619,6 @@ export default function CartClient({ customerSession }: Props) {
       customerSession?.customer?.addresses?.[0]?.id ??
       null
   );
-  const initialVerifiedEmail = customerSession?.email
-    ? normalizeEmailAddress(customerSession.email)
-    : '';
-  const [emailVerification, setEmailVerification] =
-    useState<EmailVerificationState>({
-      email: initialVerifiedEmail,
-      status: initialVerifiedEmail ? 'verified' : 'idle',
-      token: '',
-      message: initialVerifiedEmail ? 'E-mail validado.' : undefined,
-    });
-  const [accountValidation, setAccountValidation] =
-    useState<AccountValidationState>({
-      identifier: '',
-      token: '',
-    });
   const [postalCodeLookup, setPostalCodeLookup] =
     useState<PostalCodeLookupState>({
       status: 'idle',
@@ -697,25 +644,12 @@ export default function CartClient({ customerSession }: Props) {
   >('idle');
   const [isBrickScriptLoaded, setIsBrickScriptLoaded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLookingUp, setIsLookingUp] = useState(false);
   const [isQuotingShipping, setIsQuotingShipping] = useState(false);
-  const [isSendingAccountCode, setIsSendingAccountCode] = useState(false);
-  const [accountCodeCooldown, setAccountCodeCooldown] = useState(0);
-  const [isVerifyingAccountCode, setIsVerifyingAccountCode] = useState(false);
-  const [isSendingEmailCode, setIsSendingEmailCode] = useState(false);
-  const [isVerifyingEmailCode, setIsVerifyingEmailCode] = useState(false);
   const [isSwitchingAccount, setIsSwitchingAccount] = useState(false);
   const [isKnownCustomer, setIsKnownCustomer] = useState(
     () => Boolean(customerSession?.email && customerSession.customer)
   );
 
-  useEffect(() => {
-    if (accountCodeCooldown <= 0) return;
-    const timer = window.setInterval(() => {
-      setAccountCodeCooldown((current) => Math.max(0, current - 1));
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [accountCodeCooldown]);
   const checkoutAttemptIdRef = useRef<string | null>(null);
   const shippingQuoteRequestKeyRef = useRef<string | null>(null);
   const shippingQuoteRequestIdRef = useRef(0);
@@ -726,7 +660,7 @@ export default function CartClient({ customerSession }: Props) {
   const itemCount = getItemCount(cart);
   const isExpressCheckout =
     isKnownCustomer && hasRequiredCustomerData(customer);
-  const visibleSteps = isExpressCheckout ? steps.slice(3) : steps;
+  const visibleSteps = isExpressCheckout ? steps.slice(1) : steps;
   const stepIndex = visibleSteps.findIndex((step) => step.id === checkoutStep);
   const activeCustomerType = getCustomerTypeFromDocumentInput(
     customer.document,
@@ -747,12 +681,7 @@ export default function CartClient({ customerSession }: Props) {
     : 'Frete';
   const summaryTotal = summarySubtotal + summaryShipping - summaryDiscount;
   const summaryItems = checkoutPreview?.items;
-  const normalizedCustomerEmail = normalizeEmailAddress(customer.email);
   const currentPostalCodeDigits = onlyDigits(customer.postalCode);
-  const isCheckoutEmailVerified =
-    Boolean(normalizedCustomerEmail) &&
-    emailVerification.status === 'verified' &&
-    emailVerification.email === normalizedCustomerEmail;
   currentPostalCodeRef.current = currentPostalCodeDigits;
 
   const actionItems = useMemo(
@@ -1055,6 +984,7 @@ export default function CartClient({ customerSession }: Props) {
                 orderNumber: result.orderNumber,
                 paymentId: result.paymentId,
                 publicKey: paymentSession.publicKey,
+                orderPath: result.redirectPath,
               });
               return;
             }
@@ -1122,28 +1052,9 @@ export default function CartClient({ customerSession }: Props) {
     return checkoutAttemptIdRef.current;
   }
 
-  function syncEmailVerificationForEmail(email: string) {
-    const normalizedEmail = normalizeEmailAddress(email);
-
-    setEmailVerification((current) => {
-      if (current.status === 'verified' && current.email === normalizedEmail) {
-        return current;
-      }
-
-      return {
-        email: normalizedEmail,
-        status: 'idle',
-        token: '',
-      };
-    });
-  }
-
   function updateCustomer(patch: Partial<CustomerState>) {
     setCheckoutError(null);
     resetCheckoutAttempt();
-    if (patch.email !== undefined) {
-      syncEmailVerificationForEmail(patch.email);
-    }
     const shouldRefreshShipping = isShippingSensitiveCustomerPatch(patch);
 
     setCustomer((current) => ({
@@ -1160,63 +1071,6 @@ export default function CartClient({ customerSession }: Props) {
   function applySavedAddress(address: CheckoutSessionAddress) {
     setSelectedSavedAddressId(address.id);
     updateCustomer(getAddressPatch(address));
-  }
-
-  function getCustomerFromSnapshot(snapshot: CheckoutSessionCustomer): CustomerState {
-    const document = snapshot.document ?? '';
-    const customerType = getCustomerTypeFromDocumentInput(
-      document,
-      snapshot.customerType ?? 'pf'
-    );
-
-    return {
-      name: snapshot.name ?? '',
-      email: snapshot.email ?? '',
-      phone: snapshot.phone ?? '',
-      document,
-      customerType,
-      legalName: snapshot.legalName ?? '',
-      stateRegistration: snapshot.stateRegistration ?? '',
-      stateRegistrationExempt: snapshot.stateRegistrationExempt ?? false,
-      acceptsMarketing: snapshot.acceptsMarketing ?? false,
-      postalCode: snapshot.shippingAddress?.postalCode ?? '',
-      street: snapshot.shippingAddress?.street ?? '',
-      number: snapshot.shippingAddress?.number ?? '',
-      complement: snapshot.shippingAddress?.complement ?? '',
-      district: snapshot.shippingAddress?.district ?? '',
-      city: snapshot.shippingAddress?.city ?? '',
-      state: snapshot.shippingAddress?.state ?? '',
-    };
-  }
-
-  async function applyHydratedCustomer(snapshot: CheckoutSessionCustomer) {
-    const nextCustomer = getCustomerFromSnapshot(snapshot);
-    const nextAddresses = snapshot.addresses ?? [];
-    const defaultAddress = nextAddresses.find((address) => address.isDefault);
-
-    resetCheckoutAttempt();
-    setCustomer(nextCustomer);
-    setSavedAddresses(nextAddresses);
-    setSelectedSavedAddressId(
-      defaultAddress?.id ?? nextAddresses[0]?.id ?? null
-    );
-    setIsKnownCustomer(true);
-    setIdentifier(nextCustomer.document || nextCustomer.email);
-    setCheckoutError(null);
-    setEmailVerification({
-      email: normalizeEmailAddress(nextCustomer.email),
-      status: 'verified',
-      token: '',
-      message: 'E-mail validado.',
-    });
-    setCheckoutStep(
-      resolveCheckoutEntryStep({
-        hasVerifiedSession: true,
-        hasCustomerData: hasRequiredCustomerData(nextCustomer),
-        hasDeliveryData: hasRequiredDeliveryData(nextCustomer),
-      })
-    );
-    await refreshPreview(nextCustomer);
   }
 
   function persistCart(nextCart: Cart) {
@@ -1336,182 +1190,6 @@ export default function CartClient({ customerSession }: Props) {
     return result;
   }
 
-  async function handleIdentify() {
-    const value = identifier.trim();
-    const digits = onlyDigits(value);
-    const isDocument = digits.length >= 11;
-    const emailTypoMessage = isEmail(value)
-      ? getEmailTypoErrorMessage(value)
-      : null;
-
-    if (!isEmail(value) && (!isDocument || !isValidCpfOrCnpj(value))) {
-      setCheckoutError('Informe um e-mail, CPF ou CNPJ válido.');
-      return;
-    }
-
-    if (emailTypoMessage) {
-      setCheckoutError(emailTypoMessage);
-      return;
-    }
-
-    setCheckoutError(null);
-    setIsLookingUp(true);
-
-    const result = await identifyCheckoutCustomerAction({ identifier: value });
-
-    setIsLookingUp(false);
-
-    if (!result.ok) {
-      setCheckoutError(result.error);
-      return;
-    }
-
-    if (result.status === 'authenticated_customer' && result.customer) {
-      await applyHydratedCustomer(result.customer);
-      return;
-    }
-
-    if (result.status === 'existing_customer_requires_code') {
-      const baseAccountValidation = {
-        identifier: value,
-        emailHint: result.emailHint,
-        token: '',
-        message:
-          result.message ??
-          'Identificamos seu cadastro. Envie o código para continuar.',
-      };
-
-      setAccountValidation(baseAccountValidation);
-      setCustomer((current) => ({
-        ...current,
-        document: isDocument ? digits : current.document,
-        customerType:
-          result.customerType ??
-          getCustomerTypeFromDocumentInput(
-            isDocument ? digits : current.document,
-            current.customerType
-          ),
-      }));
-      setCheckoutStep('validacao');
-      setIsSendingAccountCode(true);
-
-      const codeResult = await requestCheckoutAccountCodeAction({
-        identifier: value,
-      });
-
-      setIsSendingAccountCode(false);
-
-      setAccountValidation((current) => ({
-        ...current,
-        emailHint: codeResult.ok ? codeResult.emailHint : current.emailHint,
-        message: codeResult.ok ? codeResult.message : undefined,
-        error: codeResult.ok ? undefined : codeResult.error,
-        deliveredChannels: codeResult.ok ? codeResult.deliveredChannels : [],
-        pendingChannels: codeResult.ok ? codeResult.pendingChannels : [],
-      }));
-      if (codeResult.ok) setAccountCodeCooldown(60);
-      return;
-    }
-
-    const nextCustomer: CustomerState = {
-      ...customer,
-      email:
-        result.customer?.email ??
-        (isEmail(value) ? normalizeEmailAddress(value) : customer.email),
-      document:
-        result.customer?.document ?? (isDocument ? digits : customer.document),
-      customerType:
-        result.customerType ??
-        getCustomerTypeFromDocumentInput(
-          isDocument ? digits : customer.document,
-          customer.customerType
-        ),
-    };
-
-    resetCheckoutAttempt();
-    setCustomer(nextCustomer);
-    syncEmailVerificationForEmail(nextCustomer.email);
-    await refreshPreview(nextCustomer);
-    setCheckoutStep('cadastro');
-  }
-
-  async function handleSendAccountCode() {
-    if (!accountValidation.identifier) {
-      setCheckoutStep('identificacao');
-      return;
-    }
-
-    if (accountCodeCooldown > 0) return;
-
-    setIsSendingAccountCode(true);
-
-    const result = await requestCheckoutAccountCodeAction({
-      identifier: accountValidation.identifier,
-    });
-
-    setIsSendingAccountCode(false);
-
-    if (!result.ok) {
-      setAccountValidation((current) => ({
-        ...current,
-        error: result.error,
-        message: undefined,
-      }));
-      return;
-    }
-
-    setAccountValidation((current) => ({
-      ...current,
-      emailHint: result.emailHint,
-      message: result.message,
-      error: undefined,
-      deliveredChannels: result.deliveredChannels,
-      pendingChannels: result.pendingChannels,
-    }));
-    setAccountCodeCooldown(60);
-  }
-
-  async function handleVerifyAccountCode() {
-    const token = accountValidation.token.trim();
-
-    if (!accountValidation.identifier || token.length < 4) {
-      setAccountValidation((current) => ({
-        ...current,
-        error: 'Informe o código recebido por e-mail ou WhatsApp.',
-      }));
-      return;
-    }
-
-    setIsVerifyingAccountCode(true);
-
-    const result = await verifyCheckoutAccountCodeAction({
-      identifier: accountValidation.identifier,
-      token,
-    });
-
-    setIsVerifyingAccountCode(false);
-
-    if (!result.ok) {
-      setAccountValidation((current) => ({
-        ...current,
-        error: result.error,
-        message: undefined,
-      }));
-      return;
-    }
-
-    setAccountValidation((current) => ({
-      ...current,
-      token: '',
-      message: result.message,
-      error: undefined,
-    }));
-    await applyHydratedCustomer({
-      ...result.customer,
-      email: result.email,
-    });
-  }
-
   async function handleSwitchCheckoutAccount() {
     setIsSwitchingAccount(true);
     const result = await switchCheckoutAccountAction();
@@ -1525,22 +1203,12 @@ export default function CartClient({ customerSession }: Props) {
     resetCheckoutAttempt();
     clearShippingSelection();
     setCheckoutPreview(null);
-    setIdentifier('');
     setCustomer(getInitialCustomerState(null));
-    setEmailVerification({
-      email: '',
-      status: 'idle',
-      token: '',
-    });
-    setAccountValidation({
-      identifier: '',
-      token: '',
-    });
     setSavedAddresses([]);
     setSelectedSavedAddressId(null);
     setIsKnownCustomer(false);
     setCheckoutError(null);
-    setCheckoutStep('identificacao');
+    setCheckoutStep('cadastro');
   }
 
   function validateCustomerData() {
@@ -1707,117 +1375,6 @@ export default function CartClient({ customerSession }: Props) {
     setCheckoutStep('pagamento');
   }
 
-  async function handleSendEmailCode() {
-    const email = normalizeEmailAddress(customer.email);
-
-    if (!isEmail(email)) {
-      setCheckoutError('Informe um e-mail válido para receber o código.');
-      setCheckoutStep('cadastro');
-      return;
-    }
-
-    const emailTypoMessage = getEmailTypoErrorMessage(email);
-
-    if (emailTypoMessage) {
-      setCheckoutError(emailTypoMessage);
-      setCheckoutStep('cadastro');
-      return;
-    }
-
-    setCheckoutError(null);
-    setIsSendingEmailCode(true);
-
-    const result = await requestCheckoutEmailCodeAction({ email });
-
-    setIsSendingEmailCode(false);
-
-    if (!result.ok) {
-      setEmailVerification({
-        email,
-        status: 'idle',
-        token: '',
-        error: result.error,
-      });
-      return;
-    }
-
-    setEmailVerification({
-      email: result.email,
-      status: 'sent',
-      token: '',
-      message: result.message,
-    });
-  }
-
-  async function handleVerifyEmailCode() {
-    const email = normalizeEmailAddress(customer.email);
-    const token = emailVerification.token.trim();
-
-    if (!isEmail(email) || token.length < 4) {
-      setEmailVerification((current) => ({
-        ...current,
-        email,
-        error: 'Informe o código recebido por e-mail.',
-      }));
-      return;
-    }
-
-    setIsVerifyingEmailCode(true);
-
-    const result = await verifyCheckoutEmailCodeAction({
-      email,
-      token,
-      customer: {
-        name: customer.name,
-        email,
-        phone: customer.phone,
-        document: customer.document,
-        customerType: getCustomerTypeFromDocumentInput(
-          customer.document,
-          customer.customerType
-        ),
-        legalName: customer.legalName || undefined,
-        stateRegistration:
-          customer.stateRegistrationExempt
-            ? undefined
-            : customer.stateRegistration || undefined,
-        stateRegistrationExempt: customer.stateRegistrationExempt,
-        acceptsMarketing: customer.acceptsMarketing,
-        shippingAddress: {
-          postalCode: customer.postalCode,
-          street: customer.street,
-          number: customer.number,
-          complement: customer.complement,
-          district: customer.district,
-          city: customer.city,
-          state: customer.state.toUpperCase(),
-        },
-      },
-    });
-
-    setIsVerifyingEmailCode(false);
-
-    if (!result.ok) {
-      setEmailVerification((current) => ({
-        ...current,
-        email,
-        error: result.error,
-        message: undefined,
-      }));
-      return;
-    }
-
-    setCheckoutError(null);
-    setEmailVerification({
-      email: result.email,
-      status: 'verified',
-      token: '',
-      message: result.message,
-    });
-    await refreshPreview(customer);
-    await refreshShippingQuotes(customer, { force: true, silent: true });
-  }
-
   async function handleCheckout() {
     const customerError = validateCustomerData();
     const deliveryError = validateDeliveryData();
@@ -1831,12 +1388,6 @@ export default function CartClient({ customerSession }: Props) {
     if (!selectedShippingQuoteId) {
       setCheckoutError('Selecione uma forma de envio antes do pagamento.');
       setCheckoutStep('envio');
-      return;
-    }
-
-    if (!isCheckoutEmailVerified) {
-      setCheckoutError('Valide o e-mail com o código recebido antes do pagamento.');
-      setCheckoutStep('pagamento');
       return;
     }
 
@@ -2020,18 +1571,16 @@ export default function CartClient({ customerSession }: Props) {
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
           <section className="glass-panel rounded-[28px] p-5 md:p-7">
             <div className="flex flex-col gap-2">
-              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-blue-primary">
+              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#9AABFF]">
                 Checkout
               </p>
               <h1 className="font-display text-2xl font-black text-white">
-                {isExpressCheckout
-                  ? 'Finalizar compra'
-                  : 'Compra sem senha obrigatória'}
+                Finalizar compra
               </h1>
               <p className="max-w-2xl text-sm leading-6 text-brand-muted">
                 {isExpressCheckout
                   ? 'Seus dados já estão carregados. Revise a entrega e siga para o pagamento.'
-                  : 'Validamos o e-mail para ligar o pedido ao comprador e usamos CPF ou CNPJ para aplicar a regra correta de cliente.'}
+                  : 'Compre como convidado. Informe os dados de entrega e pagamento; criar uma conta é opcional.'}
               </p>
             </div>
 
@@ -2045,173 +1594,13 @@ export default function CartClient({ customerSession }: Props) {
                   key={step.id}
                   active={checkoutStep === step.id}
                   done={index < stepIndex}
-                  index={step.label}
+                  index={String(index + 1)}
                   title={step.title}
                 />
               ))}
             </div>
 
             <div className="mt-6">
-              {checkoutStep === 'identificacao' ? (
-                <div className="grid gap-5">
-                  <div className="rounded-2xl border border-brand-border-soft bg-white/[0.02] p-4">
-                    <h2 className="text-lg font-black text-white">
-                      Informe e-mail, CPF ou CNPJ
-                    </h2>
-                    <p className="mt-1 text-sm leading-6 text-brand-muted">
-                      Se já existir cadastro na loja, usamos os dados salvos de
-                      forma segura. Se não existir, abrimos o cadastro rápido.
-                    </p>
-                    <div className="mt-4 grid gap-3 md:grid-cols-[1fr_180px]">
-                      <CheckoutInput
-                        label="E-mail, CPF ou CNPJ"
-                        value={identifier}
-                        onChange={(value) => {
-                          setCheckoutError(null);
-                          setAccountValidation({
-                            identifier: '',
-                            token: '',
-                          });
-                          setIdentifier(value);
-                        }}
-                        validationState={
-                          !identifier.trim()
-                            ? 'empty'
-                            : (isEmail(identifier) &&
-                                !getEmailTypoErrorMessage(identifier)) ||
-                                isValidCpfOrCnpj(identifier)
-                              ? 'valid'
-                              : 'invalid'
-                        }
-                        icon={IdCard}
-                        helper={
-                          identifier.trim()
-                            ? getEmailTypoErrorMessage(identifier) ??
-                              (!isEmail(identifier) &&
-                              !isValidCpfOrCnpj(identifier)
-                                ? 'Digite um e-mail, CPF ou CNPJ válido.'
-                                : undefined)
-                            : undefined
-                        }
-                      />
-                      <button
-                        type="button"
-                        onClick={handleIdentify}
-                        disabled={isLookingUp}
-                        className="mt-auto h-11 rounded-xl bg-blue-primary px-5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(30,61,255,0.3)] transition hover:opacity-95 disabled:cursor-wait disabled:opacity-60"
-                      >
-                        {isLookingUp ? 'Verificando...' : 'Continuar'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-
-              {checkoutStep === 'validacao' ? (
-                <div className="grid gap-5">
-                  <div className="rounded-2xl border border-blue-primary/25 bg-blue-primary/8 p-5">
-                    <div className="flex flex-col gap-2">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-blue-primary">
-                        Validação de acesso
-                      </p>
-                      <h2 className="text-lg font-black text-white">
-                        Valide seu acesso para continuar
-                      </h2>
-                      <p className="max-w-2xl text-sm leading-6 text-brand-muted">
-                        Para proteger seus dados, confirme o código enviado aos
-                        canais já validados da sua conta. Quando e-mail e
-                        WhatsApp estão ativos, os dois recebem exatamente o
-                        mesmo código.
-                      </p>
-                      {accountValidation.deliveredChannels?.length ||
-                      accountValidation.pendingChannels?.length ? (
-                        <div className="mt-2 flex flex-wrap gap-2" aria-label="Canais usados para enviar o código">
-                          {accountValidation.deliveredChannels?.includes('email') ? (
-                            <span className="rounded-full border border-green-accent/35 bg-green-accent/10 px-2.5 py-1 text-[11px] font-bold text-green-accent">
-                              E-mail enviado
-                            </span>
-                          ) : null}
-                          {accountValidation.deliveredChannels?.includes('whatsapp') ? (
-                            <span className="rounded-full border border-green-accent/35 bg-green-accent/10 px-2.5 py-1 text-[11px] font-bold text-green-accent">
-                              WhatsApp enviado
-                            </span>
-                          ) : null}
-                          {accountValidation.pendingChannels?.includes('whatsapp') ? (
-                            <span className="rounded-full border border-amber-300/35 bg-amber-300/10 px-2.5 py-1 text-[11px] font-bold text-amber-200">
-                              WhatsApp em nova tentativa
-                            </span>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-
-                    <div className="mt-5 grid gap-3 md:grid-cols-[1fr_180px]">
-                      <input
-                        value={accountValidation.token}
-                        onChange={(event) =>
-                          setAccountValidation((current) => ({
-                            ...current,
-                            token: event.target.value
-                              .replace(/\D/g, '')
-                              .slice(0, 12),
-                            error: undefined,
-                          }))
-                        }
-                        inputMode="numeric"
-                        autoComplete="one-time-code"
-                        placeholder="Código de acesso"
-                        className="h-11 w-full rounded-xl border border-brand-border-soft bg-[#050A14]/80 px-3 text-center text-lg font-black tracking-[0.24em] text-white outline-none transition placeholder:text-sm placeholder:font-semibold placeholder:tracking-normal placeholder:text-brand-muted focus:border-green-accent/60"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleVerifyAccountCode}
-                        disabled={
-                          isVerifyingAccountCode ||
-                          accountValidation.token.trim().length < 4
-                        }
-                        className="h-11 rounded-xl bg-green-accent px-5 text-sm font-black text-brand-bg transition hover:opacity-95 disabled:cursor-wait disabled:opacity-60"
-                      >
-                        {isVerifyingAccountCode ? 'Validando...' : 'Validar'}
-                      </button>
-                    </div>
-
-                    {accountValidation.message || accountValidation.error ? (
-                      <p
-                        className={`mt-3 text-xs font-semibold ${
-                          accountValidation.error
-                            ? 'text-red-200'
-                            : 'text-green-accent'
-                        }`}
-                      >
-                        {accountValidation.error ?? accountValidation.message}
-                      </p>
-                    ) : null}
-
-                    <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-brand-border-soft pt-4">
-                      <button
-                        type="button"
-                        onClick={() => setCheckoutStep('identificacao')}
-                        className="h-10 rounded-xl border border-brand-border-soft px-4 text-xs font-bold text-brand-muted transition hover:text-white"
-                      >
-                        Alterar e-mail/CPF/CNPJ
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleSendAccountCode}
-                        disabled={isSendingAccountCode || accountCodeCooldown > 0}
-                        className="h-10 rounded-xl border border-blue-primary/40 px-4 text-xs font-bold text-blue-primary transition hover:bg-blue-primary hover:text-white disabled:cursor-wait disabled:opacity-60"
-                      >
-                        {isSendingAccountCode
-                          ? 'Enviando...'
-                          : accountCodeCooldown > 0
-                            ? `Reenviar em ${accountCodeCooldown}s`
-                            : 'Reenviar código'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-
               {checkoutStep === 'cadastro' ? (
                 <div className="grid gap-5">
                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -2238,7 +1627,26 @@ export default function CartClient({ customerSession }: Props) {
                     </label>
                   </div>
 
-                  {customer.email ? (
+                  {!isKnownCustomer ? (
+                    <div className="flex flex-col gap-3 rounded-2xl border border-blue-primary/25 bg-blue-primary/10 p-4 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <p className="text-sm font-bold text-white">
+                          Já comprou nesta loja?
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-brand-muted">
+                          Entre para preencher seus dados e endereços automaticamente.
+                        </p>
+                      </div>
+                      <Link
+                        href="/conta/entrar?next=/carrinho"
+                        className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl border border-[#9AABFF]/50 px-4 text-xs font-bold text-[#B8C3FF] transition hover:bg-blue-primary/10 hover:text-white"
+                      >
+                        Entrar na conta
+                      </Link>
+                    </div>
+                  ) : null}
+
+                  {isKnownCustomer && customer.email ? (
                     <div className="flex flex-col gap-3 rounded-2xl border border-brand-border-soft bg-white/[0.03] p-4 md:flex-row md:items-center md:justify-between">
                       <div className="min-w-0">
                         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-muted">
@@ -2387,8 +1795,16 @@ export default function CartClient({ customerSession }: Props) {
                   </label>
 
                   <CheckoutActionBar
-                    onBack={() => setCheckoutStep('identificacao')}
+                    onBack={() => {
+                      if (isKnownCustomer) {
+                        void handleSwitchCheckoutAccount();
+                        return;
+                      }
+
+                      window.location.href = '/';
+                    }}
                     onNext={handleContinueFromRegistration}
+                    backLabel={isKnownCustomer ? 'Sair ou trocar' : 'Continuar comprando'}
                     nextLabel="Salvar dados"
                   />
                 </div>
@@ -2655,7 +2071,7 @@ export default function CartClient({ customerSession }: Props) {
                     <p className="mt-1 text-sm text-brand-muted">
                       {isExpressCheckout
                         ? 'Confirme o endereço e o frete calculado antes de pagar.'
-                        : 'Valide o e-mail antes de abrir o pagamento seguro.'}
+                        : 'Revise os dados e abra o ambiente seguro de pagamento.'}
                     </p>
                   </div>
                   {isExpressCheckout ? (
@@ -2743,92 +2159,31 @@ export default function CartClient({ customerSession }: Props) {
                       </div>
                     </div>
                   ) : null}
-                  <div
-                    className={`rounded-2xl border p-4 ${
-                      isCheckoutEmailVerified
-                        ? 'border-green-accent/35 bg-green-accent/10'
-                        : 'border-brand-border-soft bg-white/[0.02]'
-                    }`}
-                  >
-                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-accent/15">
-                          {isCheckoutEmailVerified ? (
-                            <CheckCircle2 className="h-5 w-5 text-green-accent" />
-                          ) : (
-                            <Mail className="h-5 w-5 text-green-accent" />
-                          )}
-                        </div>
-                        <div>
-                          <h3 className="text-sm font-bold text-white">
-                            {isCheckoutEmailVerified
-                              ? 'E-mail validado'
-                              : 'Validar e-mail'}
-                          </h3>
-                          <p className="mt-1 text-xs leading-5 text-brand-muted">
-                            {normalizedCustomerEmail || 'Informe o e-mail do comprador'}
-                          </p>
-                        </div>
+                  <div className="rounded-2xl border border-green-accent/30 bg-green-accent/10 p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-accent/15">
+                        {isKnownCustomer ? (
+                          <CheckCircle2 className="h-5 w-5 text-green-accent" />
+                        ) : (
+                          <Mail className="h-5 w-5 text-green-accent" />
+                        )}
                       </div>
-                      <button
-                        type="button"
-                        onClick={handleSendEmailCode}
-                        disabled={isSendingEmailCode || isCheckoutEmailVerified}
-                        className="h-10 rounded-xl border border-green-accent/30 px-4 text-xs font-bold text-green-accent transition hover:bg-green-accent/10 disabled:cursor-default disabled:opacity-60"
-                      >
-                        {isSendingEmailCode
-                          ? 'Enviando...'
-                          : isCheckoutEmailVerified
-                            ? 'Validado'
-                            : emailVerification.status === 'sent'
-                              ? 'Reenviar código'
-                              : 'Enviar código'}
-                      </button>
+                      <div>
+                        <h3 className="text-sm font-bold text-white">
+                          {isKnownCustomer
+                            ? 'Conta conectada'
+                            : 'Compra como convidado'}
+                        </h3>
+                        <p className="mt-1 text-xs font-semibold text-white">
+                          {normalizeEmailAddress(customer.email)}
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-brand-muted">
+                          {isKnownCustomer
+                            ? 'O pedido será incluído automaticamente no histórico da sua conta.'
+                            : 'Enviaremos as confirmações para este e-mail. Você poderá ativar a conta depois da compra.'}
+                        </p>
+                      </div>
                     </div>
-
-                    {!isCheckoutEmailVerified ? (
-                      <div className="mt-4 grid gap-3 md:grid-cols-[1fr_160px]">
-                        <input
-                          value={emailVerification.token}
-                          onChange={(event) =>
-                            setEmailVerification((current) => ({
-                              ...current,
-                              token: event.target.value
-                                .replace(/\D/g, '')
-                                .slice(0, 12),
-                              error: undefined,
-                            }))
-                          }
-                          inputMode="numeric"
-                          autoComplete="one-time-code"
-                          placeholder="Código"
-                          className="h-11 w-full rounded-xl border border-brand-border-soft bg-[#050A14]/80 px-3 text-center text-lg font-black tracking-[0.24em] text-white outline-none transition placeholder:text-sm placeholder:font-semibold placeholder:tracking-normal placeholder:text-brand-muted focus:border-green-accent/60"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleVerifyEmailCode}
-                          disabled={
-                            isVerifyingEmailCode ||
-                            emailVerification.token.trim().length < 4
-                          }
-                          className="h-11 rounded-xl bg-green-accent px-5 text-sm font-black text-brand-bg transition hover:opacity-95 disabled:cursor-wait disabled:opacity-60"
-                        >
-                          {isVerifyingEmailCode ? 'Validando...' : 'Validar'}
-                        </button>
-                      </div>
-                    ) : null}
-
-                    {emailVerification.message || emailVerification.error ? (
-                      <p
-                        className={`mt-3 text-xs font-semibold ${
-                          emailVerification.error
-                            ? 'text-red-200'
-                            : 'text-green-accent'
-                        }`}
-                      >
-                        {emailVerification.error ?? emailVerification.message}
-                      </p>
-                    ) : null}
                   </div>
                   <div className="rounded-2xl border border-blue-primary bg-blue-primary/10 p-4">
                     <div className="flex items-start gap-3">
@@ -2852,6 +2207,7 @@ export default function CartClient({ customerSession }: Props) {
                       orderNumber={pixPaymentStatusSession.orderNumber}
                       paymentId={pixPaymentStatusSession.paymentId}
                       publicKey={pixPaymentStatusSession.publicKey}
+                      orderPath={pixPaymentStatusSession.orderPath}
                       onApproved={(redirectPath) => {
                         window.location.href = redirectPath;
                       }}
@@ -2924,7 +2280,6 @@ export default function CartClient({ customerSession }: Props) {
                       }
                       disabled={
                         isSubmitting ||
-                        !isCheckoutEmailVerified ||
                         isQuotingShipping ||
                         !selectedShippingQuoteId
                       }
@@ -2952,7 +2307,7 @@ export default function CartClient({ customerSession }: Props) {
               <div className="mt-2 text-xs text-brand-muted">
                 {checkoutPreview?.priceListName
                   ? `Tabela aplicada: ${checkoutPreview.priceListName}`
-                  : 'Tabela padrão até validar o documento.'}
+                  : 'Tabela calculada conforme os dados fiscais informados.'}
               </div>
 
               <div className="mt-4 max-h-[300px] space-y-3 overflow-y-auto pr-1">
@@ -3102,11 +2457,13 @@ export default function CartClient({ customerSession }: Props) {
 function CheckoutActionBar({
   onBack,
   onNext,
+  backLabel = 'Voltar',
   nextLabel,
   disabled,
 }: {
   onBack: () => void;
   onNext: () => void;
+  backLabel?: string;
   nextLabel: string;
   disabled?: boolean;
 }) {
@@ -3117,7 +2474,7 @@ function CheckoutActionBar({
         onClick={onBack}
         className="h-11 rounded-xl border border-brand-border-soft px-5 text-sm font-bold text-brand-muted transition hover:text-white"
       >
-        Voltar
+        {backLabel}
       </button>
       <button
         type="button"

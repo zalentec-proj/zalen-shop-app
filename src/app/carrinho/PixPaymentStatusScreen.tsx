@@ -59,12 +59,14 @@ export function PixPaymentStatusScreen({
   orderNumber,
   paymentId,
   publicKey,
+  orderPath,
   onApproved,
 }: {
   orderId: string;
   orderNumber: string;
   paymentId: string;
   publicKey: string;
+  orderPath: string;
   onApproved: (redirectPath: string) => void;
 }) {
   const reactId = useId().replace(/:/g, '');
@@ -283,7 +285,7 @@ export function PixPaymentStatusScreen({
               : 'Confirmando automaticamente com segurança.')}
         </p>
         <Link
-          href={`/conta/pedidos/${orderId}`}
+          href={orderPath}
           className="inline-flex h-10 items-center justify-center rounded-xl border border-white/15 px-4 text-xs font-black text-white transition hover:border-white/30"
         >
           Ver pedido {orderNumber}

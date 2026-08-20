@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { XCircle } from 'lucide-react';
 import { noindexMetadata } from '@/modules/seo/seo.service';
+import { getGuestCheckoutOrderAccess } from '@/modules/payments/guest-checkout-access.service';
 import {
   getCurrentStorefrontOrigin,
   resolveCurrentStoreFromHeaders,
@@ -26,9 +27,19 @@ export default async function MercadoPagoFailurePage({
     ? await processMercadoPagoReturn(searchParams)
     : null;
   const store = await resolveCurrentStoreFromHeaders();
-  const storefrontOrigin = await getCurrentStorefrontOrigin(store);
-  const accountHref = result?.orderId
-    ? `${storefrontOrigin}/conta/entrar?next=${encodeURIComponent(`/conta/pedidos/${result.orderId}`)}`
+  const [storefrontOrigin, guestAccess] = await Promise.all([
+    getCurrentStorefrontOrigin(store),
+    result?.orderId
+      ? getGuestCheckoutOrderAccess({
+          storeId: store.id,
+          orderId: result.orderId,
+        })
+      : Promise.resolve(null),
+  ]);
+  const orderHref = guestAccess
+    ? `${storefrontOrigin}/pedido/${guestAccess.order.id}`
+    : result?.orderId
+      ? `${storefrontOrigin}/conta/entrar?next=${encodeURIComponent(`/conta/pedidos/${result.orderId}`)}`
     : `${storefrontOrigin}/conta/entrar?next=/conta/pedidos`;
 
   return (
@@ -51,7 +62,7 @@ export default async function MercadoPagoFailurePage({
         ) : null}
         <div className="mt-2 grid w-full gap-2 sm:grid-cols-2">
           <Link
-            href={accountHref}
+            href={orderHref}
             className="flex h-12 items-center justify-center rounded-xl bg-blue-primary px-4 text-sm font-bold text-white"
           >
             Acompanhar pedido

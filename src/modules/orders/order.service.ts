@@ -36,6 +36,7 @@ const createOrderInputSchema = z.object({
   customerId: z.string().trim().min(1).optional(),
   sendToErp: z.boolean().optional(),
   requirePersistence: z.boolean().optional(),
+  persistCustomer: z.boolean().optional(),
   shippingQuoteId: z.string().trim().uuid().optional(),
   marketingContext: z.record(z.string(), z.unknown()).optional(),
   customer: z
@@ -172,7 +173,7 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
     throw new Error('Order contains products from different stores.');
   }
 
-  const customer = parsed.customer
+  const customer = parsed.customer && parsed.persistCustomer !== false
     ? await upsertCheckoutCustomer({
         storeId,
         authUserId: parsed.customer.authUserId,

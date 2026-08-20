@@ -25,7 +25,11 @@
 - Produto abre com dados corretos.
 - Carrinho funciona.
 - Carrinho persiste itens reais adicionados pelo comprador.
+- Adicionar produto abre o carrinho lateral em qualquer página que exiba essa ação.
+- “Comprar agora” adiciona o item e abre diretamente o checkout.
 - Checkout permite compra convidada com e-mail, entrega e CPF/CNPJ.
+- Checkout convidado começa nos dados do comprador e não exige conta, senha ou
+  OTP antes do pagamento.
 - CPF/CNPJ é validado no servidor antes de criar pedido.
 - Checkout identifica PF por CPF e PJ por CNPJ.
 - Checkout aplica tabela de preço PF/PJ server-side.
@@ -63,10 +67,8 @@
 
 - Carrinho adiciona/remove itens.
 - Total é calculado no backend quando checkout real for implementado.
-- Checkout não exige senha, mas exige e-mail validado por código antes do
-  pagamento.
-- E-mails com erro comum de domínio, como `gmail.coim`, bloqueiam envio de código
-  e criação de pagamento com sugestão segura de correção.
+- E-mails com erro comum de domínio, como `gmail.coim`, bloqueiam criação de
+  pagamento com sugestão segura de correção.
 - Pedido é criado com número amigável.
 - Pedido é salvo no banco.
 - Pedido salva snapshot do comprador quando informado.
@@ -78,9 +80,14 @@
 - Pedido salva `shipping_total` calculado no servidor.
 - Pedido salva método, cotação e metadados normalizados do frete escolhido.
 - `order_items` salva preço unitário final calculado no servidor.
-- Pedido criado pelo storefront salva cliente e snapshot do comprador.
-- Pedido criado pelo storefront fica vinculado ao `auth_user_id` validado antes
-  do pagamento.
+- Pedido autenticado salva/atualiza o cliente e o snapshot do comprador.
+- Pedido convidado salva snapshot do comprador sem criar, sobrescrever ou
+  vincular `customers` e endereços antes da verificação do e-mail.
+- O navegador que criou o pedido convidado pode pagar e acompanhar somente esse
+  pedido por capacidade HttpOnly temporária, validada contra a tentativa
+  idempotente persistida e o `store_id`.
+- Depois da validação do mesmo e-mail, pedidos convidados sem `customer_id` são
+  associados à conta autenticada da mesma loja.
 - Pedido não pago/cancelado mostra opção de retomar pagamento sem duplicar o
   pedido.
 - Nova tentativa com mesmo carrinho, comprador e loja reutiliza pedido pendente
@@ -167,14 +174,14 @@
 - Token Meta CAPI fica criptografado em `store_integrations.credentials_encrypted`.
 - Admin `/admin/integracoes/marketing` não aceita HTML, scripts livres ou tags
   arbitrárias.
-- `robots.txt` bloqueia `/admin`, `/api`, `/login`, `/conta`, `/carrinho` e
+- `robots.txt` bloqueia `/admin`, `/api`, `/login`, `/conta`, `/carrinho`, `/pedido` e
   `/pagamento`.
 - `sitemap.xml` lista home, categorias e produtos ativos da loja.
 - Feed `/feeds/google-merchant.xml` gera itens por variante com preço, imagem,
   URL, disponibilidade e preço BRL.
 - Home, categoria e produto possuem canonical, Open Graph/Twitter e JSON-LD
   sanitizado quando aplicável.
-- Admin, login, conta, carrinho e retorno de pagamento possuem `noindex`.
+- Admin, login, conta, carrinho, pedido convidado e retorno de pagamento possuem `noindex`.
 - Cookies de marketing, Pixel, CAPI e enhanced conversions dependem de aceite.
 - Eventos client-side cobrem `view_item_list`, `view_item`, `add_to_cart`,
   `view_cart`, `begin_checkout` e `purchase`.

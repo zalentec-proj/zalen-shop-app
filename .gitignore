@@ -3,6 +3,8 @@ tools/spreadsheets/node_modules
 build/
 dist/
 coverage/
+playwright-report/
+test-results/
 .next/
 tsconfig.tsbuildinfo
 .vscode/

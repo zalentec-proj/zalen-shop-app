@@ -26,17 +26,25 @@ Rotas públicas do storefront:
 - `/carrinho`
 - `/conta/entrar`
 - `/conta/cadastro`
+- `/pedido/[id]` com capacidade temporária emitida pelo servidor
 - futuras páginas públicas da loja
 
-Navegação, catálogo e carrinho são públicos. Para iniciar pagamento, o comprador
-não precisa criar senha, mas precisa validar o e-mail com código enviado pela
-loja. Essa validação cria ou reutiliza a identidade Supabase Auth do comprador e
-vincula `customers.auth_user_id` ao cadastro privado da store antes da criação da
-preferência de pagamento.
+Navegação, catálogo, carrinho e checkout convidado são públicos. O comprador não
+precisa criar conta, senha ou validar um código antes do pagamento. Uma sessão
+autenticada continua oferecendo checkout expresso com dados salvos, mas é
+opcional.
 
 O comprador informa e-mail, entrega e CPF/CNPJ no checkout. CPF/CNPJ continuam
 sendo validados server-side para definir `customer_type` e a tabela de preço
-aplicável. Mensagens de validação de e-mail devem ser genéricas o suficiente para
+aplicável. No checkout convidado, esses dados ficam no snapshot imutável do
+pedido e não atualizam `customers` ou endereços existentes.
+
+Depois que o pedido é criado, o servidor emite um cookie HttpOnly temporário que
+contém uma capacidade aleatória vinculada à tentativa idempotente, `store_id` e
+pedido. O cookie não contém PII e só permite pagar, consultar status e abrir
+aquele pedido durante a janela definida. Um e-mail verificado pelo Supabase Auth
+pode posteriormente criar/vincular o cliente e reivindicar pedidos convidados
+da mesma loja e do mesmo e-mail. As mensagens de login continuam genéricas para
 evitar enumeração de contas.
 
 ## 4. Rotas protegidas

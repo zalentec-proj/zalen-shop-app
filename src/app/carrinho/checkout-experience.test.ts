@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { resolveCheckoutEntryStep } from './checkout-experience';
 
 describe('checkout experience', () => {
-  it('keeps the complete flow for a visitor without a verified session', () => {
+  it('lets a visitor start directly with guest checkout data', () => {
     expect(
       resolveCheckoutEntryStep({
         hasVerifiedSession: false,
         hasCustomerData: true,
         hasDeliveryData: true,
       })
-    ).toBe('identificacao');
+    ).toBe('cadastro');
   });
 
   it('requests only the missing customer or delivery data', () => {

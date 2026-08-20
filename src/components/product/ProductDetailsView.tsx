@@ -8,9 +8,10 @@ interface ProductDetailsViewProps {
   product: Product;
   onBackToHome: () => void;
   onAddToCart: (product: Product, quantity: number) => void;
+  onBuyNow: (product: Product, quantity: number) => void;
 }
 
-export default function ProductDetailsView({ product, onBackToHome, onAddToCart }: ProductDetailsViewProps) {
+export default function ProductDetailsView({ product, onBackToHome, onAddToCart, onBuyNow }: ProductDetailsViewProps) {
   const [selectedImage, setSelectedImage] = useState(product.image);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
@@ -32,6 +33,11 @@ export default function ProductDetailsView({ product, onBackToHome, onAddToCart 
     onAddToCart(product, quantity);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
+  };
+
+  const handleBuyNowClick = () => {
+    if (!product.isAvailable) return;
+    onBuyNow(product, quantity);
   };
 
   const imagesList = product.images && product.images.length > 0 ? product.images : [product.image];
@@ -197,18 +203,13 @@ export default function ProductDetailsView({ product, onBackToHome, onAddToCart 
 
               {/* CTA buttons double deck layout */}
               <div className="flex flex-col sm:flex-row gap-3 mt-1">
-                {/* Comprar agora: triggers direct checkout simulation or direct cart adding */}
                 <button
-                  onClick={handleAddToCartClick}
+                  onClick={handleBuyNowClick}
                   disabled={!product.isAvailable}
                   className="flex-1 h-11 rounded-full text-xs font-semibold tracking-wide text-white gradient-button relative group flex items-center justify-center gap-1.5 cursor-pointer shadow-[0_10px_20px_rgba(30,61,255,0.25)] active:scale-[0.98] transition-all disabled:cursor-not-allowed disabled:bg-slate-700 disabled:shadow-none"
                 >
                   <ShoppingCart className="w-3.5 h-3.5" />
-                  {!product.isAvailable
-                    ? 'Produto esgotado'
-                    : added
-                      ? 'ADICIONADO AO CARRINHO!'
-                      : 'Comprar agora'}
+                  {!product.isAvailable ? 'Produto esgotado' : 'Comprar agora'}
                 </button>
 
                 {/* Adicionar ao carrinho CTA */}

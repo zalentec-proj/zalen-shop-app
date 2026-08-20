@@ -109,6 +109,7 @@ export default function Footer({
               />
               <button
                 type="submit"
+                aria-label="Cadastrar e-mail na newsletter"
                 className="absolute right-1 w-9 h-9 flex items-center justify-center rounded-lg bg-blue-primary text-white hover:opacity-90 transition-opacity cursor-pointer shadow-[0_4px_12px_rgba(30,61,255,0.3)]"
               >
                 <ArrowRight className="w-4 h-4" />

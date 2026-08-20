@@ -122,6 +122,8 @@ export interface CreateOrderInput {
   customer?: OrderCustomerSnapshot;
   sendToErp?: boolean;
   requirePersistence?: boolean;
+  /** Guest checkout keeps only the immutable order snapshot until e-mail is verified. */
+  persistCustomer?: boolean;
   shippingQuoteId?: string;
   marketingContext?: Record<string, unknown>;
   items: Array<{

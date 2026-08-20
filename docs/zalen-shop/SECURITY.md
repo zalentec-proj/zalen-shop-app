@@ -140,6 +140,18 @@ Aplicar rate limit em:
 - criação de pedido;
 - integrações.
 
+## 12.1 Checkout convidado
+
+- Checkout convidado nunca atualiza cadastro ou endereço permanente sem sessão
+  autenticada.
+- O acesso pós-compra usa capacidade aleatória em cookie HttpOnly, `SameSite=Lax`,
+  sem e-mail, documento, telefone ou outra PII.
+- A capacidade só é válida quando corresponde ao `store_id`, pedido, chave e
+  tentativa de checkout persistida concluída dentro da janela permitida.
+- ID de pedido isolado não concede leitura nem permissão de pagamento.
+- Associação posterior do pedido exige e-mail verificado pelo Supabase Auth e
+  afeta apenas pedidos sem cliente da mesma loja e do mesmo e-mail normalizado.
+
 ## 13. Upload seguro
 
 - Limitar tipo e tamanho.

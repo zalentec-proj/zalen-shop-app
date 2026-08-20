@@ -8,8 +8,8 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-08-20
 - Branch: `refactor/migrate-to-next`
-- Commit funcional base antes desta revisão: `510b841` —
-  `fix: recover checkout from stale shipping quotes`
+- Commit funcional base antes desta revisão: `e82bf85` —
+  `docs: record express checkout deployment`
 - A publicação e a restauração seletiva de imagens/compatibilidades devem ser
   conferidas no bloco mais recente antes de iniciar uma nova frente.
   Preserve os scripts locais não rastreados que não pertencem a esta frente.
@@ -24,6 +24,41 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Última mudança conhecida
+
+- Em 2026-08-20 foi implementada a revisão completa da experiência observada
+  no vídeo do cliente. “Adicionar ao carrinho” agora abre um drawer global em
+  home, categorias, modelos e produto; “Comprar agora” adiciona o item e segue
+  diretamente para `/carrinho`. O drawer mostra frete como calculado no
+  checkout, permite continuar comprando, bloqueia o scroll de fundo, prende e
+  restaura o foco e funciona sem overflow horizontal em viewport móvel.
+
+  O visitante começa o checkout diretamente em quatro etapas: Dados, Entrega,
+  Envio e Pagamento. Conta, senha e OTP deixaram de ser barreira anterior ao
+  pagamento. Entrar continua opcional para preencher dados salvos, e clientes
+  autenticados completos preservam o checkout expresso existente.
+
+  No servidor, checkout convidado não cria nem altera `customers` ou endereços:
+  os dados ficam no snapshot imutável do pedido. Depois da criação, um cookie
+  HttpOnly `SameSite=Lax`, sem PII e limitado a cinco pedidos por 24 horas,
+  guarda uma capacidade aleatória. Pagamento, polling de Pix e `/pedido/[id]`
+  só são liberados quando loja, pedido, chave e tentativa idempotente concluída
+  correspondem no banco. Validar posteriormente o mesmo e-mail pelo Supabase
+  Auth associa à conta apenas pedidos convidados sem `customer_id` da mesma
+  loja. O ID do pedido isolado não concede leitura.
+
+  Os retornos do Mercado Pago preservam o acompanhamento convidado, enquanto
+  e-mails de pedido direcionam à ativação autenticada. O script de marketing
+  foi ajustado para `afterInteractive`, eliminando o aviso de script em
+  navegação cliente sem carregar o GTM antes do consentimento padrão.
+
+  Validações concluídas: TypeScript, 180 testes unitários em 43 arquivos, build
+  de produção, auditoria npm com zero vulnerabilidades, scanner de segredos,
+  `git diff --check`, dois E2E Playwright em Chromium desktop/Pixel 7 e
+  verificação independente no navegador. A jornada adicionar → drawer →
+  checkout e Comprar agora → checkout passou; Axe encontrou zero violações
+  WCAG A/AA no checkout e no drawer. Link de pedido sem capacidade exibiu
+  recuperação genérica sem revelar o pedido. Nenhuma conta pessoal, pedido real
+  ou cobrança foi usado nessa validação local.
 
 - Em 2026-08-20 foi implementado o checkout expresso para clientes
   recorrentes. Depois que uma conta existente é validada, clientes com dados
@@ -964,16 +999,16 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Objetivo atual
 
-Publicar a recuperação segura de cotação de frete no checkout e repetir a compra
-supervisionada do produto de teste. O resultado esperado é chegar ao Payment
-Brick sem criar pedido/cobrança quando a modalidade de envio precisar ser
-renovada.
+Publicar de forma controlada a nova jornada de carrinho e checkout convidado e
+repetir uma compra supervisionada em ambiente seguro. O resultado esperado é
+concluir pagamento sem OTP inicial, preservar o checkout expresso autenticado e
+recuperar o pedido convidado após validar o mesmo e-mail.
 
 ## Em andamento
 
-A correção de cotação está validada localmente e aguarda commit/deployment. A
-tentativa que motivou o diagnóstico não criou pedido, preferência ou tentativa
-de pagamento no Mercado Pago; portanto, não houve cobrança a cancelar.
+A nova jornada de carrinho e checkout convidado está validada localmente e
+aguarda publicação explícita. A validação não criou pedido, preferência ou
+cobrança no Mercado Pago e não usou dados pessoais reais.
 
 A reconciliação automática está publicada e agendada em produção. Ela não foi
 disparada manualmente: a primeira execução diária deve registrar
@@ -1011,11 +1046,16 @@ exclusivamente server-side e a habilitação permanece restrita à allowlist.
 
 ## Próximo passo exato
 
-0. Após 06:15 UTC do dia seguinte, conferir o último `sync_jobs` de
+0. Publicar o deployment da jornada convidada e executar uma compra supervisionada
+   primeiro em sandbox: confirmar criação única do pedido, pagamento Pix/cartão,
+   retorno em `/pedido/[id]`, ativação da conta com o mesmo e-mail e associação
+   do pedido em `/conta/pedidos/[id]`. Um pagamento real exige confirmação
+   operacional explícita antes da cobrança.
+1. Após 06:15 UTC do dia seguinte, conferir o último `sync_jobs` de
    `product_reconciliation`: status `success`, snapshot completo e nenhuma
    inativação inesperada. Se houver erro, investigar o código seguro sem repetir
    a baixa manualmente.
-1. Acompanhar o próximo pedido novo pago da Brasil Drones e confirmar que o
+2. Acompanhar o próximo pedido novo pago da Brasil Drones e confirmar que o
    webhook produtivo permanece HTTP 200 e que o pedido foi criado uma única vez
    no Bling, com `external_erp_sync_status = synced`.
 

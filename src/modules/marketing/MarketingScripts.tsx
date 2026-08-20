@@ -30,7 +30,7 @@ export function MarketingScripts({ config }: Props) {
 
   if (!containerId) {
     return (
-      <Script id="zalen-consent-default" strategy="beforeInteractive">
+      <Script id="zalen-consent-default" strategy="afterInteractive">
         {`
           window.dataLayer = window.dataLayer || [];
           window.dataLayer.push({
@@ -47,7 +47,7 @@ export function MarketingScripts({ config }: Props) {
 
   return (
     <>
-      <Script id="zalen-gtm" strategy="beforeInteractive">
+      <Script id="zalen-gtm" strategy="afterInteractive">
         {getGtmScript(containerId)}
       </Script>
       <noscript>

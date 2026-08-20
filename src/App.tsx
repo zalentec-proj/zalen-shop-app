@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Navbar from './components/layout/Navbar';
 import Hero from './components/home/Hero';
 import BenefitsBar from './components/home/BenefitsBar';
@@ -14,23 +14,11 @@ import BestSellers from './components/home/BestSellers';
 import TechSection from './components/home/TechSection';
 import GGGroupCompanies from './components/home/GGGroupCompanies';
 import ProductDetailsView from './components/product/ProductDetailsView';
-import CartSidebar from './components/ecommerce/CartSidebar';
 import Footer from './components/layout/Footer';
 import type { Product, StorefrontCategory } from './types';
-import type { Cart } from './modules/cart/cart.types';
 import type { StorefrontNavigation } from './modules/catalog/storefront-navigation';
-import {
-  addItem,
-  createEmptyCart,
-  getItemCount,
-  removeItem,
-  updateQuantity,
-} from './modules/cart/cart.utils';
-import {
-  getStoredCart,
-  saveStoredCart,
-  subscribeToStoredCart,
-} from './modules/cart/cart.storage';
+import { getItemCount } from './modules/cart/cart.utils';
+import { useStorefrontCart } from './modules/cart/StorefrontCartProvider';
 import { pushMarketingEvent } from './modules/marketing/marketing.client';
 import { PjDiscountNotice } from './components/storefront/PjDiscountNotice';
 import { WhatsAppFloatingButton } from './components/storefront/WhatsAppFloatingButton';
@@ -75,25 +63,18 @@ export default function App({
   );
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [cartOpen, setCartOpen] = useState<boolean>(false);
-  const [cart, setCart] = useState<Cart>(() => createEmptyCart());
-
-  useEffect(() => {
-    setCart(getStoredCart());
-    return subscribeToStoredCart(() => setCart(getStoredCart()));
-  }, []);
+  const {
+    cart,
+    addCartItem,
+    toggleCart,
+    goToCheckout,
+  } = useStorefrontCart();
 
   const selectedProduct = useMemo(() => {
     return products.find((p) => p.id === selectedProductId) || products[0];
   }, [products, selectedProductId]);
 
-  const cartItemsCount = useMemo(() => {
-    return getItemCount(cart);
-  }, [cart]);
-
-  const persistCart = (nextCart: Cart) => {
-    setCart(saveStoredCart(nextCart));
-  };
+  const cartItemsCount = getItemCount(cart);
 
   const handleProductSelect = (productId: string) => {
     setSelectedProductId(productId);
@@ -106,12 +87,16 @@ export default function App({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleAddToCart = (product: Product, quantity: number = 1) => {
+  const handleAddToCart = (
+    product: Product,
+    quantity: number = 1,
+    options: { checkoutNow?: boolean } = {}
+  ) => {
     if (!product.isAvailable || !product.catalogProductId || !product.variantId) {
       return;
     }
 
-    persistCart(addItem(cart, {
+    const nextCart = addCartItem({
       productId: product.catalogProductId,
       variantId: product.variantId,
       sku: product.sku,
@@ -119,7 +104,7 @@ export default function App({
       imageUrl: product.image,
       unitPrice: product.price,
       quantity,
-    }));
+    }, { openCart: !options.checkoutNow });
 
     pushMarketingEvent({
       event: 'add_to_cart',
@@ -144,38 +129,9 @@ export default function App({
       },
     });
 
-    setCartOpen(true);
-  };
-
-  const handleUpdateQuantity = (productId: string, variantId: string, qty: number) => {
-    persistCart(updateQuantity(cart, productId, variantId, qty));
-  };
-
-  const handleRemoveItem = (productId: string, variantId: string) => {
-    persistCart(removeItem(cart, productId, variantId));
-  };
-
-  const handleCheckout = () => {
-    pushMarketingEvent({
-      event: 'begin_checkout',
-      event_id: `begin_checkout:${Date.now()}`,
-      ecommerce: {
-        currency: 'BRL',
-        value: cart.total,
-        items: cart.items.map((item) => ({
-          item_id: item.sku ?? item.variantId,
-          item_name: item.name,
-          price: item.unitPrice,
-          quantity: item.quantity,
-        })),
-      },
-      meta: {
-        eventName: 'InitiateCheckout',
-        contentIds: cart.items.map((item) => item.sku ?? item.variantId),
-      },
-    });
-    setCartOpen(false);
-    window.location.href = '/carrinho';
+    if (options.checkoutNow) {
+      goToCheckout(nextCart);
+    }
   };
 
   const handleCategoryFromNavbar = (cat: string | null) => {
@@ -205,7 +161,7 @@ export default function App({
   const shouldShowCatalog = Boolean(activeCategory || searchQuery.trim());
 
   return (
-    <div className="min-h-screen bg-brand-bg md:bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-deep/30 via-brand-bg to-brand-bg relative" style={{ maxWidth: '100vw' }}>
+    <div className="relative min-h-screen max-w-[100vw] overflow-x-hidden bg-brand-bg from-blue-deep/30 via-brand-bg to-brand-bg md:bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]">
       <div className="absolute top-[5%] left-[20%] w-[600px] h-[600px] rounded-full glow-radial pointer-events-none -translate-x-1/2 -z-30"></div>
       <div className="absolute top-[40%] right-[-10%] w-[500px] h-[500px] rounded-full glow-radial-green pointer-events-none -z-30"></div>
 
@@ -225,7 +181,7 @@ export default function App({
           ].filter(Boolean).join(' '),
         }))}
         cartItemsCount={cartItemsCount}
-        onCartToggle={() => setCartOpen(!cartOpen)}
+        onCartToggle={toggleCart}
         activeCategory={activeCategory}
         onCategorySelect={handleCategoryFromNavbar}
         onNavigateToHome={handleBackToHome}
@@ -296,6 +252,9 @@ export default function App({
               product={selectedProduct}
               onBackToHome={handleBackToHome}
               onAddToCart={handleAddToCart}
+              onBuyNow={(product, quantity) =>
+                handleAddToCart(product, quantity, { checkoutNow: true })
+              }
             />
           ) : null}
         </main>
@@ -303,14 +262,6 @@ export default function App({
 
       <Footer categories={categories} />
 
-      <CartSidebar
-        isOpen={cartOpen}
-        onClose={() => setCartOpen(false)}
-        cart={cart}
-        onUpdateQuantity={handleUpdateQuantity}
-        onRemoveItem={handleRemoveItem}
-        onCheckout={handleCheckout}
-      />
     </div>
   );
 }

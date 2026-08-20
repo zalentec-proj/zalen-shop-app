@@ -235,6 +235,38 @@ export async function findReusableCheckoutAttempt(input: {
   return data ? toCheckoutAttempt(data as CheckoutAttemptRow) : null;
 }
 
+export async function findCheckoutAttemptForOrderAccess(input: {
+  storeId: string;
+  orderId: string;
+  attemptKey: string;
+  maxAgeMinutes?: number;
+}): Promise<CheckoutAttemptRecord | null> {
+  const supabase = createOptionalAdminClient();
+
+  if (!supabase) {
+    throwPersistenceError('supabase_admin_unavailable');
+  }
+
+  const minCreatedAt = new Date(
+    Date.now() - (input.maxAgeMinutes ?? 24 * 60) * 60 * 1000
+  ).toISOString();
+  const { data, error } = await supabase
+    .from('checkout_attempts')
+    .select(checkoutAttemptFields)
+    .eq('store_id', input.storeId)
+    .eq('order_id', input.orderId)
+    .eq('attempt_key', input.attemptKey)
+    .eq('status', 'preference_created')
+    .gte('created_at', minCreatedAt)
+    .maybeSingle();
+
+  if (error) {
+    throwPersistenceError('order_access_lookup_failed');
+  }
+
+  return data ? toCheckoutAttempt(data as CheckoutAttemptRow) : null;
+}
+
 export async function completeCheckoutAttempt(input: {
   storeId: string;
   attemptId: string;

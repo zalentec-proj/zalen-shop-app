@@ -13,7 +13,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import Footer from '@/components/layout/Footer';
-import { addStoredCartItem } from '@/modules/cart/cart.storage';
+import { useStorefrontCart } from '@/modules/cart/StorefrontCartProvider';
 import type { Product, ProductSummary } from '@/modules/catalog/product.types';
 import { PjDiscountNotice } from '@/components/storefront/PjDiscountNotice';
 import { ProductDescription } from '@/components/product/ProductDescription';
@@ -34,18 +34,19 @@ export default function ProductDetailClient({
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [addedToCart, setAddedToCart] = useState(false);
+  const { addCartItem, goToCheckout } = useStorefrontCart();
 
   const variant = product.variants[0];
   const price = variant?.price ?? 0;
   const stock = variant?.stock ?? 0;
   const monthly = (price / 12).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 
-  function handleAddToCart() {
+  function addProductToCart(openCart: boolean) {
     if (!variant) {
-      return;
+      return null;
     }
 
-    addStoredCartItem({
+    const nextCart = addCartItem({
       productId: product.id,
       variantId: variant.id,
       sku: variant.sku,
@@ -53,7 +54,7 @@ export default function ProductDetailClient({
       imageUrl: product.images[0]?.url,
       unitPrice: price,
       quantity,
-    });
+    }, { openCart });
     pushMarketingEvent({
       event: 'add_to_cart',
       event_id: `add_to_cart:${product.id}:${variant.id}:${Date.now()}`,
@@ -77,12 +78,31 @@ export default function ProductDetailClient({
         contentName: product.name,
       },
     });
+
+    return nextCart;
+  }
+
+  function handleAddToCart() {
+    const nextCart = addProductToCart(true);
+
+    if (!nextCart) {
+      return;
+    }
+
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 2000);
   }
 
+  function handleBuyNow() {
+    const nextCart = addProductToCart(false);
+
+    if (nextCart) {
+      goToCheckout(nextCart);
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-brand-bg relative">
+    <div className="relative min-h-screen overflow-x-hidden bg-brand-bg">
       {/* Background orbs */}
       <div className="absolute top-[10%] left-[10%] w-[500px] h-[500px] rounded-full glow-radial pointer-events-none -z-10 opacity-40" />
       <div className="absolute top-[50%] right-[-5%] w-[400px] h-[400px] rounded-full glow-radial-green pointer-events-none -z-10 opacity-30" />
@@ -292,13 +312,15 @@ export default function ProductDetailClient({
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <Link
-                href="/carrinho"
-                className="h-11 px-5 rounded-xl glass-panel-soft border border-brand-border text-sm font-semibold text-white hover:border-white/20 transition-colors flex items-center gap-2"
+              <button
+                type="button"
+                onClick={handleBuyNow}
+                disabled={stock === 0}
+                className="h-11 px-5 rounded-xl glass-panel-soft border border-blue-primary/50 text-sm font-semibold text-white hover:bg-blue-primary/10 transition-colors flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <ShoppingCart className="w-4 h-4 text-blue-primary" />
-                Ver carrinho
-              </Link>
+                Comprar agora
+              </button>
               {product.categories[0] && (
                 <Link
                   href={`/categoria/${product.categories[0].slug}`}
@@ -313,7 +335,7 @@ export default function ProductDetailClient({
             {/* Trust badges */}
             <div className="grid grid-cols-3 gap-3 pt-2 border-t border-brand-border-soft">
               {[
-                { icon: Truck, label: 'Frete grátis', sub: 'Para todo Brasil' },
+                { icon: Truck, label: 'Frete calculado', sub: 'No checkout' },
                 { icon: Shield, label: 'Garantia DJI', sub: '12 meses' },
                 { icon: Package, label: 'Original', sub: '100% autêntico' },
               ].map(({ icon: Icon, label, sub }) => (

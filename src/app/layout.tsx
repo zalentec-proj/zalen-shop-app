@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { enforceCanonicalStorefrontHost } from '@/modules/stores/storefront-canonical';
+import { StorefrontCartProvider } from '@/modules/cart/StorefrontCartProvider';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -31,7 +32,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
 
   return (
     <html lang="pt-BR">
-      <body>{children}</body>
+      <body>
+        <StorefrontCartProvider>{children}</StorefrontCartProvider>
+      </body>
     </html>
   );
 }

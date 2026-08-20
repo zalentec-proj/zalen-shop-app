@@ -61,7 +61,11 @@ export function saveStoredCart(cart: Cart): Cart {
   }
 
   const sanitizedCart = recalculateCart(cart.items.filter(isCartItem));
-  window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(sanitizedCart));
+  try {
+    window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(sanitizedCart));
+  } catch {
+    // The in-memory cart remains usable when storage is blocked or full.
+  }
   notifyCartUpdated();
   return sanitizedCart;
 }
@@ -76,7 +80,11 @@ export function clearStoredCart() {
     return;
   }
 
-  window.localStorage.removeItem(CART_STORAGE_KEY);
+  try {
+    window.localStorage.removeItem(CART_STORAGE_KEY);
+  } catch {
+    // Keep the UI responsive when storage is unavailable.
+  }
   notifyCartUpdated();
 }
 

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Clock3 } from 'lucide-react';
 import { noindexMetadata } from '@/modules/seo/seo.service';
+import { getGuestCheckoutOrderAccess } from '@/modules/payments/guest-checkout-access.service';
 import {
   getCurrentStorefrontOrigin,
   resolveCurrentStoreFromHeaders,
@@ -26,9 +27,19 @@ export default async function MercadoPagoPendingPage({
     ? await processMercadoPagoReturn(searchParams)
     : null;
   const store = await resolveCurrentStoreFromHeaders();
-  const storefrontOrigin = await getCurrentStorefrontOrigin(store);
-  const accountHref = result?.orderId
-    ? `${storefrontOrigin}/conta/entrar?next=${encodeURIComponent(`/conta/pedidos/${result.orderId}`)}`
+  const [storefrontOrigin, guestAccess] = await Promise.all([
+    getCurrentStorefrontOrigin(store),
+    result?.orderId
+      ? getGuestCheckoutOrderAccess({
+          storeId: store.id,
+          orderId: result.orderId,
+        })
+      : Promise.resolve(null),
+  ]);
+  const orderHref = guestAccess
+    ? `${storefrontOrigin}/pedido/${guestAccess.order.id}`
+    : result?.orderId
+      ? `${storefrontOrigin}/conta/entrar?next=${encodeURIComponent(`/conta/pedidos/${result.orderId}`)}`
     : `${storefrontOrigin}/conta/entrar?next=/conta/pedidos`;
 
   return (
@@ -42,7 +53,7 @@ export default async function MercadoPagoPendingPage({
         <p className="text-sm leading-6 text-brand-muted">
           {result?.status === 'error'
             ? 'Não conseguimos consultar o pagamento agora, mas o pedido continua salvo. O webhook tentará concluir a atualização.'
-            : 'Alguns métodos, como boleto ou análise, podem levar mais tempo. O pedido permanece salvo na Zalen enquanto aguardamos o Mercado Pago.'}
+            : 'Alguns métodos, como boleto ou análise, podem levar mais tempo. O pedido permanece salvo enquanto aguardamos o Mercado Pago.'}
         </p>
         {result?.orderNumber ? (
           <p className="rounded-full border border-white/10 px-4 py-2 text-xs font-bold text-white">
@@ -51,7 +62,7 @@ export default async function MercadoPagoPendingPage({
         ) : null}
         <div className="mt-2 grid w-full gap-2 sm:grid-cols-2">
           <Link
-            href={accountHref}
+            href={orderHref}
             className="flex h-12 items-center justify-center rounded-xl bg-blue-primary px-4 text-sm font-bold text-white"
           >
             Acompanhar pedido
