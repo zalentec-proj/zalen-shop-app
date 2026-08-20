@@ -56,8 +56,21 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   calcular” e ausência de “Grátis” antes da modalidade. A jornada autenticada
   real não foi executada localmente porque o dev server não possui as variáveis
   Supabase; a transição foi coberta por teste de contrato e TypeScript. Próximo
-  passo operacional: publicar e repetir uma compra Pix supervisionada com a
-  conta recorrente da Brasil Drones, sem concluir uma cobrança não desejada.
+  passo operacional após a publicação: repetir uma compra Pix supervisionada
+  com a conta recorrente da Brasil Drones, sem concluir uma cobrança não
+  desejada.
+
+  O commit funcional `9ed1b18` (`fix: stabilize shipping and pix checkout`) foi
+  enviado ao branch `refactor/migrate-to-next` e publicado automaticamente pela
+  integração Git/Vercel em 2026-08-20. O status Vercel associado ao commit foi
+  `success`; `https://www.brasildroneseparts.com.br/` e `/carrinho` responderam
+  HTTP 200, e `https://brasil-drones.zalenshop.com.br/carrinho` respondeu 308
+  para o domínio principal. A verificação pós-deploy em navegador separado
+  adicionou um produto real sem concluir pedido e confirmou “A calcular”,
+  “Total parcial”, ausência de “Grátis” antes da cotação, ausência de overlay e
+  zero erros de console. Os logs runtime da Vercel não puderam ser consultados
+  pela CLI local porque a sessão retornou `Not authorized`; não relincar o
+  projeto para contornar isso.
 
 - Em 2026-08-20 foi implementada a revisão completa da experiência observada
   no vídeo do cliente. “Adicionar ao carrinho” agora abre um drawer global em
