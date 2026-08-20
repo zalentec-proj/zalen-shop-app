@@ -299,6 +299,7 @@ export type MercadoPagoBrickPaymentActionResult =
       paymentId: string;
       paymentMethodId?: string;
       status: MercadoPagoBrickActionStatus;
+      accessKind: 'authenticated' | 'guest';
       redirectPath: string;
       message: string;
     }
@@ -1862,6 +1863,7 @@ export async function processMercadoPagoBrickPaymentAction(
         paymentId: attemptReservation.attempt.externalPaymentId,
         paymentMethodId: attemptReservation.attempt.paymentMethodId,
         status: existingStatus,
+        accessKind: access.kind,
         redirectPath: getPaymentRedirectPath(
           order.id,
           existingStatus,
@@ -1878,6 +1880,7 @@ export async function processMercadoPagoBrickPaymentAction(
         orderNumber: order.orderNumber,
         paymentId: '',
         status: 'pending',
+        accessKind: access.kind,
         redirectPath: getPaymentRedirectPath(
           order.id,
           'pending',
@@ -1948,6 +1951,7 @@ export async function processMercadoPagoBrickPaymentAction(
       paymentId: payment.id,
       paymentMethodId: payment.paymentMethodId,
       status,
+      accessKind: access.kind,
       redirectPath,
       message,
     };

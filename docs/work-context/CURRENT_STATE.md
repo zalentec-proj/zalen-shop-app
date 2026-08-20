@@ -8,8 +8,8 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-08-20
 - Branch: `refactor/migrate-to-next`
-- Commit funcional base antes desta revisão: `e82bf85` —
-  `docs: record express checkout deployment`
+- Commit funcional base antes desta revisão: `a655086` —
+  `feat: add guest checkout and global cart drawer`
 - A publicação e a restauração seletiva de imagens/compatibilidades devem ser
   conferidas no bloco mais recente antes de iniciar uma nova frente.
   Preserve os scripts locais não rastreados que não pertencem a esta frente.
@@ -24,6 +24,40 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Última mudança conhecida
+
+- Em 2026-08-20 foi corrigida a entrada do checkout expresso com endereço
+  salvo. A consulta automática de CEP repetia o endereço completo logo após a
+  primeira cotação e limpava a modalidade recém-selecionada; como o CEP não
+  mudava, a cotação não era refeita até o cliente clicar em “Recalcular”. O CEP
+  de um endereço completo agora inicia como já resolvido, preservando o cálculo
+  automático. Falhas inesperadas da Server Action de frete também encerram o
+  estado de carregamento e permitem nova tentativa.
+
+  O resumo não confunde mais frete desconhecido com frete grátis: antes de uma
+  modalidade válida mostra “A calcular” ou “Calculando...” e “Total parcial”;
+  “Grátis” aparece somente depois de uma opção de preço zero ter sido realmente
+  retornada. O cálculo continua necessário mesmo para produto com gratuidade,
+  pois valida cobertura, serviço e prazo de entrega.
+
+  Após gerar Pix pendente, cliente autenticado agora segue para
+  `/conta/pedidos/[id]?payment=pending`, onde encontra QR Code, copia-e-cola,
+  botão de cópia, link oficial e vencimento devolvido pelo Mercado Pago. A tela
+  atualiza o pedido automaticamente nos dois primeiros minutos e pode ser
+  reaberta enquanto o pagamento estiver válido. Durante essa validade, a ação
+  de gerar outra cobrança fica oculta; ela reaparece depois do vencimento ou
+  quando não há instruções recuperáveis. Webhook assinado e
+  reconciliação permanecem como fontes de confirmação. Checkout convidado
+  mantém a Status Screen antes do acesso público temporário ao pedido.
+
+  Validações locais concluídas: TypeScript, 183 testes unitários em 43 arquivos,
+  build de produção, auditoria npm com zero vulnerabilidades, scanner de
+  segredos, `git diff --check`, inspeção no navegador sem overlay/erros e dois
+  E2E Playwright em Chromium desktop/Pixel 7. O navegador confirmou “A
+  calcular” e ausência de “Grátis” antes da modalidade. A jornada autenticada
+  real não foi executada localmente porque o dev server não possui as variáveis
+  Supabase; a transição foi coberta por teste de contrato e TypeScript. Próximo
+  passo operacional: publicar e repetir uma compra Pix supervisionada com a
+  conta recorrente da Brasil Drones, sem concluir uma cobrança não desejada.
 
 - Em 2026-08-20 foi implementada a revisão completa da experiência observada
   no vídeo do cliente. “Adicionar ao carrinho” agora abre um drawer global em

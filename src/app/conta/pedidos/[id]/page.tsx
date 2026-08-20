@@ -19,6 +19,7 @@ import { noindexMetadata } from '@/modules/seo/seo.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 import CustomerAccountHeader from '../../CustomerAccountHeader';
 import BoletoInstructionActions from './BoletoInstructionActions';
+import PendingPaymentAutoRefresh from './PendingPaymentAutoRefresh';
 import { retryCustomerOrderPaymentAction } from './actions';
 
 export const metadata: Metadata = {
@@ -397,6 +398,20 @@ export default async function CustomerOrderDetailPage({
   const paymentPendingTitle = getPaymentPendingTitle(order.payment);
   const paymentPendingDescription = getPaymentPendingDescription(order.payment);
   const isTicketPayment = paymentInstructions?.method === 'ticket';
+  const isAwaitingPaymentConfirmation =
+    effectivePaymentStatus === 'created' || effectivePaymentStatus === 'pending';
+  const paymentInstructionExpiresAt = paymentInstructions?.expiresAt
+    ? new Date(paymentInstructions.expiresAt).getTime()
+    : undefined;
+  const hasExpiredPaymentInstructions =
+    paymentInstructionExpiresAt !== undefined &&
+    Number.isFinite(paymentInstructionExpiresAt) &&
+    paymentInstructionExpiresAt <= Date.now();
+  const canGenerateNewPaymentAttempt =
+    canRetryPayment &&
+    (!isAwaitingPaymentConfirmation ||
+      !paymentInstructions ||
+      hasExpiredPaymentInstructions);
 
   return (
     <main className="min-h-screen bg-brand-bg px-4 py-8 text-white">
@@ -469,6 +484,12 @@ export default async function CustomerOrderDetailPage({
                 <p className="mt-1 text-sm text-brand-muted">
                   {paymentPendingDescription}
                 </p>
+                {isAwaitingPaymentConfirmation &&
+                !hasExpiredPaymentInstructions ? (
+                  <PendingPaymentAutoRefresh
+                    expiresAt={paymentInstructions?.expiresAt}
+                  />
+                ) : null}
               </div>
               <div className="flex flex-col gap-2 sm:items-end">
                 {paymentContinuationUrl && !isTicketPayment ? (
@@ -479,15 +500,17 @@ export default async function CustomerOrderDetailPage({
                     Continuar pagamento
                   </a>
                 ) : null}
-                <form action={retryCustomerOrderPaymentAction}>
-                  <input type="hidden" name="orderId" value={order.id} />
-                  <button
-                    type="submit"
-                    className="inline-flex h-11 items-center justify-center rounded-xl border border-blue-primary/40 px-5 text-sm font-black text-blue-primary transition hover:bg-blue-primary/10"
-                  >
-                    Gerar nova tentativa
-                  </button>
-                </form>
+                {canGenerateNewPaymentAttempt ? (
+                  <form action={retryCustomerOrderPaymentAction}>
+                    <input type="hidden" name="orderId" value={order.id} />
+                    <button
+                      type="submit"
+                      className="inline-flex h-11 items-center justify-center rounded-xl border border-blue-primary/40 px-5 text-sm font-black text-blue-primary transition hover:bg-blue-primary/10"
+                    >
+                      Gerar nova tentativa
+                    </button>
+                  </form>
+                ) : null}
               </div>
             </div>
             {paymentInstructions ? (
@@ -526,6 +549,28 @@ export default async function CustomerOrderDetailPage({
                       value={paymentInstructions.qrCode}
                       className="mt-3 h-24 w-full rounded-xl border border-white/10 bg-[#090E17] p-3 font-mono text-xs text-white"
                     />
+                  ) : null}
+                  {paymentInstructions.method === 'pix' ? (
+                    <>
+                      {paymentInstructions.expiresAt ? (
+                        <p
+                          className={`mt-3 text-xs font-semibold ${
+                            hasExpiredPaymentInstructions
+                              ? 'text-rose-200'
+                              : 'text-amber-100'
+                          }`}
+                        >
+                          {hasExpiredPaymentInstructions
+                            ? `Este Pix venceu em ${formatDate(paymentInstructions.expiresAt)}. Gere uma nova tentativa para pagar.`
+                            : `Pix válido até ${formatDate(paymentInstructions.expiresAt)}.`}
+                        </p>
+                      ) : null}
+                      <BoletoInstructionActions
+                        method="pix"
+                        paymentCode={paymentInstructions.qrCode}
+                        ticketUrl={paymentInstructions.ticketUrl}
+                      />
+                    </>
                   ) : null}
                   {paymentInstructions.method === 'ticket' ? (
                     <>
@@ -566,16 +611,14 @@ export default async function CustomerOrderDetailPage({
                         </p>
                       ) : null}
                     </>
-                  ) : paymentInstructions.ticketUrl ? (
+                  ) : paymentInstructions.method !== 'pix' && paymentInstructions.ticketUrl ? (
                     <a
                       href={paymentInstructions.ticketUrl}
                       target="_blank"
                       rel="noreferrer"
                       className="mt-3 inline-flex h-10 items-center justify-center rounded-xl border border-white/10 px-4 text-xs font-black text-white transition hover:border-blue-primary/40"
                     >
-                      {paymentInstructions.method === 'pix'
-                        ? 'Abrir Pix no Mercado Pago'
-                        : 'Abrir instruções no Mercado Pago'}
+                      Abrir instruções no Mercado Pago
                     </a>
                   ) : null}
                 </div>

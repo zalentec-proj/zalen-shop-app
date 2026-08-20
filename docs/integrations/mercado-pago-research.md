@@ -14,7 +14,9 @@
 - https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/common-initialization
 - https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/payment-brick/default-rendering
 - https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/payment-brick/payment-submission
+- https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/payment-brick/payment-submission/pix
 - https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/payment-brick/payment-submission/other-payment-methods
+- https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/payment-integration/pix
 - https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/payment-brick/advanced-features/initialize-data-on-the-bricks
 - https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/integration-test/test-payment-flow
 - https://www.mercadopago.com.br/developers/pt/reference/payments/_payments/post
@@ -254,13 +256,33 @@ Em produção, o pagador continua sendo sempre o comprador validado.
 
 ### Exibição ao comprador
 
-O detalhe do pedido usa os dados persistidos do pagamento para exibir o código
-do boleto, permitir cópia e abrir exclusivamente a URL oficial devolvida pelo
-Mercado Pago. Se um boleto pendente anterior ainda não tiver o código persistido,
-a página faz uma única consulta server-side autenticada ao Mercado Pago para
-preenchê-lo, sem expor `Access Token` ao navegador. A impressão ou o download,
-quando disponibilizados, são feitos no próprio documento oficial do Mercado
-Pago; a loja não gera uma representação local do boleto.
+Após criar um Pix pendente, o checkout autenticado direciona imediatamente ao
+detalhe do pedido. Essa página exibe QR Code, Pix copia-e-cola, ação de cópia,
+URL oficial e o `date_of_expiration` efetivamente devolvido pelo Mercado Pago.
+O cliente pode fechar a página e recuperar as mesmas instruções posteriormente
+em “Minha conta”. Enquanto as instruções ainda estiverem válidas, a interface
+não oferece uma nova tentativa para evitar cobranças Pix duplicadas. Enquanto
+permanece na tela, a página atualiza o estado local do pedido automaticamente
+nos dois primeiros minutos; o webhook assinado e a reconciliação periódica
+continuam sendo as fontes server-side de confirmação.
+No checkout convidado, a Status Screen permanece visível antes do acesso
+temporário ao pedido, pois a página pública ainda não expõe instruções de
+pagamento.
+
+A documentação atual da API Orders informa validade padrão de 24 horas para
+Pix e permite configurar de 30 minutos a 30 dias por `expiration_time`. A Zalen
+ainda usa `POST /v1/payments` no Payment Brick e, por isso, não inventa um prazo
+na interface: persiste e mostra a expiração retornada pelo pagamento. Se o
+negócio optar por reduzir esse prazo, a alteração deve ser feita no payload
+server-side e homologada no endpoint efetivamente usado antes do rollout.
+
+O detalhe do pedido também usa os dados persistidos do pagamento para exibir o
+código do boleto, permitir cópia e abrir exclusivamente a URL oficial devolvida
+pelo Mercado Pago. Se um boleto pendente anterior ainda não tiver o código
+persistido, a página faz uma única consulta server-side autenticada ao Mercado
+Pago para preenchê-lo, sem expor `Access Token` ao navegador. A impressão ou o
+download, quando disponibilizados, são feitos no próprio documento oficial do
+Mercado Pago; a loja não gera uma representação local do boleto.
 
 ## Webhooks
 

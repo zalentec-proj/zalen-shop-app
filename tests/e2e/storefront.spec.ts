@@ -28,6 +28,8 @@ test.describe('storefront pilot', () => {
     await expect(page.getByText('Compre como convidado.')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Entrar na conta' })).toBeVisible();
     await expect(page.getByText('Validar e-mail')).toHaveCount(0);
+    await expect(page.getByText('A calcular', { exact: true })).toBeVisible();
+    await expect(page.getByText('Grátis', { exact: true })).toHaveCount(0);
 
     await page.getByLabel('Nome completo').fill('Cliente Teste');
     await page

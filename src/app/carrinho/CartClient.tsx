@@ -50,7 +50,12 @@ import type { Cart } from '@/modules/cart/cart.types';
 import { pushMarketingEvent } from '@/modules/marketing/marketing.client';
 import type { CustomerType } from '@/modules/pricing/pricing.types';
 import { PixPaymentStatusScreen } from './PixPaymentStatusScreen';
-import { resolveCheckoutEntryStep } from './checkout-experience';
+import {
+  getInitialPostalCodeLookupKey,
+  getShippingSummaryState,
+  resolveCheckoutEntryStep,
+  shouldKeepPixStatusInCheckout,
+} from './checkout-experience';
 
 type CheckoutSessionCustomer = {
   name?: string;
@@ -653,7 +658,12 @@ export default function CartClient({ customerSession }: Props) {
   const checkoutAttemptIdRef = useRef<string | null>(null);
   const shippingQuoteRequestKeyRef = useRef<string | null>(null);
   const shippingQuoteRequestIdRef = useRef(0);
-  const lastPostalCodeLookupRef = useRef<string | null>(null);
+  const lastPostalCodeLookupRef = useRef<string | null>(
+    getInitialPostalCodeLookupKey({
+      hasCompleteDeliveryAddress: hasRequiredDeliveryData(customer),
+      postalCode: customer.postalCode,
+    })
+  );
   const currentPostalCodeRef = useRef('');
   const viewCartTrackedRef = useRef(false);
 
@@ -676,9 +686,21 @@ export default function CartClient({ customerSession }: Props) {
     checkoutPreview?.productSavingsTotal ?? 0;
   const summaryDiscount = checkoutPreview?.discountTotal ?? 0;
   const summaryShipping = selectedShippingOption?.price ?? 0;
+  const summaryShippingState = getShippingSummaryState({
+    selectedPrice: selectedShippingOption?.price,
+    isQuoting: isQuotingShipping,
+  });
   const summaryShippingLabel = selectedShippingOption?.serviceName
     ? `Frete (${selectedShippingOption.serviceName})`
     : 'Frete';
+  const summaryShippingValue =
+    summaryShippingState === 'calculating'
+      ? 'Calculando...'
+      : summaryShippingState === 'pending'
+        ? 'A calcular'
+        : summaryShippingState === 'free'
+          ? 'Grátis'
+          : formatCurrency(summaryShipping);
   const summaryTotal = summarySubtotal + summaryShipping - summaryDiscount;
   const summaryItems = checkoutPreview?.items;
   const currentPostalCodeDigits = onlyDigits(customer.postalCode);
@@ -974,9 +996,13 @@ export default function CartClient({ customerSession }: Props) {
             clearStoredCart();
 
             if (
-              result.status === 'pending' &&
-              result.paymentId &&
-              (result.paymentMethodId?.toLowerCase() === 'pix' || isPixPayment)
+              shouldKeepPixStatusInCheckout({
+                accessKind: result.accessKind,
+                status: result.status,
+                paymentId: result.paymentId,
+                paymentMethodId: result.paymentMethodId,
+                submittedAsPix: isPixPayment,
+              })
             ) {
               setPaymentSession(null);
               setPixPaymentStatusSession({
@@ -1143,20 +1169,41 @@ export default function CartClient({ customerSession }: Props) {
     shippingQuoteRequestIdRef.current = requestId;
     setIsQuotingShipping(true);
 
-    const result = await quoteCheckoutShippingAction({
-      items: actionItems,
-      customer: getPricingCustomerPayload(nextCustomer),
-      forceRefresh: options.force,
-      shippingAddress: {
-        postalCode: nextCustomer.postalCode,
-        street: nextCustomer.street,
-        number: nextCustomer.number,
-        complement: nextCustomer.complement,
-        district: nextCustomer.district,
-        city: nextCustomer.city,
-        state: nextCustomer.state.toUpperCase(),
-      },
-    });
+    let result: CheckoutShippingQuoteActionResult;
+
+    try {
+      result = await quoteCheckoutShippingAction({
+        items: actionItems,
+        customer: getPricingCustomerPayload(nextCustomer),
+        forceRefresh: options.force,
+        shippingAddress: {
+          postalCode: nextCustomer.postalCode,
+          street: nextCustomer.street,
+          number: nextCustomer.number,
+          complement: nextCustomer.complement,
+          district: nextCustomer.district,
+          city: nextCustomer.city,
+          state: nextCustomer.state.toUpperCase(),
+        },
+      });
+    } catch {
+      if (
+        shippingQuoteRequestIdRef.current === requestId &&
+        shippingQuoteRequestKeyRef.current === requestKey
+      ) {
+        setIsQuotingShipping(false);
+        shippingQuoteRequestKeyRef.current = null;
+        clearShippingSelection();
+
+        if (!options.silent) {
+          setCheckoutError(
+            'Não foi possível calcular o frete agora. Tente novamente.'
+          );
+        }
+      }
+
+      return null;
+    }
 
     if (
       shippingQuoteRequestIdRef.current !== requestId ||
@@ -2419,11 +2466,13 @@ export default function CartClient({ customerSession }: Props) {
                 ) : null}
                 <SummaryRow
                   label={summaryShippingLabel}
-                  value={summaryShipping === 0 ? 'Grátis' : formatCurrency(summaryShipping)}
-                  accent={summaryShipping === 0}
+                  value={summaryShippingValue}
+                  accent={summaryShippingState === 'free'}
                 />
                 <div className="flex items-center justify-between pt-2">
-                  <span className="text-sm font-black text-white">Total</span>
+                  <span className="text-sm font-black text-white">
+                    {selectedShippingOption ? 'Total' : 'Total parcial'}
+                  </span>
                   <span className="text-2xl font-black text-green-accent">
                     {formatCurrency(summaryTotal)}
                   </span>

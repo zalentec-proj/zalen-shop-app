@@ -6,11 +6,13 @@ import { useState } from 'react';
 type BoletoInstructionActionsProps = {
   paymentCode?: string;
   ticketUrl?: string;
+  method?: 'pix' | 'ticket';
 };
 
 export default function BoletoInstructionActions({
   paymentCode,
   ticketUrl,
+  method = 'ticket',
 }: BoletoInstructionActionsProps) {
   const [copied, setCopied] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -48,7 +50,9 @@ export default function BoletoInstructionActions({
           className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/15 px-4 text-xs font-black text-white transition hover:border-blue-primary/50"
         >
           <ExternalLink className="h-4 w-4" />
-          Abrir boleto oficial no Mercado Pago
+          {method === 'pix'
+            ? 'Abrir Pix no Mercado Pago'
+            : 'Abrir boleto oficial no Mercado Pago'}
         </a>
       ) : null}
       {actionError ? <p className="basis-full text-xs text-rose-300">{actionError}</p> : null}
