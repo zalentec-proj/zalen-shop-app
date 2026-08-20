@@ -1261,6 +1261,7 @@ export default function CartClient({ customerSession }: Props) {
     const result = await quoteCheckoutShippingAction({
       items: actionItems,
       customer: getPricingCustomerPayload(nextCustomer),
+      forceRefresh: options.force,
       shippingAddress: {
         postalCode: nextCustomer.postalCode,
         street: nextCustomer.street,
@@ -1849,6 +1850,22 @@ export default function CartClient({ customerSession }: Props) {
     setIsSubmitting(false);
 
     if (!result.ok) {
+      if (result.recovery === 'refresh_shipping') {
+        resetCheckoutAttempt();
+        clearShippingSelection();
+        setCheckoutStep('envio');
+
+        const refreshedQuotes = await refreshShippingQuotes(customer, {
+          force: true,
+        });
+
+        if (refreshedQuotes) {
+          setCheckoutError(result.error);
+        }
+
+        return;
+      }
+
       setCheckoutError(result.error);
       return;
     }

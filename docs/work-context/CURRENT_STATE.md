@@ -6,10 +6,10 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Snapshot
 
-- Atualizado em: 2026-08-19
+- Atualizado em: 2026-08-20
 - Branch: `refactor/migrate-to-next`
-- Commit funcional base antes desta revisão: `179c479` —
-  `fix: clarify login code delivery channels`
+- Commit funcional base antes desta revisão: `dd1c6d5` —
+  `docs: record WhatsApp production configuration fix`
 - A publicação e a restauração seletiva de imagens/compatibilidades devem ser
   conferidas no bloco mais recente antes de iniciar uma nova frente.
   Preserve os scripts locais não rastreados que não pertencem a esta frente.
@@ -24,6 +24,26 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Última mudança conhecida
+
+- Em 2026-08-20, a primeira tentativa de pagamento após a homologação do OTP
+  foi bloqueada antes de criar pedido ou chamar o Mercado Pago. A auditoria da
+  tentativa registrou `shipping_quote_stale`; a cotação ainda estava dentro dos
+  30 minutos de validade e preservava frete grátis. A causa foi a segunda
+  consulta à SuperFrete: quando a modalidade escolhida não era reencontrada, a
+  revalidação podia cair para o método fixo da loja e apresentar o conflito
+  como uma falha genérica de pagamento.
+
+  A correção mantém a validação server-side, mas não troca silenciosamente o
+  provedor escolhido. Falhas ou mudanças da modalidade agora retornam uma ação
+  segura de recuperação: a tentativa idempotente é descartada no navegador, o
+  cache antigo é ignorado, as opções são cotadas novamente e o cliente volta à
+  etapa de envio para confirmar a nova seleção. Nenhum pedido, preferência ou
+  cobrança é criado nesse caminho. A telemetria passa a usar o código seguro da
+  causa conhecida em vez de agrupar tudo como `checkout_start_failed`.
+
+  Validações locais concluídas: 171 testes em 39 arquivos, TypeScript, build de
+  produção e `git diff --check`. O próximo passo é publicar a correção e repetir
+  a compra supervisionada com uma cotação nova.
 
 - Em 2026-08-19 foi implementada localmente a integração transacional de
   WhatsApp por loja com Evolution API. Ela usa o provider global
@@ -918,12 +938,16 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Objetivo atual
 
-Publicar e observar a primeira execução da reconciliação automática de produtos
-ausentes do Bling. O sync incremental e os webhooks continuam sendo o caminho
-rápido; a varredura diária é a proteção contra exclusões cujo webhook não foi
-entregue ou processado.
+Publicar a recuperação segura de cotação de frete no checkout e repetir a compra
+supervisionada do produto de teste. O resultado esperado é chegar ao Payment
+Brick sem criar pedido/cobrança quando a modalidade de envio precisar ser
+renovada.
 
 ## Em andamento
+
+A correção de cotação está validada localmente e aguarda commit/deployment. A
+tentativa que motivou o diagnóstico não criou pedido, preferência ou tentativa
+de pagamento no Mercado Pago; portanto, não houve cobrança a cancelar.
 
 A reconciliação automática está publicada e agendada em produção. Ela não foi
 disparada manualmente: a primeira execução diária deve registrar

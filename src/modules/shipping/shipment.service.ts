@@ -18,6 +18,7 @@ import {
   calculateSuperFreteRates,
   hasActiveSuperFreteMethod,
 } from './providers/superfrete';
+import { SUPERFRETE_PROVIDER_KEY } from '@/modules/integrations/superfrete/superfrete.config';
 import type {
   Shipment,
   ShippingMethod,
@@ -223,7 +224,10 @@ async function calculateNativeRates(input: ShippingQuoteInput) {
   });
 }
 
-async function calculateShippingRates(input: ShippingQuoteInput) {
+async function calculateShippingRates(
+  input: ShippingQuoteInput,
+  options: { requiredProviderKey?: string } = {}
+) {
   const configuration = await getShippingCalculationConfiguration(input.storeId);
   const hasSuperFrete = hasActiveSuperFreteMethod(configuration.methods);
   const nativeRates = calculateNativeRatesFromConfiguration({
@@ -245,6 +249,10 @@ async function calculateShippingRates(input: ShippingQuoteInput) {
       return superFreteRates;
     }
   } catch (error) {
+    if (options.requiredProviderKey === SUPERFRETE_PROVIDER_KEY) {
+      throw error;
+    }
+
     if (nativeRates.length === 0) {
       throw error;
     }
@@ -270,6 +278,7 @@ async function quoteAndPersistShippingRates(input: {
   quote: ShippingQuoteInput;
   calculate: (quote: ShippingQuoteInput) => Promise<ShippingRate[]>;
   productFreeShipping: boolean;
+  bypassCache?: boolean;
 }) {
   const destinationPostalCode = onlyDigits(input.quote.destinationPostalCode);
   const normalizedQuote = {
@@ -280,7 +289,9 @@ async function quoteAndPersistShippingRates(input: {
     normalizedQuote,
     input.productFreeShipping
   );
-  const cachedRates = await getCachedShippingRates(normalizedQuote, cacheKey);
+  const cachedRates = input.bypassCache
+    ? []
+    : await getCachedShippingRates(normalizedQuote, cacheKey);
 
   if (cachedRates.length > 0) {
     return cachedRates;
@@ -334,7 +345,8 @@ export async function updateShippingMethod(
 }
 
 export async function quoteNativeShipping(
-  input: ShippingQuoteInput
+  input: ShippingQuoteInput,
+  options: { bypassCache?: boolean } = {}
 ): Promise<ShippingRate[]> {
   const productFreeShipping = await areAllShippableItemsFreeShipping(input);
 
@@ -342,11 +354,13 @@ export async function quoteNativeShipping(
     quote: input,
     calculate: calculateNativeRates,
     productFreeShipping,
+    bypassCache: options.bypassCache,
   });
 }
 
 export async function quoteShipping(
-  input: ShippingQuoteInput
+  input: ShippingQuoteInput,
+  options: { bypassCache?: boolean } = {}
 ): Promise<ShippingRate[]> {
   const productFreeShipping = await areAllShippableItemsFreeShipping(input);
 
@@ -354,6 +368,7 @@ export async function quoteShipping(
     quote: input,
     calculate: calculateShippingRates,
     productFreeShipping,
+    bypassCache: options.bypassCache,
   });
 }
 
@@ -404,7 +419,9 @@ export async function validateShippingQuoteForCheckout(input: {
     currentQuoteInput
   );
   const currentRates = applyProductFreeShipping(
-    await calculateShippingRates(currentQuoteInput),
+    await calculateShippingRates(currentQuoteInput, {
+      requiredProviderKey: quote.providerKey,
+    }),
     productFreeShipping
   );
   const matchingRate = currentRates.find(

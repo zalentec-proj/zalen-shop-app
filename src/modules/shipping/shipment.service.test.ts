@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   calculateSuperFreteRates: vi.fn(),
   hasActiveSuperFreteMethod: vi.fn(),
   getProductById: vi.fn(),
+  getShippingQuote: vi.fn(),
 }));
 
 vi.mock('@/modules/catalog/product.service', () => ({
@@ -24,7 +25,7 @@ vi.mock('./shipment.repository', () => ({
   updateShippingMethodInRepository: vi.fn(),
   upsertShippingOriginInRepository: vi.fn(),
   upsertManualShipmentInRepository: vi.fn(),
-  getShippingQuoteFromRepository: vi.fn(),
+  getShippingQuoteFromRepository: mocks.getShippingQuote,
 }));
 
 vi.mock('./providers/superfrete', () => ({
@@ -32,7 +33,11 @@ vi.mock('./providers/superfrete', () => ({
   hasActiveSuperFreteMethod: mocks.hasActiveSuperFreteMethod,
 }));
 
-import { quoteShipping } from './shipment.service';
+import {
+  getShippingItemsHash,
+  quoteShipping,
+  validateShippingQuoteForCheckout,
+} from './shipment.service';
 
 const origin = {
   id: 'origin-1',
@@ -127,6 +132,40 @@ describe('shipping quote fallback', () => {
     ]);
   });
 
+  it('bypasses cached quotes when checkout requests a forced refresh', async () => {
+    mocks.getReusableRates.mockResolvedValue([
+      {
+        methodId: externalMethod.id,
+        kind: 'external',
+        providerKey: 'superfrete',
+        serviceCode: 'cached',
+        serviceName: 'Cached rate',
+        price: 10,
+      },
+    ]);
+    mocks.calculateSuperFreteRates.mockResolvedValue([
+      {
+        methodId: externalMethod.id,
+        kind: 'external',
+        providerKey: 'superfrete',
+        serviceCode: 'fresh',
+        serviceName: 'Fresh rate',
+        price: 12,
+      },
+    ]);
+
+    await expect(
+      quoteShipping(input, { bypassCache: true })
+    ).resolves.toMatchObject([
+      {
+        serviceCode: 'fresh',
+        serviceName: 'Fresh rate',
+      },
+    ]);
+    expect(mocks.getReusableRates).not.toHaveBeenCalled();
+    expect(mocks.calculateSuperFreteRates).toHaveBeenCalledOnce();
+  });
+
   it.each([
     ['returns no available services', () => Promise.resolve([])],
     ['fails to quote', () => Promise.reject(new Error('superfrete_quote_failed'))],
@@ -152,6 +191,44 @@ describe('shipping quote fallback', () => {
     await expect(quoteShipping(input)).rejects.toThrow(
       'superfrete_quote_failed'
     );
+  });
+
+  it('does not replace a selected external service with the native fallback during checkout validation', async () => {
+    mocks.getProductById.mockResolvedValue({
+      requiresShipping: true,
+      freeShipping: true,
+    });
+    mocks.getShippingQuote.mockResolvedValue({
+      id: 'quote-1',
+      storeId: input.storeId,
+      methodId: externalMethod.id,
+      providerKey: 'superfrete',
+      serviceCode: '1',
+      serviceName: 'PAC',
+      price: 0,
+      destinationPostalCode: '01310100',
+      itemsHash: getShippingItemsHash(input.items),
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      rawPayload: {
+        productFreeShipping: true,
+        originalPrice: 18.5,
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    mocks.calculateSuperFreteRates.mockRejectedValue(
+      new Error('superfrete_quote_timeout')
+    );
+
+    await expect(
+      validateShippingQuoteForCheckout({
+        storeId: input.storeId,
+        quoteId: 'quote-1',
+        subtotal: input.subtotal,
+        destinationPostalCode: input.destinationPostalCode,
+        items: input.items,
+      })
+    ).rejects.toThrow('superfrete_quote_timeout');
   });
 
   it('keeps carrier and delivery data but charges zero when every shippable item has free shipping', async () => {

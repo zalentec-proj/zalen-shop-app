@@ -75,6 +75,12 @@ import type {
   MercadoPagoEnvironment,
 } from '@/modules/integrations/mercado-pago/mercado-pago.types';
 import type { OrderListItem } from '@/modules/orders/order.types';
+import {
+  getCheckoutOperationalErrorCode,
+  getCheckoutRecoveryAction,
+  SHIPPING_REFRESH_REQUIRED_MESSAGE,
+  type CheckoutRecoveryAction,
+} from './checkout-recovery';
 
 const checkoutItemSchema = z.object({
   productId: z.string().trim().min(1),
@@ -257,6 +263,7 @@ export type CheckoutCartActionResult =
   | {
       ok: false;
       error: string;
+      recovery?: CheckoutRecoveryAction;
     };
 
 type MercadoPagoBrickActionStatus =
@@ -1607,16 +1614,21 @@ export async function checkoutCartAction(
       }).catch(() => undefined);
     }
 
+    const recovery = getCheckoutRecoveryAction(error);
+
     captureOperationalException({
       error,
       area: 'checkout',
       storeId: reservedAttempt?.storeId,
-      code: 'checkout_start_failed',
+      code: getCheckoutOperationalErrorCode(error),
     });
 
     return {
       ok: false,
-      error: getSafeCheckoutError(error),
+      error: recovery
+        ? SHIPPING_REFRESH_REQUIRED_MESSAGE
+        : getSafeCheckoutError(error),
+      recovery,
     };
   }
 }
@@ -2073,6 +2085,7 @@ const checkoutPreviewSchema = z.object({
 
 const checkoutShippingQuoteSchema = checkoutPreviewSchema.extend({
   shippingAddress: shippingQuoteAddressSchema,
+  forceRefresh: z.boolean().optional(),
 });
 
 export async function previewCheckoutCartAction(
@@ -2166,13 +2179,18 @@ export async function quoteCheckoutShippingAction(
       customerType,
       items: parsed.data.items,
     });
-    const shippingOptions = await quoteShipping({
-      storeId: store.id,
-      subtotal: pricing.subtotal,
-      pricingFingerprint: pricing.pricingFingerprint,
-      destinationPostalCode: parsed.data.shippingAddress.postalCode,
-      items: parsed.data.items,
-    });
+    const shippingOptions = await quoteShipping(
+      {
+        storeId: store.id,
+        subtotal: pricing.subtotal,
+        pricingFingerprint: pricing.pricingFingerprint,
+        destinationPostalCode: parsed.data.shippingAddress.postalCode,
+        items: parsed.data.items,
+      },
+      {
+        bypassCache: parsed.data.forceRefresh,
+      }
+    );
 
     if (shippingOptions.length === 0) {
       return {
