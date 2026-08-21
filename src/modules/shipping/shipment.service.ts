@@ -252,6 +252,19 @@ async function calculateShippingRates(
       return superFreteRates;
     }
   } catch (error) {
+    const errorCode = error instanceof Error ? error.message : '';
+
+    // Invalid physical data is a catalog problem, not a carrier outage. Never
+    // hide it behind a fixed-rate fallback, otherwise checkout charges a value
+    // that cannot be honoured when the label is generated.
+    if (
+      errorCode === 'shipping_product_dimensions_missing' ||
+      errorCode === 'shipping_product_dimensions_invalid' ||
+      errorCode === 'shipping_product_out_of_limits'
+    ) {
+      throw error;
+    }
+
     if (options.requiredProviderKey === SUPERFRETE_PROVIDER_KEY) {
       throw error;
     }

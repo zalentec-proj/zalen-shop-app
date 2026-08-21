@@ -112,4 +112,26 @@ describe('SuperFrete pricing', () => {
       },
     ]);
   });
+
+  it('classifies provider dimension errors without exposing its raw response', async () => {
+    mocks.quoteSuperFreteShipping.mockResolvedValue([
+      {
+        has_error: true,
+        error: 'A largura do pacote excede o limite aceito.',
+      },
+    ]);
+
+    await expect(
+      calculateSuperFreteRates({
+        quote: {
+          storeId: 'store-1',
+          subtotal: 449,
+          destinationPostalCode: '01310100',
+          items: [{ productId: 'product-1', variantId: 'variant-1', quantity: 1 }],
+        },
+        origin,
+        methods: [method],
+      })
+    ).rejects.toThrow('shipping_product_out_of_limits');
+  });
 });

@@ -89,6 +89,12 @@ function sanitizeQuote(item: SuperFreteQuoteResponseItem) {
   };
 }
 
+function isPhysicalDataError(item: SuperFreteQuoteResponseItem) {
+  const error = String(item.error ?? '').toLocaleLowerCase('pt-BR');
+
+  return /dimens|altura|largura|comprimento|peso|medida|limite/.test(error);
+}
+
 async function resolveProducts(input: ShippingQuoteInput) {
   const products = await Promise.all(
     input.items.map(async (item) => {
@@ -242,6 +248,9 @@ export async function calculateSuperFreteRates(input: {
     .filter((rate): rate is ShippingRate => Boolean(rate));
 
   if (rates.length === 0) {
+    if (response.some((item) => item.has_error && isPhysicalDataError(item))) {
+      throw new Error('shipping_product_out_of_limits');
+    }
     throw new Error('superfrete_no_services');
   }
 

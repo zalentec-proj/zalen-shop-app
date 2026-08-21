@@ -240,6 +240,16 @@ describe('shipping quote fallback', () => {
     );
   });
 
+  it('does not hide invalid product dimensions behind a native fallback', async () => {
+    mocks.calculateSuperFreteRates.mockRejectedValue(
+      new Error('shipping_product_dimensions_missing')
+    );
+
+    await expect(quoteShipping(input)).rejects.toThrow(
+      'shipping_product_dimensions_missing'
+    );
+  });
+
   it('does not replace a selected external service with the native fallback during checkout validation', async () => {
     mocks.getProductById.mockResolvedValue({
       requiresShipping: true,

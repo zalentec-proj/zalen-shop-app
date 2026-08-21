@@ -23,6 +23,36 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - `/platform` completo, billing, marketplace e automações de IA continuam fora do MVP.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
+## Auditoria de dimensões Bling (em andamento seguro)
+
+- Em 2026-08-21 foi executado o dry-run somente-leitura contra o aplicativo
+  privado da Brasil Drones no Bling. Foram listados e lidos 534 produtos, sem
+  erro de API e sem qualquer `POST`, `PUT`, `PATCH` ou `DELETE`.
+- O contrato vigente do Bling foi confirmado pela referência oficial:
+  `dimensoes.unidadeMedida` usa `0` para metros, `1` para centímetros e `2`
+  para milímetros. O relatório local ignorado pelo Git está em
+  `saida_bling/bling_dimensoes_dry_run.md`.
+- Resultado: 98 produtos têm medidas numéricas plausíveis (majoritariamente
+  `12 x 7 x 16`) gravadas no Bling com unidade `metros`. A sincronização
+  anterior as converteu para `1200 x 700 x 1600 cm` na Zalen, por isso a
+  SuperFrete as rejeita. A correção proposta para cada um deles é estritamente
+  `unidadeMedida: 1`, mantendo largura, altura, profundidade e peso intactos.
+- Há 432 produtos no Bling sem medidas físicas válidas. Eles permanecem
+  bloqueados de cotação SuperFrete até receberem dados reais; nenhum valor deve
+  ser inferido. Apenas 4 produtos atuais já estão seguros sem correção.
+- A consulta somente-leitura ao catálogo Zalen confirmou 679 variantes
+  históricas, 178 com peso e as três dimensões, 501 incompletas e 98 acima de
+  500 cm. Logo, as medidas existiam no sync anterior, mas há uma inconsistência
+  de unidade e também variantes históricas que exigirão reconciliação após a
+  correção no Bling.
+- Foram adicionados um auditor local, testes para a conversão de unidades e
+  uma proteção de frete: dados físicos inválidos não caem silenciosamente no
+  frete fixo. Validações desta frente: `npm test` (198 testes), `npm run lint`,
+  `npm run build`, `node --check` dos scripts e `git diff --check`.
+- Próximo passo somente após autorização explícita: gerar revisão por SKU/ID e
+  enviar PATCHs idempotentes apenas aos 98 itens aprovados, sem tocar nos
+  campos numéricos/peso, então sincronizar e reconciliar o catálogo da Zalen.
+
 ## Última mudança conhecida
 
 - Em 2026-08-21 foi implementada a correção da política de frete da Brasil

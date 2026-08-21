@@ -1,6 +1,7 @@
 import type { ProductStatus } from '@/modules/catalog/product.types';
 import { isTemporaryBlingImageUrl } from '@/modules/catalog/catalog-image-url';
 import { normalizeProductDescription } from '@/modules/catalog/product-description';
+import { toCentimeters } from './bling-product-dimension-audit';
 import type {
   BlingProductDetail,
   BlingProductImageItem,
@@ -55,25 +56,6 @@ function toStatus(situacao: string | number | boolean | undefined): ProductStatu
   }
 
   return 'draft';
-}
-
-function toCentimeters(
-  value: number | undefined,
-  unidadeMedida: number | string | undefined
-) {
-  if (value === undefined) {
-    return undefined;
-  }
-
-  if (unidadeMedida === 0 || unidadeMedida === '0') {
-    return value * 100;
-  }
-
-  if (unidadeMedida === 2 || unidadeMedida === '2') {
-    return value / 10;
-  }
-
-  return value;
 }
 
 function normalizeImageUrl(value: string | undefined) {

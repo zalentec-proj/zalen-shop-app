@@ -62,9 +62,9 @@ export interface BlingProductDetail extends BlingProductListItem {
     id?: number;
   };
   dimensoes?: {
-    largura?: number;
-    altura?: number;
-    profundidade?: number;
+    largura?: number | string | null;
+    altura?: number | string | null;
+    profundidade?: number | string | null;
     unidadeMedida?: number | string;
   };
   midia?: {
