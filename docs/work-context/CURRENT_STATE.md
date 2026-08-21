@@ -6,10 +6,10 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Snapshot
 
-- Atualizado em: 2026-08-20
+- Atualizado em: 2026-08-21
 - Branch: `refactor/migrate-to-next`
-- Commit funcional base antes desta revisão: `a655086` —
-  `feat: add guest checkout and global cart drawer`
+- Commit funcional base antes desta revisão: `c4c9cf3` —
+  `docs: record checkout production verification`
 - A publicação e a restauração seletiva de imagens/compatibilidades devem ser
   conferidas no bloco mais recente antes de iniciar uma nova frente.
   Preserve os scripts locais não rastreados que não pertencem a esta frente.
@@ -24,6 +24,45 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Última mudança conhecida
+
+- Em 2026-08-21 foi implementada a correção da política de frete da Brasil
+  Drones. A gratuidade geral acima de R$ 500 foi removida da configuração
+  versionada sem alterar o preço de contingência de R$ 49,90 nem o prazo do
+  método `fixed-standard`. Uma trigger em schema privado expira imediatamente
+  cotações abertas quando preço, gratuidade, prazo ou status de um método muda.
+
+  A cotação da SuperFrete continua usando `price` como valor final cobrado,
+  arredondado em centavos; `discount` e o preço informado pelo provedor ficam
+  apenas no snapshot sanitizado de auditoria e não sofrem nova subtração. A
+  gratuidade agora depende de todos os produtos físicos estarem elegíveis no
+  ERP. Nesse caso, o checkout recebe `freeShippingReason: 'product'`, mostra
+  “Frete grátis pelos produtos” e preserva o preço original da cotação como
+  custo interno de referência. Carrinho misto e produto não elegível pagam a
+  cotação final; a chave de cache continua separando mudanças de elegibilidade.
+
+  O admin orienta deixar o limite por subtotal vazio quando a loja usa somente
+  o ERP e não aceita mais zero como limite de gratuidade. A pesquisa SuperFrete,
+  a documentação de frete e os critérios de aceite foram atualizados.
+
+  Validações locais concluídas: TypeScript, 186 testes em 44 arquivos, testes
+  dirigidos de frete/SuperFrete/Mercado Pago, build de produção, auditoria npm
+  com zero vulnerabilidades e `git diff --check`. O build terminou com sucesso;
+  houve apenas aviso `ENOSPC` ao gravar parte do cache local do webpack.
+
+  A migration
+  `20260821165412_brasil_drones_erp_only_free_shipping.sql` ainda não foi
+  aplicada em produção. A CLI Supabase e o conector retornaram 403; a sessão do
+  painel redirecionou o SQL Editor para Organizações com a mensagem de que a
+  conta atual não tem acesso ao projeto `xtwobxfepsdfjrtducqb`. O conector
+  autenticado lista somente os projetos “Site Pulse Igreja” e “Pulse Videos”,
+  confirmando que ainda está ligado a outra organização. Pelo mesmo bloqueio,
+  não foi possível confirmar em produção o `free_shipping=false` do SKU `1379`,
+  executar novo sync do Bling nem rodar os Advisors após a DDL.
+  Próximo passo exato: conceder à conta conectada acesso ao projeto correto;
+  então executar `supabase migration list --linked`, aplicar a migration
+  versionada, sincronizar o produto Bling do SKU `1379`, confirmar no banco a
+  flag falsa, validar preço/prazo/limite do método e rodar Security e Performance
+  Advisors antes do deploy do código.
 
 - Em 2026-08-20 foi corrigida a entrada do checkout expresso com endereço
   salvo. A consulta automática de CEP repetia o endereço completo logo após a

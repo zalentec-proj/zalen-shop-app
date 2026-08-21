@@ -37,6 +37,7 @@ export type {
   ShipmentStatus,
   ShippingMethod,
   ShippingMethodKind,
+  ShippingFreeReason,
   ShippingOrigin,
   ShippingProviderAdapter,
   ShippingQuote,
@@ -126,8 +127,10 @@ function applyProductFreeShipping(
   return rates.map((rate) => ({
     ...rate,
     price: 0,
+    freeShippingReason: 'product' as const,
     rawPayload: {
       ...(rate.rawPayload ?? {}),
+      freeShippingReason: 'product',
       productFreeShipping: true,
       originalPrice: roundCurrency(rate.price),
     },

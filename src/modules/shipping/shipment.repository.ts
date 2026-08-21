@@ -5,6 +5,7 @@ import type {
   Shipment,
   ShipmentStatus,
   ShippingMethod,
+  ShippingFreeReason,
   ShippingOrigin,
   ShippingQuote,
   ShippingRate,
@@ -195,6 +196,10 @@ function mapQuote(row: ShippingQuoteRow): ShippingQuote {
     typeof rawPayload.deliveryTimeLabel === 'string'
       ? rawPayload.deliveryTimeLabel
       : undefined;
+  const freeShippingReason =
+    rawPayload.freeShippingReason === 'product'
+      ? (rawPayload.freeShippingReason as ShippingFreeReason)
+      : undefined;
 
   return {
     id: row.id,
@@ -205,6 +210,7 @@ function mapQuote(row: ShippingQuoteRow): ShippingQuote {
     carrierName: row.carrier_name ?? undefined,
     serviceName: row.service_name,
     price: toNumber(row.price),
+    freeShippingReason,
     deliveryMinDays: row.delivery_min_days ?? undefined,
     deliveryMaxDays: row.delivery_max_days ?? undefined,
     deliveryTimeLabel,
@@ -367,6 +373,7 @@ export async function insertShippingQuotesInRepository(input: {
           kind: rate.kind,
           description: rate.description,
           deliveryTimeLabel: rate.deliveryTimeLabel,
+          freeShippingReason: rate.freeShippingReason,
           cacheKey: input.cacheKey,
           pricingFingerprint: input.pricingFingerprint,
           ...(rate.rawPayload ?? {}),
@@ -448,6 +455,8 @@ export async function getReusableShippingQuoteRatesFromRepository(input: {
           ? rawPayload.description
           : undefined,
       price: toNumber(quote.price),
+      freeShippingReason:
+        rawPayload.freeShippingReason === 'product' ? 'product' : undefined,
       deliveryMinDays: quote.delivery_min_days ?? undefined,
       deliveryMaxDays: quote.delivery_max_days ?? undefined,
       deliveryTimeLabel:

@@ -86,6 +86,11 @@ const nativeMethod = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
+const nativeMethodWithSubtotalFreeShipping = {
+  ...nativeMethod,
+  freeOverSubtotal: 500,
+};
+
 const input = {
   storeId: 'store-1',
   subtotal: 51.8,
@@ -182,6 +187,48 @@ describe('shipping quote fallback', () => {
     ]);
   });
 
+  it('charges the native fallback above the former Brasil Drones threshold when the rule is disabled', async () => {
+    mocks.listShippingMethods.mockResolvedValue([externalMethod, nativeMethod]);
+    mocks.calculateSuperFreteRates.mockRejectedValue(
+      new Error('superfrete_quote_failed')
+    );
+
+    await expect(
+      quoteShipping({
+        ...input,
+        subtotal: 3_848,
+      })
+    ).resolves.toMatchObject([
+      {
+        serviceName: 'Entrega Brasil Drones',
+        price: 49.9,
+      },
+    ]);
+  });
+
+  it('keeps subtotal free shipping available for stores that configure it', async () => {
+    mocks.listShippingMethods.mockResolvedValue([
+      externalMethod,
+      nativeMethodWithSubtotalFreeShipping,
+    ]);
+    mocks.calculateSuperFreteRates.mockRejectedValue(
+      new Error('superfrete_quote_failed')
+    );
+
+    const rates = await quoteShipping({
+      ...input,
+      subtotal: 500,
+    });
+
+    expect(rates).toMatchObject([
+      {
+        serviceName: 'Entrega Brasil Drones',
+        price: 0,
+      },
+    ]);
+    expect(rates[0]?.freeShippingReason).toBeUndefined();
+  });
+
   it('preserves the external error when no native method can serve checkout', async () => {
     mocks.listShippingMethods.mockResolvedValue([externalMethod]);
     mocks.calculateSuperFreteRates.mockRejectedValue(
@@ -255,8 +302,10 @@ describe('shipping quote fallback', () => {
         serviceName: 'PAC',
         carrierName: 'Correios',
         price: 0,
+        freeShippingReason: 'product',
         deliveryMinDays: 5,
         rawPayload: {
+          freeShippingReason: 'product',
           productFreeShipping: true,
           originalPrice: 18.5,
         },

@@ -196,7 +196,7 @@ export default async function ShippingSettingsPage() {
           const freeRule =
             method.freeOverSubtotal !== undefined
               ? `Grátis acima de ${formatCurrency(method.freeOverSubtotal)}`
-              : 'Sem regra de grátis';
+              : 'Somente regras por produto/ERP';
 
           return (
             <section
@@ -256,7 +256,7 @@ export default async function ShippingSettingsPage() {
                         name="freeOverSubtotal"
                         type="number"
                         step="0.01"
-                        min="0"
+                        min="0.01"
                         defaultValue={
                           method.freeOverSubtotal !== undefined
                             ? String(method.freeOverSubtotal)
@@ -264,6 +264,10 @@ export default async function ShippingSettingsPage() {
                         }
                       />
                     </div>
+                    <p className="text-[11px] leading-4 text-slate-500">
+                      Deixe “Grátis acima de” vazio para usar somente a
+                      elegibilidade de frete dos produtos recebida do ERP.
+                    </p>
                     <div className="grid min-w-0 gap-2 sm:grid-cols-3">
                       <Field
                         label="Prazo mín."

@@ -28,6 +28,11 @@ const optionalNumber = z.preprocess(
   z.coerce.number().nonnegative().optional()
 );
 
+const optionalPositiveMoney = z.preprocess(
+  (value) => (value === '' || value === null ? undefined : value),
+  z.coerce.number().positive().optional()
+);
+
 const originSchema = z.object({
   senderName: z.string().trim().min(2),
   postalCode: z.string().trim().min(8),
@@ -47,7 +52,7 @@ const methodSchema = z
     methodId: z.string().trim().uuid(),
     status: z.enum(['active', 'disabled']),
     price: z.coerce.number().nonnegative(),
-    freeOverSubtotal: optionalNumber,
+    freeOverSubtotal: optionalPositiveMoney,
     minDeliveryDays: optionalNumber,
     maxDeliveryDays: optionalNumber,
   })

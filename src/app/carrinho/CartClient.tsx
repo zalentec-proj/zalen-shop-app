@@ -269,6 +269,16 @@ function formatDeliveryWindow(option: CheckoutShippingOption) {
   return `${option.deliveryMinDays} a ${option.deliveryMaxDays} dias úteis`;
 }
 
+function formatShippingPrice(option: CheckoutShippingOption) {
+  if (option.price !== 0) {
+    return formatCurrency(option.price);
+  }
+
+  return option.freeShippingReason === 'product'
+    ? 'Frete grátis pelos produtos'
+    : 'Grátis';
+}
+
 function isEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
@@ -699,7 +709,9 @@ export default function CartClient({ customerSession }: Props) {
       : summaryShippingState === 'pending'
         ? 'A calcular'
         : summaryShippingState === 'free'
-          ? 'Grátis'
+          ? selectedShippingOption
+            ? formatShippingPrice(selectedShippingOption)
+            : 'Grátis'
           : formatCurrency(summaryShipping);
   const summaryTotal = summarySubtotal + summaryShipping - summaryDiscount;
   const summaryItems = checkoutPreview?.items;
@@ -2075,6 +2087,11 @@ export default function CartClient({ customerSession }: Props) {
                                   'Entrega para o endereço informado.'}
                               </p>
                               <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold text-brand-muted">
+                                {option.freeShippingReason === 'product' ? (
+                                  <span className="rounded-full border border-green-accent/30 bg-green-accent/10 px-2 py-1 text-green-accent">
+                                    Frete grátis pelos produtos
+                                  </span>
+                                ) : null}
                                 <span className="rounded-full border border-white/10 px-2 py-1">
                                   {deliveryWindow}
                                 </span>
@@ -2165,9 +2182,7 @@ export default function CartClient({ customerSession }: Props) {
                                 <>
                                   <p className="mt-1 text-xs font-bold text-white">
                                     {selectedShippingOption.serviceName} ·{' '}
-                                    {selectedShippingOption.price === 0
-                                      ? 'Grátis'
-                                      : formatCurrency(selectedShippingOption.price)}
+                                    {formatShippingPrice(selectedShippingOption)}
                                   </p>
                                   <p className="mt-1 text-[11px] text-brand-muted">
                                     {formatDeliveryWindow(selectedShippingOption)}

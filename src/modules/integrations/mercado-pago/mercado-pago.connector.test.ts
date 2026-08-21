@@ -115,6 +115,7 @@ describe('Mercado Pago Payment Brick payload', () => {
     const request = vi.mocked(fetch).mock.calls[0]?.[1] as RequestInit;
     const body = JSON.parse(String(request.body));
     expect(body.payment_method_id).toBe('pix');
+    expect(body.transaction_amount).toBe(42.5);
     expect(body.notification_url).toBe(
       'https://loja.example/api/webhooks/mercado-pago/00000000-0000-0000-0000-000000000001/test'
     );

@@ -48,7 +48,8 @@ Seed inicial Brasil Drones:
 - SuperFrete quote-only ativo como provider externo de cotação.
 - Entrega Brasil Drones ativa.
 - Valor: R$49,90.
-- Frete grátis acima de R$500.
+- Sem gratuidade automática por subtotal; a Brasil Drones usa somente a
+  elegibilidade por produto sincronizada do Bling.
 - Prazo: 2 a 4 dias úteis.
 - Retirada local desativada até origem ativa cadastrada.
 

@@ -44,6 +44,8 @@ export type ShippingMethodKind = 'pickup' | 'fixed' | 'manual' | 'external';
 
 export type ShippingMethodStatus = 'active' | 'disabled';
 
+export type ShippingFreeReason = 'product';
+
 export interface ShippingOrigin {
   id: string;
   storeId: string;
@@ -91,6 +93,7 @@ export interface ShippingRate {
   serviceName: string;
   description?: string;
   price: number;
+  freeShippingReason?: ShippingFreeReason;
   deliveryMinDays?: number;
   deliveryMaxDays?: number;
   deliveryTimeLabel?: string;
@@ -107,6 +110,7 @@ export interface ShippingQuote {
   carrierName?: string;
   serviceName: string;
   price: number;
+  freeShippingReason?: ShippingFreeReason;
   deliveryMinDays?: number;
   deliveryMaxDays?: number;
   deliveryTimeLabel?: string;

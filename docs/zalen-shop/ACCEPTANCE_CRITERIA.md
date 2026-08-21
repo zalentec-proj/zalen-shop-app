@@ -122,6 +122,8 @@
 - SuperFrete V1 chama apenas `POST /api/v0/calculator` no servidor.
 - Métodos nativos não chamam APIs externas.
 - Frete grátis por subtotal é calculado no servidor.
+- A Brasil Drones mantém `free_over_subtotal` vazio e não concede gratuidade
+  apenas pelo valor do carrinho.
 - Frete grátis por produto só zera a cobrança quando todos os itens físicos do
   carrinho forem elegíveis.
 - Frete grátis por produto preserva modalidade, transportadora, prazo e preço
