@@ -49,20 +49,36 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   com zero vulnerabilidades e `git diff --check`. O build terminou com sucesso;
   houve apenas aviso `ENOSPC` ao gravar parte do cache local do webpack.
 
-  A migration
-  `20260821165412_brasil_drones_erp_only_free_shipping.sql` ainda não foi
-  aplicada em produção. A CLI Supabase e o conector retornaram 403; a sessão do
-  painel redirecionou o SQL Editor para Organizações com a mensagem de que a
-  conta atual não tem acesso ao projeto `xtwobxfepsdfjrtducqb`. O conector
-  autenticado lista somente os projetos “Site Pulse Igreja” e “Pulse Videos”,
-  confirmando que ainda está ligado a outra organização. Pelo mesmo bloqueio,
-  não foi possível confirmar em produção o `free_shipping=false` do SKU `1379`,
-  executar novo sync do Bling nem rodar os Advisors após a DDL.
-  Próximo passo exato: conceder à conta conectada acesso ao projeto correto;
-  então executar `supabase migration list --linked`, aplicar a migration
-  versionada, sincronizar o produto Bling do SKU `1379`, confirmar no banco a
-  flag falsa, validar preço/prazo/limite do método e rodar Security e Performance
-  Advisors antes do deploy do código.
+  A Supabase CLI foi autenticada novamente na organização correta e a migration
+  `20260821165412_brasil_drones_erp_only_free_shipping.sql` foi aplicada em
+  produção. Antes do push, cinco migrations de WhatsApp com o mesmo nome e SQL
+  tinham somente timestamps locais/remotos diferentes; hashes do conteúdo
+  compactado comprovaram equivalência e os arquivos locais foram renomeados
+  para as versões remotas, sem reexecutar SQL antigo. A lista final de migrations
+  ficou integralmente alinhada.
+
+  A verificação de produção confirmou `free_over_subtotal=null`, preço R$ 49,90,
+  prazo de 2 a 4 dias e zero cotação aberta do método antigo. A trigger está ativa
+  em `private`, usa `security definer` com `search_path` vazio e não expõe função
+  aos papéis de navegador. O SKU `1379` permanece ativo com
+  `free_shipping=false`. Um sync incremental oficial do Bling foi disparado e
+  terminou com sucesso: 40 produtos processados/atualizados e inventário sem
+  divergência.
+
+  Security Advisor não apontou alerta criado pela DDL; permanece o aviso global
+  já existente de proteção contra senhas vazadas desativada. Performance Advisor
+  continua listando avisos preexistentes de políticas RLS não inicializadas por
+  `select` e políticas permissivas sobrepostas; nenhum deles foi introduzido
+  pela trigger de frete. Próximo passo operacional: repetir no storefront uma
+  cotação com o SKU `1379`, um carrinho misto e um carrinho integralmente elegível
+  para confirmar os três textos/valores no ambiente público.
+
+  A primeira verificação pública adicionou duas unidades do SKU `1379`, total de
+  R$ 898,00, e confirmou no checkout “Frete: A calcular” e “Total parcial”, sem
+  gratuidade automática pelo subtotal. A sessão de comprador disponível está
+  com cadastro incompleto; o teste parou antes de transmitir ou sobrescrever
+  dados pessoais. O carrinho dessa sessão permaneceu com as duas unidades para
+  não apagar estado do usuário sem autorização.
 
 - Em 2026-08-20 foi corrigida a entrada do checkout expresso com endereço
   salvo. A consulta automática de CEP repetia o endereço completo logo após a
