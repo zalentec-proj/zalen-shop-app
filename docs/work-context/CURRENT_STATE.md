@@ -1408,6 +1408,27 @@ deve expor o valor em terminal, código ou documentação.
   `dpl_CzDiCbwrUSAzV6VoYrxUn2w6t7Fp`, com o commit `a153895`. Antes da publicação,
   lint, build e a suíte completa passaram: 120 testes em 29 arquivos.
 
+### Higienização de descrições Mundrone no Bling privado (21/08/2026)
+
+- Foi criado o fluxo OAuth `catalogo:brasil-drones:descricoes:*`, exclusivo do
+  app privado da Brasil Drones. Ele recusa credenciais do conector global da
+  Zalen Shop e valida o OpenAPI oficial antes de qualquer alteração.
+- A auditoria leu os 534 produtos atualmente retornados pela API do Bling e
+  encontrou 178 produtos com referência textual a `Mundrone` em
+  `descricaoCurta` e/ou `descricaoComplementar`.
+- A correção substituiu somente as referências de marca e domínio por `Brasil
+  Drones & Parts` e `brasildroneseparts.com.br`. Os PATCHes não enviam nome,
+  SKU, preço, custo, saldo, categoria, marca, GTIN ou imagens.
+- A primeira execução atualizou e verificou 146 produtos, mas uma instabilidade
+  de rede deixou 32 requisições sem confirmação. A retomada reauditoriou os 534
+  produtos, identificou 31 pendências reais e atualizou/verificou todas sem
+  erro. O item restante já havia sido persistido pelo Bling antes da queda de
+  conexão.
+- Resultado final: 178 produtos corrigidos e verificados sem referência
+  remanescente à Mundrone nos campos alterados. Os relatórios locais ignorados
+  pelo Git estão em `saida_bling/novo_catalogo_descricoes_mundrone_*`.
+- Validações locais: teste unitário do sanitizador e `npm run lint` passaram.
+
 - O estado técnico relevante deve ser atualizado aqui e enviado ao Git.
 - A conversa do Codex é contexto auxiliar; este arquivo e o código versionado são a fonte de verdade entre máquinas.
 - Trabalho incompleto pode ser salvo em commit `wip`, desde que não contenha segredos.
