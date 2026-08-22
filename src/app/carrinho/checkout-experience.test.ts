@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getShippingSummaryState,
   getInitialPostalCodeLookupKey,
+  resolveCheckoutPresentation,
   resolveCheckoutEntryStep,
   shouldKeepPixStatusInCheckout,
 } from './checkout-experience';
@@ -81,6 +82,24 @@ describe('checkout experience', () => {
         accessKind: 'guest',
       })
     ).toBe(true);
+  });
+
+  it('keeps the pending Pix status visible after the cart is cleared', () => {
+    expect(
+      resolveCheckoutPresentation({
+        checkoutDone: false,
+        hasPixPaymentStatus: true,
+        itemCount: 0,
+      })
+    ).toBe('pix_status');
+
+    expect(
+      resolveCheckoutPresentation({
+        checkoutDone: false,
+        hasPixPaymentStatus: false,
+        itemCount: 0,
+      })
+    ).toBe('empty_cart');
   });
 
   it('does not present unknown shipping as free', () => {

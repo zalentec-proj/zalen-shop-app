@@ -55,6 +55,30 @@ export function shouldKeepPixStatusInCheckout(input: {
   );
 }
 
+export type CheckoutPresentation =
+  | 'confirmation'
+  | 'pix_status'
+  | 'empty_cart'
+  | 'checkout';
+
+export function resolveCheckoutPresentation(input: {
+  checkoutDone: boolean;
+  hasPixPaymentStatus: boolean;
+  itemCount: number;
+}): CheckoutPresentation {
+  if (input.checkoutDone) {
+    return 'confirmation';
+  }
+
+  // A confirmed pending Pix intentionally clears the cart. Its payment status
+  // must still take precedence so the customer never sees an empty cart first.
+  if (input.hasPixPaymentStatus) {
+    return 'pix_status';
+  }
+
+  return input.itemCount === 0 ? 'empty_cart' : 'checkout';
+}
+
 export type ShippingSummaryState =
   | 'pending'
   | 'calculating'

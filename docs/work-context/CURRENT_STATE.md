@@ -1466,6 +1466,19 @@ deve expor o valor em terminal, código ou documentação.
   pelo Git estão em `saida_bling/novo_catalogo_descricoes_mundrone_*`.
 - Validações locais: teste unitário do sanitizador e `npm run lint` passaram.
 
+### Experiência de pagamento Pix no checkout (22/08/2026)
+
+- Foi corrigida uma transição visual no checkout de convidados: após o Mercado
+  Pago criar um Pix pendente, o carrinho é limpo de propósito, mas a tela de
+  carrinho vazio era avaliada antes da tela de pagamento.
+- O checkout agora prioriza a tela de status do Pix gerado, com QR Code/código
+  de pagamento e acompanhamento automático, mesmo depois de limpar o carrinho.
+  Durante a criação da cobrança, a interface mostra um estado explícito de
+  processamento para evitar a impressão de erro.
+- Validações locais: `npm run lint`, a suíte completa (`201` testes em `46`
+  arquivos), `git diff --check` e o build de produção passaram. Não foi criado
+  um Pix real apenas para validar esta alteração.
+
 - O estado técnico relevante deve ser atualizado aqui e enviado ao Git.
 - A conversa do Codex é contexto auxiliar; este arquivo e o código versionado são a fonte de verdade entre máquinas.
 - Trabalho incompleto pode ser salvo em commit `wip`, desde que não contenha segredos.

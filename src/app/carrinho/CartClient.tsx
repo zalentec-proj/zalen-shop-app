@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   CreditCard,
   FileText,
+  LoaderCircle,
   Mail,
   MapPin,
   Minus,
@@ -53,6 +54,7 @@ import { PixPaymentStatusScreen } from './PixPaymentStatusScreen';
 import {
   getInitialPostalCodeLookupKey,
   getShippingSummaryState,
+  resolveCheckoutPresentation,
   resolveCheckoutEntryStep,
   shouldKeepPixStatusInCheckout,
 } from './checkout-experience';
@@ -747,6 +749,11 @@ export default function CartClient({ customerSession }: Props) {
     shippingQuoteRequestKeyRef.current === shippingQuoteRequestKey &&
     shippingOptions.length > 0;
   const paymentBrickContainerId = `paymentBrick_container_${brickRenderKey}`;
+  const checkoutPresentation = resolveCheckoutPresentation({
+    checkoutDone,
+    hasPixPaymentStatus: Boolean(pixPaymentStatusSession),
+    itemCount,
+  });
 
   useEffect(() => {
     setCart(getStoredCart());
@@ -1003,9 +1010,6 @@ export default function CartClient({ customerSession }: Props) {
 
             setBrickStatus('done');
             setCheckoutError(result.message);
-            resetCheckoutAttempt();
-            setCart(createEmptyCart());
-            clearStoredCart();
 
             if (
               shouldKeepPixStatusInCheckout({
@@ -1024,9 +1028,15 @@ export default function CartClient({ customerSession }: Props) {
                 publicKey: paymentSession.publicKey,
                 orderPath: result.redirectPath,
               });
+              resetCheckoutAttempt();
+              setCart(createEmptyCart());
+              clearStoredCart();
               return;
             }
 
+            resetCheckoutAttempt();
+            setCart(createEmptyCart());
+            clearStoredCart();
             window.location.href = result.redirectPath;
           },
           onError: () => {
@@ -1535,7 +1545,7 @@ export default function CartClient({ customerSession }: Props) {
     return;
   }
 
-  if (checkoutDone) {
+  if (checkoutPresentation === 'confirmation') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-brand-bg px-4">
         <div className="glass-panel-strong flex w-full max-w-md flex-col items-center gap-6 rounded-[32px] p-10 text-center">
@@ -1580,7 +1590,38 @@ export default function CartClient({ customerSession }: Props) {
     );
   }
 
-  if (itemCount === 0) {
+  if (checkoutPresentation === 'pix_status' && pixPaymentStatusSession) {
+    return (
+      <div className="min-h-screen bg-brand-bg px-4 py-10 sm:py-16">
+        <main className="mx-auto w-full max-w-2xl">
+          <div className="mb-6 text-center">
+            <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-green-accent">
+              Pedido criado
+            </span>
+            <h1 className="font-display mt-2 text-2xl font-extrabold text-white sm:text-3xl">
+              Seu Pix está pronto
+            </h1>
+            <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-brand-muted">
+              Escaneie o QR Code ou copie o código Pix. A confirmação será feita
+              automaticamente nesta tela.
+            </p>
+          </div>
+          <PixPaymentStatusScreen
+            orderId={pixPaymentStatusSession.orderId}
+            orderNumber={pixPaymentStatusSession.orderNumber}
+            paymentId={pixPaymentStatusSession.paymentId}
+            publicKey={pixPaymentStatusSession.publicKey}
+            orderPath={pixPaymentStatusSession.orderPath}
+            onApproved={(redirectPath) => {
+              window.location.href = redirectPath;
+            }}
+          />
+        </main>
+      </div>
+    );
+  }
+
+  if (checkoutPresentation === 'empty_cart') {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-brand-bg px-4">
         <div className="glass-panel flex h-20 w-20 items-center justify-center rounded-full">
@@ -2263,18 +2304,7 @@ export default function CartClient({ customerSession }: Props) {
                       </div>
                     </div>
                   </div>
-                  {pixPaymentStatusSession ? (
-                    <PixPaymentStatusScreen
-                      orderId={pixPaymentStatusSession.orderId}
-                      orderNumber={pixPaymentStatusSession.orderNumber}
-                      paymentId={pixPaymentStatusSession.paymentId}
-                      publicKey={pixPaymentStatusSession.publicKey}
-                      orderPath={pixPaymentStatusSession.orderPath}
-                      onApproved={(redirectPath) => {
-                        window.location.href = redirectPath;
-                      }}
-                    />
-                  ) : paymentSession ? (
+                  {paymentSession ? (
                     <div className="rounded-2xl border border-brand-border-soft bg-[#050A14]/80 p-4">
                       <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <div>
@@ -2291,10 +2321,27 @@ export default function CartClient({ customerSession }: Props) {
                             : 'Produção'}
                         </span>
                       </div>
-                      <div
-                        id={paymentBrickContainerId}
-                        className="min-h-[360px] overflow-hidden rounded-xl bg-white p-2 text-brand-bg"
-                      />
+                      <div className="relative">
+                        <div
+                          id={paymentBrickContainerId}
+                          className="min-h-[360px] overflow-hidden rounded-xl bg-white p-2 text-brand-bg"
+                        />
+                        {brickStatus === 'processing' ? (
+                          <div
+                            aria-live="polite"
+                            className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-[#050A14]/92 px-6 text-center"
+                          >
+                            <LoaderCircle className="h-9 w-9 animate-spin text-green-accent" />
+                            <p className="mt-4 text-sm font-black text-white">
+                              Gerando seu pagamento Pix
+                            </p>
+                            <p className="mt-2 max-w-xs text-xs leading-5 text-brand-muted">
+                              Aguarde um instante. Não feche esta página enquanto
+                              preparamos o QR Code.
+                            </p>
+                          </div>
+                        ) : null}
+                      </div>
                       <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <p className="text-xs font-semibold text-brand-muted">
                           {brickStatus === 'loading'
