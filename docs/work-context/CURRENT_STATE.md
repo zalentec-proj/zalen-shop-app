@@ -32,26 +32,33 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   `dimensoes.unidadeMedida` usa `0` para metros, `1` para centímetros e `2`
   para milímetros. O relatório local ignorado pelo Git está em
   `saida_bling/bling_dimensoes_dry_run.md`.
-- Resultado: 98 produtos têm medidas numéricas plausíveis (majoritariamente
+- Resultado: 98 produtos tinham medidas numéricas plausíveis (majoritariamente
   `12 x 7 x 16`) gravadas no Bling com unidade `metros`. A sincronização
   anterior as converteu para `1200 x 700 x 1600 cm` na Zalen, por isso a
-  SuperFrete as rejeita. A correção proposta para cada um deles é estritamente
+  SuperFrete as rejeitava. A correção aplicada a cada um deles foi estritamente
   `unidadeMedida: 1`, mantendo largura, altura, profundidade e peso intactos.
 - Há 432 produtos no Bling sem medidas físicas válidas. Eles permanecem
   bloqueados de cotação SuperFrete até receberem dados reais; nenhum valor deve
   ser inferido. Apenas 4 produtos atuais já estão seguros sem correção.
 - A consulta somente-leitura ao catálogo Zalen confirmou 679 variantes
   históricas, 178 com peso e as três dimensões, 501 incompletas e 98 acima de
-  500 cm. Logo, as medidas existiam no sync anterior, mas há uma inconsistência
-  de unidade e também variantes históricas que exigirão reconciliação após a
-  correção no Bling.
+  500 cm. Logo, as medidas existiam no sync anterior, mas havia uma
+  inconsistência de unidade e também variantes históricas que exigiam
+  reconciliação após a correção no Bling. A reconciliação foi concluída em
+  seguida: 86 variantes foram atualizadas, 12 já estavam corretas, não houve
+  erros e nenhuma cotação de frete aberta precisou ser expirada.
+- A verificação final do catálogo ativo retornou 534 produtos/variantes, 102
+  com peso e dimensões completas e zero dimensão acima de 500 cm. As 432
+  variantes restantes continuam sem dados físicos suficientes e não devem ser
+  estimadas.
 - Foram adicionados um auditor local, testes para a conversão de unidades e
   uma proteção de frete: dados físicos inválidos não caem silenciosamente no
   frete fixo. Validações desta frente: `npm test` (198 testes), `npm run lint`,
   `npm run build`, `node --check` dos scripts e `git diff --check`.
-- Próximo passo somente após autorização explícita: gerar revisão por SKU/ID e
-  enviar PATCHs idempotentes apenas aos 98 itens aprovados, sem tocar nos
-  campos numéricos/peso, então sincronizar e reconciliar o catálogo da Zalen.
+- A correção e sua reflexão no catálogo Zalen foram concluídas usando somente
+  o aplicativo privado da Brasil Drones no Bling. Próximo passo operacional:
+  testar uma cotação real no checkout com um dos SKUs corrigidos; depois,
+  completar os dados físicos reais das 432 variantes ainda pendentes.
 
 ## Última mudança conhecida
 

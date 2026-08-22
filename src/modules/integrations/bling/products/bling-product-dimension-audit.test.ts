@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BLING_DIMENSION_UNIT,
   auditBlingDimensions,
+  buildCentimeterUnitCorrection,
   toCentimeters,
 } from './bling-product-dimension-audit';
 
@@ -65,5 +66,34 @@ describe('Bling product dimension audit', () => {
     };
 
     expect(auditBlingDimensions(corrected)).toEqual(auditBlingDimensions(corrected));
+  });
+
+  it('changes only the dimension unit in the proposed correction', () => {
+    const audit = auditBlingDimensions({
+      largura: 12,
+      altura: 7,
+      profundidade: 16,
+      unidadeMedida: BLING_DIMENSION_UNIT.METERS,
+    });
+
+    expect(buildCentimeterUnitCorrection(audit)).toEqual({
+      largura: 12,
+      altura: 7,
+      profundidade: 16,
+      unidadeMedida: BLING_DIMENSION_UNIT.CENTIMETERS,
+    });
+  });
+
+  it('never builds a correction for valid or incomplete measurements', () => {
+    expect(
+      buildCentimeterUnitCorrection(
+        auditBlingDimensions({
+          largura: 12,
+          altura: 7,
+          profundidade: 16,
+          unidadeMedida: BLING_DIMENSION_UNIT.CENTIMETERS,
+        })
+      )
+    ).toBeUndefined();
   });
 });

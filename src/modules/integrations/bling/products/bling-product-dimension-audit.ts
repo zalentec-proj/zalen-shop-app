@@ -35,6 +35,13 @@ export type DimensionAudit = {
   };
 };
 
+export type CentimeterUnitCorrection = {
+  largura: number;
+  altura: number;
+  profundidade: number;
+  unidadeMedida: typeof BLING_DIMENSION_UNIT.CENTIMETERS;
+};
+
 function toFiniteNumber(value: number | string | null | undefined) {
   if (value === null || value === undefined || value === '') return undefined;
 
@@ -136,5 +143,29 @@ export function auditBlingDimensions(dimensions?: BlingDimensions): DimensionAud
     currentUnit: unit,
     received,
     convertedToCentimeters,
+  };
+}
+
+/**
+ * Produces the sole permitted fix for a meter entry that is actually written
+ * as centimetres. Numeric dimensions are copied exactly; weight is not part of
+ * this payload and therefore cannot be changed by this correction.
+ */
+export function buildCentimeterUnitCorrection(
+  audit: DimensionAudit
+): CentimeterUnitCorrection | undefined {
+  if (
+    audit.classification !== 'ambiguous' ||
+    audit.reason !== 'meter_values_look_like_centimeters' ||
+    !audit.suggested
+  ) {
+    return undefined;
+  }
+
+  return {
+    largura: audit.suggested.width,
+    altura: audit.suggested.height,
+    profundidade: audit.suggested.depth,
+    unidadeMedida: audit.suggested.unit,
   };
 }
