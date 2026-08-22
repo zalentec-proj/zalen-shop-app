@@ -1475,7 +1475,11 @@ deve expor o valor em terminal, código ou documentação.
   de pagamento e acompanhamento automático, mesmo depois de limpar o carrinho.
   Durante a criação da cobrança, a interface mostra um estado explícito de
   processamento para evitar a impressão de erro.
-- Validações locais: `npm run lint`, a suíte completa (`201` testes em `46`
+- A mesma proteção foi estendida a cartão, boleto, Pix autenticado e ao
+  redirecionamento externo do Mercado Pago: depois de uma confirmação válida,
+  o cliente vê uma tela de encaminhamento de pagamento em vez do carrinho vazio
+  até a navegação terminar.
+- Validações locais: `npm run lint`, a suíte completa (`202` testes em `46`
   arquivos), `git diff --check` e o build de produção passaram. Não foi criado
   um Pix real apenas para validar esta alteração.
 

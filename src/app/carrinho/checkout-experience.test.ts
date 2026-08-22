@@ -89,6 +89,7 @@ describe('checkout experience', () => {
       resolveCheckoutPresentation({
         checkoutDone: false,
         hasPixPaymentStatus: true,
+        isRedirectingToPayment: false,
         itemCount: 0,
       })
     ).toBe('pix_status');
@@ -97,9 +98,21 @@ describe('checkout experience', () => {
       resolveCheckoutPresentation({
         checkoutDone: false,
         hasPixPaymentStatus: false,
+        isRedirectingToPayment: false,
         itemCount: 0,
       })
     ).toBe('empty_cart');
+  });
+
+  it('keeps a payment redirect visible after the cart is cleared', () => {
+    expect(
+      resolveCheckoutPresentation({
+        checkoutDone: false,
+        hasPixPaymentStatus: false,
+        isRedirectingToPayment: true,
+        itemCount: 0,
+      })
+    ).toBe('payment_redirect');
   });
 
   it('does not present unknown shipping as free', () => {

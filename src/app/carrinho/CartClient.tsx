@@ -655,6 +655,7 @@ export default function CartClient({ customerSession }: Props) {
     useState<MercadoPagoBrickSession | null>(null);
   const [pixPaymentStatusSession, setPixPaymentStatusSession] =
     useState<PixPaymentStatusSession | null>(null);
+  const [isRedirectingToPayment, setIsRedirectingToPayment] = useState(false);
   const [brickRenderKey, setBrickRenderKey] = useState(0);
   const [brickStatus, setBrickStatus] = useState<
     'idle' | 'loading' | 'ready' | 'processing' | 'error' | 'done'
@@ -752,6 +753,7 @@ export default function CartClient({ customerSession }: Props) {
   const checkoutPresentation = resolveCheckoutPresentation({
     checkoutDone,
     hasPixPaymentStatus: Boolean(pixPaymentStatusSession),
+    isRedirectingToPayment,
     itemCount,
   });
 
@@ -1034,6 +1036,7 @@ export default function CartClient({ customerSession }: Props) {
               return;
             }
 
+            setIsRedirectingToPayment(true);
             resetCheckoutAttempt();
             setCart(createEmptyCart());
             clearStoredCart();
@@ -1463,6 +1466,7 @@ export default function CartClient({ customerSession }: Props) {
     setCheckoutError(null);
     setPaymentSession(null);
     setPixPaymentStatusSession(null);
+    setIsRedirectingToPayment(false);
     setBrickStatus('idle');
     setIsSubmitting(true);
 
@@ -1525,6 +1529,7 @@ export default function CartClient({ customerSession }: Props) {
     }
 
     if (result.paymentMode === 'checkout_pro') {
+      setIsRedirectingToPayment(true);
       resetCheckoutAttempt();
       window.location.href = result.paymentUrl;
       return;
@@ -1616,6 +1621,30 @@ export default function CartClient({ customerSession }: Props) {
               window.location.href = redirectPath;
             }}
           />
+        </main>
+      </div>
+    );
+  }
+
+  if (checkoutPresentation === 'payment_redirect') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-brand-bg px-4">
+        <main className="glass-panel-strong flex w-full max-w-md flex-col items-center gap-5 rounded-[32px] p-10 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-blue-primary/30 bg-blue-primary/10">
+            <LoaderCircle className="h-8 w-8 animate-spin text-blue-primary" />
+          </div>
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-green-accent">
+              Pagamento seguro
+            </span>
+            <h1 className="font-display mt-2 text-2xl font-extrabold text-white">
+              Encaminhando seu pedido
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-brand-muted">
+              Estamos abrindo a próxima etapa do pagamento. Aguarde e não feche
+              esta página.
+            </p>
+          </div>
         </main>
       </div>
     );

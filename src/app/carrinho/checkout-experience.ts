@@ -58,12 +58,14 @@ export function shouldKeepPixStatusInCheckout(input: {
 export type CheckoutPresentation =
   | 'confirmation'
   | 'pix_status'
+  | 'payment_redirect'
   | 'empty_cart'
   | 'checkout';
 
 export function resolveCheckoutPresentation(input: {
   checkoutDone: boolean;
   hasPixPaymentStatus: boolean;
+  isRedirectingToPayment: boolean;
   itemCount: number;
 }): CheckoutPresentation {
   if (input.checkoutDone) {
@@ -74,6 +76,10 @@ export function resolveCheckoutPresentation(input: {
   // must still take precedence so the customer never sees an empty cart first.
   if (input.hasPixPaymentStatus) {
     return 'pix_status';
+  }
+
+  if (input.isRedirectingToPayment) {
+    return 'payment_redirect';
   }
 
   return input.itemCount === 0 ? 'empty_cart' : 'checkout';
