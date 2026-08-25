@@ -1600,6 +1600,23 @@ deve expor o valor em terminal, código ou documentação.
   inalteradas; somente a mensagem visual foi removida.
 - TypeScript e `git diff --check` passaram após a remoção.
 
+### SEO e Google Search Console (25/08/2026)
+
+- A propriedade de prefixo `https://www.brasildroneseparts.com.br/` foi
+  verificada no Google Search Console. O sitemap foi enviado e a home entrou
+  na fila prioritária de indexação. No momento da inspeção, o Google ainda a
+  classificava como “Detectada, mas não indexada no momento”; o processamento
+  é assíncrono e deve ser acompanhado pelo relatório de Páginas.
+- O commit `6386722` adicionou a verificação pública configurada por ambiente,
+  imagem Open Graph da loja e URLs ativas de linhas/modelos no sitemap. Também
+  retirou datas artificiais de modificação da home e das categorias.
+- A configuração de Google Merchant Center foi ativada no admin da Brasil
+  Drones; o feed público continua em `/feeds/google-merchant.xml`.
+- O produto `Produto Teste Produçao` (SKU `DJI-PROD-TEST-PROD`) foi movido para
+  rascunho pelo admin, removendo-o do storefront, sitemap e feed público.
+- Validações locais do commit: TypeScript, 205 testes em 47 arquivos, build de
+  produção e `git diff --check`. O deploy de produção associado foi concluído.
+
 - O estado técnico relevante deve ser atualizado aqui e enviado ao Git.
 - A conversa do Codex é contexto auxiliar; este arquivo e o código versionado são a fonte de verdade entre máquinas.
 - Trabalho incompleto pode ser salvo em commit `wip`, desde que não contenha segredos.
