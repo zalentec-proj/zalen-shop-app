@@ -8,8 +8,8 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-08-25
 - Branch: `refactor/migrate-to-next`
-- Commit funcional base antes desta revisão: `a005471` —
-  `fix: preserve payment transition after checkout`
+- Commit funcional base antes desta revisão: `be3a961` —
+  `fix: retry failed single-product syncs`
 - A publicação e a restauração seletiva de imagens/compatibilidades devem ser
   conferidas no bloco mais recente antes de iniciar uma nova frente.
   Preserve os scripts locais não rastreados que não pertencem a esta frente.
@@ -1534,7 +1534,50 @@ deve expor o valor em terminal, código ou documentação.
   como sucesso sem persistir o produto. O comportamento parcial dos syncs em
   lote foi preservado.
 - Validações locais: TypeScript, 205 testes em 47 arquivos e build de produção
-  passaram. Esta correção de código ainda precisa de commit/push e deploy.
+  passaram. A correção foi enviada ao Git no commit `be3a961`; o estado do
+  deployment deve ser conferido separadamente na Vercel.
+
+### Proporção e legibilidade do hero público (25/08/2026)
+
+- O hero somava `100svh` e `pt-44` mesmo quando o cabeçalho fixo e o aviso de
+  desconto já estavam compensados acima dele. Isso empurrava o conteúdo para
+  baixo, alongava a primeira dobra e distorcia a proporção das imagens 2048 x
+  768.
+- O componente agora recebe explicitamente se existe aviso superior e calcula
+  uma altura limitada pelo espaço restante da viewport. Sem aviso, preserva a
+  compensação necessária para o cabeçalho fixo.
+- A largura útil foi reduzida para `max-w-6xl`, o espaçamento vertical foi
+  compactado e título, descrição e selo receberam contraste/tamanhos mais
+  legíveis.
+- No slide promocional, os três benefícios deixaram de ocupar uma segunda linha
+  estreita à esquerda e passaram para uma faixa horizontal centralizada. A
+  paginação agora é posicionada em relação à seção, não ao conteúdo interno.
+- Validação visual local concluída em 1707 x 1187 e 390 x 844: os três slides
+  mantêm texto, CTAs e fundos na área útil, sem overlay do Next.js ou erro de
+  console. TypeScript, 205 testes e build de produção passaram.
+- Arquivos alterados: `src/components/home/Hero.tsx` e `src/App.tsx`. Alteração
+  ainda não enviada ao Git nem publicada.
+
+### Novas faixas Brasil Drones e GG Assistência (25/08/2026)
+
+- Foi adicionada uma faixa institucional da Brasil Drones & Parts exatamente
+  depois da primeira vitrine de produtos, `Drones`. A composição é deliberadamente
+  limpa e exibe somente o logotipo oficial sobre um fundo tecnológico discreto,
+  sem texto comercial ou CTA.
+- Foi adicionada uma chamada de assistência técnica depois das empresas do
+  Grupo GG e antes do rodapé. O banner usa texto e botão em HTML, o logotipo
+  oficial da GG Assistência e uma imagem de oficina dedicada, com recortes
+  independentes para desktop e mobile.
+- O fundo fotográfico da assistência foi gerado sem texto, marcas ou logotipos
+  incorporados; os elementos de identidade permanecem como assets/HTML da
+  aplicação para manter legibilidade, acessibilidade e responsividade.
+- Arquivos novos: `src/components/home/BrasilDronesBrandSpotlight.tsx`,
+  `src/components/home/AssistanceBanner.tsx`,
+  `public/brand/home/gg-assistencia-repair-banner.webp`.
+- Validações locais: TypeScript, 205 testes em 47 arquivos, build de produção,
+  `git diff --check` e inspeção visual em 1440 x 1000 e 390 x 844 passaram sem
+  erro de console. As alterações do hero e destas duas seções ainda não foram
+  enviadas ao Git nem publicadas.
 
 - O estado técnico relevante deve ser atualizado aqui e enviado ao Git.
 - A conversa do Codex é contexto auxiliar; este arquivo e o código versionado são a fonte de verdade entre máquinas.

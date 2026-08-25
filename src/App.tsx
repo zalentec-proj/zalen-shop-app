@@ -13,6 +13,7 @@ import CategoryProductSections from './components/home/CategoryProductSections';
 import BestSellers from './components/home/BestSellers';
 import TechSection from './components/home/TechSection';
 import GGGroupCompanies from './components/home/GGGroupCompanies';
+import AssistanceBanner from './components/home/AssistanceBanner';
 import ProductDetailsView from './components/product/ProductDetailsView';
 import Footer from './components/layout/Footer';
 import type { Product, StorefrontCategory } from './types';
@@ -200,6 +201,7 @@ export default function App({
       {currentPage === 'home' ? (
         <main className="w-full">
           <Hero
+            hasTopNotice={Boolean(businessDiscountPercentage)}
             onExploreClick={() => {
               const sec = document.getElementById('vitrines');
               if (sec) sec.scrollIntoView({ behavior: 'smooth' });
@@ -244,6 +246,7 @@ export default function App({
 
           <TechSection />
           <GGGroupCompanies />
+          <AssistanceBanner />
         </main>
       ) : (
         <main className="w-full">

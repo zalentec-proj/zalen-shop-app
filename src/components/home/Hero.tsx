@@ -17,6 +17,7 @@ import technicianBgAsset from '../../assets/images/hero_tecnicos_assistencias_br
 interface HeroProps {
   onExploreClick: () => void;
   onPeasClick: () => void;
+  hasTopNotice?: boolean;
 }
 
 type HeroSlide = {
@@ -152,7 +153,11 @@ function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
 }
 
-export default function Hero({ onExploreClick, onPeasClick }: HeroProps) {
+export default function Hero({
+  onExploreClick,
+  onPeasClick,
+  hasTopNotice = false,
+}: HeroProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const activeSlide = slides[activeIndex] ?? slides[0];
 
@@ -192,7 +197,12 @@ export default function Hero({ onExploreClick, onPeasClick }: HeroProps) {
 
   return (
     <section
-      className="relative flex min-h-[100svh] w-full items-center justify-center overflow-hidden bg-[#03060d] pb-14 pt-44 lg:pb-14 lg:pt-44"
+      className={cn(
+        'relative flex w-full items-center justify-center overflow-hidden bg-[#03060d] px-0 py-10 sm:py-12',
+        hasTopNotice
+          ? 'min-h-[clamp(580px,calc(100svh-9rem),720px)] md:min-h-[clamp(620px,calc(100svh-10rem),760px)] xl:min-h-[clamp(640px,calc(100svh-13rem),760px)]'
+          : 'min-h-[clamp(680px,100svh,820px)] pt-28 md:pt-32 xl:pt-40'
+      )}
       id="home"
       aria-label="Destaques Brasil Drones"
     >
@@ -216,23 +226,23 @@ export default function Hero({ onExploreClick, onPeasClick }: HeroProps) {
         <div className="absolute inset-0 bg-gradient-to-t from-[#03060d] via-transparent to-[#03060d]/25" />
       </div>
 
-      <div className="relative z-10 mx-auto mt-4 w-full max-w-7xl px-6 md:px-12 lg:mt-0">
+      <div className="relative z-10 mx-auto w-full max-w-6xl px-6 md:px-10 xl:px-8">
         <div
           className={cn(
-            'grid grid-cols-1 items-center gap-8 lg:grid-cols-12 lg:gap-12',
+            'grid grid-cols-1 items-center gap-7 lg:grid-cols-12 xl:gap-10',
             activeSlide.align === 'center' && 'text-center',
             activeSlide.align === 'split' && 'xl:items-center'
           )}
         >
           <div
             className={cn(
-              'flex flex-col gap-4',
+              'flex flex-col gap-3.5',
               activeSlide.align === 'center'
-                ? 'lg:col-span-12 mx-auto max-w-4xl items-center text-center'
+                ? 'mx-auto max-w-3xl items-center text-center lg:col-span-12'
                 : 'lg:col-span-12 xl:col-span-7 items-start text-left'
             )}
           >
-            <div className="mb-1 inline-flex items-center rounded-full border border-[#00E676]/30 bg-[#072415]/60 px-3.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[#00E676] backdrop-blur-md md:text-xs">
+            <div className="inline-flex items-center rounded-full border border-[#00E676]/35 bg-[#072415]/75 px-3.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[#35f58a] shadow-[0_8px_30px_rgba(0,0,0,0.3)] backdrop-blur-md md:text-xs">
               {activeSlide.eyebrow}
             </div>
 
@@ -240,7 +250,7 @@ export default function Hero({ onExploreClick, onPeasClick }: HeroProps) {
               <Logo
                 size="sm"
                 className={cn(
-                  'mb-1 h-[38px] drop-shadow-[0_0_18px_rgba(0,212,255,0.2)]',
+                  'h-[42px] drop-shadow-[0_0_18px_rgba(0,212,255,0.25)]',
                   activeSlide.align === 'center' && 'mx-auto'
                 )}
               />
@@ -248,7 +258,7 @@ export default function Hero({ onExploreClick, onPeasClick }: HeroProps) {
 
             <h1
               className={cn(
-                'max-w-4xl select-none font-display text-3xl font-black tracking-tight text-white sm:text-5xl lg:text-[48px] lg:leading-[1.08] xl:text-[64px]',
+                'max-w-4xl select-none font-display text-4xl font-black leading-[1.08] tracking-tight text-white drop-shadow-[0_4px_28px_rgba(0,0,0,0.7)] sm:text-5xl lg:text-[52px] xl:text-[60px]',
                 activeSlide.id === 'freight-promo' && 'uppercase',
                 activeSlide.align === 'center' && 'mx-auto'
               )}
@@ -258,9 +268,9 @@ export default function Hero({ onExploreClick, onPeasClick }: HeroProps) {
 
             <p
               className={cn(
-                'max-w-xl text-xs leading-relaxed text-brand-muted opacity-90 sm:text-sm',
+                'max-w-xl text-sm leading-6 text-slate-200 drop-shadow-[0_2px_16px_rgba(0,0,0,0.8)] sm:text-base sm:leading-7',
                 activeSlide.align === 'center' && 'mx-auto text-center',
-                activeSlide.id === 'freight-promo' && 'text-white/80'
+                activeSlide.id === 'freight-promo' && 'font-medium text-white/90'
               )}
             >
               {activeSlide.description}
@@ -268,7 +278,7 @@ export default function Hero({ onExploreClick, onPeasClick }: HeroProps) {
 
             <div
               className={cn(
-                'mt-4 flex w-full flex-wrap items-center gap-4 sm:w-auto',
+                'mt-2 flex w-full flex-wrap items-center gap-3 sm:w-auto',
                 activeSlide.align === 'center' && 'justify-center'
               )}
             >
@@ -294,10 +304,10 @@ export default function Hero({ onExploreClick, onPeasClick }: HeroProps) {
 
           <div
             className={cn(
-              'lg:col-span-12 xl:col-span-5 mt-6 flex w-full xl:mt-0',
+              'mt-2 flex w-full',
               activeSlide.align === 'center'
-                ? 'justify-center'
-                : 'justify-start xl:justify-end'
+                ? 'justify-center lg:col-span-12'
+                : 'justify-start lg:col-span-12 xl:col-span-5 xl:mt-0 xl:justify-end'
             )}
           >
             {activeSlide.brandEndorsement ? (
@@ -318,7 +328,14 @@ export default function Hero({ onExploreClick, onPeasClick }: HeroProps) {
             ) : null}
 
             {activeSlide.partnerBullets ? (
-              <div className="grid w-full max-w-xl gap-3 sm:grid-cols-3 xl:max-w-[360px] xl:grid-cols-1">
+              <div
+                className={cn(
+                  'grid w-full gap-3',
+                  activeSlide.align === 'center'
+                    ? 'max-w-4xl sm:grid-cols-3'
+                    : 'max-w-xl sm:grid-cols-3 xl:max-w-[360px] xl:grid-cols-1'
+                )}
+              >
                 {activeSlide.partnerBullets.map((item) => (
                   <div
                     key={item.label}
@@ -335,23 +352,24 @@ export default function Hero({ onExploreClick, onPeasClick }: HeroProps) {
           </div>
         </div>
 
-        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 lg:bottom-8">
-          {slides.map((slide, index) => (
-            <button
-              key={slide.id}
-              type="button"
-              aria-label={`Mostrar destaque ${index + 1}`}
-              aria-current={index === activeIndex}
-              onClick={() => setActiveIndex(index)}
-              className={cn(
-                'h-2 rounded-full transition-all duration-300',
-                index === activeIndex
-                  ? 'w-8 bg-blue-primary shadow-[0_0_12px_rgba(30,61,255,0.65)]'
-                  : 'w-2 bg-white/30 hover:bg-white/55'
-              )}
-            />
-          ))}
-        </div>
+      </div>
+
+      <div className="absolute bottom-5 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2">
+        {slides.map((slide, index) => (
+          <button
+            key={slide.id}
+            type="button"
+            aria-label={`Mostrar destaque ${index + 1}`}
+            aria-current={index === activeIndex}
+            onClick={() => setActiveIndex(index)}
+            className={cn(
+              'h-2 rounded-full transition-all duration-300',
+              index === activeIndex
+                ? 'w-8 bg-blue-primary shadow-[0_0_12px_rgba(30,61,255,0.65)]'
+                : 'w-2 bg-white/30 hover:bg-white/55'
+            )}
+          />
+        ))}
       </div>
     </section>
   );
