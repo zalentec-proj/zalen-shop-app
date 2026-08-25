@@ -3,6 +3,7 @@ import {
   listCategories,
   listStorefrontProducts,
 } from '@/modules/catalog/product.service';
+import { listDroneModelCatalog } from '@/modules/catalog/drone-model.service';
 import {
   absoluteStoreUrl,
   getCurrentOrigin,
@@ -25,21 +26,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return [];
   }
 
-  const [categories, products] = await Promise.all([
+  const [categories, products, modelLines] = await Promise.all([
     listCategories(store.id),
     listStorefrontProducts(store.id),
+    listDroneModelCatalog(store.id),
   ]);
 
   return [
     {
       url: absoluteStoreUrl(origin, '/'),
-      lastModified: new Date(),
       changeFrequency: 'daily',
       priority: 1,
     },
     ...categories.map((category) => ({
       url: absoluteStoreUrl(origin, `/categoria/${category.slug}`),
-      lastModified: new Date(),
       changeFrequency: 'weekly' as const,
       priority: 0.8,
     })),
@@ -51,5 +51,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         changeFrequency: 'weekly' as const,
         priority: 0.7,
       })),
+    ...modelLines.flatMap((line) => [
+      ...(line.isActive
+        ? [
+            {
+              url: absoluteStoreUrl(origin, `/modelos/linha/${line.slug}`),
+              changeFrequency: 'weekly' as const,
+              priority: 0.7,
+            },
+          ]
+        : []),
+      ...line.models
+        .filter((model) => model.isActive)
+        .map((model) => ({
+          url: absoluteStoreUrl(origin, `/modelos/${model.slug}`),
+          changeFrequency: 'weekly' as const,
+          priority: 0.7,
+        })),
+    ]),
   ];
 }

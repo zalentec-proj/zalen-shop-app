@@ -60,7 +60,11 @@ export async function generateMetadata(): Promise<Metadata> {
       title: `${store.name} — Drones e Peças DJI`,
       description: storefrontDescription,
       path: '/',
+      imageUrl: '/og-image.png',
     })),
+    verification: getServerEnv().GOOGLE_SITE_VERIFICATION
+      ? { google: getServerEnv().GOOGLE_SITE_VERIFICATION }
+      : undefined,
   };
 }
 

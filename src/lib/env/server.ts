@@ -14,6 +14,7 @@ const serverEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: optionalSecretString,
   SUPABASE_SECRET_KEY: optionalSecretString,
   APP_URL: z.string().trim().url().optional(),
+  GOOGLE_SITE_VERIFICATION: optionalSecretString,
   PLATFORM_ROOT_DOMAIN: optionalSecretString,
   AUTH_COOKIE_DOMAIN: optionalSecretString,
   VERCEL_API_TOKEN: optionalSecretString,
@@ -106,6 +107,9 @@ function parseServerEnv(): ServerEnv {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     ),
     APP_URL: normalizeEnvValue(process.env.APP_URL),
+    GOOGLE_SITE_VERIFICATION: normalizeEnvValue(
+      process.env.GOOGLE_SITE_VERIFICATION
+    ),
     PLATFORM_ROOT_DOMAIN: normalizeEnvValue(process.env.PLATFORM_ROOT_DOMAIN),
     AUTH_COOKIE_DOMAIN: normalizeEnvValue(process.env.AUTH_COOKIE_DOMAIN),
     VERCEL_API_TOKEN: normalizeEnvValue(process.env.VERCEL_API_TOKEN),
