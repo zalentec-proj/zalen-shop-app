@@ -247,9 +247,6 @@ export default function ProductDetailClient({
               </span>
             </div>
 
-            {/* Description */}
-            <ProductDescription description={product.description} />
-
             {/* Specs */}
             {product.specs && product.specs.length > 0 && (
               <div className="grid grid-cols-2 gap-3">
@@ -347,6 +344,16 @@ export default function ProductDetailClient({
               ))}
             </div>
           </div>
+
+          {/* Description stays below the gallery on desktop and after purchase actions on mobile. */}
+          {product.description ? (
+            <div className="lg:col-start-1 rounded-2xl border border-brand-border-soft bg-white/[0.02] p-5 sm:p-6">
+              <h2 className="mb-4 text-lg font-bold tracking-tight text-white font-display">
+                Descrição do produto
+              </h2>
+              <ProductDescription description={product.description} />
+            </div>
+          ) : null}
         </div>
 
         {relatedProducts.length > 0 && (

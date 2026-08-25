@@ -6,10 +6,10 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Snapshot
 
-- Atualizado em: 2026-08-21
+- Atualizado em: 2026-08-25
 - Branch: `refactor/migrate-to-next`
-- Commit funcional base antes desta revisão: `c4c9cf3` —
-  `docs: record checkout production verification`
+- Commit funcional base antes desta revisão: `a005471` —
+  `fix: preserve payment transition after checkout`
 - A publicação e a restauração seletiva de imagens/compatibilidades devem ser
   conferidas no bloco mais recente antes de iniciar uma nova frente.
   Preserve os scripts locais não rastreados que não pertencem a esta frente.
@@ -22,6 +22,35 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Login e admin pertencem à identidade Zalen Shop; o storefront pertence à loja ativa.
 - `/platform` completo, billing, marketplace e automações de IA continuam fora do MVP.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
+
+## Estoque e composição do detalhe de produto (24/08/2026)
+
+- Objetivo: confirmar se produtos sem dados físicos e estoque zero estavam
+  chegando indevidamente ao carrinho e antecipar as ações de compra na página
+  pública de produto.
+- A auditoria somente-leitura de produção confirmou 419 produtos físicos ativos
+  sem peso/dimensões, todos com estoque zero. Os 111 produtos ativos com estoque
+  positivo possuem peso e as três dimensões completos; não existe atualmente
+  produto comprável com dados físicos incompletos.
+- O SKU `1395`, Bling `16690730980`, está ativo com saldo zero. A sincronização
+  integral de estoque concluída em 24/08/2026 às 14:01 BRT consultou as 679
+  variantes, retornou zero alteração e confirmou que o saldo local já coincidia
+  com o Bling.
+- O storefront deriva disponibilidade de `stock > 0`. Cards e detalhe bloqueiam
+  as ações de compra quando o saldo é zero; o handler compartilhado também
+  recusa adicionar produto indisponível. Portanto, o comportamento exibido para
+  o SKU `1395` está correto.
+- A descrição longa foi removida da coluna de preço/compra nos dois detalhes de
+  produto. Em desktop, ela aparece abaixo da galeria à esquerda; em mobile, a
+  ordem é galeria, informações/compra e descrição. Isso mantém os CTAs antes do
+  conteúdo longo sem duplicar a descrição.
+- Arquivos alterados: `src/components/product/ProductDetailsView.tsx` e
+  `src/app/produto/[slug]/ProductDetailClient.tsx`.
+- Validações: TypeScript, testes do parser de descrição, build de produção e
+  inspeção visual local em 1440x1000 e 390x844 passaram. Nenhum pedido, sync ou
+  dado de produção foi alterado pela validação.
+- Próximo passo: publicar somente após autorização explícita e conferir um
+  produto real com descrição longa no domínio comercial.
 
 ## Auditoria de dimensões Bling (em andamento seguro)
 
@@ -1482,6 +1511,30 @@ deve expor o valor em terminal, código ou documentação.
 - Validações locais: `npm run lint`, a suíte completa (`202` testes em `46`
   arquivos), `git diff --check` e o build de produção passaram. Não foi criado
   um Pix real apenas para validar esta alteração.
+
+### Produto duplicado e falso sucesso do webhook Bling (25/08/2026)
+
+- O cadastro antigo Bling `16690733041`, SKU `251`, preço R$ 52,50 e saldo
+  zero foi confirmado como a origem do produto incorreto no storefront e
+  inativado no próprio Bling. O cadastro canônico é `16690733422`, SKU `3243`,
+  preço R$ 46,00 e saldo 6.
+- No cadastro canônico, os números `12 x 7 x 16` estavam salvos com unidade
+  `Metros`. A unidade foi corrigida para `Centímetros` no Bling sem alterar
+  preço, estoque, peso, imagens ou descrição.
+- Os dois webhooks `product.updated` chegaram e foram processados, porém os
+  syncs unitários falharam internamente e ainda assim terminaram com status de
+  sucesso. A base da loja foi reparada com guardas pelos IDs/SKUs: SKU `251`
+  inativo e SKU `3243` ativo, R$ 46,00, saldo 6, peso 0,150 kg e dimensões
+  `12 x 7 x 16` cm.
+- O storefront de produção foi validado: o cadastro canônico aparece por
+  R$ 46,00, em estoque, com compra habilitada; a URL antiga não exibe mais o
+  produto.
+- O sincronizador unitário agora converte qualquer erro interno do item em
+  falha real do job. Assim, o webhook entra em retry em vez de ser registrado
+  como sucesso sem persistir o produto. O comportamento parcial dos syncs em
+  lote foi preservado.
+- Validações locais: TypeScript, 205 testes em 47 arquivos e build de produção
+  passaram. Esta correção de código ainda precisa de commit/push e deploy.
 
 - O estado técnico relevante deve ser atualizado aqui e enviado ao Git.
 - A conversa do Codex é contexto auxiliar; este arquivo e o código versionado são a fonte de verdade entre máquinas.

@@ -17,6 +17,7 @@ import {
 } from '../bling.repository';
 import { mapBlingProductToCatalogInput } from './bling-product.mapper';
 import { resolveBlingProductMedia } from './bling-product-media.service';
+import { getSingleProductSyncErrorCode } from './bling-product-sync-result.logic';
 import type {
   BlingProductCategoryItem,
   BlingProductCategoryListResponse,
@@ -789,6 +790,12 @@ export async function runBlingProductSync(
         page: batchPage + 1,
         syncSince,
       };
+    }
+
+    const singleProductErrorCode = getSingleProductSyncErrorCode(summary);
+
+    if (singleProductErrorCode) {
+      throw new Error(singleProductErrorCode);
     }
 
     tokenRefreshed = client.hasRefreshedToken();

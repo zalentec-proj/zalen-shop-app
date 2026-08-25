@@ -159,11 +159,6 @@ export default function ProductDetailsView({ product, onBackToHome, onAddToCart,
               </div>
             </div>
 
-            {/* Short Technical Description */}
-            <div className="max-w-xl text-xs font-normal">
-              <ProductDescription description={product.description} />
-            </div>
-
             {/* Technical Specs quick display (4 items maximum as requested) */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-1">
               {product.specs.slice(0, 4).map((spec, index) => (
@@ -225,6 +220,16 @@ export default function ProductDetailsView({ product, onBackToHome, onAddToCart,
             </div>
 
           </div>
+
+          {/* Description stays below the gallery on desktop and after purchase actions on mobile. */}
+          {product.description ? (
+            <div className="lg:col-span-6 lg:col-start-1 rounded-2xl border border-white/5 bg-white/[0.01] p-5 sm:p-6">
+              <h2 className="mb-4 text-lg font-bold tracking-tight text-white font-display">
+                Descrição do produto
+              </h2>
+              <ProductDescription description={product.description} />
+            </div>
+          ) : null}
 
         </div>
 
