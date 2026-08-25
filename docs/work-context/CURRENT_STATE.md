@@ -1556,7 +1556,19 @@ deve expor o valor em terminal, código ou documentação.
   mantêm texto, CTAs e fundos na área útil, sem overlay do Next.js ou erro de
   console. TypeScript, 205 testes e build de produção passaram.
 - Arquivos alterados: `src/components/home/Hero.tsx` e `src/App.tsx`. Alteração
-  ainda não enviada ao Git nem publicada.
+  enviada ao Git no commit `05de656` e publicada.
+- Após conferir o deployment em viewports desktop altas e ultralargas, foi
+  identificado que o “corte” reportado era a linha onde o hero começava abaixo
+  do aviso, e não o enquadramento interno da arte. A tentativa local de usar
+  `contain` foi descartada porque criava emendas laterais; o fundo permanece
+  contínuo em `cover`.
+- A faixa de desconto CNPJ deixou de participar do fluxo vertical da
+  home. Ela permanece sobreposta abaixo do menu fixo, enquanto o hero e sua
+  imagem agora começam no topo real da viewport, atrás do cabeçalho. A reserva
+  superior passou para o conteúdo interno do hero, evitando sobreposição sem
+  criar a faixa escura observada acima da imagem. A correção foi validada em
+  2308 x 1188, TypeScript, 205 testes e build de produção e segue no commit
+  imediatamente posterior a `05de656`.
 
 ### Novas faixas Brasil Drones e GG Assistência (25/08/2026)
 
@@ -1576,8 +1588,17 @@ deve expor o valor em terminal, código ou documentação.
   `public/brand/home/gg-assistencia-repair-banner.webp`.
 - Validações locais: TypeScript, 205 testes em 47 arquivos, build de produção,
   `git diff --check` e inspeção visual em 1440 x 1000 e 390 x 844 passaram sem
-  erro de console. As alterações do hero e destas duas seções ainda não foram
-  enviadas ao Git nem publicadas.
+  erro de console. As duas seções e a primeira revisão do hero foram enviadas
+  ao Git no commit `05de656` e publicadas.
+
+### Limpeza de mensagem técnica no checkout (25/08/2026)
+
+- O card “Compra segura — Documento e preço são validados no servidor antes de
+  criar o pedido” foi removido do resumo do checkout por expor um detalhe
+  técnico sem benefício para a decisão do comprador.
+- As validações server-side de documento, preço, frete e total permanecem
+  inalteradas; somente a mensagem visual foi removida.
+- TypeScript e `git diff --check` passaram após a remoção.
 
 - O estado técnico relevante deve ser atualizado aqui e enviado ao Git.
 - A conversa do Codex é contexto auxiliar; este arquivo e o código versionado são a fonte de verdade entre máquinas.

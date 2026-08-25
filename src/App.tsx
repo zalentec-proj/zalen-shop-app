@@ -193,7 +193,13 @@ export default function App({
       <WhatsAppFloatingButton />
 
       {businessDiscountPercentage ? (
-        <div className="relative z-20 mx-auto max-w-7xl px-4 pt-24 md:px-8 md:pt-28 xl:pt-40">
+        <div
+          className={
+            currentPage === 'home'
+              ? 'absolute inset-x-0 top-24 z-30 mx-auto max-w-7xl px-4 md:top-28 md:px-8 xl:top-40'
+              : 'relative z-20 mx-auto max-w-7xl px-4 pt-24 md:px-8 md:pt-28 xl:pt-40'
+          }
+        >
           <PjDiscountNotice percentage={businessDiscountPercentage} />
         </div>
       ) : null}

@@ -198,9 +198,9 @@ export default function Hero({
   return (
     <section
       className={cn(
-        'relative flex w-full items-center justify-center overflow-hidden bg-[#03060d] px-0 py-10 sm:py-12',
+        'relative flex w-full items-center justify-center overflow-hidden bg-[#03060d] px-0 pb-10 sm:pb-12',
         hasTopNotice
-          ? 'min-h-[clamp(580px,calc(100svh-9rem),720px)] md:min-h-[clamp(620px,calc(100svh-10rem),760px)] xl:min-h-[clamp(640px,calc(100svh-13rem),760px)]'
+          ? 'min-h-[clamp(720px,100svh,840px)] pt-48 sm:pt-52 md:pt-56 xl:pt-60'
           : 'min-h-[clamp(680px,100svh,820px)] pt-28 md:pt-32 xl:pt-40'
       )}
       id="home"

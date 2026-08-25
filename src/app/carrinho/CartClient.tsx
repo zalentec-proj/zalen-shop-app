@@ -14,7 +14,6 @@ import {
   Minus,
   Package,
   Plus,
-  Shield,
   ShoppingCart,
   Trash2,
   Truck,
@@ -2571,20 +2570,6 @@ export default function CartClient({ customerSession }: Props) {
               </div>
             </div>
 
-            <div className="glass-panel rounded-2xl p-4">
-              <div className="flex items-start gap-3">
-                <Shield className="mt-0.5 h-5 w-5 text-green-accent" />
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-white">
-                    Compra segura
-                  </p>
-                  <p className="mt-1 text-xs leading-5 text-brand-muted">
-                    Documento e preço são validados no servidor antes de criar o
-                    pedido.
-                  </p>
-                </div>
-              </div>
-            </div>
           </aside>
         </div>
       </main>
