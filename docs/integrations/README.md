@@ -72,6 +72,7 @@ Se o endpoint não está na documentação oficial, ele não existe. Não assuma
 | `meta-marketing-research.md` | Pesquisa técnica — Meta Pixel e Conversions API |
 | `vercel-domains-research.md` | Pesquisa técnica — associação, DNS, SSL, redirect e remoção de domínios Vercel |
 | `melhor-envio-research-template.md` | Template de pesquisa técnica — Melhor Envio |
+| `../cases/BRASIL_DRONES_BLING_GUIA_OPERACIONAL.md` | Guia operacional e vídeos oficiais do Bling para a Brasil Drones |
 
 ---
 
