@@ -5,6 +5,7 @@ import {
 } from '@/modules/auth/auth.service';
 import { getBlingOAuthConfig } from '@/modules/integrations/bling/bling.config';
 import { exchangeBlingAuthorizationCode } from '@/modules/integrations/bling/bling.oauth';
+import { getStoreSlugFromBlingOAuthState } from '@/modules/integrations/bling/bling.oauth-state';
 import {
   BLING_OAUTH_STATE_COOKIE_NAME,
   getBlingOAuthStateCookieOptions,
@@ -13,7 +14,9 @@ import {
   recordBlingConnectionError,
   saveBlingOAuthTokens,
 } from '@/modules/integrations/bling/bling.service';
-import { resolveCurrentStoreFromRequest } from '@/modules/stores/store-resolution';
+import { getServerEnv } from '@/lib/env/server';
+import { getStorefrontOriginFromHost } from '@/modules/stores/host-resolution';
+import { getStoreBySlugFromRepository } from '@/modules/stores/store.repository';
 
 const detailPath = '/admin/integracoes/bling';
 
@@ -40,15 +43,33 @@ export async function GET(request: NextRequest) {
   const state = request.nextUrl.searchParams.get('state');
   const providerError = request.nextUrl.searchParams.get('error');
   const expectedState = request.cookies.get(BLING_OAUTH_STATE_COOKIE_NAME)?.value;
-  const store = await resolveCurrentStoreFromRequest(request);
+
+  if (!state || !expectedState || state !== expectedState) {
+    return redirectToDetail(origin, 'invalid_state');
+  }
+
+  const storeSlug = getStoreSlugFromBlingOAuthState(state);
+  const store = storeSlug
+    ? await getStoreBySlugFromRepository(storeSlug)
+    : null;
+
+  if (!store || store.status !== 'active') {
+    return redirectToDetail(origin, 'invalid_state');
+  }
+
+  const detailOrigin = getStorefrontOriginFromHost(
+    request.nextUrl,
+    store.slug,
+    getServerEnv().PLATFORM_ROOT_DOMAIN
+  );
   const access = await checkStoreRole(store.id, storeManagementRoles);
 
   if (!access.user) {
-    return redirectToDetail(origin, 'missing_session');
+    return redirectToDetail(detailOrigin, 'missing_session');
   }
 
   if (!access.allowed) {
-    return redirectToDetail(origin, 'access_denied');
+    return redirectToDetail(detailOrigin, 'access_denied');
   }
 
   if (providerError) {
@@ -57,16 +78,16 @@ export async function GET(request: NextRequest) {
       errorCode: 'provider_denied_authorization',
     });
 
-    return redirectToDetail(origin, 'provider_denied');
+    return redirectToDetail(detailOrigin, 'provider_denied');
   }
 
-  if (!code || !state || !expectedState || state !== expectedState) {
+  if (!code) {
     await recordBlingConnectionError({
       storeId: store.id,
       errorCode: 'invalid_oauth_state',
     });
 
-    return redirectToDetail(origin, 'invalid_state');
+    return redirectToDetail(detailOrigin, 'invalid_state');
   }
 
   const config = getBlingOAuthConfig();
@@ -77,7 +98,7 @@ export async function GET(request: NextRequest) {
       errorCode: 'missing_oauth_config',
     });
 
-    return redirectToDetail(origin, 'missing_config');
+    return redirectToDetail(detailOrigin, 'missing_config');
   }
 
   if (!config.isEncryptionConfigured) {
@@ -86,7 +107,7 @@ export async function GET(request: NextRequest) {
       errorCode: 'missing_encryption_config',
     });
 
-    return redirectToDetail(origin, 'missing_encryption');
+    return redirectToDetail(detailOrigin, 'missing_encryption');
   }
 
   try {
@@ -96,13 +117,13 @@ export async function GET(request: NextRequest) {
       tokens,
     });
 
-    return redirectToDetail(origin);
+    return redirectToDetail(detailOrigin);
   } catch {
     await recordBlingConnectionError({
       storeId: store.id,
       errorCode: 'oauth_callback_failed',
     });
 
-    return redirectToDetail(origin, 'callback_failed');
+    return redirectToDetail(detailOrigin, 'callback_failed');
   }
 }

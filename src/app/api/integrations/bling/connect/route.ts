@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import {
   checkStoreRole,
@@ -10,6 +9,7 @@ import {
   BLING_OAUTH_STATE_COOKIE_NAME,
   getBlingOAuthStateCookieOptions,
 } from '@/modules/integrations/bling/bling.oauth-state-cookie';
+import { createBlingOAuthState } from '@/modules/integrations/bling/bling.oauth-state';
 import {
   recordBlingConnectionAttempt,
   recordBlingConnectionError,
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
     return redirectToDetail(origin, 'missing_encryption');
   }
 
-  const state = randomBytes(32).toString('base64url');
+  const state = createBlingOAuthState(store.slug);
   const authorizationUrl = buildBlingAuthorizationUrl(config, state);
 
   await recordBlingConnectionAttempt({
