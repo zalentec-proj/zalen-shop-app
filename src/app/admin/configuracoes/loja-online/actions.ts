@@ -18,6 +18,7 @@ import {
   type StorefrontNavigationItemType,
 } from '@/modules/catalog/storefront-navigation';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
+import { adminActionError, adminActionSuccess, type AdminActionResult } from '@/modules/admin/admin-action-result';
 
 const writableStoreRoles: StoreRole[] = [
   'store_owner',
@@ -71,17 +72,17 @@ async function ensureWritableAccess() {
   };
 }
 
-export async function saveStorefrontNavigationAction(formData: FormData) {
+export async function saveStorefrontNavigationAction(formData: FormData): Promise<AdminActionResult> {
   const { store, allowed } = await ensureWritableAccess();
 
   if (!allowed) {
-    return;
+    return adminActionError('Você não possui permissão para alterar o menu público.');
   }
 
   const itemCount = Number(formData.get('itemCount') ?? 0);
 
   if (!Number.isInteger(itemCount) || itemCount < 0 || itemCount > 300) {
-    return;
+    return adminActionError('A configuração do menu é inválida. Atualize a página e tente novamente.');
   }
 
   const [catalogCategories, catalogProducts] = await Promise.all([
@@ -126,7 +127,7 @@ export async function saveStorefrontNavigationAction(formData: FormData) {
     const parsed = navigationItemSchema.safeParse(raw);
 
     if (!parsed.success) {
-      return;
+      return adminActionError('Revise o nome, a rota e a posição do item.');
     }
 
     if (
@@ -134,7 +135,7 @@ export async function saveStorefrontNavigationAction(formData: FormData) {
       (!parsed.data.categorySlug ||
         !allowedCategorySlugs.has(parsed.data.categorySlug))
     ) {
-      return;
+      return adminActionError('A categoria vinculada não está disponível no catálogo.');
     }
 
     if (
@@ -144,7 +145,7 @@ export async function saveStorefrontNavigationAction(formData: FormData) {
       !parsed.data.opensInDropdown &&
       !parsed.data.parentId
     ) {
-      return;
+      return adminActionError('Informe uma rota, categoria, submenu ou item pai.');
     }
 
     parsedItems.push(parsed.data);
@@ -153,7 +154,7 @@ export async function saveStorefrontNavigationAction(formData: FormData) {
   const result = await replaceStorefrontNavigationItems(store.id, parsedItems);
 
   if (!result.ok) {
-    return;
+    return adminActionError('Não foi possível salvar o menu público.');
   }
 
   revalidatePath('/');
@@ -161,25 +162,27 @@ export async function saveStorefrontNavigationAction(formData: FormData) {
   revalidatePath('/categoria/[slug]', 'page');
   revalidatePath('/modelos/[slug]', 'page');
   revalidatePath('/modelos/linha/[slug]', 'page');
+  return adminActionSuccess('Item do menu salvo com sucesso.');
 }
 
-export async function moveStorefrontNavigationItemAction(formData: FormData) {
+export async function moveStorefrontNavigationItemAction(formData: FormData): Promise<AdminActionResult> {
   const { store, allowed } = await ensureWritableAccess();
-  if (!allowed) return;
+  if (!allowed) return adminActionError('Você não possui permissão para reordenar o menu.');
   const parsed = moveNavigationItemSchema.safeParse({ itemId: formData.get('itemId'), direction: formData.get('direction') });
-  if (!parsed.success) return;
+  if (!parsed.success) return adminActionError('Não foi possível identificar o item do menu.');
   const [catalogCategories, catalogProducts] = await Promise.all([listCategories(store.id), listStorefrontProducts(store.id)]);
   const storefrontCategories = toStorefrontCategories(catalogCategories, catalogProducts);
   const navigation = await getAdminStorefrontNavigation(store.id, storefrontCategories);
   const items = [...navigation.adminItems].sort((a,b)=>a.position-b.position);
   const index = items.findIndex((item)=>item.id===parsed.data.itemId);
   const targetIndex = parsed.data.direction === 'up' ? index - 1 : index + 1;
-  if (index < 0 || targetIndex < 0 || targetIndex >= items.length) return;
+  if (index < 0 || targetIndex < 0 || targetIndex >= items.length) return adminActionError('O item já está no limite desta posição.');
   const currentPosition = items[index].position;
   items[index] = { ...items[index], position: items[targetIndex].position };
   items[targetIndex] = { ...items[targetIndex], position: currentPosition };
   const result = await replaceStorefrontNavigationItems(store.id, items.map((item)=>({ id:item.id, label:item.label, type:item.type, categorySlug:item.categorySlug, href:item.href, parentId:item.parentId, position:item.position, enabled:item.enabled, showInNavbar:item.showInNavbar, showInCategoriesDropdown:item.showInCategoriesDropdown, opensInDropdown:item.opensInDropdown })));
-  if (!result.ok) return;
+  if (!result.ok) return adminActionError('Não foi possível reordenar o menu.');
   revalidatePath('/');
   revalidatePath('/admin/configuracoes/loja-online');
+  return adminActionSuccess('Ordem do menu atualizada.');
 }

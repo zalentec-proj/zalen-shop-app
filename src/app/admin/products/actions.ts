@@ -10,6 +10,7 @@ import {
 } from '@/modules/catalog/product.service';
 import { updateVariantBusinessPrice } from '@/modules/pricing/pricing.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
+import { adminActionError, adminActionSuccess, type AdminActionResult } from '@/modules/admin/admin-action-result';
 
 const writableStoreRoles: StoreRole[] = [
   'store_owner',
@@ -44,9 +45,9 @@ async function canManageProducts(): Promise<boolean> {
 
 export async function updateProductStatusAction(
   formData: FormData
-): Promise<void> {
+): Promise<AdminActionResult> {
   if (!(await canManageProducts())) {
-    return;
+    return adminActionError('Você não possui permissão para alterar produtos.');
   }
 
   const parsed = statusSchema.safeParse({
@@ -55,7 +56,7 @@ export async function updateProductStatusAction(
   });
 
   if (!parsed.success) {
-    return;
+    return adminActionError('O status selecionado é inválido.');
   }
 
   const store = await resolveCurrentStoreFromHeaders();
@@ -66,18 +67,19 @@ export async function updateProductStatusAction(
   });
 
   if (!result.ok) {
-    return;
+    return adminActionError('Não foi possível atualizar a publicação do produto.');
   }
 
   revalidatePath('/admin');
   revalidatePath('/admin/produtos');
+  return adminActionSuccess('Publicação do produto atualizada.');
 }
 
 export async function updateProductStockAction(
   formData: FormData
-): Promise<void> {
+): Promise<AdminActionResult> {
   if (!(await canManageProducts())) {
-    return;
+    return adminActionError('Você não possui permissão para alterar produtos.');
   }
 
   const parsed = stockSchema.safeParse({
@@ -86,7 +88,7 @@ export async function updateProductStockAction(
   });
 
   if (!parsed.success) {
-    return;
+    return adminActionError('Informe um estoque válido.');
   }
 
   const store = await resolveCurrentStoreFromHeaders();
@@ -97,18 +99,19 @@ export async function updateProductStockAction(
   });
 
   if (!result.ok) {
-    return;
+    return adminActionError('Não foi possível atualizar o estoque do produto.');
   }
 
   revalidatePath('/admin');
   revalidatePath('/admin/produtos');
+  return adminActionSuccess('Estoque do produto atualizado.');
 }
 
 export async function updateProductBusinessPriceAction(
   formData: FormData
-): Promise<void> {
+): Promise<AdminActionResult> {
   if (!(await canManageProducts())) {
-    return;
+    return adminActionError('Você não possui permissão para alterar produtos.');
   }
 
   const parsed = businessPriceSchema.safeParse({
@@ -117,7 +120,7 @@ export async function updateProductBusinessPriceAction(
   });
 
   if (!parsed.success) {
-    return;
+    return adminActionError('Informe um preço PJ válido.');
   }
 
   const store = await resolveCurrentStoreFromHeaders();
@@ -128,9 +131,10 @@ export async function updateProductBusinessPriceAction(
   });
 
   if (!result) {
-    return;
+    return adminActionError('Não foi possível atualizar o preço PJ.');
   }
 
   revalidatePath('/admin');
   revalidatePath('/admin/produtos');
+  return adminActionSuccess('Preço PJ atualizado.');
 }

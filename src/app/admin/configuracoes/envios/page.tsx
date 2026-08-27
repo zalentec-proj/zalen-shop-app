@@ -11,6 +11,7 @@ import {
   SettingsPanel,
 } from '../SettingsShell';
 import { AdminContentGrid } from '@/components/admin/AdminLayout';
+import { AdminActionForm } from '@/components/admin/AdminActionForm';
 import {
   getShippingConfiguration,
   type ShippingMethod,
@@ -104,7 +105,7 @@ export default async function ShippingSettingsPage() {
           >
             <details className="group rounded-lg border border-white/7 bg-[#081225] p-3">
               <summary className="cursor-pointer text-xs font-semibold text-blue-300">Editar origem</summary>
-            <form action={upsertShippingOriginAction} className="mt-3 grid gap-3">
+            <AdminActionForm action={upsertShippingOriginAction} successMessage="Origem de envio salva com sucesso." className="mt-3 grid gap-3">
               <Field
                 label="Remetente"
                 name="senderName"
@@ -187,7 +188,7 @@ export default async function ShippingSettingsPage() {
                 <MapPin className="h-3.5 w-3.5" />
                 Salvar origem
               </button>
-            </form>
+            </AdminActionForm>
             </details>
           </SettingsPanel>
         }
@@ -206,8 +207,9 @@ export default async function ShippingSettingsPage() {
               key={method.id}
               className="rounded-lg border border-white/6 bg-[#0A1730]/95 p-4"
             >
-              <form
+              <AdminActionForm
                 action={updateShippingMethodAction}
+                successMessage={`${method.name} salvo com sucesso.`}
                 className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)] xl:items-start"
               >
                 <input type="hidden" name="methodId" value={method.id} />
@@ -323,7 +325,7 @@ export default async function ShippingSettingsPage() {
                     </button>
                   </div>
                 </details>
-              </form>
+              </AdminActionForm>
             </section>
           );
         })}

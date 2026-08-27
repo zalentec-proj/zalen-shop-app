@@ -9,6 +9,7 @@ import {
   upsertStoreLegalDocument,
 } from '@/modules/legal/legal.repository';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
+import { adminActionError, adminActionSuccess, type AdminActionResult } from '@/modules/admin/admin-action-result';
 
 const writableRoles: StoreRole[] = ['store_owner', 'store_admin', 'store_operator'];
 
@@ -20,7 +21,7 @@ const schema = z.object({
   status: z.enum(['draft', 'published']),
 });
 
-export async function saveStoreLegalDocumentAction(formData: FormData) {
+export async function saveStoreLegalDocumentAction(formData: FormData): Promise<AdminActionResult> {
   const parsed = schema.safeParse({
     documentKey: formData.get('documentKey'),
     title: formData.get('title'),
@@ -29,12 +30,16 @@ export async function saveStoreLegalDocumentAction(formData: FormData) {
     status: formData.get('status'),
   });
 
-  if (!parsed.success) return;
+  if (!parsed.success) {
+    return adminActionError('Revise título, versão e conteúdo antes de salvar.');
+  }
 
   const store = await resolveCurrentStoreFromHeaders();
   const access = await checkStoreRole(store.id, writableRoles);
 
-  if (!access.allowed || !access.user) return;
+  if (!access.allowed || !access.user) {
+    return adminActionError('Você não possui permissão para editar documentos legais.');
+  }
 
   await upsertStoreLegalDocument({
     storeId: store.id,
@@ -50,4 +55,5 @@ export async function saveStoreLegalDocumentAction(formData: FormData) {
   } as const;
   revalidatePath(paths[parsed.data.documentKey]);
   revalidatePath('/admin/configuracoes/documentos-legais');
+  return adminActionSuccess('Documento legal salvo com sucesso.');
 }

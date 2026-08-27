@@ -6,6 +6,7 @@ import {
 import { getAutomaticPjDiscountPolicy } from '@/modules/pricing/pricing.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 import { updateAutomaticPjDiscountAction } from './actions';
+import { AdminActionForm } from '@/components/admin/AdminActionForm';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
@@ -31,8 +32,9 @@ export default async function PricingSettingsPage() {
           </SettingsBadge>
         }
       >
-        <form
+        <AdminActionForm
           action={updateAutomaticPjDiscountAction}
+          successMessage="Política de preços salva com sucesso."
           className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]"
         >
           <div className="space-y-4">
@@ -124,7 +126,7 @@ export default async function PricingSettingsPage() {
               </div>
             </dl>
           </aside>
-        </form>
+        </AdminActionForm>
       </SettingsPanel>
     </div>
   );

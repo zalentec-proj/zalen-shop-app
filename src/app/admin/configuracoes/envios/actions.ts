@@ -9,6 +9,7 @@ import {
   upsertShippingOrigin,
 } from '@/modules/shipping/shipment.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
+import { adminActionError, adminActionSuccess, type AdminActionResult } from '@/modules/admin/admin-action-result';
 
 const writableStoreRoles: StoreRole[] = [
   'store_owner',
@@ -80,11 +81,11 @@ async function ensureWritableAccess() {
   };
 }
 
-export async function upsertShippingOriginAction(formData: FormData) {
+export async function upsertShippingOriginAction(formData: FormData): Promise<AdminActionResult> {
   const { store, allowed } = await ensureWritableAccess();
 
   if (!allowed) {
-    return;
+    return adminActionError('Você não possui permissão para alterar a origem de envio.');
   }
 
   const parsed = originSchema.safeParse({
@@ -102,7 +103,7 @@ export async function upsertShippingOriginAction(formData: FormData) {
   });
 
   if (!parsed.success) {
-    return;
+    return adminActionError('Revise os dados obrigatórios da origem de envio.');
   }
 
   await upsertShippingOrigin({
@@ -111,13 +112,14 @@ export async function upsertShippingOriginAction(formData: FormData) {
   });
 
   revalidatePath('/admin/configuracoes/envios');
+  return adminActionSuccess('Origem de envio salva com sucesso.');
 }
 
-export async function updateShippingMethodAction(formData: FormData) {
+export async function updateShippingMethodAction(formData: FormData): Promise<AdminActionResult> {
   const { store, allowed } = await ensureWritableAccess();
 
   if (!allowed) {
-    return;
+    return adminActionError('Você não possui permissão para alterar métodos de envio.');
   }
 
   const parsed = methodSchema.safeParse({
@@ -130,7 +132,7 @@ export async function updateShippingMethodAction(formData: FormData) {
   });
 
   if (!parsed.success) {
-    return;
+    return adminActionError(parsed.error.issues[0]?.message ?? 'Revise os valores e prazos do método de envio.');
   }
 
   await updateShippingMethod({
@@ -139,4 +141,5 @@ export async function updateShippingMethodAction(formData: FormData) {
   });
 
   revalidatePath('/admin/configuracoes/envios');
+  return adminActionSuccess('Método de envio salvo com sucesso.');
 }

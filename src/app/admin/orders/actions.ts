@@ -13,6 +13,7 @@ import { upsertManualShipment } from '@/modules/shipping/shipment.service';
 import type { ShipmentStatus } from '@/modules/shipping/shipment.types';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 import { enqueueShipmentWhatsAppNotification } from '@/modules/integrations/evolution-whatsapp/evolution-whatsapp.service';
+import { adminActionError, adminActionSuccess, type AdminActionResult } from '@/modules/admin/admin-action-result';
 
 const writableStoreRoles: StoreRole[] = [
   'store_owner',
@@ -72,12 +73,12 @@ function getOrderShipmentState(status: ShipmentStatus) {
   };
 }
 
-export async function upsertOrderShipmentAction(formData: FormData) {
+export async function upsertOrderShipmentAction(formData: FormData): Promise<AdminActionResult> {
   const store = await resolveCurrentStoreFromHeaders();
   const access = await checkStoreRole(store.id, writableStoreRoles);
 
   if (!access.allowed) {
-    return;
+    return adminActionError('Você não possui permissão para alterar o envio.');
   }
 
   const parsed = shipmentSchema.safeParse({
@@ -89,13 +90,13 @@ export async function upsertOrderShipmentAction(formData: FormData) {
   });
 
   if (!parsed.success) {
-    return;
+    return adminActionError('Revise os dados de separação e rastreio.');
   }
 
   const order = await getOrderById(store.id, parsed.data.orderId);
 
   if (!order || order.paymentStatus !== 'paid') {
-    return;
+    return adminActionError('O envio só pode ser alterado após a confirmação do pagamento.');
   }
 
   const shipment = await upsertManualShipment({
@@ -117,7 +118,7 @@ export async function upsertOrderShipmentAction(formData: FormData) {
   });
 
   if (!shipment) {
-    return;
+    return adminActionError('Não foi possível salvar os dados de envio.');
   }
 
   await markOrderShipmentState({
@@ -145,4 +146,5 @@ export async function upsertOrderShipmentAction(formData: FormData) {
   revalidatePath('/conta');
   revalidatePath('/conta/pedidos');
   revalidatePath(`/conta/pedidos/${parsed.data.orderId}`);
+  return adminActionSuccess('Dados de envio salvos com sucesso.');
 }

@@ -46,6 +46,13 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   inclusive menu público, produtos, pedidos, clientes, compatibilidade e
   documentos legais. Os overlays tratam `Esc`, foco inicial, contenção de Tab
   e restauração de foco.
+- As mutações do admin agora usam um feedback visual compartilhado: o formulário
+  mostra processamento imediatamente, bloqueia reenvio e apresenta confirmação
+  de sucesso ou erro em mensagem acessível. O padrão cobre compatibilidade,
+  produtos, clientes, pedidos, preços, envios, documentos legais e menu público;
+  Domínios, Marketing, Mercado Pago, WhatsApp e Bling preservam seus retornos
+  próprios já existentes. As Server Actions cobertas deixaram de falhar
+  silenciosamente em validação, permissão ou persistência.
 - A visão geral agora prioriza quatro KPIs, fila e próximas ações. Produtos,
   pedidos e clientes são tabelas compactas; detalhes técnicos ficam
   recolhidos. Compatibilidade, menu público e documentos legais mantêm apenas

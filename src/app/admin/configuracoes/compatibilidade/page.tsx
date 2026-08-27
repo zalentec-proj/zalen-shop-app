@@ -1,6 +1,7 @@
 import { SettingsBadge, SettingsPanel } from '../SettingsShell';
 import { redirect } from 'next/navigation';
 import CompatibilityManager from './CompatibilityManager';
+import { AdminActionForm } from '@/components/admin/AdminActionForm';
 import { AdminFilterBar, AdminPagination } from '@/components/admin/AdminLayout';
 import { buildAdminListUrl, normalizeAdminPagination, type AdminListSearchParams } from '@/modules/admin/admin-pagination';
 import { activateDroneModelNavigationAction } from './actions';
@@ -68,7 +69,7 @@ export default async function CompatibilityPage({ searchParams }: { searchParams
             <SettingsBadge tone={productsResult.source === 'supabase' ? 'success' : 'warning'}>
               {productsResult.source === 'supabase' ? 'Catálogo conectado' : 'Modo demonstração'}
             </SettingsBadge>
-            <form action={activateDroneModelNavigationAction}>
+            <AdminActionForm action={activateDroneModelNavigationAction} successMessage="Menu de modelos ativado com sucesso." pendingMessage="Ativando menu de modelos…">
               <button
                 type="submit"
                 disabled={mappedProducts === 0}
@@ -81,7 +82,7 @@ export default async function CompatibilityPage({ searchParams }: { searchParams
               >
                 Ativar menu de modelos
               </button>
-            </form>
+            </AdminActionForm>
           </div>
         }
       >

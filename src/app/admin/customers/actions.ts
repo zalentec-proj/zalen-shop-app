@@ -8,6 +8,7 @@ import {
 } from '@/modules/auth/auth.service';
 import { upsertCustomer } from '@/modules/customers/customer.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
+import { adminActionError, adminActionSuccess, type AdminActionResult } from '@/modules/admin/admin-action-result';
 
 const customerFormSchema = z.object({
   name: z.string().trim().min(2),
@@ -17,12 +18,12 @@ const customerFormSchema = z.object({
   notes: z.string().trim().optional(),
 });
 
-export async function createAdminCustomerAction(formData: FormData) {
+export async function createAdminCustomerAction(formData: FormData): Promise<AdminActionResult> {
   const store = await resolveCurrentStoreFromHeaders();
   const access = await checkStoreRole(store.id, storeOperationalRoles);
 
   if (!access.allowed) {
-    return;
+    return adminActionError('Você não possui permissão para cadastrar clientes.');
   }
 
   const parsed = customerFormSchema.safeParse({
@@ -34,7 +35,7 @@ export async function createAdminCustomerAction(formData: FormData) {
   });
 
   if (!parsed.success) {
-    return;
+    return adminActionError('Revise o nome e o e-mail informados.');
   }
 
   await upsertCustomer({
@@ -49,4 +50,5 @@ export async function createAdminCustomerAction(formData: FormData) {
 
   revalidatePath('/admin');
   revalidatePath('/admin/clientes');
+  return adminActionSuccess('Cliente cadastrado com sucesso.');
 }
