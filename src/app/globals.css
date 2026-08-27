@@ -152,3 +152,25 @@ body {
     background: rgba(255, 255, 255, 0.12);
   }
 }
+
+.admin-theme {
+  --admin-canvas: #050a14;
+  --admin-surface: #081225;
+  --admin-surface-raised: #0a1730;
+  --admin-border: rgba(255, 255, 255, 0.07);
+  --admin-border-strong: rgba(255, 255, 255, 0.12);
+  --admin-text: #f8fafc;
+  --admin-muted: #94a3b8;
+  --admin-accent: #2563eb;
+  --admin-success: #34d399;
+  --admin-warning: #fbbf24;
+  --admin-danger: #fb7185;
+  --admin-radius: 0.75rem;
+  --admin-space: 1rem;
+  color-scheme: dark;
+}
+
+.admin-theme :focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}

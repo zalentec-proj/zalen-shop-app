@@ -18,6 +18,7 @@ import type {
   OrderStatus,
   PaymentStatus,
 } from './order.types';
+import { normalizeAdminQuery, toAdminPaginatedResult, type AdminPaginatedResult, type AdminPaginationInput } from '@/modules/admin/admin-pagination';
 
 export type OrderDataSource = 'supabase' | 'mock';
 
@@ -25,6 +26,15 @@ export interface OrderRepositoryResult<T> {
   data: T;
   source: OrderDataSource;
 }
+
+export interface AdminOrderFilters extends AdminPaginationInput {
+  q?: string;
+  status?: OrderStatus | 'all';
+}
+
+export type AdminOrderPageResult = AdminPaginatedResult<OrderListItem> & {
+  source: OrderDataSource;
+};
 
 type SupabaseOrderClient =
   | NonNullable<ReturnType<typeof createOptionalAdminClient>>
@@ -946,6 +956,47 @@ export async function listOrdersWithSourceFromRepository(
 
   return {
     data: await listMockOrdersFromRepository(storeId),
+    source: 'mock',
+  };
+}
+
+export async function listOrdersPageFromRepository(
+  storeId: string,
+  filters: AdminOrderFilters
+): Promise<AdminOrderPageResult> {
+  const clients = [createOptionalAdminClient(), await createOptionalClient()].filter(
+    (client): client is SupabaseOrderClient => Boolean(client)
+  );
+  const from = (filters.page - 1) * filters.pageSize;
+  const to = from + filters.pageSize - 1;
+  const q = normalizeAdminQuery(filters.q);
+
+  for (const supabase of clients) {
+    let query = supabase.from('orders').select('*', { count: 'exact' }).eq('store_id', storeId);
+    if (filters.status && filters.status !== 'all') query = query.eq('status', filters.status);
+    if (q) query = query.or(`order_number.ilike.%${q}%,customer_name.ilike.%${q}%`);
+    const { data, error, count } = await query.order('created_at', { ascending: false }).range(from, to);
+    if (error || !data) continue;
+
+    const orderRows = data as OrderRow[];
+    const orderIds = orderRows.map((order) => order.id);
+    const itemsByOrderId = await getOrderItemsFromRepository(supabase, storeId, orderIds);
+    return {
+      ...toAdminPaginatedResult(
+        orderRows.map((order) => mapOrder(order, itemsByOrderId.get(order.id) ?? [], storeId)),
+        count ?? 0,
+        filters
+      ),
+      source: 'supabase',
+    };
+  }
+
+  const fallback = (await listMockOrdersFromRepository(storeId)).filter((order) => {
+    const matchesQuery = !q || `${order.orderNumber} ${order.customer?.name ?? ''}`.toLowerCase().includes(q.toLowerCase());
+    return matchesQuery && (!filters.status || filters.status === 'all' || order.status === filters.status);
+  });
+  return {
+    ...toAdminPaginatedResult(fallback.slice(from, to + 1), fallback.length, filters),
     source: 'mock',
   };
 }

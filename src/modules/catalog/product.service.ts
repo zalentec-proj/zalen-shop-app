@@ -10,6 +10,8 @@ import {
   getProductByIdFromRepository,
   getProductBySlugFromRepository,
   listAdminProductsWithSourceFromRepository,
+  listAdminProductsPageFromRepository,
+  type AdminProductFilters,
   type CatalogDataSource,
   type CatalogMutationResult,
   type CatalogRepositoryResult,
@@ -51,6 +53,13 @@ export async function listAdminProductsWithSource(
   storeId: string
 ): Promise<CatalogRepositoryResult<ProductSummary[]>> {
   return listAdminProductsWithSourceFromRepository(storeId);
+}
+
+export async function listAdminProductsPage(
+  storeId: string,
+  filters: AdminProductFilters
+) {
+  return listAdminProductsPageFromRepository(storeId, filters);
 }
 
 /**

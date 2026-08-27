@@ -70,6 +70,7 @@ export async function updateProductStatusAction(
   }
 
   revalidatePath('/admin');
+  revalidatePath('/admin/produtos');
 }
 
 export async function updateProductStockAction(
@@ -100,6 +101,7 @@ export async function updateProductStockAction(
   }
 
   revalidatePath('/admin');
+  revalidatePath('/admin/produtos');
 }
 
 export async function updateProductBusinessPriceAction(
@@ -130,4 +132,5 @@ export async function updateProductBusinessPriceAction(
   }
 
   revalidatePath('/admin');
+  revalidatePath('/admin/produtos');
 }

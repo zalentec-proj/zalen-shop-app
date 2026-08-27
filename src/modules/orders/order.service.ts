@@ -19,6 +19,8 @@ import {
   listMockOrdersFromRepository,
   listOrdersFromRepository,
   listOrdersWithSourceFromRepository,
+  listOrdersPageFromRepository,
+  type AdminOrderFilters,
   saveOrderToRepository,
   updateOrderExternalErpStateInRepository,
   updateOrderFulfillmentStateInRepository,
@@ -99,6 +101,10 @@ export async function listOrdersWithSource(
   OrderRepositoryResult<OrderListItem[]>
 > {
   return listOrdersWithSourceFromRepository(storeId);
+}
+
+export async function listOrdersPage(storeId: string, filters: AdminOrderFilters) {
+  return listOrdersPageFromRepository(storeId, filters);
 }
 
 export async function listMockOrders(storeId: string): Promise<OrderListItem[]> {

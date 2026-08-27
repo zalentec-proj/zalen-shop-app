@@ -141,6 +141,7 @@ export async function upsertOrderShipmentAction(formData: FormData) {
   }).catch(() => undefined);
 
   revalidatePath('/admin');
+  revalidatePath('/admin/pedidos');
   revalidatePath('/conta');
   revalidatePath('/conta/pedidos');
   revalidatePath(`/conta/pedidos/${parsed.data.orderId}`);

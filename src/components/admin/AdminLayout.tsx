@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { ComponentType, CSSProperties, ReactNode } from 'react';
 
 export function cn(...classes: Array<string | false | null | undefined>) {
@@ -216,6 +217,97 @@ export function AdminTableCard({ children }: { children: ReactNode }) {
   return (
     <div className="overflow-x-auto rounded-lg border border-white/6 bg-[#071225]/50">
       {children}
+    </div>
+  );
+}
+
+export function AdminBadge({
+  children,
+  tone = 'neutral',
+}: {
+  children: ReactNode;
+  tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'info';
+}) {
+  const tones = {
+    neutral: 'border-white/10 bg-white/5 text-slate-300',
+    success: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-300',
+    warning: 'border-amber-400/20 bg-amber-400/10 text-amber-300',
+    danger: 'border-rose-400/20 bg-rose-400/10 text-rose-300',
+    info: 'border-blue-400/20 bg-blue-400/10 text-blue-300',
+  };
+  return <span className={cn('inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold', tones[tone])}>{children}</span>;
+}
+
+export function AdminFilterBar({
+  action,
+  query,
+  status,
+  statuses,
+  placeholder = 'Buscar…',
+}: {
+  action: string;
+  query?: string;
+  status?: string;
+  statuses: Array<{ value: string; label: string }>;
+  placeholder?: string;
+}) {
+  return (
+    <form action={action} className="grid gap-2 rounded-xl border border-white/6 bg-[#081225] p-3 sm:grid-cols-[minmax(0,1fr)_180px_auto]">
+      <label className="sr-only" htmlFor="admin-search">Buscar</label>
+      <input id="admin-search" name="q" defaultValue={query} placeholder={placeholder} className="h-9 rounded-lg border border-white/8 bg-[#050A14] px-3 text-xs text-white placeholder:text-slate-600" />
+      <label className="sr-only" htmlFor="admin-status">Status</label>
+      <select id="admin-status" name="status" defaultValue={status ?? 'all'} className="h-9 rounded-lg border border-white/8 bg-[#050A14] px-3 text-xs text-white">
+        {statuses.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+      </select>
+      <button className="h-9 rounded-lg bg-blue-600 px-4 text-xs font-semibold text-white transition hover:bg-blue-500">Aplicar</button>
+    </form>
+  );
+}
+
+export function AdminPagination({
+  pathname,
+  page,
+  pageCount,
+  pageSize,
+  total,
+  query,
+}: {
+  pathname: string;
+  page: number;
+  pageCount: number;
+  pageSize: number;
+  total: number;
+  query: Record<string, string | undefined>;
+}) {
+  const href = (nextPage: number, nextSize = pageSize) => {
+    const params = new URLSearchParams();
+    Object.entries(query).forEach(([key, value]) => value && params.set(key, value));
+    params.set('page', String(nextPage));
+    params.set('pageSize', String(nextSize));
+    return `${pathname}?${params.toString()}`;
+  };
+  return (
+    <nav aria-label="Paginação" className="flex flex-col gap-3 border-t border-white/6 px-3 py-3 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+      <span>{total} {total === 1 ? 'item' : 'itens'} · página {Math.min(page, pageCount)} de {pageCount}</span>
+      <div className="flex items-center gap-2">
+        <details className="relative">
+          <summary className="h-8 cursor-pointer list-none rounded-md border border-white/8 bg-[#050A14] px-2 py-1.5">{pageSize} por página</summary>
+          <div className="absolute bottom-10 left-0 z-10 grid min-w-full overflow-hidden rounded-md border border-white/10 bg-[#081225] shadow-xl">
+            {[25, 50, 100].map((size) => <Link key={size} href={href(1, size)} className={cn('px-3 py-2 hover:bg-white/5 hover:text-white', size === pageSize && 'text-blue-300')}>{size}</Link>)}
+          </div>
+        </details>
+        {page > 1 ? <Link href={href(page - 1)} className="rounded-md border border-white/8 px-3 py-1.5 hover:text-white">Anterior</Link> : <span className="rounded-md border border-white/5 px-3 py-1.5 opacity-40">Anterior</span>}
+        {page < pageCount ? <Link href={href(page + 1)} className="rounded-md border border-white/8 px-3 py-1.5 hover:text-white">Próxima</Link> : <span className="rounded-md border border-white/5 px-3 py-1.5 opacity-40">Próxima</span>}
+      </div>
+    </nav>
+  );
+}
+
+export function AdminEmptyState({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="px-4 py-14 text-center">
+      <h3 className="text-sm font-semibold text-white">{title}</h3>
+      <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-slate-400">{description}</p>
     </div>
   );
 }

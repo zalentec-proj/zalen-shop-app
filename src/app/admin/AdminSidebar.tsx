@@ -99,7 +99,7 @@ function buildSidebarGroups(counts?: AdminSidebarCounts): AdminSidebarGroup[] {
           label: 'Visão geral',
           icon: LayoutGrid,
           count: '01',
-          href: '/admin?view=dashboard',
+          href: '/admin',
         },
         {
           key: 'orders',
@@ -107,7 +107,7 @@ function buildSidebarGroups(counts?: AdminSidebarCounts): AdminSidebarGroup[] {
           label: 'Pedidos',
           icon: ShoppingCart,
           count: counts?.orders ?? '00',
-          href: '/admin?view=orders',
+          href: '/admin/pedidos',
         },
         {
           key: 'products',
@@ -115,7 +115,7 @@ function buildSidebarGroups(counts?: AdminSidebarCounts): AdminSidebarGroup[] {
           label: 'Produtos',
           icon: Package2,
           count: counts?.products ?? '--',
-          href: '/admin?view=products',
+          href: '/admin/produtos',
         },
         {
           key: 'customers',
@@ -123,7 +123,7 @@ function buildSidebarGroups(counts?: AdminSidebarCounts): AdminSidebarGroup[] {
           label: 'Clientes',
           icon: UsersRound,
           count: counts?.customers ?? '--',
-          href: '/admin?view=customers',
+          href: '/admin/clientes',
         },
       ],
     },
@@ -155,7 +155,7 @@ function buildSidebarGroups(counts?: AdminSidebarCounts): AdminSidebarGroup[] {
           label: 'Integrações',
           icon: Waypoints,
           count: counts?.integrations ?? '04',
-          href: '/admin?view=integrations',
+          href: '/admin/integracoes',
         },
         {
           key: 'bling',

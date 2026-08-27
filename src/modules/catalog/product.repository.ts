@@ -35,6 +35,7 @@ import {
 } from './category-groups';
 import { isRenderableCatalogImageUrl } from './catalog-image-url';
 import { normalizeProductDescription } from './product-description';
+import { normalizeAdminQuery, toAdminPaginatedResult, type AdminPaginatedResult, type AdminPaginationInput } from '@/modules/admin/admin-pagination';
 
 export type CatalogDataSource = 'supabase' | 'mock' | 'unavailable';
 
@@ -67,6 +68,15 @@ export interface UpdateProductStockInput {
   productId: string;
   stock: number;
 }
+
+export interface AdminProductFilters extends AdminPaginationInput {
+  q?: string;
+  status?: ProductStatus | 'all';
+}
+
+export type AdminProductPageResult = AdminPaginatedResult<ProductSummary> & {
+  source: CatalogDataSource;
+};
 
 export interface MarkIntegrationProductInactiveInput {
   storeId: string;
@@ -1390,6 +1400,57 @@ export async function listAdminProductsWithSourceFromRepository(
       process.env.NODE_ENV === 'production'
         ? []
         : mockProducts.map(toProductSummary),
+    source: process.env.NODE_ENV === 'production' ? 'unavailable' : 'mock',
+  };
+}
+
+export async function listAdminProductsPageFromRepository(
+  storeId: string,
+  filters: AdminProductFilters
+): Promise<AdminProductPageResult> {
+  const clients = await getCatalogReadClients({ adminOnly: true });
+  const from = (filters.page - 1) * filters.pageSize;
+  const to = from + filters.pageSize - 1;
+  const q = normalizeAdminQuery(filters.q);
+
+  for (const supabase of clients) {
+    let query = supabase
+      .from('products')
+      .select('*', { count: 'exact' })
+      .eq('store_id', storeId);
+
+    if (filters.status && filters.status !== 'all') query = query.eq('status', filters.status);
+    if (q) query = query.ilike('name', `%${q}%`);
+
+    const { data, error, count } = await query
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error || !data) continue;
+
+    const mapped = await mapSupabaseProductsWithRelations(
+      supabase,
+      storeId,
+      data as ProductRow[]
+    );
+    if (!mapped.data) continue;
+
+    return {
+      ...toAdminPaginatedResult(mapped.data.map(toProductSummary), count ?? 0, filters),
+      source: 'supabase',
+    };
+  }
+
+  const fallback = process.env.NODE_ENV === 'production'
+    ? []
+    : mockProducts.map(toProductSummary).filter((product) => {
+        const matchesQuery = !q || product.name.toLowerCase().includes(q.toLowerCase());
+        const matchesStatus = !filters.status || filters.status === 'all' || product.status === filters.status;
+        return matchesQuery && matchesStatus;
+      });
+  const items = fallback.slice(from, to + 1);
+  return {
+    ...toAdminPaginatedResult(items, fallback.length, filters),
     source: process.env.NODE_ENV === 'production' ? 'unavailable' : 'mock',
   };
 }

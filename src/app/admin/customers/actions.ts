@@ -48,4 +48,5 @@ export async function createAdminCustomerAction(formData: FormData) {
   });
 
   revalidatePath('/admin');
+  revalidatePath('/admin/clientes');
 }

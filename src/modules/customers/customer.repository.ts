@@ -10,6 +10,7 @@ import type {
   CustomerSource,
 } from './customer.types';
 import type { CustomerType } from '@/modules/pricing/pricing.types';
+import { normalizeAdminQuery, toAdminPaginatedResult, type AdminPaginatedResult, type AdminPaginationInput } from '@/modules/admin/admin-pagination';
 
 type CustomerRow = {
   id: string;
@@ -61,6 +62,15 @@ type OrderMetricRow = {
 export type CustomerListResult = {
   data: CustomerListItem[];
   source: 'supabase' | 'unavailable';
+};
+
+export interface AdminCustomerFilters extends AdminPaginationInput {
+  q?: string;
+  status?: 'all' | 'pf' | 'pj';
+}
+
+export type AdminCustomerPageResult = AdminPaginatedResult<CustomerListItem> & {
+  source: CustomerListResult['source'];
 };
 
 type RepositoryError = {
@@ -640,6 +650,51 @@ export async function listCustomersWithSourceFromRepository(
     }),
     source: metricsResult.error ? 'unavailable' : 'supabase',
   };
+}
+
+export async function listCustomersPageFromRepository(
+  storeId: string,
+  filters: AdminCustomerFilters
+): Promise<AdminCustomerPageResult> {
+  const supabase = createOptionalAdminClient();
+  if (!supabase) return { ...toAdminPaginatedResult([], 0, filters), source: 'unavailable' };
+
+  const from = (filters.page - 1) * filters.pageSize;
+  const to = from + filters.pageSize - 1;
+  const q = normalizeAdminQuery(filters.q);
+  let query = supabase.from('customers').select(customerFields, { count: 'exact' }).eq('store_id', storeId);
+  if (filters.status && filters.status !== 'all') query = query.eq('customer_type', filters.status);
+  if (q) query = query.or(`name.ilike.%${q}%,email.ilike.%${q}%`);
+  const { data, error, count } = await query.order('updated_at', { ascending: false }).range(from, to);
+  if (error || !data) return { ...toAdminPaginatedResult([], 0, filters), source: 'unavailable' };
+
+  const rows = data as CustomerRow[];
+  const ids = rows.map((row) => row.id);
+  const [addresses, metricsResult] = await Promise.all([
+    getDefaultAddressesByCustomerId(storeId, ids),
+    ids.length
+      ? supabase.from('orders').select('customer_id,order_number,total,created_at,payment_status').eq('store_id', storeId).eq('payment_status', 'paid').in('customer_id', ids)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  const metrics = new Map<string, { ordersCount: number; totalSpent: number; lastPurchaseAt?: string; lastOrderNumber?: string }>();
+  for (const order of (metricsResult.data as OrderMetricRow[] | null) ?? []) {
+    if (!order.customer_id) continue;
+    const current = metrics.get(order.customer_id) ?? { ordersCount: 0, totalSpent: 0 };
+    const createdAt = order.created_at ?? fallbackDate;
+    const latest = !current.lastPurchaseAt || createdAt > current.lastPurchaseAt;
+    metrics.set(order.customer_id, {
+      ordersCount: current.ordersCount + 1,
+      totalSpent: current.totalSpent + toNumber(order.total),
+      lastPurchaseAt: latest ? createdAt : current.lastPurchaseAt,
+      lastOrderNumber: latest ? order.order_number : current.lastOrderNumber,
+    });
+  }
+  const items = rows.map((row) => {
+    const customer = mapCustomer(row, addresses.get(row.id));
+    const metric = metrics.get(row.id);
+    return { ...customer, ordersCount: metric?.ordersCount ?? 0, totalSpent: metric?.totalSpent ?? 0, lastPurchaseAt: metric?.lastPurchaseAt, lastOrderNumber: metric?.lastOrderNumber };
+  });
+  return { ...toAdminPaginatedResult(items, count ?? 0, filters), source: 'supabase' };
 }
 
 export async function findCustomerByCheckoutIdentifierFromRepository(input: {

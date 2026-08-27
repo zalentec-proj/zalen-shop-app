@@ -10,6 +10,8 @@ import {
   listCustomerAddressesFromRepository,
   listCustomersFromRepository,
   listCustomersWithSourceFromRepository,
+  listCustomersPageFromRepository,
+  type AdminCustomerFilters,
   setDefaultCustomerAddressInRepository,
   upsertCustomerAddressInRepository,
   upsertCustomerInRepository,
@@ -118,6 +120,10 @@ export async function listCustomers(storeId: string): Promise<CustomerListItem[]
 
 export async function listCustomersWithSource(storeId: string) {
   return listCustomersWithSourceFromRepository(storeId);
+}
+
+export async function listCustomersPage(storeId: string, filters: AdminCustomerFilters) {
+  return listCustomersPageFromRepository(storeId, filters);
 }
 
 export async function listCustomerAddresses(input: {

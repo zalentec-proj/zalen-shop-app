@@ -1,129 +1,33 @@
-import type { Metadata } from 'next';
+import { AlertCircle, Package2, ShoppingCart, UsersRound, Waypoints } from 'lucide-react';
 import Link from 'next/link';
-import { notFound, redirect } from 'next/navigation';
-import { platformBrand } from '@/lib/branding/platform-brand';
-import { noindexMetadata } from '@/modules/seo/seo.service';
-import {
-  listAdminProductsWithSource,
-  listCategoriesWithSource,
-} from '@/modules/catalog/product.service';
-import { listCustomersWithSource } from '@/modules/customers/customer.service';
-import { listOrdersWithSource } from '@/modules/orders/order.service';
-import { listAdminVariantPriceSummaries } from '@/modules/pricing/pricing.service';
+import { redirect } from 'next/navigation';
+import { AdminDataList, AdminDataListRow, AdminKpiCard, AdminKpiGrid, AdminPageFrame, AdminPageHeader, AdminSectionCard } from '@/components/admin/AdminLayout';
+import { listAdminProductsPage } from '@/modules/catalog/product.service';
+import { listCustomersPage } from '@/modules/customers/customer.service';
 import { listStoreIntegrationsWithSource } from '@/modules/integrations/core/store-integration.service';
-import {
-  getCurrentUser,
-  getPlatformRole,
-  getStoreMembership,
-} from '@/modules/auth/auth.service';
-import {
-  getOptionalStoreFromResolution,
-  resolveStoreFromHeaders,
-} from '@/modules/stores/store-resolution';
-import type { StoreContext } from '@/modules/stores/store.types';
-import { logoutAction } from '@/app/login/actions';
-import AdminDashboard from './AdminDashboard';
+import { listOrdersPage } from '@/modules/orders/order.service';
+import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 
-export const metadata: Metadata = {
-  title: `${platformBrand.productName} Admin`,
-  ...noindexMetadata,
-};
+const legacyRoutes: Record<string, string> = { orders: '/admin/pedidos', products: '/admin/produtos', customers: '/admin/clientes', integrations: '/admin/integracoes', settings: '/admin/configuracoes' };
 
-export const dynamic = 'force-dynamic';
-
-function AccessDenied({ store }: { store: StoreContext }) {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-[#05070B] px-6 text-white">
-      <section className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0A1730]/90 p-7 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
-        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-300">
-          Acesso restrito
-        </p>
-        <h1 className="mt-3 font-display text-2xl font-semibold tracking-[-0.03em]">
-          Sem permissão para esta loja
-        </h1>
-        <p className="mt-3 text-sm leading-6 text-slate-400">
-          Sua conta está autenticada, mas não possui vínculo com{' '}
-          {store.name} nem acesso global da plataforma.
-        </p>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <form action={logoutAction}>
-            <button
-              type="submit"
-              className="rounded-lg bg-blue-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2f68ff]"
-            >
-              Sair
-            </button>
-          </form>
-          <Link
-            href={store.storefrontPath}
-            className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-white/20 hover:text-white"
-          >
-            Voltar para a loja
-          </Link>
-        </div>
-      </section>
-    </main>
-  );
-}
-
-export default async function AdminPage() {
-  const user = await getCurrentUser();
-  const storeResolution = await resolveStoreFromHeaders();
-  const store = getOptionalStoreFromResolution(storeResolution);
-
-  if (!store) {
-    notFound();
+export default async function AdminOverviewPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const params = await searchParams;
+  const view = typeof params.view === 'string' ? params.view : undefined;
+  if (view && view !== 'dashboard' && legacyRoutes[view]) {
+    const next = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (key !== 'view' && typeof value === 'string') next.set(key, value);
+    });
+    redirect(`${legacyRoutes[view]}${next.size ? `?${next.toString()}` : ''}`);
   }
-
-  if (!user) {
-    redirect('/login');
-  }
-
-  const [platformRole, membership] = await Promise.all([
-    getPlatformRole(user.id),
-    getStoreMembership(user.id, store.id),
-  ]);
-
-  if (!platformRole && !membership) {
-    return <AccessDenied store={store} />;
-  }
-
-  const [
-    productsResult,
-    categoriesResult,
-    ordersResult,
-    integrationsResult,
-    customersResult,
-    variantPrices,
-  ] = await Promise.all([
-    listAdminProductsWithSource(store.id),
-    listCategoriesWithSource(store.id),
-    listOrdersWithSource(store.id),
+  const store = await resolveCurrentStoreFromHeaders();
+  const [products, orders, customers, integrations] = await Promise.all([
+    listAdminProductsPage(store.id, { page: 1, pageSize: 25, status: 'all' }),
+    listOrdersPage(store.id, { page: 1, pageSize: 25, status: 'all' }),
+    listCustomersPage(store.id, { page: 1, pageSize: 25, status: 'all' }),
     listStoreIntegrationsWithSource(store.id),
-    listCustomersWithSource(store.id),
-    listAdminVariantPriceSummaries(store.id),
   ]);
-
-  return (
-    <AdminDashboard
-      store={store}
-      products={productsResult.data}
-      categories={categoriesResult.data}
-      orders={ordersResult.data}
-      customers={customersResult.data}
-      variantPrices={variantPrices}
-      integrations={integrationsResult.data}
-      dataSources={{
-        products: productsResult.source,
-        categories: categoriesResult.source,
-        orders: ordersResult.source,
-        customers: customersResult.source,
-        integrations: integrationsResult.source,
-      }}
-      adminUser={{
-        email: user.email,
-        role: platformRole ?? membership!.role,
-      }}
-    />
-  );
+  const pendingOrders = orders.items.filter((order) => order.status === 'pending' || order.externalErpSyncStatus === 'error');
+  const connected = integrations.data.filter((item) => item.integration?.status === 'connected').length;
+  return <AdminPageFrame><AdminPageHeader eyebrow="Operação" title="Visão geral" description={`O que pede atenção agora em ${store.shortName}.`} /><div className="space-y-4 pt-4"><AdminKpiGrid><AdminKpiCard icon={ShoppingCart} label="Pedidos" value={String(orders.total)} helper={`${pendingOrders.length} na fila prioritária desta página`} /><AdminKpiCard icon={Package2} label="Produtos" value={String(products.total)} helper="Catálogo administrável da loja" /><AdminKpiCard icon={UsersRound} label="Clientes" value={String(customers.total)} helper="Perfis vinculados à loja" /><AdminKpiCard icon={Waypoints} label="Integrações" value={`${connected}/${integrations.data.length}`} helper="Conectores ativos" /></AdminKpiGrid><div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(300px,.6fr)]"><AdminSectionCard title="Fila prioritária" description="Pedidos recentes que ainda precisam de ação." action={<Link href="/admin/pedidos" className="text-xs font-semibold text-blue-300">Ver pedidos</Link>}>{pendingOrders.length ? <AdminDataList>{pendingOrders.slice(0, 5).map((order) => <AdminDataListRow key={order.id} leading={<AlertCircle className="h-4 w-4 text-amber-300" />} title={`Pedido ${order.orderNumber}`} description={order.customerName ?? order.customer?.name ?? 'Cliente não informado'} meta={<span>R$ {order.total.toFixed(2).replace('.', ',')}</span>} action={<Link href={`/admin/pedidos?record=${order.id}`} className="text-blue-300">Abrir</Link>} />)}</AdminDataList> : <p className="py-8 text-center text-xs text-slate-400">Nenhum pedido prioritário nesta página.</p>}</AdminSectionCard><AdminSectionCard title="Próximas ações" description="Atalhos para tarefas frequentes."><div className="grid gap-2">{[['Revisar catálogo', '/admin/produtos'], ['Organizar menu público', '/admin/configuracoes/loja-online'], ['Ver saúde dos conectores', '/admin/integracoes']].map(([label, href]) => <Link key={href} href={href} className="rounded-lg border border-white/7 bg-[#081225] px-3 py-3 text-xs font-semibold text-slate-200 transition hover:border-blue-400/30 hover:text-white">{label}</Link>)}</div></AdminSectionCard></div></div></AdminPageFrame>;
 }

@@ -1,0 +1,29 @@
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { AdminBadge, AdminEmptyState, AdminFilterBar, AdminPageFrame, AdminPageHeader, AdminPagination, AdminTableCard } from '@/components/admin/AdminLayout';
+import { AdminDrawer } from '@/components/admin/AdminDrawer';
+import { buildAdminListUrl, normalizeAdminPagination, type AdminListSearchParams } from '@/modules/admin/admin-pagination';
+import { listAdminProductsPage } from '@/modules/catalog/product.service';
+import type { ProductStatus } from '@/modules/catalog/product.types';
+import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
+import { updateProductStatusAction, updateProductStockAction } from '../products/actions';
+
+const labels: Record<ProductStatus, string> = { active: 'Publicado', inactive: 'Oculto', draft: 'Rascunho' };
+
+export default async function ProductsPage({ searchParams }: { searchParams: Promise<AdminListSearchParams> }) {
+  const params = await searchParams;
+  const pagination = normalizeAdminPagination(params, 50);
+  const status = ['active', 'inactive', 'draft'].includes(params.status ?? '') ? params.status as ProductStatus : 'all';
+  const store = await resolveCurrentStoreFromHeaders();
+  const result = await listAdminProductsPage(store.id, { ...pagination, q: params.q, status });
+  if (result.total > 0 && result.page > result.pageCount) redirect(buildAdminListUrl('/admin/produtos', { q: params.q, status: status === 'all' ? undefined : status, record: params.record }, { page: result.pageCount, pageSize: result.pageSize }));
+  const selected = result.items.find((item) => item.id === params.record);
+  const openHref = (id: string) => {
+    const query = new URLSearchParams();
+    if (params.q) query.set('q', params.q);
+    if (status !== 'all') query.set('status', status);
+    query.set('page', String(result.page)); query.set('pageSize', String(result.pageSize)); query.set('record', id);
+    return `/admin/produtos?${query}`;
+  };
+  return <AdminPageFrame><AdminPageHeader eyebrow="Catálogo" title="Produtos" description="Preço, estoque e publicação sem expor detalhes internos na lista." /><div className="space-y-3 pt-4"><AdminFilterBar action="/admin/produtos" query={params.q} status={status} placeholder="Buscar produto…" statuses={[{ value: 'all', label: 'Todos os status' }, { value: 'active', label: 'Publicados' }, { value: 'inactive', label: 'Ocultos' }, { value: 'draft', label: 'Rascunhos' }]} /><AdminTableCard>{result.items.length ? <table className="w-full min-w-[720px] text-left text-xs"><thead className="border-b border-white/7 text-[10px] uppercase tracking-wider text-slate-500"><tr><th className="px-4 py-3">Produto</th><th className="px-4 py-3">Preço</th><th className="px-4 py-3">Estoque</th><th className="px-4 py-3">Publicação</th><th className="px-4 py-3 text-right">Ação</th></tr></thead><tbody className="divide-y divide-white/6">{result.items.map((product) => <tr key={product.id} className="hover:bg-white/[.025]"><td className="px-4 py-3"><div className="font-semibold text-white">{product.name}</div><div className="mt-1 text-[11px] text-slate-500">{product.categories.map((category) => category.name).slice(0, 2).join(' · ') || 'Sem categoria'}</div></td><td className="px-4 py-3 text-slate-200">R$ {product.price.toFixed(2).replace('.', ',')}</td><td className="px-4 py-3 text-slate-300">{product.stock}</td><td className="px-4 py-3"><AdminBadge tone={product.status === 'active' ? 'success' : product.status === 'draft' ? 'warning' : 'neutral'}>{labels[product.status]}</AdminBadge></td><td className="px-4 py-3 text-right"><Link href={openHref(product.id)} scroll={false} className="font-semibold text-blue-300 hover:text-blue-200">Editar</Link></td></tr>)}</tbody></table> : <AdminEmptyState title="Nenhum produto encontrado" description="Altere a busca ou os filtros para visualizar outros itens." />}<AdminPagination pathname="/admin/produtos" page={result.page} pageCount={result.pageCount} pageSize={result.pageSize} total={result.total} query={{ q: params.q, status: status === 'all' ? undefined : status }} /></AdminTableCard></div>{selected ? <AdminDrawer title={selected.name} description="Ajustes comerciais do produto."><div className="space-y-5"><form action={updateProductStockAction} className="space-y-2"><input type="hidden" name="productId" value={selected.id} /><label htmlFor="product-stock" className="block text-xs font-semibold text-slate-200">Estoque disponível</label><div className="flex gap-2"><input id="product-stock" name="stock" type="number" min="0" defaultValue={selected.stock} className="h-9 min-w-0 flex-1 rounded-lg border border-white/8 bg-[#050A14] px-3" /><button className="rounded-lg bg-blue-600 px-4 text-xs font-semibold">Salvar</button></div></form><form action={updateProductStatusAction} className="space-y-2"><input type="hidden" name="productId" value={selected.id} /><label htmlFor="product-status" className="block text-xs font-semibold text-slate-200">Publicação</label><div className="flex gap-2"><select id="product-status" name="status" defaultValue={selected.status} className="h-9 flex-1 rounded-lg border border-white/8 bg-[#050A14] px-3"><option value="active">Publicado</option><option value="inactive">Oculto</option><option value="draft">Rascunho</option></select><button className="rounded-lg bg-blue-600 px-4 text-xs font-semibold">Salvar</button></div></form><details className="rounded-lg border border-white/7 bg-[#050A14] p-3 text-xs"><summary className="cursor-pointer font-semibold text-slate-300">Detalhes técnicos</summary><dl className="mt-3 grid gap-2 text-slate-500"><div><dt>SKU</dt><dd className="text-slate-300">{selected.sku ?? 'Não informado'}</dd></div><div><dt>ID externo</dt><dd className="break-all text-slate-300">{selected.externalId ?? 'Não informado'}</dd></div></dl></details></div></AdminDrawer> : null}</AdminPageFrame>;
+}
