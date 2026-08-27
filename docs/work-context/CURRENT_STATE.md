@@ -6,7 +6,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Snapshot
 
-- Atualizado em: 2026-08-25
+- Atualizado em: 2026-08-27
 - Branch: `refactor/migrate-to-next`
 - Commit funcional base antes desta revisão: `be3a961` —
   `fix: retry failed single-product syncs`
@@ -22,6 +22,49 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Login e admin pertencem à identidade Zalen Shop; o storefront pertence à loja ativa.
 - `/platform` completo, billing, marketplace e automações de IA continuam fora do MVP.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
+
+## Admin Zalen Shop padronizado (27/08/2026)
+
+- Objetivo: reduzir a densidade técnica das 17 telas do admin e consolidar
+  autenticação, loja ativa, sidebar, conta e logout em um único shell Zalen.
+- Foi criado `src/app/admin/layout.tsx` com `AdminShell`; os shells próprios de
+  Configurações, Bling, WhatsApp, Marketing e Mercado Pago deixaram de montar
+  sidebars e cabeçalhos de conta paralelos. Logo, navegação e identidade agora
+  permanecem constantes entre as telas.
+- `/admin/pedidos`, `/admin/produtos`, `/admin/clientes` e
+  `/admin/integracoes` são rotas reais. Links antigos `?view=` redirecionam para
+  elas preservando os demais parâmetros. O `AdminDashboard` cliente antigo foi
+  removido.
+- Produtos, pedidos e clientes usam paginação server-side com `store_id`,
+  contagem exata, busca/filtro normalizados e relações limitadas aos IDs da
+  página. Compatibilidade usa a mesma paginação de produtos, 25 itens por
+  página. Os tipos e utilitários compartilhados ficam em
+  `src/modules/admin/admin-pagination.ts`.
+- Drawers são controlados por `record` e fecham com `router.replace`, mantendo
+  busca, filtro e página. Cadastro de cliente usa modal pela URL. Os overlays
+  tratam `Esc`, foco inicial, contenção de Tab e restauração de foco.
+- A visão geral agora prioriza quatro KPIs, fila e próximas ações. Produtos,
+  pedidos e clientes são tabelas compactas; detalhes técnicos ficam
+  recolhidos. Compatibilidade, menu público e documentos legais mantêm apenas
+  um editor aberto. Loja online separa o menu das categorias do catálogo e
+  oferece reordenação por botões. Configurações está agrupada em Loja, Vendas e
+  Catálogo. DNS, envio e diagnósticos de pagamento ficam recolhidos.
+- Os conectores compartilham o shell. O catálogo de integrações tem busca,
+  filtro, status e uma ação por card. Bling mantém a operação principal visível
+  e as ferramentas de diagnóstico em seções avançadas; WhatsApp e Marketing
+  preservam seus serviços separados; Mercado Pago prioriza ambiente e saúde.
+- Nenhuma migration, alteração de dados, dependência visual, chamada nova a
+  provedor ou rota `/platform` foi introduzida.
+- Validações concluídas: TypeScript, 214 testes em 49 arquivos, build de
+  produção, auditoria npm com zero vulnerabilidades, scanner de segredos e
+  `git diff --check`.
+- A verificação visual local confirmou login carregando sem tela vazia ou
+  overlay. As capturas autenticadas das 17 telas não puderam ser geradas porque
+  nem o navegador isolado nem o Chrome possuíam sessão válida para localhost;
+  nenhuma credencial foi lida ou transmitida. Próximo passo exato: após abrir
+  uma sessão admin em `http://localhost:3000`, capturar as 17 rotas em
+  1440×1000 e 390×844 e conferir item ativo, overflow, filtros, paginação,
+  modal/drawers, `Esc` e restauração de foco.
 
 ## Estoque e composição do detalhe de produto (24/08/2026)
 
