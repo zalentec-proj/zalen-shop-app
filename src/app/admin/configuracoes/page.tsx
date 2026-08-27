@@ -26,6 +26,7 @@ const setupAreas = [
     href: '/admin/configuracoes/loja-online',
     icon: Store,
     status: 'Ativo',
+    group: 'Loja',
   },
   {
     title: 'Preços',
@@ -33,6 +34,7 @@ const setupAreas = [
     href: '/admin/configuracoes/precos',
     icon: Percent,
     status: 'Inicial',
+    group: 'Vendas',
   },
   {
     title: 'Pagamentos',
@@ -40,6 +42,7 @@ const setupAreas = [
     href: '/admin/configuracoes/pagamentos',
     icon: CreditCard,
     status: 'Pendente',
+    group: 'Vendas',
   },
   {
     title: 'Envios',
@@ -47,6 +50,7 @@ const setupAreas = [
     href: '/admin/configuracoes/envios',
     icon: Truck,
     status: 'Inicial',
+    group: 'Vendas',
   },
   {
     title: 'Domínios',
@@ -54,6 +58,7 @@ const setupAreas = [
     href: '/admin/configuracoes/dominios',
     icon: Globe2,
     status: 'Planejado',
+    group: 'Loja',
   },
   {
     title: 'Compatibilidade por modelo',
@@ -61,6 +66,7 @@ const setupAreas = [
     href: '/admin/configuracoes/compatibilidade',
     icon: ScanSearch,
     status: 'Inicial',
+    group: 'Catálogo',
   },
   {
     title: 'Documentos legais',
@@ -68,6 +74,7 @@ const setupAreas = [
     href: '/admin/configuracoes/documentos-legais',
     icon: ShieldCheck,
     status: 'Pendente',
+    group: 'Loja',
   },
 ];
 
@@ -86,8 +93,11 @@ export default function SettingsIndexPage() {
         description="Arquitetura organizada para operar a loja dentro da Zalen, com conectores externos ativados somente quando houver implementação aprovada."
         action={<SettingsBadge tone="info">Zalen Shop</SettingsBadge>}
       >
-        <div className="grid gap-3 lg:grid-cols-5">
-          {setupAreas.map((area) => {
+        <div className="space-y-5">
+          {(['Loja', 'Vendas', 'Catálogo'] as const).map((group) => <section key={group}>
+            <h2 className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{group}</h2>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {setupAreas.filter((area) => area.group === group).map((area) => {
             const Icon = area.icon;
 
             return (
@@ -115,6 +125,8 @@ export default function SettingsIndexPage() {
               </Link>
             );
           })}
+            </div>
+          </section>)}
         </div>
       </SettingsPanel>
 

@@ -12,12 +12,10 @@ import {
   Unplug,
   WalletCards,
 } from 'lucide-react';
-import { AdminSidebar } from '@/app/admin/AdminSidebar';
 import {
   AdminContentGrid,
   AdminPageFrame,
 } from '@/components/admin/AdminLayout';
-import { logoutAction } from '@/app/login/actions';
 import { platformBrand } from '@/lib/branding/platform-brand';
 import { noindexMetadata } from '@/modules/seo/seo.service';
 import {
@@ -301,17 +299,7 @@ export default async function MercadoPagoIntegrationPage({
   const activated = firstParam(params.activated);
 
   return (
-    <div className="min-h-screen bg-[#050A14] text-white">
-      <AdminSidebar
-        activeKey="payments"
-        storeShortName={store.shortName}
-        footerLabel="Conectores"
-        footerTitle="Pagamentos"
-        footerDescription={`Mercado Pago por loja para ${store.shortName}.`}
-      />
-
-      <main className="min-w-0 transition-[padding] duration-200 xl:pl-[var(--admin-shell-sidebar-width,15rem)]">
-        <AdminPageFrame>
+    <AdminPageFrame>
           <div className="rounded-lg border border-white/8 bg-[#07101F] shadow-[0_24px_90px_rgba(0,0,0,0.32)]">
             <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/8 px-4 py-4">
               <div>
@@ -329,23 +317,11 @@ export default async function MercadoPagoIntegrationPage({
                   Mercado Pago
                 </h1>
                 <p className="mt-1 max-w-2xl text-sm text-slate-400">
-                  Payment Brick com OAuth por loja. Tokens e refresh tokens ficam criptografados no servidor.
+                  Ambiente, disponibilidade e saúde dos pagamentos da loja.
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="rounded-lg border border-white/8 bg-[#0A1730] px-3 py-2 text-xs text-slate-300">
-                  {user.email}
-                </div>
-                <form action={logoutAction}>
-                  <button
-                    type="submit"
-                    className="rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:text-white"
-                  >
-                    Sair
-                  </button>
-                </form>
-              </div>
+              <WalletCards className="h-6 w-6 text-blue-300" />
             </header>
 
             <div className="space-y-4 p-4">
@@ -450,8 +426,6 @@ export default async function MercadoPagoIntegrationPage({
               </AdminContentGrid>
             </div>
           </div>
-        </AdminPageFrame>
-      </main>
-    </div>
+    </AdminPageFrame>
   );
 }

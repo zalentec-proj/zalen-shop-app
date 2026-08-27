@@ -1,21 +1,27 @@
 import { SettingsBadge, SettingsPanel } from '../SettingsShell';
+import { redirect } from 'next/navigation';
 import CompatibilityManager from './CompatibilityManager';
+import { AdminFilterBar, AdminPagination } from '@/components/admin/AdminLayout';
+import { buildAdminListUrl, normalizeAdminPagination, type AdminListSearchParams } from '@/modules/admin/admin-pagination';
 import { activateDroneModelNavigationAction } from './actions';
 import { detectDroneModels } from '@/modules/catalog/drone-model.definitions';
 import {
   listAdminDroneModelCatalog,
   listProductDroneModelLinks,
 } from '@/modules/catalog/drone-model.service';
-import { listAdminProductsWithSource } from '@/modules/catalog/product.service';
+import { listAdminProductsPage } from '@/modules/catalog/product.service';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
 
-export default async function CompatibilityPage() {
+export default async function CompatibilityPage({ searchParams }: { searchParams: Promise<AdminListSearchParams> }) {
+  const params = await searchParams;
+  const pagination = normalizeAdminPagination(params, 25);
   const store = await resolveCurrentStoreFromHeaders();
   const [catalog, productsResult] = await Promise.all([
     listAdminDroneModelCatalog(store.id),
-    listAdminProductsWithSource(store.id),
+    listAdminProductsPage(store.id, { ...pagination, q: params.q, status: 'all' }),
   ]);
-  const productIds = productsResult.data.map((product) => product.id);
+  const productIds = productsResult.items.map((product) => product.id);
+  if (productsResult.total > 0 && productsResult.page > productsResult.pageCount) redirect(buildAdminListUrl('/admin/configuracoes/compatibilidade', { q: params.q, record: params.record }, { page: productsResult.pageCount, pageSize: productsResult.pageSize }));
   const links = await listProductDroneModelLinks(store.id, productIds);
   const modelBySlug = new Map(
     catalog.flatMap((line) => line.models.map((model) => [model.slug, model]))
@@ -33,7 +39,7 @@ export default async function CompatibilityPage() {
       lineLabel: line.name,
     }))
   );
-  const rows = productsResult.data.map((product) => {
+  const rows = productsResult.items.map((product) => {
     const detected = detectDroneModels(`${product.name} ${product.sku ?? ''}`)
       .map((item) => modelBySlug.get(item.modelSlug)?.id)
       .filter((id): id is string => Boolean(id));
@@ -96,7 +102,16 @@ export default async function CompatibilityPage() {
       </SettingsPanel>
 
       <SettingsPanel>
-        <CompatibilityManager models={models} products={rows} />
+        <div className="space-y-3">
+          <AdminFilterBar action="/admin/configuracoes/compatibilidade" query={params.q} placeholder="Buscar produto ou SKU…" statuses={[{ value: 'all', label: 'Todos os produtos' }]} />
+          <CompatibilityManager
+            models={models}
+            products={rows}
+            selectedId={params.record}
+            openHrefBase={`/admin/configuracoes/compatibilidade?page=${productsResult.page}&pageSize=${productsResult.pageSize}${params.q ? `&q=${encodeURIComponent(params.q)}` : ''}`}
+          />
+          <AdminPagination pathname="/admin/configuracoes/compatibilidade" page={productsResult.page} pageCount={productsResult.pageCount} pageSize={productsResult.pageSize} total={productsResult.total} query={{ q: params.q }} />
+        </div>
       </SettingsPanel>
     </div>
   );

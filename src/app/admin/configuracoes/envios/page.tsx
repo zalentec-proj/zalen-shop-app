@@ -102,7 +102,9 @@ export default async function ShippingSettingsPage() {
               </SettingsBadge>
             }
           >
-            <form action={upsertShippingOriginAction} className="grid gap-3">
+            <details className="group rounded-lg border border-white/7 bg-[#081225] p-3">
+              <summary className="cursor-pointer text-xs font-semibold text-blue-300">Editar origem</summary>
+            <form action={upsertShippingOriginAction} className="mt-3 grid gap-3">
               <Field
                 label="Remetente"
                 name="senderName"
@@ -186,6 +188,7 @@ export default async function ShippingSettingsPage() {
                 Salvar origem
               </button>
             </form>
+            </details>
           </SettingsPanel>
         }
       >
@@ -240,8 +243,9 @@ export default async function ShippingSettingsPage() {
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-white/6 bg-[#081225] p-3">
-                  <div className="grid gap-2">
+                <details className="rounded-lg border border-white/6 bg-[#081225] p-3">
+                  <summary className="cursor-pointer text-xs font-semibold text-blue-300">Editar método</summary>
+                  <div className="mt-3 grid gap-2">
                     <div className="grid min-w-0 gap-2 sm:grid-cols-2">
                       <Field
                         label="Valor"
@@ -318,7 +322,7 @@ export default async function ShippingSettingsPage() {
                       Salvar método
                     </button>
                   </div>
-                </div>
+                </details>
               </form>
             </section>
           );

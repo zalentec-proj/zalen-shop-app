@@ -2,9 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { ArrowLeft, ChevronDown, ExternalLink, ShieldCheck } from 'lucide-react';
-import { AdminSidebar } from '@/app/admin/AdminSidebar';
 import { AdminPageFrame } from '@/components/admin/AdminLayout';
-import { logoutAction } from '@/app/login/actions';
 import { platformBrand } from '@/lib/branding/platform-brand';
 import { noindexMetadata } from '@/modules/seo/seo.service';
 import {
@@ -128,22 +126,12 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
   ];
 
   return (
-    <div className="min-h-screen bg-[#050A14] text-white">
-      <AdminSidebar
-        activeKey="bling"
-        storeShortName={store.shortName}
-        footerLabel="Conectores"
-        footerTitle="ERP principal"
-        footerDescription={`ERP da loja ${store.shortName}.`}
-      />
-
-      <main className="min-w-0 transition-[padding] duration-200 xl:pl-[var(--admin-shell-sidebar-width,15rem)]">
-        <AdminPageFrame>
+    <AdminPageFrame>
           <div className="rounded-lg border border-white/8 bg-[#07101F] shadow-[0_24px_90px_rgba(0,0,0,0.32)]">
             <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/8 px-4 py-4">
               <div>
                 <Link
-                  href="/admin?view=integrations"
+                  href="/admin/integracoes"
                   className="inline-flex items-center gap-2 text-xs font-semibold text-[#8BB9FF] transition hover:text-white"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
@@ -156,23 +144,11 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
                   Bling
                 </h1>
                 <p className="mt-1 max-w-2xl text-sm text-slate-400">
-                  Operação server-side para {store.shortName}; tokens nunca são exibidos no frontend.
+                  Sincronize catálogo, estoque e pedidos de {store.shortName}.
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="rounded-lg border border-white/8 bg-[#0A1730] px-3 py-2 text-xs text-slate-300">
-                  {user.email}
-                </div>
-                <form action={logoutAction}>
-                  <button
-                    type="submit"
-                    className="rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:text-white"
-                  >
-                    Sair
-                  </button>
-                </form>
-              </div>
+              <StatusBadge status={status} />
             </header>
 
             <div className="space-y-4 p-4">
@@ -181,7 +157,7 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
                   <div>
                     <h2 className="text-base font-semibold">Status da integração</h2>
                     <p className="mt-1 text-xs text-slate-400">
-                      Estado salvo por loja em store_integrations.
+                      Saúde e disponibilidade do conector para esta loja.
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -309,8 +285,6 @@ export default async function BlingIntegrationPage({ searchParams }: PageProps) 
               ) : null}
             </div>
           </div>
-        </AdminPageFrame>
-      </main>
-    </div>
+    </AdminPageFrame>
   );
 }

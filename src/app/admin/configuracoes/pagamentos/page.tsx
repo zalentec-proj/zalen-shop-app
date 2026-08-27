@@ -185,9 +185,10 @@ export default async function PaymentSettingsPage() {
                           <SettingsBadge key={item} tone="info">{item}</SettingsBadge>
                         ))}
                       </div>
-                      <p className="mt-2 text-[11px] leading-5 text-slate-500">
-                        {provider.note}
-                      </p>
+                      <details className="mt-2 text-[11px] text-slate-500">
+                        <summary className="cursor-pointer">Detalhes</summary>
+                        <p className="mt-1 leading-5">{provider.note}</p>
+                      </details>
                     </div>
                   </div>
 

@@ -10,7 +10,6 @@ import {
   ShieldCheck,
   TriangleAlert,
 } from 'lucide-react';
-import { AdminSidebar } from '@/app/admin/AdminSidebar';
 import {
   AdminContentGrid,
   AdminPageFrame,
@@ -272,15 +271,7 @@ export default async function MarketingIntegrationsPage({
   ];
 
   return (
-    <main className="min-h-screen min-w-0 bg-[#05070B] text-white transition-[padding] duration-200 xl:pl-[var(--admin-shell-sidebar-width,15rem)]">
-      <AdminSidebar
-        activeKey="marketing"
-        storeShortName={store.shortName}
-        footerLabel="Crescimento"
-        footerTitle={store.shortName}
-        footerDescription="SEO, feed e mensuração por loja."
-      />
-      <AdminPageFrame>
+    <AdminPageFrame>
       <div className="flex flex-col gap-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -565,7 +556,6 @@ export default async function MarketingIntegrationsPage({
           </div>
         </AdminContentGrid>
         </div>
-      </AdminPageFrame>
-    </main>
+    </AdminPageFrame>
   );
 }

@@ -194,12 +194,15 @@ export function DomainsManager({
               <div className="mt-4"><Timeline domain={domain} /></div>
 
               {records.length > 0 && (
-                <div className="mt-4 overflow-x-auto rounded-lg border border-white/6">
+                <details className="mt-4 rounded-lg border border-white/6">
+                  <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-blue-300">Ver registros DNS ({records.length})</summary>
+                <div className="overflow-x-auto border-t border-white/6">
                   <table className="w-full min-w-[660px] text-left text-[11px]">
                     <thead className="bg-[#071020] text-slate-500"><tr><th className="px-3 py-2">Tipo</th><th className="px-3 py-2">Nome</th><th className="px-3 py-2">Valor exato informado pela Vercel</th><th className="px-3 py-2">Finalidade</th></tr></thead>
                     <tbody>{records.map((record, index) => <tr key={`${record.type}-${record.name}-${index}`} className="border-t border-white/6 text-slate-200"><td className="px-3 py-2 font-mono">{record.type}</td><td className="px-3 py-2"><div className="flex items-center gap-2"><span className="font-mono">{record.name}</span><CopyButton value={record.name} /></div></td><td className="px-3 py-2"><div className="flex items-center gap-2"><span className="max-w-[360px] truncate font-mono">{record.value}</span><CopyButton value={record.value} /></div></td><td className="px-3 py-2 text-slate-400">{record.purpose === 'ownership' ? 'Propriedade' : 'Roteamento'}</td></tr>)}</tbody>
                   </table>
                 </div>
+                </details>
               )}
 
               {canManage && featureAvailable && domain.status !== 'removing' && (

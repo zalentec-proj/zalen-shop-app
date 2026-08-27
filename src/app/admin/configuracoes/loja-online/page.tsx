@@ -6,6 +6,8 @@ import {
   Navigation,
   Save,
 } from 'lucide-react';
+import Link from 'next/link';
+import { AdminDrawer } from '@/components/admin/AdminDrawer';
 import {
   SettingsBadge,
   SettingsPanel,
@@ -23,7 +25,7 @@ import {
 } from '@/modules/catalog/storefront-navigation';
 import { countBlingManagedChildren } from '@/modules/catalog/storefront-navigation.catalog';
 import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolution';
-import { saveStorefrontNavigationAction } from './actions';
+import { moveStorefrontNavigationItemAction, saveStorefrontNavigationAction } from './actions';
 
 const syntheticCategoryOptions = [
   { name: 'Drones', slug: 'drones' },
@@ -244,7 +246,17 @@ function NavigationItemRow({
   );
 }
 
-export default async function OnlineStoreSettingsPage() {
+function HiddenNavigationItem({ item, index }: { item: StorefrontNavigationItem; index: number }) {
+  const prefix = `items.${index}`;
+  const values: Record<string, string | number | undefined> = {
+    id: item.id, label: item.label, type: item.type, categorySlug: item.categorySlug,
+    href: item.href, parentId: item.parentId, position: item.position,
+  };
+  return <>{Object.entries(values).map(([key,value]) => value !== undefined ? <input key={key} type="hidden" name={`${prefix}.${key}`} value={value} /> : null)}{(['enabled','showInNavbar','showInCategoriesDropdown','opensInDropdown'] as const).map((key)=>item[key]?<input key={key} type="hidden" name={`${prefix}.${key}`} value="on"/>:null)}</>;
+}
+
+export default async function OnlineStoreSettingsPage({ searchParams }: { searchParams: Promise<{ record?: string }> }) {
+  const params = await searchParams;
   const store = await resolveCurrentStoreFromHeaders();
   const [catalogProducts, catalogCategories] = await Promise.all([
     listStorefrontProducts(store.id),
@@ -281,6 +293,8 @@ export default async function OnlineStoreSettingsPage() {
   const parentOptions = items.filter((item) => {
     return item.opensInDropdown || item.type === 'group' || item.showInNavbar;
   });
+  const selectedIndex = items.findIndex((item) => item.id === params.record);
+  const selectedItem = selectedIndex >= 0 ? items[selectedIndex] : undefined;
   const statCards = [
     { label: 'Itens visíveis', value: visibleCount, icon: Eye },
     { label: 'No navbar', value: navbarCount, icon: Navigation },
@@ -315,53 +329,17 @@ export default async function OnlineStoreSettingsPage() {
         </div>
       </SettingsPanel>
 
-      <form action={saveStorefrontNavigationAction} className="space-y-3">
-        <details className="group overflow-hidden rounded-lg border border-white/6 bg-[#0A1730]/95">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4">
-            <div>
-              <h2 className="text-sm font-semibold text-white">
-                Editar categorias e itens do menu
-              </h2>
-              <p className="mt-1 text-xs leading-5 text-slate-400">
-                Abra somente quando precisar alterar a navegação pública.
-              </p>
-            </div>
-            <Menu className="h-4 w-4 text-slate-400 transition group-open:rotate-90" />
-          </summary>
+      <SettingsPanel title="Menu público" description="Itens exibidos na navegação da loja. Abra somente o item que deseja alterar.">
+        <div className="divide-y divide-white/6 overflow-hidden rounded-lg border border-white/6">
+          {items.map((item,index)=><div key={item.id} className="grid gap-3 bg-[#081225] px-3 py-3 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center"><div className="flex gap-1"><form action={moveStorefrontNavigationItemAction}><input type="hidden" name="itemId" value={item.id}/><input type="hidden" name="direction" value="up"/><button disabled={index===0} aria-label={`Mover ${item.label} para cima`} className="rounded border border-white/8 px-2 py-1 text-slate-400 disabled:opacity-30">↑</button></form><form action={moveStorefrontNavigationItemAction}><input type="hidden" name="itemId" value={item.id}/><input type="hidden" name="direction" value="down"/><button disabled={index===items.length-1} aria-label={`Mover ${item.label} para baixo`} className="rounded border border-white/8 px-2 py-1 text-slate-400 disabled:opacity-30">↓</button></form></div><div><div className="flex flex-wrap items-center gap-2"><span className="font-semibold text-white">{item.label}</span><SettingsBadge tone={item.enabled?'success':'disabled'}>{item.enabled?'Visível':'Oculto'}</SettingsBadge>{countBlingManagedChildren(item,storefrontCategories)>0?<SettingsBadge tone="info">{countBlingManagedChildren(item,storefrontCategories)} subcategorias</SettingsBadge>:null}</div><p className="mt-1 text-[11px] text-slate-500">{item.href??'Grupo sem link direto'} · ordem {item.position}</p></div><Link href={`/admin/configuracoes/loja-online?record=${item.id}`} scroll={false} className="text-xs font-semibold text-blue-300">Editar</Link></div>)}
+        </div>
+      </SettingsPanel>
 
-          <div className="space-y-3 border-t border-white/6 p-3">
-            <input type="hidden" name="itemCount" value={items.length} />
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/6 bg-[#081225] p-3">
-              <p className="max-w-2xl text-xs leading-5 text-slate-400">
-                Categorias apontam para `/categoria/[slug]`. Itens customizados aceitam somente rotas internas, como `/modelos/mini-3`.
-              </p>
-              <button
-                type="submit"
-                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-[#1E3DFF]/35 bg-[linear-gradient(135deg,#1E3DFF,#0EA5E9)] px-4 text-xs font-semibold text-white"
-              >
-                <Save className="h-3.5 w-3.5" />
-                Salvar navegação
-              </button>
-            </div>
+      {selectedItem ? <AdminDrawer title={selectedItem.label} description="Edite a exibição, o vínculo e a posição deste item."><form action={saveStorefrontNavigationAction} className="space-y-4"><input type="hidden" name="itemCount" value={items.length}/>{items.map((item,index)=>index===selectedIndex?null:<HiddenNavigationItem key={item.id} item={item} index={index}/>)}<NavigationItemRow item={selectedItem} index={selectedIndex} parentOptions={parentOptions} categoryOptions={categoryOptions} blingManagedChildren={countBlingManagedChildren(selectedItem,storefrontCategories)}/><button type="submit" className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-xs font-semibold text-white"><Save className="h-3.5 w-3.5"/>Salvar item do menu</button></form></AdminDrawer>:null}
 
-            <div className="grid gap-3">
-              {items.map((item, index) => (
-                <NavigationItemRow
-                  key={item.id}
-                  item={item}
-                  index={index}
-                  parentOptions={parentOptions}
-                  categoryOptions={categoryOptions}
-                  blingManagedChildren={countBlingManagedChildren(
-                    item,
-                    storefrontCategories
-                  )}
-                />
-              ))}
-            </div>
-          </div>
-        </details>
-      </form>
+      <SettingsPanel title="Categorias do catálogo" description="Categorias disponíveis, sincronizadas do catálogo e separadas da edição do menu.">
+        <div className="flex flex-wrap gap-2">{categoryOptions.map((category)=><span key={category.slug} className="rounded-md border border-white/7 bg-[#081225] px-2.5 py-1.5 text-xs text-slate-300">{category.name}</span>)}</div>
+      </SettingsPanel>
 
       <SettingsPanel
         title="Como funciona no site"

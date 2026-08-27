@@ -12,6 +12,7 @@ import {
   toStorefrontCategories,
 } from '@/modules/catalog/storefront-product.adapter';
 import {
+  getAdminStorefrontNavigation,
   replaceStorefrontNavigationItems,
   type StorefrontNavigationItemInput,
   type StorefrontNavigationItemType,
@@ -49,6 +50,11 @@ const navigationItemSchema = z.object({
   showInNavbar: z.boolean(),
   showInCategoriesDropdown: z.boolean(),
   opensInDropdown: z.boolean(),
+});
+
+const moveNavigationItemSchema = z.object({
+  itemId: z.string().trim().min(1),
+  direction: z.enum(['up', 'down']),
 });
 
 function getBoolean(formData: FormData, key: string) {
@@ -155,4 +161,25 @@ export async function saveStorefrontNavigationAction(formData: FormData) {
   revalidatePath('/categoria/[slug]', 'page');
   revalidatePath('/modelos/[slug]', 'page');
   revalidatePath('/modelos/linha/[slug]', 'page');
+}
+
+export async function moveStorefrontNavigationItemAction(formData: FormData) {
+  const { store, allowed } = await ensureWritableAccess();
+  if (!allowed) return;
+  const parsed = moveNavigationItemSchema.safeParse({ itemId: formData.get('itemId'), direction: formData.get('direction') });
+  if (!parsed.success) return;
+  const [catalogCategories, catalogProducts] = await Promise.all([listCategories(store.id), listStorefrontProducts(store.id)]);
+  const storefrontCategories = toStorefrontCategories(catalogCategories, catalogProducts);
+  const navigation = await getAdminStorefrontNavigation(store.id, storefrontCategories);
+  const items = [...navigation.adminItems].sort((a,b)=>a.position-b.position);
+  const index = items.findIndex((item)=>item.id===parsed.data.itemId);
+  const targetIndex = parsed.data.direction === 'up' ? index - 1 : index + 1;
+  if (index < 0 || targetIndex < 0 || targetIndex >= items.length) return;
+  const currentPosition = items[index].position;
+  items[index] = { ...items[index], position: items[targetIndex].position };
+  items[targetIndex] = { ...items[targetIndex], position: currentPosition };
+  const result = await replaceStorefrontNavigationItems(store.id, items.map((item)=>({ id:item.id, label:item.label, type:item.type, categorySlug:item.categorySlug, href:item.href, parentId:item.parentId, position:item.position, enabled:item.enabled, showInNavbar:item.showInNavbar, showInCategoriesDropdown:item.showInCategoriesDropdown, opensInDropdown:item.opensInDropdown })));
+  if (!result.ok) return;
+  revalidatePath('/');
+  revalidatePath('/admin/configuracoes/loja-online');
 }
