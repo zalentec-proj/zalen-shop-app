@@ -110,21 +110,39 @@ const fallbackDefinitions: StorefrontNavigationItemInput[] = [
     showInCategoriesDropdown: true,
     opensInDropdown: true,
   },
-  ...[
-    ['Drones', 'drones'],
-    ['Baterias', 'baterias'],
-    ['Master Airscrew', 'master-airscrew'],
-  ].map(([label, categorySlug], index) => ({
-    id: `fallback-navbar-${categorySlug}`,
-    label,
-    type: 'category' as const,
-    categorySlug,
-    position: (index + 1) * 10,
+  {
+    id: 'fallback-navbar-drones',
+    label: 'Drones',
+    type: 'category',
+    categorySlug: 'drones',
+    position: 10,
     enabled: true,
     showInNavbar: true,
     showInCategoriesDropdown: true,
     opensInDropdown: false,
-  })),
+  },
+  {
+    id: 'fallback-dropdown-baterias',
+    label: 'Baterias',
+    type: 'category',
+    categorySlug: 'baterias',
+    position: 20,
+    enabled: true,
+    showInNavbar: false,
+    showInCategoriesDropdown: true,
+    opensInDropdown: true,
+  },
+  {
+    id: 'fallback-dropdown-master-airscrew',
+    label: 'Master Airscrew',
+    type: 'category',
+    categorySlug: 'master-airscrew',
+    position: 30,
+    enabled: true,
+    showInNavbar: false,
+    showInCategoriesDropdown: true,
+    opensInDropdown: false,
+  },
   ...fallbackModelNavigationItems,
   ...[
     ['Peças', 'pecas'],
@@ -326,12 +344,11 @@ function buildNavigationFromRows(
   );
   const tree = buildTree(publicItems);
   const visibleRoots = filterVisibleTree(tree.roots);
-  const categoryDropdownItems = filterVisibleTree(
-    publicItems.filter((item) => {
-      if (!item.enabled || item.showInNavbar) return false;
-      return item.showInCategoriesDropdown || Boolean(item.parentId);
-    })
-  );
+  const categoryDropdownItems = visibleRoots.filter((item) => {
+    if (!item.showInCategoriesDropdown) return false;
+
+    return !categoryDropdownRootLabels.has(normalizeNavLabel(item.label));
+  });
   const navbarItems = visibleRoots
     .filter((item) => item.showInNavbar)
     .map((item) => {

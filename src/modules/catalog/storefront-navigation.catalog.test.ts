@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { StorefrontCategory } from '@/types';
-import type { StorefrontNavigationItem } from './storefront-navigation';
+import {
+  getFallbackStorefrontNavigation,
+  type StorefrontNavigationItem,
+} from './storefront-navigation';
 import {
   countBlingManagedChildren,
   mergeBlingCategoriesIntoNavigation,
@@ -29,6 +32,62 @@ function category(
 }
 
 describe('Bling-backed storefront navigation', () => {
+  it('builds the complete Categories popover from dropdown roots and preserves descendants', () => {
+    const categories = [
+      category({
+        id: 'drones',
+        externalId: 'bling:10',
+        name: 'Drones',
+        slug: 'drones',
+        productCount: 3,
+      }),
+      category({
+        id: 'batteries',
+        externalId: 'bling:20',
+        name: 'Baterias',
+        slug: 'baterias-e-tampas',
+      }),
+      category({
+        id: 'new-batteries',
+        externalId: 'bling:21',
+        name: 'Novo',
+        slug: 'novo',
+        parentId: 'batteries',
+      }),
+      category({
+        id: 'used-batteries',
+        externalId: 'bling:22',
+        name: 'Semi Novo',
+        slug: 'semi-novo',
+        parentId: 'batteries',
+      }),
+    ];
+
+    const navigation = getFallbackStorefrontNavigation(categories);
+    const categoriesRoot = navigation.navbarItems.find(
+      (item) => item.label === 'Categorias'
+    );
+    const batteries = categoriesRoot?.children.find(
+      (item) => item.label === 'Baterias'
+    );
+
+    expect(categoriesRoot?.children).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: 'Drones' }),
+        expect.objectContaining({ label: 'Baterias' }),
+      ])
+    );
+    expect(batteries).toEqual(
+      expect.objectContaining({
+        categorySlug: 'baterias-e-tampas',
+        children: expect.arrayContaining([
+          expect.objectContaining({ label: 'Novo', categorySlug: 'novo' }),
+          expect.objectContaining({ label: 'Semi Novo', categorySlug: 'semi-novo' }),
+        ]),
+      })
+    );
+  });
+
   it('replaces local model copies with the hierarchy mirrored from Bling', () => {
     const legacyChild: StorefrontNavigationItem = {
       ...rootItem,

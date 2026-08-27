@@ -128,6 +128,8 @@ export interface UpsertIntegrationProductInput {
     attributes?: Record<string, string>;
   }>;
   category?: UpsertIntegrationCategoryInput;
+  additionalCategorySlugs?: string[];
+  managedAdditionalCategorySlugs?: string[];
   imageUrl?: string;
   imageUrls?: string[];
 }
@@ -2085,6 +2087,38 @@ export async function upsertIntegrationProductInRepository(
   let categoryLinked = false;
   let categoryCreated = false;
 
+  const managedAdditionalCategorySlugs = Array.from(
+    new Set(input.managedAdditionalCategorySlugs ?? [])
+  );
+
+  if (managedAdditionalCategorySlugs.length > 0) {
+    const { data: managedCategories, error: managedCategoriesError } = await supabase
+      .from('categories')
+      .select('id')
+      .eq('store_id', input.storeId)
+      .in('slug', managedAdditionalCategorySlugs);
+
+    if (managedCategoriesError) {
+      throw new Error('Unable to inspect managed product categories.');
+    }
+
+    const managedCategoryIds = (managedCategories ?? []).map(
+      (category) => category.id as string
+    );
+
+    if (managedCategoryIds.length > 0) {
+      const { error: clearManagedCategoriesError } = await supabase
+        .from('product_categories')
+        .delete()
+        .eq('product_id', productId)
+        .in('category_id', managedCategoryIds);
+
+      if (clearManagedCategoriesError) {
+        throw new Error('Unable to clear managed product categories.');
+      }
+    }
+  }
+
   if (input.category) {
     const category = await upsertIntegrationCategory(
       supabase,
@@ -2167,6 +2201,42 @@ export async function upsertIntegrationProductInRepository(
 
     categoryLinked = true;
     categoryCreated = category.created;
+  }
+
+  const additionalCategorySlugs = Array.from(
+    new Set(input.additionalCategorySlugs ?? [])
+  );
+
+  if (additionalCategorySlugs.length > 0) {
+    const { data: additionalCategories, error: additionalCategoriesError } =
+      await supabase
+        .from('categories')
+        .select('id')
+        .eq('store_id', input.storeId)
+        .in('slug', additionalCategorySlugs);
+
+    if (additionalCategoriesError) {
+      throw new Error('Unable to query additional product categories.');
+    }
+
+    if ((additionalCategories ?? []).length !== additionalCategorySlugs.length) {
+      throw new Error('Unable to resolve all additional product categories.');
+    }
+
+    const { error: additionalLinksError } = await supabase
+      .from('product_categories')
+      .upsert(
+        (additionalCategories ?? []).map((category) => ({
+          product_id: productId,
+          category_id: category.id,
+        }))
+      );
+
+    if (additionalLinksError) {
+      throw new Error('Unable to link additional product categories.');
+    }
+
+    categoryLinked = true;
   }
 
   return {

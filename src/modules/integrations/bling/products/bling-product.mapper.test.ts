@@ -97,4 +97,52 @@ describe('mapBlingProductToCatalogInput', () => {
       'Peça DJI & original\nPronta para uso.\n• Item A\n• Item B'
     );
   });
+
+  it('adds new batteries to the commercial battery taxonomy', () => {
+    const result = mapBlingProductToCatalogInput({
+      storeId: 'store-1',
+      product: {
+        ...baseProduct,
+        nome: 'Bateria Nova Original Mini 3',
+      },
+    });
+
+    expect(result.additionalCategorySlugs).toEqual([
+      'baterias-e-tampas',
+      'novo',
+    ]);
+    expect(result.managedAdditionalCategorySlugs).toEqual([
+      'baterias-e-tampas',
+      'novo',
+      'semi-novo',
+    ]);
+  });
+
+  it('adds semi-new batteries to the semi-new taxonomy', () => {
+    const result = mapBlingProductToCatalogInput({
+      storeId: 'store-1',
+      product: {
+        ...baseProduct,
+        nome: 'Bateria de voo inteligente SEMI NOVA',
+      },
+    });
+
+    expect(result.additionalCategorySlugs).toEqual([
+      'baterias-e-tampas',
+      'semi-novo',
+    ]);
+  });
+
+  it('does not classify drones sold without a battery as batteries', () => {
+    const result = mapBlingProductToCatalogInput({
+      storeId: 'store-1',
+      product: {
+        ...baseProduct,
+        nome: 'Drone DJI Avata 2 sem controle e bateria SEMI NOVO',
+      },
+    });
+
+    expect(result.additionalCategorySlugs).toBeUndefined();
+    expect(result.managedAdditionalCategorySlugs).toBeUndefined();
+  });
 });

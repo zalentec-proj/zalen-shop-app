@@ -10,6 +10,32 @@ import type {
 } from './bling-product.types';
 
 const provider = 'bling';
+const batteryCategorySlugs = [
+  'baterias-e-tampas',
+  'novo',
+  'semi-novo',
+] as const;
+
+function getBatteryCategorySlugs(name: string) {
+  const normalizedName = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+  if (
+    !/\bbaterias?\b/.test(normalizedName) ||
+    /\bsem\b.{0,30}\bbateria\b/.test(normalizedName)
+  ) {
+    return undefined;
+  }
+
+  return [
+    batteryCategorySlugs[0],
+    /\bsemi\s*nov[oa]s?\b/.test(normalizedName)
+      ? batteryCategorySlugs[2]
+      : batteryCategorySlugs[1],
+  ];
+}
 
 function toNumber(value: number | string | null | undefined) {
   if (value === null || value === undefined) {
@@ -215,6 +241,7 @@ export function mapBlingProductToCatalogInput(input: {
     )
   );
   const imageUrl = imageUrls[0];
+  const additionalCategorySlugs = getBatteryCategorySlugs(name);
 
   return {
     storeId: input.storeId,
@@ -238,6 +265,10 @@ export function mapBlingProductToCatalogInput(input: {
             name: input.categoryName,
           }
         : undefined,
+    additionalCategorySlugs,
+    managedAdditionalCategorySlugs: additionalCategorySlugs
+      ? [...batteryCategorySlugs]
+      : undefined,
     imageUrl,
     imageUrls,
     categoryWasClear,

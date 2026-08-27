@@ -186,17 +186,22 @@ export default function Navbar({
         ...item,
         children: item.children.filter(
           (child) =>
-            hasProductsInBranch(child) || child.id.startsWith('bling-category-')
+            child.showInCategoriesDropdown ||
+            hasProductsInBranch(child) ||
+            child.id.startsWith('bling-category-')
         ),
       }));
   }, [categoryProductCountBySlug, navLinks]);
 
   const compactCategoryMenuItems = useMemo(
-    () =>
-      visibleNavLinks.filter(
-        (item) => item.label.trim().toLocaleLowerCase('pt-BR') !== 'categorias'
-      ),
-    [visibleNavLinks]
+    () => {
+      const categoriesRoot = visibleNavLinks.find(
+        (item) => item.label.trim().toLocaleLowerCase('pt-BR') === 'categorias'
+      );
+
+      return categoriesRoot?.children ?? navigation?.categoryDropdownItems ?? [];
+    },
+    [navigation, visibleNavLinks]
   );
 
   const handleLinkClick = (categoryValue: string | null) => {

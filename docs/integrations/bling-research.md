@@ -151,6 +151,13 @@ Regras da v1:
   processamento dos produtos, preservando `external_id = bling:{id}` e
   hierarquia quando o payload trouxer pai/filhos;
 - categoria é vinculada quando `categoria.id` resolve para descrição clara;
+- a categoria única do ERP continua preservada como classificação por linha do
+  drone. Para a vitrine comercial da Brasil Drones, produtos Bling cujo nome
+  contém `bateria` recebem também os vínculos `Baterias` e `Novo` ou
+  `Semi Novo`; nomes que descrevem um drone vendido `sem ... bateria` são
+  excluídos. A condição semi-nova é reconhecida somente por `semi novo` ou
+  `semi nova` no nome, pois o contrato observado da API não fornece outro
+  sinal de condição confiável;
 - saldos usam `/estoques/saldos` quando o escopo de estoque está disponível.
 - o filtro incremental `dataAlteracaoInicial` segue o OpenAPI oficial da
   referência do Bling, com `datetime` no formato `YYYY-MM-DD HH:mm:ss` (exemplo
