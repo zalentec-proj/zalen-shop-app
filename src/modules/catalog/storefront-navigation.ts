@@ -128,7 +128,7 @@ const fallbackDefinitions: StorefrontNavigationItemInput[] = [
     categorySlug: 'baterias',
     position: 20,
     enabled: true,
-    showInNavbar: false,
+    showInNavbar: true,
     showInCategoriesDropdown: true,
     opensInDropdown: true,
   },
@@ -344,11 +344,18 @@ function buildNavigationFromRows(
   );
   const tree = buildTree(publicItems);
   const visibleRoots = filterVisibleTree(tree.roots);
-  const categoryDropdownItems = visibleRoots.filter((item) => {
+  const categoryDropdownRoot = visibleRoots.find((item) =>
+    categoryDropdownRootLabels.has(normalizeNavLabel(item.label))
+  );
+  const standaloneCategoryDropdownItems = visibleRoots.filter((item) => {
     if (!item.showInCategoriesDropdown) return false;
 
     return !categoryDropdownRootLabels.has(normalizeNavLabel(item.label));
   });
+  const categoryDropdownItems = sortNavigationItems([
+    ...(categoryDropdownRoot?.children ?? []),
+    ...standaloneCategoryDropdownItems,
+  ]);
   const navbarItems = visibleRoots
     .filter((item) => item.showInNavbar)
     .map((item) => {

@@ -61,6 +61,20 @@ describe('Bling-backed storefront navigation', () => {
         slug: 'semi-novo',
         parentId: 'batteries',
       }),
+      category({
+        id: 'parts',
+        externalId: 'bling:30',
+        name: 'Peças',
+        slug: 'pecas',
+        productCount: 4,
+      }),
+      category({
+        id: 'accessories',
+        externalId: 'bling:40',
+        name: 'Acessórios',
+        slug: 'acessorios',
+        productCount: 2,
+      }),
     ];
 
     const navigation = getFallbackStorefrontNavigation(categories);
@@ -75,6 +89,13 @@ describe('Bling-backed storefront navigation', () => {
       expect.arrayContaining([
         expect.objectContaining({ label: 'Drones' }),
         expect.objectContaining({ label: 'Baterias' }),
+        expect.objectContaining({ label: 'Peças' }),
+        expect.objectContaining({ label: 'Acessórios' }),
+      ])
+    );
+    expect(navigation.navbarItems).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: 'Baterias', showInNavbar: true }),
       ])
     );
     expect(batteries).toEqual(

@@ -151,6 +151,9 @@ Regras da v1:
   processamento dos produtos, preservando `external_id = bling:{id}` e
   hierarquia quando o payload trouxer pai/filhos;
 - categoria é vinculada quando `categoria.id` resolve para descrição clara;
+- compatibilidade por modelo DJI permanece separada de `product_categories` em
+  `product_drone_models`; vínculos confirmados pela operação não são removidos
+  pelo sync do Bling, que continua atualizando apenas a categoria ERP do produto;
 - a categoria única do ERP continua preservada como classificação por linha do
   drone. Para a vitrine comercial da Brasil Drones, produtos Bling cujo nome
   contém `bateria` recebem também os vínculos `Baterias` e `Novo` ou
