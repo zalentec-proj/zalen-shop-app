@@ -40,9 +40,12 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   página. Compatibilidade usa a mesma paginação de produtos, 25 itens por
   página. Os tipos e utilitários compartilhados ficam em
   `src/modules/admin/admin-pagination.ts`.
-- Drawers são controlados por `record` e fecham com `router.replace`, mantendo
-  busca, filtro e página. Cadastro de cliente usa modal pela URL. Os overlays
-  tratam `Esc`, foco inicial, contenção de Tab e restauração de foco.
+- Editores são controlados por `record` e fecham com `router.replace`, mantendo
+  busca, filtro e página. Em 27/08, o overlay compartilhado deixou de abrir em
+  drawer lateral: todas as telas agora usam modal central amplo e responsivo,
+  inclusive menu público, produtos, pedidos, clientes, compatibilidade e
+  documentos legais. Os overlays tratam `Esc`, foco inicial, contenção de Tab
+  e restauração de foco.
 - A visão geral agora prioriza quatro KPIs, fila e próximas ações. Produtos,
   pedidos e clientes são tabelas compactas; detalhes técnicos ficam
   recolhidos. Compatibilidade, menu público e documentos legais mantêm apenas
