@@ -1600,6 +1600,25 @@ deve expor o valor em terminal, código ou documentação.
   inalteradas; somente a mensagem visual foi removida.
 - TypeScript e `git diff --check` passaram após a remoção.
 
+### Limpeza dos selos do hero (25/08/2026)
+
+- Os selos decorativos “Tecnologia que eleva”, “Oferta especial” e “Parceiros e
+  assistências” foram removidos dos três slides da home. Títulos, logotipos,
+  descrições e CTAs permanecem inalterados.
+
+### Guia operacional do Bling — Brasil Drones (25/08/2026)
+
+- Criado `docs/cases/BRASIL_DRONES_BLING_GUIA_OPERACIONAL.md`, com trilha de
+  vídeos e tutoriais oficiais do Bling, rotina para produto, estoque, pedido,
+  NF-e e etiqueta, e regras para evitar duplicidade operacional.
+- O guia registra o fluxo vigente: pedidos pagos da Zalen chegam ao Bling pelo
+  conector server-side; não devem ser recriados no menu multiloja ou na Central
+  de Extensões. Nenhuma configuração, pedido, estoque ou dado no Bling foi
+  alterado.
+- A versão pronta para distribuição está em
+  `output/pdf/guia-operacional-bling-brasil-drones.pdf`; foi conferida em quatro
+  páginas renderizadas, com conteúdo e links internos ao PDF presentes.
+
 ### SEO e Google Search Console (25/08/2026)
 
 - A propriedade de prefixo `https://www.brasildroneseparts.com.br/` foi
@@ -1616,6 +1635,79 @@ deve expor o valor em terminal, código ou documentação.
   rascunho pelo admin, removendo-o do storefront, sitemap e feed público.
 - Validações locais do commit: TypeScript, 205 testes em 47 arquivos, build de
   produção e `git diff --check`. O deploy de produção associado foi concluído.
+
+### Reconexão OAuth do Bling (25/08/2026)
+
+- A tentativa de reconexão foi recusada pelo próprio Bling com `FORBIDDEN`: o
+  usuário conectado não possui autorização para todos os recursos solicitados.
+  Segundo a documentação oficial, isso ocorre quando o usuário perdeu
+  privilégios já concedidos ou quando a empresa deixou de estar ativa. A
+  reconexão precisa ser repetida com o usuário administrador da conta Bling ou
+  após restaurar as permissões/situação da conta.
+- Foi identificado também um erro independente no callback da Zalen: o host
+  reservado `app.zalenshop.com.br` não identifica uma loja e fazia a rota
+  retornar HTTP 500 antes de tratar a resposta do provedor.
+- O fluxo local agora inclui o slug normalizado da loja no `state` OAuth junto
+  de um nonce aleatório. O callback exige igualdade com o cookie HttpOnly,
+  resolve a loja somente depois dessa validação e retorna ao subdomínio
+  administrativo correto. Tokens e credenciais não são expostos no estado.
+- Validações locais: TypeScript, 208 testes em 48 arquivos e build de produção
+  passaram. O build emitiu apenas aviso de cache local por falta de espaço,
+  sem impedir a compilação.
+- Próximo passo: publicar esta correção; entrar no Bling com o usuário
+  administrador/conta ativa; iniciar uma nova conexão (links OAuth antigos não
+  devem ser reutilizados); confirmar atualização das credenciais e executar a
+  sincronização completa do catálogo.
+
+### Reconexão e taxonomia de baterias no Bling (27/08/2026)
+
+- A correção do callback OAuth foi publicada no commit `e4c3747`. A integração
+  Bling da Brasil Drones está conectada, com credenciais atualizadas e rotinas
+  horárias concluindo sem erro de token; uma nova autorização não foi forçada
+  para evitar invalidar a conexão válida.
+- A reconciliação completa percorreu 14 páginas e processou 530 registros. Dois
+  itens foram ignorados isoladamente pelo conector, sem interromper os lotes;
+  os diagnósticos atuais não preservaram a identidade desses dois registros.
+- A categoria comercial Baterias passou a complementar — sem substituir — a
+  categoria original de modelo recebida do Bling. Nomes com “bateria” entram em
+  Baterias e em Novo ou Semi Novo; expressões como “sem bateria” são excluídas.
+- A migration `20260827120707_link_battery_commercial_categories.sql` foi
+  aplicada no Supabase. Resultado: Baterias com 20 produtos (15 ativos e 3 com
+  estoque), Novo com 19 (14 ativos e 2 com estoque) e Semi Novo com 1 produto
+  ativo e em estoque.
+- O commit `4d231ca` foi enviado ao remoto e implantado em produção. Home e as
+  rotas `/categoria/baterias-e-tampas`, `/categoria/novo` e
+  `/categoria/semi-novo` respondem HTTP 200; o menu público contém Baterias,
+  Novo e Semi Novo.
+- Validações: lint, 211 testes em 48 arquivos, build de produção e
+  `git diff --check` passaram.
+
+### Menu completo e compatibilidade Air 2S (27/08/2026)
+
+- O dropdown “Categorias” descartava seus filhos editoriais e usava somente as
+  raízes independentes Drones e Baterias. A composição foi corrigida para unir
+  Peças, Acessórios, Hélices e Rotores, Sensores/IMU/GPS, Câmeras/CMOS e
+  Carregadores e Hubs às raízes comerciais, preservando ordem e hierarquia.
+- Baterias foi habilitada também como item direto da barra superior, sem deixar
+  de aparecer no dropdown e sem perder os filhos Novo e Semi Novo vindos do
+  espelho de categorias Bling.
+- A migration `20260827122555_fix_brasil_drones_navigation_and_air2s_links.sql`
+  foi aplicada em produção. Ela acrescentou Air 2S, preservando Air 2, aos
+  produtos Bling/SKUs `16690729176`/`79`, `16690729373`/`809` e
+  `16690729192`/`259`.
+- A verificação no Supabase confirmou os três produtos com os modelos `air-2`
+  e `air-2s`, e Baterias habilitada na barra e no dropdown. Teste dirigido do
+  menu, lint, 211 testes e build de produção passaram.
+
+### Quarta lâmina da GG Assistência (27/08/2026)
+
+- O conteúdo da GG Assistência foi duplicado como a quarta lâmina do Hero da
+  home, preservando também o banner independente existente antes do rodapé.
+- A nova lâmina usa o mesmo carrossel automático de sete segundos, indicador e
+  comportamento responsivo das três lâminas anteriores. O CTA externo abre o
+  Instagram da GG Assistência e o CTA secundário mantém o acesso às peças.
+- A composição foi verificada visualmente em desktop e mobile. Lint, 211 testes,
+  build de produção e `git diff --check` passaram.
 
 - O estado técnico relevante deve ser atualizado aqui e enviado ao Git.
 - A conversa do Codex é contexto auxiliar; este arquivo e o código versionado são a fonte de verdade entre máquinas.

@@ -22,24 +22,34 @@ interface HeroProps {
 
 type HeroSlide = {
   id: string;
-  eyebrow: string;
   title: React.ReactNode;
   description: string;
   backgroundImage: string;
   backgroundPosition: string;
   align: 'left' | 'center' | 'split';
-  primaryCta: {
-    label: string;
-    action: 'explore' | 'contact';
-  };
+  primaryCta:
+    | {
+        kind: 'action';
+        label: string;
+        action: 'explore' | 'contact';
+      }
+    | {
+        kind: 'link';
+        label: string;
+        href: string;
+      };
   secondaryCta?: {
     label: string;
     action: 'parts' | 'contact';
   };
   brandEndorsement?: {
+    logoSrc?: string;
+    logoAlt?: string;
+    logoClassName?: string;
     title: string;
     description: React.ReactNode;
   };
+  showStoreLogo?: boolean;
   partnerBullets?: Array<{
     label: string;
     icon: React.ReactNode;
@@ -55,7 +65,6 @@ const djiLogo = typeof (djiLogoAsset as StaticAsset) === 'string'
 const slides: HeroSlide[] = [
   {
     id: 'brand',
-    eyebrow: 'TECNOLOGIA QUE ELEVA',
     title: (
       <>
         Drones de alta <br />
@@ -72,6 +81,7 @@ const slides: HeroSlide[] = [
     backgroundPosition: '42% 50%',
     align: 'left',
     primaryCta: {
+      kind: 'action',
       label: 'Comprar agora',
       action: 'explore',
     },
@@ -90,7 +100,6 @@ const slides: HeroSlide[] = [
   },
   {
     id: 'freight-promo',
-    eyebrow: 'OFERTA ESPECIAL',
     title: (
       <>
         <span className="block text-[#8FDFFF] drop-shadow-[0_0_24px_rgba(0,212,255,0.45)]">
@@ -105,6 +114,7 @@ const slides: HeroSlide[] = [
     backgroundPosition: 'center',
     align: 'center',
     primaryCta: {
+      kind: 'action',
       label: 'Comprar agora',
       action: 'explore',
     },
@@ -112,6 +122,7 @@ const slides: HeroSlide[] = [
       label: 'Ver categorias',
       action: 'parts',
     },
+    showStoreLogo: true,
     partnerBullets: [
       { label: 'Peças originais', icon: <PackageCheck className="h-4 w-4" /> },
       { label: 'Envio rápido', icon: <Truck className="h-4 w-4" /> },
@@ -120,7 +131,6 @@ const slides: HeroSlide[] = [
   },
   {
     id: 'technicians',
-    eyebrow: 'PARCEIROS E ASSISTÊNCIAS',
     title: (
       <>
         Condições especiais <br />
@@ -134,6 +144,7 @@ const slides: HeroSlide[] = [
     backgroundPosition: 'center',
     align: 'split',
     primaryCta: {
+      kind: 'action',
       label: 'Saiba mais',
       action: 'contact',
     },
@@ -141,11 +152,42 @@ const slides: HeroSlide[] = [
       label: 'Ver peças',
       action: 'parts',
     },
+    showStoreLogo: true,
     partnerBullets: [
       { label: 'Peças de qualidade com garantia', icon: <Wrench className="h-4 w-4" /> },
       { label: 'Descontos especiais e envio rápido', icon: <Zap className="h-4 w-4" /> },
       { label: 'Atendimento para parceiros', icon: <Handshake className="h-4 w-4" /> },
     ],
+  },
+  {
+    id: 'assistance',
+    title: (
+      <>
+        Precisa de{' '}
+        <span className="text-emerald-400">assistência técnica?</span>
+      </>
+    ),
+    description:
+      'Conheça a GG Assistência, nossa empresa especializada em drones, com atendimento para todo o Brasil.',
+    backgroundImage: '/brand/home/gg-assistencia-repair-banner.webp',
+    backgroundPosition: '70% center',
+    align: 'split',
+    primaryCta: {
+      kind: 'link',
+      label: 'Conheça agora',
+      href: 'https://www.instagram.com/ggdroneparts/',
+    },
+    secondaryCta: {
+      label: 'Ver peças',
+      action: 'parts',
+    },
+    brandEndorsement: {
+      logoSrc: '/brand/gg-group/gg-drones-assistencia.png',
+      logoAlt: 'GG Drones Assistência',
+      logoClassName: 'max-w-[420px] brightness-0 invert',
+      title: 'Atendimento nacional',
+      description: 'Assistência especializada em drones',
+    },
   },
 ];
 
@@ -160,6 +202,7 @@ export default function Hero({
 }: HeroProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const activeSlide = slides[activeIndex] ?? slides[0];
+  const primaryCta = activeSlide.primaryCta;
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -242,11 +285,7 @@ export default function Hero({
                 : 'lg:col-span-12 xl:col-span-7 items-start text-left'
             )}
           >
-            <div className="inline-flex items-center rounded-full border border-[#00E676]/35 bg-[#072415]/75 px-3.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[#35f58a] shadow-[0_8px_30px_rgba(0,0,0,0.3)] backdrop-blur-md md:text-xs">
-              {activeSlide.eyebrow}
-            </div>
-
-            {activeSlide.id !== 'brand' ? (
+            {activeSlide.showStoreLogo ? (
               <Logo
                 size="sm"
                 className={cn(
@@ -282,13 +321,25 @@ export default function Hero({
                 activeSlide.align === 'center' && 'justify-center'
               )}
             >
-              <button
-                onClick={() => handleAction(activeSlide.primaryCta.action)}
-                className="group flex h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-blue-primary px-8 text-xs font-semibold tracking-wide text-white shadow-[0_8px_24px_rgba(30,61,255,0.3)] transition-all duration-300 hover:scale-[1.02] hover:bg-blue-primary/95 sm:flex-initial md:text-sm"
-              >
-                {activeSlide.primaryCta.label}
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-              </button>
+              {primaryCta.kind === 'link' ? (
+                <a
+                  href={primaryCta.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group flex h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-400 px-8 text-xs font-semibold tracking-wide text-[#04110d] shadow-[0_8px_24px_rgba(52,211,153,0.25)] transition-all duration-300 hover:scale-[1.02] hover:bg-emerald-300 sm:flex-initial md:text-sm"
+                >
+                  {primaryCta.label}
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </a>
+              ) : (
+                <button
+                  onClick={() => handleAction(primaryCta.action)}
+                  className="group flex h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-blue-primary px-8 text-xs font-semibold tracking-wide text-white shadow-[0_8px_24px_rgba(30,61,255,0.3)] transition-all duration-300 hover:scale-[1.02] hover:bg-blue-primary/95 sm:flex-initial md:text-sm"
+                >
+                  {primaryCta.label}
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </button>
+              )}
 
               {activeSlide.secondaryCta ? (
                 <button
@@ -313,9 +364,13 @@ export default function Hero({
             {activeSlide.brandEndorsement ? (
               <div className="flex w-full max-w-xl flex-col items-center text-center xl:max-w-[640px]">
                 <img
-                  src={djiLogo}
-                  alt="DJI"
-                  className="h-auto w-full max-w-[560px] object-contain brightness-0 invert drop-shadow-[0_18px_38px_rgba(0,0,0,0.34)]"
+                  src={activeSlide.brandEndorsement.logoSrc ?? djiLogo}
+                  alt={activeSlide.brandEndorsement.logoAlt ?? 'DJI'}
+                  className={cn(
+                    'h-auto w-full object-contain drop-shadow-[0_18px_38px_rgba(0,0,0,0.34)]',
+                    activeSlide.brandEndorsement.logoClassName ??
+                      'max-w-[560px] brightness-0 invert'
+                  )}
                   draggable={false}
                 />
                 <p className="mt-5 text-lg font-bold tracking-tight text-white sm:text-xl">
