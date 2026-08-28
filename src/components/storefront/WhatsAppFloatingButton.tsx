@@ -1,7 +1,25 @@
+'use client';
+
+import { usePathname } from 'next/navigation';
+
 const WHATSAPP_URL =
   'https://wa.me/5545999431780?text=Ol%C3%A1%21%20Gostaria%20de%20tirar%20uma%20d%C3%BAvida%20sobre%20a%20Brasil%20Drones%20%26%20Parts.';
 
+const HIDDEN_ROUTE_PREFIXES = [
+  '/admin',
+  '/login',
+  '/auth',
+  '/integrations',
+  '/.well-known',
+];
+
 export function WhatsAppFloatingButton() {
+  const pathname = usePathname();
+
+  if (HIDDEN_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+    return null;
+  }
+
   return (
     <a
       href={WHATSAPP_URL}

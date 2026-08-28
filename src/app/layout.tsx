@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { WhatsAppFloatingButton } from '@/components/storefront/WhatsAppFloatingButton';
 import { enforceCanonicalStorefrontHost } from '@/modules/stores/storefront-canonical';
 import { StorefrontCartProvider } from '@/modules/cart/StorefrontCartProvider';
 import './globals.css';
@@ -33,7 +34,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="pt-BR">
       <body>
-        <StorefrontCartProvider>{children}</StorefrontCartProvider>
+        <StorefrontCartProvider>
+          {children}
+          <WhatsAppFloatingButton />
+        </StorefrontCartProvider>
       </body>
     </html>
   );

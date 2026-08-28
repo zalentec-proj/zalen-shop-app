@@ -6,7 +6,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Snapshot
 
-- Atualizado em: 2026-08-27
+- Atualizado em: 2026-08-28
 - Branch: `refactor/migrate-to-next`
 - Commit funcional base antes desta revisão: `be3a961` —
   `fix: retry failed single-product syncs`
@@ -22,6 +22,18 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Login e admin pertencem à identidade Zalen Shop; o storefront pertence à loja ativa.
 - `/platform` completo, billing, marketplace e automações de IA continuam fora do MVP.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
+
+## Botão de atendimento no storefront (28/08/2026)
+
+- O botão flutuante do WhatsApp deixou de ser montado somente pelo componente
+  da página inicial e passou para o layout compartilhado da aplicação.
+- Ele agora permanece disponível na home, categorias, modelos, produtos,
+  carrinho, pedidos, conta e demais páginas públicas da loja. As rotas internas
+  `/admin`, `/login`, `/auth`, callbacks internos e endpoints de verificação
+  continuam sem o botão para preservar a separação entre a identidade da loja
+  ativa e a identidade da plataforma Zalen Shop.
+- Nenhuma configuração, credencial, integração externa ou dado persistido foi
+  alterado nesta frente.
 
 ## Admin Zalen Shop padronizado (27/08/2026)
 
