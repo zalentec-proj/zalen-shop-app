@@ -83,11 +83,12 @@ function getSlashModelAliases(value: string) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLocaleLowerCase('pt-BR');
-  const shorthandPattern = /\b([a-z]+)\s*(\d+[a-z]*)\s*\/\s*(\d+[a-z]*)\b/g;
+  const shorthandPattern =
+    /\b([a-z]+)\s*(\d+[a-z]*)\s*\/\s*(?:([a-z]+)\s*)?(\d+[a-z]*)\b/g;
 
   for (const match of normalizedValue.matchAll(shorthandPattern)) {
     aliases.add(`${match[1]} ${match[2]}`);
-    aliases.add(`${match[1]} ${match[3]}`);
+    aliases.add(`${match[3] ?? match[1]} ${match[4]}`);
   }
 
   return aliases;

@@ -53,6 +53,13 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   Domínios, Marketing, Mercado Pago, WhatsApp e Bling preservam seus retornos
   próprios já existentes. As Server Actions cobertas deixaram de falhar
   silenciosamente em validação, permissão ou persistência.
+- Em 28/08, a compatibilidade foi corrigida para nomes com barra que repetem o
+  prefixo e colam o número, como `Air 2S / Air2`. O seletor agora preserva
+  escolhas manuais ao adicionar sugestões, destaca as opções marcadas, mostra
+  a relação exata antes do envio e serializa explicitamente esse conjunto. A
+  confirmação informa quantos modelos foram vinculados. O SKU `35435` foi
+  corrigido em produção de forma pontual e uma leitura posterior confirmou os
+  vínculos `Air 2` e `Air 2S`, sem alterar seus demais dados.
 - A visão geral agora prioriza quatro KPIs, fila e próximas ações. Produtos,
   pedidos e clientes são tabelas compactas; detalhes técnicos ficam
   recolhidos. Compatibilidade, menu público e documentos legais mantêm apenas

@@ -54,5 +54,11 @@ describe('drone model definitions', () => {
         ({ modelSlug }) => modelSlug
       )
     ).toEqual(['air-3', 'air-3s']);
+
+    expect(
+      detectDroneModels('Middle Shell Central Mavic Air 2s/ Air2').map(
+        ({ modelSlug }) => modelSlug
+      )
+    ).toEqual(['air-2', 'air-2s']);
   });
 });

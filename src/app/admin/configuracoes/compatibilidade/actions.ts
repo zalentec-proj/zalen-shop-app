@@ -55,7 +55,12 @@ export async function saveProductDroneModelsAction(
   revalidatePath('/admin/configuracoes/compatibilidade');
   revalidatePath('/modelos/[slug]', 'page');
   revalidatePath('/modelos/linha/[slug]', 'page');
-  return adminActionSuccess('Compatibilidade salva com sucesso.');
+  const count = parsed.data.modelIds.length;
+  return adminActionSuccess(
+    count === 1
+      ? 'Compatibilidade salva: 1 modelo vinculado.'
+      : `Compatibilidade salva: ${count} modelos vinculados.`
+  );
 }
 
 export async function activateDroneModelNavigationAction(
