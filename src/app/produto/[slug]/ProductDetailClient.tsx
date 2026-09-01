@@ -17,6 +17,7 @@ import { useStorefrontCart } from '@/modules/cart/StorefrontCartProvider';
 import type { Product, ProductSummary } from '@/modules/catalog/product.types';
 import { PjDiscountNotice } from '@/components/storefront/PjDiscountNotice';
 import { ProductDescription } from '@/components/product/ProductDescription';
+import { ProductWhatsAppQuestionLink } from '@/components/product/ProductWhatsAppQuestionLink';
 import { SafeCatalogImage } from '@/components/ui/SafeCatalogImage';
 import { pushMarketingEvent } from '@/modules/marketing/marketing.client';
 
@@ -24,12 +25,14 @@ interface Props {
   product: Product;
   relatedProducts: ProductSummary[];
   businessDiscountPercentage?: number;
+  productUrl: string;
 }
 
 export default function ProductDetailClient({
   product,
   relatedProducts,
   businessDiscountPercentage,
+  productUrl,
 }: Props) {
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -328,6 +331,12 @@ export default function ProductDetailClient({
                 </Link>
               )}
             </div>
+
+            <ProductWhatsAppQuestionLink
+              productName={product.name}
+              productUrl={productUrl}
+              sku={variant?.sku}
+            />
 
             {/* Trust badges */}
             <div className="grid grid-cols-3 gap-3 pt-2 border-t border-brand-border-soft">

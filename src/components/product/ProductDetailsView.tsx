@@ -3,6 +3,7 @@ import { ArrowLeft, ShoppingCart, ShieldCheck, Play, Sparkles } from 'lucide-rea
 import { Product } from '../../types';
 import { SafeCatalogImage } from '../ui/SafeCatalogImage';
 import { ProductDescription } from './ProductDescription';
+import { ProductWhatsAppQuestionLink } from './ProductWhatsAppQuestionLink';
 
 interface ProductDetailsViewProps {
   product: Product;
@@ -216,6 +217,12 @@ export default function ProductDetailsView({ product, onBackToHome, onAddToCart,
                   Adicionar ao carrinho
                 </button>
               </div>
+
+              <ProductWhatsAppQuestionLink
+                productName={product.name}
+                sku={product.sku}
+                className="rounded-full"
+              />
 
             </div>
 

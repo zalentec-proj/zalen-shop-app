@@ -107,6 +107,7 @@ export default async function ProductPage({ params }: Props) {
       <ProductDetailClient
         product={product}
         relatedProducts={relatedProducts}
+        productUrl={new URL(`/produto/${product.slug}`, origin).toString()}
         businessDiscountPercentage={
           pjDiscountPolicy?.automaticDiscountEnabled
             ? pjDiscountPolicy.automaticDiscountPercentage

@@ -48,6 +48,9 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   `Especificações:` e `Importante:`, linhas técnicas no formato `Rótulo: valor`
   e benefícios iniciados por ✅ como blocos estruturados. Isso recupera as
   listas do catálogo mesmo quando o ERP envia linhas sem marcadores Markdown.
+- A página de produto ganhou uma ação de dúvidas via WhatsApp abaixo do bloco
+  de compra. A mensagem é montada por produto com nome, SKU quando disponível
+  e URL direta, reutilizando o mesmo destino do botão flutuante da loja.
 
 ## Botão de atendimento no storefront (28/08/2026)
 

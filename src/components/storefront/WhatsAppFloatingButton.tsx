@@ -1,9 +1,11 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { buildStoreWhatsAppUrl } from '@/modules/storefront/whatsapp-contact';
 
-const WHATSAPP_URL =
-  'https://wa.me/5545999431780?text=Ol%C3%A1%21%20Gostaria%20de%20tirar%20uma%20d%C3%BAvida%20sobre%20a%20Brasil%20Drones%20%26%20Parts.';
+const WHATSAPP_URL = buildStoreWhatsAppUrl(
+  'Olá! Gostaria de tirar uma dúvida sobre a Brasil Drones & Parts.'
+);
 
 const HIDDEN_ROUTE_PREFIXES = [
   '/admin',
