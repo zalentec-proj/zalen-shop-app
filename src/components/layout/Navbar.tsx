@@ -316,7 +316,7 @@ export default function Navbar({
     return (
       <div
         key={item.id}
-        className={hasChildren ? 'group relative' : 'relative'}
+        className={hasChildren ? 'group' : undefined}
         ref={isCategoriesRoot ? categoriesMenuRef : undefined}
       >
         {isCategoriesRoot ? (
@@ -637,7 +637,7 @@ export default function Navbar({
         aria-label="Categorias da loja"
         className="mx-auto mt-2 hidden max-w-7xl overflow-visible rounded-xl border border-[#315de0]/35 bg-[#0A1B4D]/95 shadow-[0_10px_28px_rgba(0,0,0,0.28)] backdrop-blur-xl xl:block"
       >
-        <div className="flex h-10 items-stretch overflow-visible px-4 md:px-5">
+        <div className="relative flex h-10 items-stretch overflow-visible px-4 md:px-5">
           {visibleNavLinks.map(renderDesktopItem)}
         </div>
       </nav>

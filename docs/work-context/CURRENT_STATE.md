@@ -40,6 +40,10 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   somente pelo nome e pela aba de origem. Referências a outros modelos dentro
   da descrição comercial não voltarão a criar vínculos cruzados em uma futura
   geração do catálogo.
+- Os cards expansíveis da navegação, incluindo Baterias, deixaram de calcular a
+  posição a partir do botão individual. Todos agora são centralizados pela
+  largura completa da barra de categorias, evitando que o card ultrapasse as
+  bordas da tela em notebooks e larguras intermediárias.
 
 ## Botão de atendimento no storefront (28/08/2026)
 
