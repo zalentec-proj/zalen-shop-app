@@ -44,6 +44,10 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   posição a partir do botão individual. Todos agora são centralizados pela
   largura completa da barra de categorias, evitando que o card ultrapasse as
   bordas da tela em notebooks e larguras intermediárias.
+- A descrição pública de produtos agora interpreta títulos editoriais como
+  `Especificações:` e `Importante:`, linhas técnicas no formato `Rótulo: valor`
+  e benefícios iniciados por ✅ como blocos estruturados. Isso recupera as
+  listas do catálogo mesmo quando o ERP envia linhas sem marcadores Markdown.
 
 ## Botão de atendimento no storefront (28/08/2026)
 

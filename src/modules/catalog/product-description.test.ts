@@ -32,4 +32,48 @@ describe('product description formatting', () => {
       'Peça & original'
     );
   });
+
+  it('restores ERP specification and benefit lists without explicit Markdown bullets', () => {
+    expect(
+      parseProductDescription(
+        [
+          'Seu drone precisa de reposição com ótimo custo-benefício?',
+          '🔧 Especificações:',
+          'Compatibilidade: DJI Mavic Air',
+          'Tipo: Hélices paralelas (jogo completo)',
+          'Função: Propulsão com estabilidade e eficiência',
+          'Aplicação: Reposição e manutenção',
+          '✅ Produto novo',
+          '✅ Envio rápido para todo o Brasil',
+          '✅ Nota fiscal',
+          '✅ Garantia Mundrone',
+          '⚠️ Importante:',
+          'Verifique o correto encaixe e aperto antes de cada voo.',
+        ].join('\n')
+      )
+    ).toEqual([
+      { type: 'paragraph', content: 'Seu drone precisa de reposição com ótimo custo-benefício?' },
+      { type: 'heading', content: '🔧 Especificações:' },
+      {
+        type: 'list',
+        items: [
+          'Compatibilidade: DJI Mavic Air',
+          'Tipo: Hélices paralelas (jogo completo)',
+          'Função: Propulsão com estabilidade e eficiência',
+          'Aplicação: Reposição e manutenção',
+        ],
+      },
+      {
+        type: 'list',
+        items: [
+          'Produto novo',
+          'Envio rápido para todo o Brasil',
+          'Nota fiscal',
+          'Garantia Mundrone',
+        ],
+      },
+      { type: 'heading', content: '⚠️ Importante:' },
+      { type: 'paragraph', content: 'Verifique o correto encaixe e aperto antes de cada voo.' },
+    ]);
+  });
 });

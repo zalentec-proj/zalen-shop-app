@@ -97,6 +97,7 @@ export function parseProductDescription(value: string | undefined): ProductDescr
   const lines = normalized.split('\n').map((line) => line.trim());
   let paragraphLines: string[] = [];
   let listItems: string[] = [];
+  let isSpecificationSection = false;
 
   const flushParagraph = () => {
     const content = stripInlineMarkdown(paragraphLines.join(' '));
@@ -122,17 +123,44 @@ export function parseProductDescription(value: string | undefined): ProductDescr
       flushList();
       const content = stripInlineMarkdown(heading[1]);
       if (content) blocks.push({ type: 'heading', content });
+      isSpecificationSection = /^(?:🔧\s*)?(?:especificações|características|detalhes técnicos):?$/iu.test(
+        content
+      );
       continue;
     }
 
-    const item = line.match(/^(?:[-*•✓✔]\s+|\d+[.)]\s+)(.+)$/);
-    if (item) {
+    const semanticHeading = line.match(/^((?:🔧|⚠️|ℹ️)?\s*[^:]{1,80}:)$/u);
+    if (semanticHeading) {
       flushParagraph();
-      listItems.push(item[1]);
+      flushList();
+      const content = stripInlineMarkdown(semanticHeading[1]);
+      if (content) blocks.push({ type: 'heading', content });
+      isSpecificationSection = /^(?:🔧\s*)?(?:especificações|características|detalhes técnicos):?$/iu.test(
+        content
+      );
+      continue;
+    }
+
+    const markedItem = line.match(/^(?:[-*•✓✔✅☑️]\s+|\d+[.)]\s+)(.+)$/u);
+    if (markedItem) {
+      flushParagraph();
+      if (isSpecificationSection && listItems.length > 0) flushList();
+      isSpecificationSection = false;
+      listItems.push(markedItem[1]);
+      continue;
+    }
+
+    const specificationItem = isSpecificationSection
+      ? line.match(/^([\p{L}][\p{L}\p{N} /()+.-]{0,48}:\s*.+)$/u)
+      : null;
+    if (specificationItem) {
+      flushParagraph();
+      listItems.push(specificationItem[1]);
       continue;
     }
 
     flushList();
+    isSpecificationSection = false;
     paragraphLines.push(line);
   }
 
