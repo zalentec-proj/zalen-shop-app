@@ -7,6 +7,7 @@ import {
 import { listCategories, listStorefrontProducts } from '@/modules/catalog/product.service';
 import { toStorefrontCategories } from '@/modules/catalog/storefront-product.adapter';
 import { getStorefrontNavigation } from '@/modules/catalog/storefront-navigation';
+import { toStorefrontSearchPreviews } from '@/modules/catalog/storefront-search';
 import {
   JsonLd,
   buildBreadcrumbJsonLd,
@@ -73,6 +74,7 @@ export default async function DroneModelLinePage({ params }: ModelLinePageProps)
         eyebrow="Modelos DJI"
         title={line.name}
         products={products}
+        searchProductPreviews={toStorefrontSearchPreviews(catalogProducts)}
         storefrontCategories={storefrontCategories}
         navigation={navigation}
       />

@@ -15,11 +15,13 @@ import { getItemCount } from '@/modules/cart/cart.utils';
 import { useStorefrontCart } from '@/modules/cart/StorefrontCartProvider';
 import type { Category, Product } from '@/modules/catalog/product.types';
 import type { StorefrontNavigation } from '@/modules/catalog/storefront-navigation';
+import type { StorefrontSearchProductPreview } from '@/modules/catalog/storefront-search';
 import type { StorefrontCategory } from '@/types';
 
 interface Props {
   category: Category;
   products: Product[];
+  searchProductPreviews: StorefrontSearchProductPreview[];
   storefrontCategories: StorefrontCategory[];
   navigation: StorefrontNavigation;
 }
@@ -27,6 +29,7 @@ interface Props {
 export default function CategoryClient({
   category,
   products,
+  searchProductPreviews,
   storefrontCategories,
   navigation,
 }: Props) {
@@ -65,22 +68,7 @@ export default function CategoryClient({
       <Navbar
         categories={storefrontCategories}
         navigation={navigation}
-        productPreviews={products.map((product) => {
-          const variant = product.variants[0];
-
-          return {
-            id: product.id,
-            name: product.name,
-            href: `/produto/${product.slug}`,
-            imageUrl: product.images[0]?.url,
-            price: variant?.promotionalPrice ?? variant?.price,
-            searchText: [
-              variant?.sku,
-              product.brand,
-              ...product.categories.map((item) => item.name),
-            ].filter(Boolean).join(' '),
-          };
-        })}
+        productPreviews={searchProductPreviews}
         cartItemsCount={cartItemsCount}
         onCartToggle={toggleCart}
         activeCategory={category.slug}

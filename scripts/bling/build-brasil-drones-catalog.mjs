@@ -251,8 +251,12 @@ function buildProduct(row, baselineByCode, sourceSheet, sourceRow, categoryMap) 
   const additionalImages = text(backfill('Imagens adicionais (arquivos)', null));
   const categoryPath = resolveCategoryPath(categoryOrigin, sourceSheet, name, isBlank(row['Categoria']) && isBlank(old['Categoria']));
   const categoryId = categoryMap[categoryPath] ?? null;
+  const isCompleteDrone = normalizeText(name).startsWith('drone ');
   const compatibility = detectCompatibility(
-    [name, shortDescription, complementaryDescription, sourceSheet].filter(Boolean).join(' '),
+    (isCompleteDrone
+      ? [name, sourceSheet]
+      : [name, shortDescription, complementaryDescription, sourceSheet]
+    ).filter(Boolean).join(' '),
     sourceSheet
   );
 

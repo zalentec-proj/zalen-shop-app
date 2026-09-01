@@ -10,6 +10,7 @@ import {
   toStorefrontCategories,
 } from '@/modules/catalog/storefront-product.adapter';
 import { getStorefrontNavigation } from '@/modules/catalog/storefront-navigation';
+import { toStorefrontSearchPreviews } from '@/modules/catalog/storefront-search';
 import { MarketingDataLayer } from '@/modules/marketing/MarketingDataLayer';
 import { MarketingScripts } from '@/modules/marketing/MarketingScripts';
 import { getMarketingRuntimeConfig } from '@/modules/marketing/marketing.service';
@@ -107,6 +108,7 @@ export default async function CategoryPage({ params }: Props) {
       <CategoryClient
         category={category}
         products={products}
+        searchProductPreviews={toStorefrontSearchPreviews(catalogProducts)}
         storefrontCategories={storefrontCategories}
         navigation={navigation}
       />

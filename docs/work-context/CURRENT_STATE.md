@@ -6,7 +6,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Snapshot
 
-- Atualizado em: 2026-08-28
+- Atualizado em: 2026-09-01
 - Branch: `refactor/migrate-to-next`
 - Commit funcional base antes desta revisão: `be3a961` —
   `fix: retry failed single-product syncs`
@@ -22,6 +22,24 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Login e admin pertencem à identidade Zalen Shop; o storefront pertence à loja ativa.
 - `/platform` completo, billing, marketplace e automações de IA continuam fora do MVP.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
+
+## Busca pública e Mini 4 Pro (01/09/2026)
+
+- A busca do cabeçalho agora apresenta resultados globais imediatamente por
+  nome, SKU, marca e categoria, com normalização de acentos e palavras em
+  qualquer ordem. O mesmo catálogo leve de prévias é usado na home e nas
+  páginas de categoria, linha e modelo; o cliente pode abrir o produto direto
+  da sugestão em desktop ou mobile.
+- A auditoria de compatibilidade identificou exatamente três drones completos
+  vinculados indevidamente ao Mini 4 Pro: dois Mini 5 Pro e um Neo 2. Somente
+  esses três vínculos cruzados foram removidos; os vínculos corretos desses
+  produtos com Mini 5 Pro e Neo 2 foram preservados. A leitura posterior
+  confirmou que a página Mini 4 Pro contém como drone completo apenas o DJI
+  Mini 4 Pro, mantendo acessórios e peças compartilhadas.
+- O gerador do catálogo passou a detectar a compatibilidade de drones completos
+  somente pelo nome e pela aba de origem. Referências a outros modelos dentro
+  da descrição comercial não voltarão a criar vínculos cruzados em uma futura
+  geração do catálogo.
 
 ## Botão de atendimento no storefront (28/08/2026)
 

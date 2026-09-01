@@ -20,17 +20,12 @@ import type {
   StorefrontNavigation,
   StorefrontNavigationItem,
 } from '@/modules/catalog/storefront-navigation';
+import {
+  getStorefrontSearchResults,
+  type StorefrontSearchProductPreview,
+} from '@/modules/catalog/storefront-search';
 
 const INSTAGRAM_URL = 'https://www.instagram.com/dronesepartsbrasildji/';
-
-export interface NavbarProductPreview {
-  id: string;
-  name: string;
-  href: string;
-  imageUrl?: string;
-  price?: number;
-  searchText?: string;
-}
 
 interface NavbarProps {
   categories: StorefrontCategory[];
@@ -42,7 +37,7 @@ interface NavbarProps {
   onNavigateToHome: () => void;
   onSearchChange: (query: string) => void;
   searchQuery: string;
-  productPreviews?: NavbarProductPreview[];
+  productPreviews?: StorefrontSearchProductPreview[];
 }
 
 function normalizePreviewText(value: string) {
@@ -54,7 +49,7 @@ function normalizePreviewText(value: string) {
 
 function getMenuProductPreviews(
   item: StorefrontNavigationItem,
-  products: NavbarProductPreview[]
+  products: StorefrontSearchProductPreview[]
 ) {
   if (products.length === 0) return [];
 
@@ -96,8 +91,11 @@ export default function Navbar({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [categoriesMenuOpen, setCategoriesMenuOpen] = useState(false);
+  const [searchSuggestionsOpen, setSearchSuggestionsOpen] = useState(false);
   const [previewIndexes, setPreviewIndexes] = useState<Record<string, number>>({});
   const categoriesMenuRef = useRef<HTMLDivElement>(null);
+  const desktopSearchRef = useRef<HTMLDivElement>(null);
+  const mobileSearchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
@@ -139,6 +137,31 @@ export default function Navbar({
       window.removeEventListener('keydown', closeOnEscape);
     };
   }, [categoriesMenuOpen]);
+
+  useEffect(() => {
+    if (!searchSuggestionsOpen) return;
+
+    const closeOnOutsideInteraction = (event: MouseEvent | TouchEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (desktopSearchRef.current?.contains(target)) return;
+      if (mobileSearchRef.current?.contains(target)) return;
+      setSearchSuggestionsOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSearchSuggestionsOpen(false);
+    };
+
+    document.addEventListener('mousedown', closeOnOutsideInteraction);
+    document.addEventListener('touchstart', closeOnOutsideInteraction);
+    window.addEventListener('keydown', closeOnEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutsideInteraction);
+      document.removeEventListener('touchstart', closeOnOutsideInteraction);
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [searchSuggestionsOpen]);
 
   const navLinks = useMemo(() => {
     if (navigation?.navbarItems.length) {
@@ -202,6 +225,59 @@ export default function Navbar({
       return categoriesRoot?.children ?? navigation?.categoryDropdownItems ?? [];
     },
     [navigation, visibleNavLinks]
+  );
+
+  const normalizedSearchQuery = searchQuery.trim();
+  const searchResults = useMemo(
+    () => getStorefrontSearchResults(productPreviews, searchQuery),
+    [productPreviews, searchQuery]
+  );
+  const showSearchSuggestions =
+    searchSuggestionsOpen && normalizedSearchQuery.length > 0;
+
+  const renderSearchSuggestions = (id: string) => (
+    <div
+      id={id}
+      aria-live="polite"
+      className="absolute inset-x-0 top-[calc(100%+0.5rem)] z-[70] overflow-hidden rounded-xl border border-white/10 bg-[#071124]/98 shadow-[0_24px_70px_rgba(0,0,0,0.62)] backdrop-blur-xl"
+    >
+      {searchResults.length > 0 ? (
+        <ul className="max-h-[min(65vh,420px)] overflow-y-auto p-2">
+          {searchResults.map((product) => (
+            <li key={product.id}>
+              <Link
+                href={product.href}
+                onClick={() => setSearchSuggestionsOpen(false)}
+                className="flex items-center gap-3 rounded-lg p-2.5 transition hover:bg-white/[0.07] focus-visible:bg-white/[0.07] focus-visible:outline-none"
+              >
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/8 bg-black/20 p-1">
+                  <SafeCatalogImage
+                    src={product.imageUrl}
+                    alt=""
+                    className="h-full w-full object-contain"
+                  />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="line-clamp-2 block text-sm font-semibold leading-5 text-white">
+                    {product.name}
+                  </span>
+                  {formatPrice(product.price) ? (
+                    <span className="mt-0.5 block text-xs font-semibold text-green-accent">
+                      {formatPrice(product.price)}
+                    </span>
+                  ) : null}
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-brand-muted" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="px-4 py-5 text-center text-sm text-brand-muted">
+          Nenhum produto encontrado para “{normalizedSearchQuery}”.
+        </p>
+      )}
+    </div>
   );
 
   const handleLinkClick = (categoryValue: string | null) => {
@@ -426,7 +502,7 @@ export default function Navbar({
     <header className="fixed inset-x-0 top-0 z-50 bg-transparent px-3 pt-2 md:px-8 md:pt-3">
       <nav
         id="navbar-main"
-        className="navbar-glass mx-auto flex h-16 max-w-7xl items-center justify-between rounded-2xl px-4 shadow-[0_12px_32px_rgba(0,0,0,0.55)] transition-all duration-300 hover:border-white/20 md:h-[78px] md:rounded-[28px] md:px-8"
+        className="navbar-glass relative z-20 mx-auto flex h-16 max-w-7xl items-center justify-between rounded-2xl px-4 shadow-[0_12px_32px_rgba(0,0,0,0.55)] transition-all duration-300 hover:border-white/20 md:h-[78px] md:rounded-[28px] md:px-8"
       >
         <button
           onClick={() => {
@@ -439,16 +515,32 @@ export default function Navbar({
           <Logo size="sm" className="h-[30px] md:h-[48px]" />
         </button>
 
-        <label className="relative mx-6 hidden min-w-0 max-w-md flex-1 items-center md:flex">
-          <Search className="pointer-events-none absolute left-4 h-4 w-4 text-brand-muted" />
+        <div
+          ref={desktopSearchRef}
+          className="relative mx-6 hidden min-w-0 max-w-md flex-1 md:block"
+        >
+          <label htmlFor="storefront-search-desktop" className="sr-only">
+            Buscar produtos
+          </label>
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-muted" />
           <input
+            id="storefront-search-desktop"
             type="search"
             placeholder="O que você procura?"
             value={searchQuery}
-            onChange={(event) => onSearchChange(event.target.value)}
+            onFocus={() => setSearchSuggestionsOpen(true)}
+            onChange={(event) => {
+              onSearchChange(event.target.value);
+              setSearchSuggestionsOpen(true);
+            }}
+            aria-controls="storefront-search-results-desktop"
+            aria-expanded={showSearchSuggestions}
             className="h-11 w-full rounded-lg border border-white/10 bg-[#05070B]/55 pl-11 pr-4 text-sm text-brand-white outline-none transition placeholder:text-brand-muted focus:border-blue-primary focus:bg-[#05070B]/80"
           />
-        </label>
+          {showSearchSuggestions
+            ? renderSearchSuggestions('storefront-search-results-desktop')
+            : null}
+        </div>
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
           <button
@@ -510,18 +602,34 @@ export default function Navbar({
       </nav>
 
       {searchOpen ? (
-        <div className="navbar-glass mx-auto mt-2 flex max-w-7xl rounded-xl p-2 md:hidden">
-          <label className="relative flex w-full items-center">
+        <div
+          ref={mobileSearchRef}
+          className="navbar-glass relative mx-auto mt-2 flex max-w-7xl rounded-xl p-2 md:hidden"
+        >
+          <label htmlFor="storefront-search-mobile" className="sr-only">
+            Buscar produtos
+          </label>
+          <div className="relative flex w-full items-center">
             <Search className="pointer-events-none absolute left-4 h-4 w-4 text-brand-muted" />
             <input
+              id="storefront-search-mobile"
               type="search"
               autoFocus
               placeholder="Buscar drone ou peça..."
               value={searchQuery}
-              onChange={(event) => onSearchChange(event.target.value)}
+              onFocus={() => setSearchSuggestionsOpen(true)}
+              onChange={(event) => {
+                onSearchChange(event.target.value);
+                setSearchSuggestionsOpen(true);
+              }}
+              aria-controls="storefront-search-results-mobile"
+              aria-expanded={showSearchSuggestions}
               className="h-11 w-full rounded-lg border border-white/10 bg-[#05070B]/55 pl-11 pr-4 text-sm text-brand-white outline-none transition placeholder:text-brand-muted focus:border-blue-primary"
             />
-          </label>
+          </div>
+          {showSearchSuggestions
+            ? renderSearchSuggestions('storefront-search-results-mobile')
+            : null}
         </div>
       ) : null}
 

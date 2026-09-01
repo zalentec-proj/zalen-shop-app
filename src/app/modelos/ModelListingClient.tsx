@@ -10,6 +10,7 @@ import { getItemCount } from '@/modules/cart/cart.utils';
 import { useStorefrontCart } from '@/modules/cart/StorefrontCartProvider';
 import type { Product } from '@/modules/catalog/product.types';
 import type { StorefrontNavigation } from '@/modules/catalog/storefront-navigation';
+import type { StorefrontSearchProductPreview } from '@/modules/catalog/storefront-search';
 import type { StorefrontCategory } from '@/types';
 
 type SortBy = 'relevance' | 'price-asc' | 'price-desc';
@@ -18,6 +19,7 @@ interface ModelListingClientProps {
   eyebrow: string;
   title: string;
   products: Product[];
+  searchProductPreviews: StorefrontSearchProductPreview[];
   storefrontCategories: StorefrontCategory[];
   navigation: StorefrontNavigation;
 }
@@ -31,6 +33,7 @@ export default function ModelListingClient({
   eyebrow,
   title,
   products,
+  searchProductPreviews,
   storefrontCategories,
   navigation,
 }: ModelListingClientProps) {
@@ -79,22 +82,7 @@ export default function ModelListingClient({
       <Navbar
         categories={storefrontCategories}
         navigation={navigation}
-        productPreviews={products.map((product) => {
-          const variant = product.variants[0];
-
-          return {
-            id: product.id,
-            name: product.name,
-            href: `/produto/${product.slug}`,
-            imageUrl: product.images[0]?.url,
-            price: variant?.promotionalPrice ?? variant?.price,
-            searchText: [
-              variant?.sku,
-              product.brand,
-              ...product.categories.map((item) => item.name),
-            ].filter(Boolean).join(' '),
-          };
-        })}
+        productPreviews={searchProductPreviews}
         cartItemsCount={cartItemsCount}
         onCartToggle={toggleCart}
         activeCategory={null}
