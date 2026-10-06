@@ -7,12 +7,12 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 ## Snapshot
 
 - Atualizado em: 2026-10-06
-- Branch: `refactor/migrate-to-next`
-- Commit funcional base antes desta revisão: `7183f02` —
-  `feat: add product WhatsApp questions`
-- A publicação e a restauração seletiva de imagens/compatibilidades devem ser
-  conferidas no bloco mais recente antes de iniciar uma nova frente.
-  Preserve os scripts locais não rastreados que não pertencem a esta frente.
+- Branch desta auditoria: `codex/production-readiness-audit`
+- Base local/remota/publicada conferida: `a376b1a` —
+  `feat: complete admin order details and manual Bling send`.
+- Esta entrega não foi mesclada na branch de produção. Conferir o bloco de
+  auditoria abaixo antes de iniciar correções ou publicar. Preservar alterações
+  locais não relacionadas caso existam na próxima sessão.
 - Guia de continuidade para outra IDE/máquina: `docs/work-context/IDE_HANDOFF.md`.
 
 ## Contexto permanente
@@ -22,6 +22,54 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Login e admin pertencem à identidade Zalen Shop; o storefront pertence à loja ativa.
 - `/platform` completo, billing, marketplace e automações de IA continuam fora do MVP.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
+
+## Auditoria de produção e simplificação da sidebar (06/10/2026)
+
+- Objetivo: revisar prontidão para produção sem afetar vendas reais e retirar
+  números/siglas da sidebar, preservando ícones, rótulos e rotas. Não inferir
+  autorização para compras, pagamentos, sincronizações, reenvios, migrations ou
+  alteração de regras de negócio a partir da solicitação de revisão.
+- Concluído: revisão estrutural dos fluxos críticos, leitura das telas e
+  consultas agregadas de integridade/saúde. Sidebar sem contadores/siglas, com
+  dois testes de regressão. Relatório:
+  `docs/work-context/PRODUCTION_READINESS_AUDIT_2026-10-06.md`.
+- Supabase reconectado: o plugin agora permite leitura do projeto correto
+  `zalen.shop`. O bloqueio registrado na frente anterior não é mais vigente
+  para estas consultas. Nenhum dado/configuração de produção foi alterado.
+- Evidência principal: Bling com 121 falhas de produtos e 121 de estoque nos
+  últimos sete dias, desde 01/10 às 18:00 UTC; última sincronização bem-sucedida
+  em 01/10 por volta de 17:00 UTC. Conexão ativa não comprova saúde operacional.
+  Há um pedido pago sem ID do ERP; não foi enviado durante a auditoria.
+- Lacunas de código: checkout sem validação/reserva atômica de estoque;
+  atualizações de pagamento não aprovado podem regredir pedido pago;
+  reconciliação Brick pode falhar e a UI usar status bruto; pedido/itens gravados
+  separadamente; leituras privilegiadas de produtos/clientes/compatibilidade
+  dependem do layout sem guard junto da leitura.
+- Front: produto por URL ainda anuncia Pix 5% só visual e pode exibir três casas
+  decimais, apesar de a home usar componente já diferente. Categoria/checkout
+  apresentaram overflow no mobile causado por glows decorativos. Também há
+  newsletter apenas simulada e estados administrativos fixos enganadores.
+- Validações: TypeScript, 266 testes/58 arquivos, build, scanner de segredos e
+  diff check aprovados. Cobertura configurada apenas para quatro arquivos,
+  não para todo o app. Auditoria de dependências continua reprovada: nove
+  pacotes afetados (um crítico, sete altos, um moderado). Advisor Supabase
+  aponta proteção de senhas vazadas desligada e oportunidades de desempenho.
+- Integridade pontual: 22 pedidos, todos com itens e totais coerentes; nenhum
+  store_id cruzado nas relações consultadas. Esses resultados não certificam
+  autorização, concorrência ou o ciclo financeiro completo.
+- Bloqueios de homologação: isolamento de ambiente/credenciais não comprovado;
+  não há contas de teste para todos os papéis/segunda loja; compra, callbacks,
+  NF-e, entrega de notificações e restauração de backup não testados ponta a
+  ponta. O relatório NÃO aprova prontidão integral para produção.
+- Próximo passo exato: com o responsável, conferir autorização/saúde do Bling
+  e o pedido pago pendente sem reenvio cego. Preparar homologação separada;
+  tratar dependências/guards, estado de pagamento, estoque/persistência e
+  promessas de preço em lotes com testes. Não publicar esta branch na produção
+  antes de revisão; não ampliar o redesenho antes dos riscos críticos.
+- Arquivos alterados: `src/app/admin/AdminSidebar.tsx`,
+  `src/app/admin/AdminSidebar.test.ts` e estes documentos de auditoria/handoff.
+- Entrega deve ficar versionada e enviada em branch separada, sem merge ou
+  promoção automática para produção. Conferir o hash final no histórico Git.
 
 ## Detalhe operacional de pedidos e envio manual Bling (06/10/2026)
 

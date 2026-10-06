@@ -51,20 +51,11 @@ type AdminViewKey =
   | 'integrations'
   | 'settings';
 
-interface AdminSidebarCounts {
-  products?: string;
-  orders?: string;
-  customers?: string;
-  integrations?: string;
-  primaryErp?: string;
-}
-
 interface AdminSidebarItem {
   key: AdminSidebarKey;
   viewKey?: AdminViewKey;
   label: string;
   icon: ComponentType<{ className?: string }>;
-  count?: string;
   href?: string;
   disabled?: boolean;
 }
@@ -77,7 +68,6 @@ interface AdminSidebarGroup {
 interface AdminSidebarProps {
   activeKey?: AdminSidebarKey;
   storeShortName: string;
-  counts?: AdminSidebarCounts;
   footerLabel?: string;
   footerTitle?: string;
   footerDescription?: string;
@@ -88,7 +78,7 @@ function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
 }
 
-function buildSidebarGroups(counts?: AdminSidebarCounts): AdminSidebarGroup[] {
+function buildSidebarGroups(): AdminSidebarGroup[] {
   return [
     {
       label: 'Operação',
@@ -98,7 +88,6 @@ function buildSidebarGroups(counts?: AdminSidebarCounts): AdminSidebarGroup[] {
           viewKey: 'dashboard',
           label: 'Visão geral',
           icon: LayoutGrid,
-          count: '01',
           href: '/admin',
         },
         {
@@ -106,7 +95,6 @@ function buildSidebarGroups(counts?: AdminSidebarCounts): AdminSidebarGroup[] {
           viewKey: 'orders',
           label: 'Pedidos',
           icon: ShoppingCart,
-          count: counts?.orders ?? '00',
           href: '/admin/pedidos',
         },
         {
@@ -114,7 +102,6 @@ function buildSidebarGroups(counts?: AdminSidebarCounts): AdminSidebarGroup[] {
           viewKey: 'products',
           label: 'Produtos',
           icon: Package2,
-          count: counts?.products ?? '--',
           href: '/admin/produtos',
         },
         {
@@ -122,7 +109,6 @@ function buildSidebarGroups(counts?: AdminSidebarCounts): AdminSidebarGroup[] {
           viewKey: 'customers',
           label: 'Clientes',
           icon: UsersRound,
-          count: counts?.customers ?? '--',
           href: '/admin/clientes',
         },
       ],
@@ -134,14 +120,12 @@ function buildSidebarGroups(counts?: AdminSidebarCounts): AdminSidebarGroup[] {
           key: 'storefront',
           label: 'Loja online',
           icon: Store,
-          count: 'ON',
           href: '/admin/configuracoes/loja-online',
         },
         {
           key: 'marketplaces',
           label: 'Marketplaces',
           icon: Boxes,
-          count: 'Fut',
           disabled: true,
         },
       ],
@@ -154,28 +138,24 @@ function buildSidebarGroups(counts?: AdminSidebarCounts): AdminSidebarGroup[] {
           viewKey: 'integrations',
           label: 'Integrações',
           icon: Waypoints,
-          count: counts?.integrations ?? '04',
           href: '/admin/integracoes',
         },
         {
           key: 'bling',
           label: 'Bling',
           icon: Database,
-          count: counts?.primaryErp ?? 'ERP',
           href: '/admin/integracoes/bling',
         },
         {
           key: 'whatsapp',
           label: 'WhatsApp',
           icon: MessageCircle,
-          count: 'Msg',
           href: '/admin/integracoes/whatsapp',
         },
         {
           key: 'marketing',
           label: 'Marketing',
           icon: Megaphone,
-          count: 'SEO',
           href: '/admin/integracoes/marketing',
         },
       ],
@@ -187,28 +167,24 @@ function buildSidebarGroups(counts?: AdminSidebarCounts): AdminSidebarGroup[] {
           key: 'pricing',
           label: 'Preços',
           icon: Percent,
-          count: 'PJ',
           href: '/admin/configuracoes/precos',
         },
         {
           key: 'payments',
           label: 'Pagamentos',
           icon: CreditCard,
-          count: 'Cfg',
           href: '/admin/configuracoes/pagamentos',
         },
         {
           key: 'shipping',
           label: 'Envios',
           icon: Truck,
-          count: 'Cfg',
           href: '/admin/configuracoes/envios',
         },
         {
           key: 'domains',
           label: 'Domínios',
           icon: Wifi,
-          count: 'Cfg',
           href: '/admin/configuracoes/dominios',
         },
         {
@@ -216,7 +192,6 @@ function buildSidebarGroups(counts?: AdminSidebarCounts): AdminSidebarGroup[] {
           viewKey: 'settings',
           label: 'Configurações',
           icon: Settings2,
-          count: '02',
           href: '/admin/configuracoes',
         },
       ],
@@ -227,7 +202,6 @@ function buildSidebarGroups(counts?: AdminSidebarCounts): AdminSidebarGroup[] {
 export function AdminSidebar({
   activeKey,
   storeShortName,
-  counts,
   footerLabel = 'Modo',
   footerTitle = 'Fonte atual',
   footerDescription = 'Operação da loja ativa.',
@@ -236,7 +210,7 @@ export function AdminSidebar({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
   const [preferenceLoaded, setPreferenceLoaded] = useState(false);
-  const sidebarGroups = buildSidebarGroups(counts);
+  const sidebarGroups = buildSidebarGroups();
 
   useEffect(() => {
     setDesktopCollapsed(
@@ -392,16 +366,6 @@ export function AdminSidebar({
                         {item.label}
                       </span>
                     </span>
-                    {item.count ? (
-                      <span
-                        className={cn(
-                          'text-[10px] uppercase tracking-[0.16em] text-slate-500',
-                          desktopCollapsed && 'xl:hidden'
-                        )}
-                      >
-                        {item.count}
-                      </span>
-                    ) : null}
                   </>
                 );
 
