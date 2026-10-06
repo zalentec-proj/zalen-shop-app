@@ -8,10 +8,12 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-10-06
 - Branch desta auditoria e correções: `codex/production-readiness-audit`
-- Base local/remota/publicada conferida: `a376b1a` —
-  `feat: complete admin order details and manual Bling send`.
-- Esta entrega não foi mesclada na branch de produção. Conferir o bloco de
-  correções/auditoria abaixo antes de continuar ou publicar. Preservar alterações
+- Código publicado e branch de produção `refactor/migrate-to-next`:
+  `c6b95804a27723bf551b2318203d549d92883613` —
+  `fix(auth): redirect platform login directly to authorized store`.
+- Publicação autorizada e concluída em 06/10/2026. A branch da auditoria recebe
+  este handoff documental após a publicação; essa diferença de documentação
+  não representa código de aplicação pendente de deploy. Preservar alterações
   locais não relacionadas caso existam na próxima sessão.
 - Guia de continuidade para outra IDE/máquina: `docs/work-context/IDE_HANDOFF.md`.
 
@@ -22,6 +24,46 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Login e admin pertencem à identidade Zalen Shop; o storefront pertence à loja ativa.
 - `/platform` completo, billing, marketplace e automações de IA continuam fora do MVP.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
+
+## Publicação das correções e verificação real (06/10/2026)
+
+- Objetivo: publicar os lotes de correção já validados e o ajuste do login,
+  conforme autorização explícita do responsável. Working tree limpa e remotos
+  conferidos antes da publicação; a produção anterior era ancestral da entrega.
+- Concluído: push fast-forward do commit `c6b9580` para
+  `origin/refactor/migrate-to-next`, sem force push. Vercel criou o deployment
+  de produção `dpl_CBwwBUCKN3XxCHVn6W9rF9feeMrg`, READY às
+  20:21:16 UTC (17:21:16 de Brasília), no projeto `zalen-shop-app`.
+  Build Next.js 16.3.8 concluído; aproximadamente 104 segundos de build.
+- URL da versão: `https://zalen-shop-mikc8oeds-zalentec-8411s-projects.vercel.app`.
+  Os aliases `app.zalenshop.com.br`, `brasil-drones.zalenshop.com.br`,
+  `www.brasildroneseparts.com.br`, `brasildroneseparts.com.br` e wildcard da
+  plataforma constam no novo deployment. Não houve edição de domínio ou env.
+- Regressão real do login: logout autorizado da sessão anterior, abertura de
+  `https://app.zalenshop.com.br/login`, nova autenticação pelo formulário e
+  chegada a `https://brasil-drones.zalenshop.com.br/admin`, sem reload manual,
+  formulário vazio ou tela nativa de falha. Painel e navegação para Produtos
+  renderizados corretamente; sidebar sem os antigos números/siglas.
+  Credenciais não foram copiadas para arquivos, comandos ou documentação.
+- Verificações públicas sem sessão: login da plataforma, home da loja e
+  `/categoria/baterias` responderam HTTP 200. Admin da loja respondeu 307 para
+  login na plataforma com `next` absoluto da loja, preservando o guard.
+- Registros consultados: nova versão, ambiente production, janela de 10 minutos,
+  níveis error/fatal agrupados por requestPath; nenhum grupo retornado na amostra.
+  Isso NÃO atesta ausência geral de falhas nem substitui testes financeiros.
+  GitHub CI remoto não foi confirmado nesta sessão; validações locais completas
+  estão registradas no bloco da correção abaixo.
+- Nenhuma compra, pagamento, reenfileiramento/sincronização do Bling, migration,
+  mudança de dados, credencial, papel ou configuração foi executada na publicação.
+  Autenticação/logout foram as únicas ações de sessão. Aba autenticada preservada.
+- Referência de rollback: deployment anterior `dpl_6afxpJYsYqncpFB8WfHB8vt3fqsb`,
+  commit `a376b1ac539c4862b4af52cf5f33ba2357ffa7c3`. Não houve rollback.
+- Próximo passo exato: seguir com homologação isolada de estoque concorrente,
+  persistência atômica de pedido/itens e eventos de pagamento fora de ordem;
+  conferir autorização/saúde do Bling antes de reenviar pedido real. Sessão
+  expirada e conta sem permissão entre hosts continuam cobertas por regressões
+  automatizadas, mas não foram simuladas em produção. A publicação não equivale
+  a aprovação integral de todo o app ou de todos os papéis/telas.
 
 ## Correção do encaminhamento pós-login (06/10/2026)
 
@@ -70,11 +112,10 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   `src/modules/auth/login-destination.service{,.test}.ts`,
   `src/app/login/{actions.ts,actions.test.ts,page.tsx,page.test.ts}`,
   `src/proxy{,.test}.ts` e este handoff.
-- Próximo passo exato: decidir publicação deliberada da branch de correções
-  (que também contém os dois lotes anteriores). Depois de publicar, conferir
-  novo login por `app`, URLs administrativas diretas/copiar filtros, sessão
-  expirada e conta sem permissão entre hosts; não executar compras ou ERP como
-  parte desse teste. Produção permanece na versão anterior até essa decisão.
+- Próximo passo registrado naquela etapa: decidir publicação deliberada da
+  branch de correções. Autorização recebida, publicação e novo login real por
+  `app` concluídos no bloco acima. Testes de sessão expirada/conta sem permissão
+  entre hosts não foram executados contra contas reais em produção.
 
 ## Diagnóstico do login da plataforma — histórico (06/10/2026)
 
@@ -118,8 +159,8 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   do MCP expiraram por timeout; fallback CLI limitado confirmou os requests,
   sem mensagens de erro de aplicação na amostra. Isso não prova ausência geral.
 - Próximo passo registrado naquela etapa: autorização para aplicar a correção
-  em lote isolado. Autorização recebida e implementação concluída no bloco acima;
-  publicação e teste real da versão nova entre domínios continuam pendentes.
+  em lote isolado. Implementação, publicação e teste real da versão nova entre
+  domínios foram concluídos nos blocos acima.
 
 ## Correções de produção — lote 2: dependências e renderização (06/10/2026)
 
@@ -157,9 +198,9 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Servidores e abas temporárias de verificação encerrados; aba do admin aberta
   pelo usuário preservada. Nenhuma compra, pagamento, chamada corretiva a ERP,
   migration, alteração de credenciais ou promoção de produção neste lote.
-- Entrega dos dois lotes fica na branch `codex/production-readiness-audit`,
-  sem merge em `refactor/migrate-to-next`. Produção não recebe estas correções
-  até publicação deliberada. Conferir commits finais no histórico da branch.
+- Situação ao concluir este lote: entrega na branch
+  `codex/production-readiness-audit`, sem publicação automática. A autorização
+  posterior e publicação dos dois lotes estão registradas no bloco de publicação.
 - Próximo passo exato: com o responsável, preparar ambiente de homologação
   comprovadamente isolado e conferir autorização/saúde do Bling. Definir reserva
   de estoque conciliada com ERP, persistência atômica de pedido/itens e transições
