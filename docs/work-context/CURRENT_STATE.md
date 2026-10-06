@@ -23,6 +23,50 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - `/platform` completo, billing, marketplace e automações de IA continuam fora do MVP.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
+## Diagnóstico do login da plataforma (06/10/2026)
+
+- Solicitação: verificar a falha ao entrar por `https://app.zalenshop.com.br/login`.
+  O responsável autorizou explicitamente sair da sessão e entrar novamente.
+  Credenciais fornecidas NÃO devem ser copiadas para código, documentação ou logs.
+- Produção reconferida: `a376b1a`, deployment `dpl_6afxpJYsYqncpFB8WfHB8vt3fqsb`,
+  READY. `app` e o subdomínio Brasil Drones pertencem ao mesmo projeto, com
+  domínios verificados e sem redirect adicional configurado nos aliases.
+- Com a sessão prévia, abrir `/login` da plataforma chegou ao admin da loja.
+  Depois de sair e entrar novamente, Supabase registrou autenticação bem-sucedida
+  às 19:36:54 UTC; conta confirmada, sem bloqueio, membership `store_admin`
+  da Brasil Drones. O problema reproduzido não foi credencial inválida ou falta
+  de permissão. Não foram consultados hashes, cookies ou tokens da conta.
+- Evidência correlacionada de requests: POST `app /login` 303 → GET `app /admin`
+  307 → GET `brasil-drones /admin` 307 → GET `app /login` 200. O navegador ficou
+  na URL `app /admin` exibindo formulário de login vazio. Um reload completo
+  levou ao admin correto, autenticado. A tela nativa preta da captura original
+  não foi reproduzida exatamente; foi reproduzida a falha de encaminhamento.
+- Causa técnica fortemente sustentada pelo código/fluxo: a Server Action faz
+  redirect relativo para `/admin` (`src/app/login/actions.ts:148`); o proxy muda
+  esse destino para outro host (`src/proxy.ts:170`). O Next tenta obter a resposta
+  RSC internamente; ao seguir redirect entre origens, o fetch do Node remove
+  Cookie/Authorization. A requisição interna da loja parece desautenticada e
+  volta ao login, embora o browser tenha recebido a sessão válida. Inferência
+  baseada nos requests e implementações oficiais; headers internos reais não
+  foram capturados, para não coletar credenciais.
+- Referências: [Server Action na versão publicada](https://github.com/vercel/next.js/blob/v16.2.11/packages/next/src/server/app-render/action-handler.ts#L338-L447),
+  [fetch entre origens](https://github.com/nodejs/undici/blob/main/lib/web/fetch/index.js#L1251-L1263).
+- Correção proposta, ainda NÃO implementada: resolver no servidor o destino
+  administrativo final autorizado e navegar diretamente para a origem da loja,
+  evitando a cadeia de redirects internos entre hosts. Preservar `next` seguro,
+  cookies, autorização por loja e navegação local/preview; não desabilitar guards
+  nem fixar o destino de todos os usuários em uma loja sem validar contexto.
+  Testar sessão nova/expirada, credencial inválida, logout, URLs diretas e lojas.
+- Contorno validado nesta sessão: reload após autenticação ou acesso direto ao
+  admin no subdomínio da loja. Aba de conferência deixada autenticada para o
+  usuário; não há garantia de que o contorno elimine a falha em todo navegador.
+- Somente diagnóstico nesta frente: nenhum código/configuração de produção,
+  senha, membership, pedido ou integração foi alterado. Logs agregados de erro
+  do MCP expiraram por timeout; fallback CLI limitado confirmou os requests,
+  sem mensagens de erro de aplicação na amostra. Isso não prova ausência geral.
+- Próximo passo: autorização para aplicar a correção do redirecionamento em
+  lote isolado e validar o login antes de publicar. Handoff em branch separada.
+
 ## Correções de produção — lote 2: dependências e renderização (06/10/2026)
 
 - Concluído o próximo lote previsto: Next.js fixado em 16.3.8, Sharp 0.35.5,
