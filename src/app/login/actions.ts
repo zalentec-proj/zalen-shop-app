@@ -5,6 +5,7 @@ import { headers } from 'next/headers';
 import { z } from 'zod';
 import { getServerEnv } from '@/lib/env/server';
 import { createClient } from '@/lib/supabase/server';
+import { resolveLoginDestination } from '@/modules/auth/login-destination.service';
 import {
   isLocalhostName,
   normalizeHostname,
@@ -51,38 +52,6 @@ function formError(message: string): FormActionState {
     status: 'error',
     message,
   };
-}
-
-function isAllowedAbsoluteNextTarget(value: string) {
-  try {
-    const url = new URL(value);
-    const hostname = normalizeHostname(url.host);
-    const rootDomain =
-      getServerEnv().PLATFORM_ROOT_DOMAIN ?? 'zalenshop.com.br';
-
-    if (!url.pathname.startsWith('/admin')) {
-      return false;
-    }
-
-    return (
-      isLocalhostName(hostname) ||
-      hostname === `app.${rootDomain}`
-    );
-  } catch {
-    return false;
-  }
-}
-
-function getSafeNextTarget(value: string | null | undefined): string {
-  if (!value) {
-    return '/admin';
-  }
-
-  if (value.startsWith('/') && !value.startsWith('//')) {
-    return value;
-  }
-
-  return isAllowedAbsoluteNextTarget(value) ? value : '/admin';
 }
 
 function getPasswordResetSentState(): FormActionState {
@@ -134,18 +103,35 @@ export async function loginAction(
     return invalidCredentialsState;
   }
 
+  let userId: string;
   try {
     const supabase = await createClient();
-    const { error } = await supabase.auth.signInWithPassword(parsed.data);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: parsed.data.email,
+      password: parsed.data.password,
+    });
 
-    if (error) {
+    if (error || !data.user) {
       return invalidCredentialsState;
     }
+
+    userId = data.user.id;
   } catch {
     return invalidCredentialsState;
   }
 
-  redirect(getSafeNextTarget(parsed.data.next));
+  let destination: string | null;
+  try {
+    destination = await resolveLoginDestination(userId, parsed.data.next);
+  } catch {
+    return { error: 'Não foi possível abrir o painel agora. Tente novamente.' };
+  }
+
+  if (!destination) {
+    return { error: 'Sua conta não tem permissão para acessar esta loja.' };
+  }
+
+  redirect(destination);
 }
 
 export async function logoutAction() {

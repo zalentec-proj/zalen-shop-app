@@ -1,10 +1,8 @@
 import type { Metadata } from 'next';
 import { platformBrand } from '@/lib/branding/platform-brand';
 import { noindexMetadata } from '@/modules/seo/seo.service';
-import {
-  isLocalhostName,
-  normalizeHostname,
-} from '@/modules/stores/host-resolution';
+import { getLoginNavigationContext } from '@/modules/auth/login-destination.service';
+import { getSafeLoginNextTarget } from '@/modules/auth/login-navigation';
 import LoginClient from './LoginClient';
 
 export const metadata: Metadata = {
@@ -19,38 +17,8 @@ interface LoginPageProps {
   }>;
 }
 
-function isAllowedAbsoluteNextTarget(value: string) {
-  try {
-    const url = new URL(value);
-    const hostname = normalizeHostname(url.host);
-    const rootDomain = process.env.PLATFORM_ROOT_DOMAIN ?? 'zalenshop.com.br';
-
-    if (!url.pathname.startsWith('/admin')) {
-      return false;
-    }
-
-    return (
-      isLocalhostName(hostname) ||
-      hostname === `app.${rootDomain}`
-    );
-  } catch {
-    return false;
-  }
-}
-
-function getSafeNextTarget(value: string | undefined): string {
-  if (!value) {
-    return '/admin';
-  }
-
-  if (value.startsWith('/') && !value.startsWith('//')) {
-    return value;
-  }
-
-  return isAllowedAbsoluteNextTarget(value) ? value : '/admin';
-}
-
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
-  return <LoginClient nextPath={getSafeNextTarget(params?.next)} />;
+  const { requestOrigin, rootDomain } = await getLoginNavigationContext();
+  return <LoginClient nextPath={getSafeLoginNextTarget(params?.next, requestOrigin, rootDomain)} />;
 }

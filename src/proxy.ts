@@ -11,6 +11,7 @@ import {
   normalizeHostname,
 } from '@/modules/stores/host-resolution';
 import { activeStore } from '@/modules/stores/current-store';
+import { getLoginRedirectTarget, getSafeLoginNextTarget, isAdminPath } from '@/modules/auth/login-navigation';
 
 const placeholderFragments = [
   '${',
@@ -35,43 +36,8 @@ function normalizeEnvValue(value: string | undefined): string | undefined {
 }
 
 function getSafeNextPath(value: string): string {
-  if (!value.startsWith('/') || value.startsWith('//')) {
-    return '/admin';
-  }
-
-  return value;
-}
-
-function isAllowedAppRedirectUrl(value: string) {
-  try {
-    const url = new URL(value);
-    const hostname = normalizeHostname(url.host);
-    const rootDomain =
-      normalizeEnvValue(process.env.PLATFORM_ROOT_DOMAIN) ?? 'zalenshop.com.br';
-
-    if (!url.pathname.startsWith('/admin')) {
-      return false;
-    }
-
-    return (
-      isLocalhostName(hostname) ||
-      hostname === `app.${rootDomain}`
-    );
-  } catch {
-    return false;
-  }
-}
-
-function getSafeNextTarget(value: string | null): string {
-  if (!value) {
-    return '/admin';
-  }
-
-  if (value.startsWith('/') && !value.startsWith('//')) {
-    return getSafeNextPath(value);
-  }
-
-  return isAllowedAppRedirectUrl(value) ? value : '/admin';
+  if (!value.startsWith('/') || value.startsWith('//')) return '/admin';
+  return getSafeLoginNextTarget(value, 'http://localhost');
 }
 
 function getRequestOrigin(request: NextRequest) {
@@ -168,7 +134,7 @@ export async function proxy(request: NextRequest) {
     normalizeEnvValue(process.env.PLATFORM_ROOT_DOMAIN) ?? 'zalenshop.com.br';
 
   if (
-    pathname.startsWith('/admin') &&
+    isAdminPath(pathname) &&
     shouldRedirectPlatformAdminToStoreHost(request, rootDomain)
   ) {
     return NextResponse.redirect(
@@ -179,7 +145,7 @@ export async function proxy(request: NextRequest) {
     );
   }
 
-  if (pathname.startsWith('/admin') && shouldResolveCustomAdminHost(request, rootDomain)) {
+  if (isAdminPath(pathname) && shouldResolveCustomAdminHost(request, rootDomain)) {
     const hostname = normalizeHostname(
       getRequestHost(request.headers, request.nextUrl.host)
     );
@@ -197,7 +163,7 @@ export async function proxy(request: NextRequest) {
   }
 
   const isAuthRoute = pathname === '/login' || pathname === '/login/forgot';
-  if (!pathname.startsWith('/admin') && !isAuthRoute) {
+  if (!isAdminPath(pathname) && !isAuthRoute) {
     return response;
   }
 
@@ -238,13 +204,16 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (pathname.startsWith('/admin') && !user) {
+  if (isAdminPath(pathname) && !user) {
     const requestOrigin = getRequestOrigin(request);
     const loginUrl = new URL(
       '/login',
       getPlatformAppOriginFromHost(new URL(requestOrigin), rootDomain)
     );
-    loginUrl.searchParams.set('next', getSafeNextPath(`${pathname}${request.nextUrl.search}`));
+    // Keep the store host so logging into the platform does not switch stores.
+    loginUrl.searchParams.set('next', new URL(
+      getSafeNextPath(`${pathname}${request.nextUrl.search}`), requestOrigin
+    ).href);
 
     return redirectWithCookies(request, response, loginUrl);
   }
@@ -253,7 +222,9 @@ export async function proxy(request: NextRequest) {
     return redirectWithCookies(
       request,
       response,
-      getSafeNextTarget(request.nextUrl.searchParams.get('next'))
+      getLoginRedirectTarget(
+        request.nextUrl.searchParams.get('next'), getRequestOrigin(request), activeStore.slug, rootDomain
+      )
     );
   }
 

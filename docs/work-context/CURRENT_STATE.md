@@ -23,7 +23,60 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - `/platform` completo, billing, marketplace e automações de IA continuam fora do MVP.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
-## Diagnóstico do login da plataforma (06/10/2026)
+## Correção do encaminhamento pós-login (06/10/2026)
+
+- Objetivo autorizado após o diagnóstico: corrigir o destino pós-login e
+  adicionar regressões, sem publicar automaticamente em produção. Branch e
+  remoto sincronizados antes de editar; nenhuma mudança local anterior.
+- Concluído: a Server Action resolve o destino final antes de chamar `redirect`.
+  Login no host da plataforma termina diretamente no subdomínio administrativo
+  da loja, com URL absoluta, evitando o fetch RSC que seguia um redirect entre
+  origens. O cookie compartilhado existente não foi alterado.
+- Antes de encaminhar entre hosts, o serviço resolve a loja e usa `canAccessStore`
+  com o ID retornado pela autenticação do Supabase. Loja inexistente ou sem
+  membership/papel global não recebe navegação autorizada. O destino padrão
+  continua sendo a loja ativa do MVP, somente quando a conta pode acessá-la;
+  não foi implementado seletor de lojas nem `/platform`.
+- O retorno ao login guarda o host da loja, path e filtros de `next`; uma URL
+  administrativa de outra loja não vira Brasil Drones silenciosamente. Página,
+  proxy e action compartilham a validação: bloqueia hosts externos, credenciais
+  na URL, protocolo/porta externos inesperados, barras invertidas e controles.
+  Navegação no mesmo host/local/preview mantém os guards existentes. Preview
+  sem loja configurada não ganha fallback público nem nova permissão.
+- Feedback: distingue credencial inválida, falta de permissão e falha ao resolver
+  o painel, sem incluir respostas brutas do provedor. Guards de layout, leituras
+  e mutações continuam presentes; não há autorização via `user_metadata`.
+- Validação: 55 regressões novas (navegação, destino autorizado, Server Action,
+  página e proxy); suíte completa 371 testes/70 arquivos e cobertura configurada
+  aprovadas, TypeScript, build Next.js 16.3.8, auditoria completa de dependências
+  com zero vulnerabilidades conhecidas, scanner de segredos e diff check.
+  Cobertura reportada continua limitada aos quatro arquivos da configuração,
+  não à aplicação inteira ou ao login real em produção.
+- Navegador local com build de produção: formulário renderiza e submissão
+  fictícia retorna mensagem de erro sem tela travada. Não há chaves Supabase
+  locais; portanto NÃO foi validado login real entre domínios com esta versão.
+  O destino do formulário foi validado por teste da página; o navegador oculta
+  valores de campos escondidos da inspeção. Servidor e aba local encerrados;
+  aba de produção anteriormente autenticada preservada.
+- Consulta pós-correção somente leitura no projeto `zalen.shop`: Brasil Drones
+  ativa e dois vínculos de acesso à loja. Isso confirma o contexto do
+  destino, não que a versão nova já execute em produção. Nenhum usuário, senha,
+  papel, cookie de produção, pedido, integração ou configuração foi modificado
+  nesta entrega; fluxo de recuperação/alteração de senha não foi alterado.
+- Referências conferidas: [redirect Next.js](https://nextjs.org/docs/app/api-reference/functions/redirect),
+  [Supabase SSR](https://supabase.com/docs/guides/auth/server-side/advanced-guide)
+  e changelog oficial. Regras de domínio/cookie e credenciais existentes mantidas.
+- Arquivos: `src/modules/auth/login-navigation{,.test}.ts`,
+  `src/modules/auth/login-destination.service{,.test}.ts`,
+  `src/app/login/{actions.ts,actions.test.ts,page.tsx,page.test.ts}`,
+  `src/proxy{,.test}.ts` e este handoff.
+- Próximo passo exato: decidir publicação deliberada da branch de correções
+  (que também contém os dois lotes anteriores). Depois de publicar, conferir
+  novo login por `app`, URLs administrativas diretas/copiar filtros, sessão
+  expirada e conta sem permissão entre hosts; não executar compras ou ERP como
+  parte desse teste. Produção permanece na versão anterior até essa decisão.
+
+## Diagnóstico do login da plataforma — histórico (06/10/2026)
 
 - Solicitação: verificar a falha ao entrar por `https://app.zalenshop.com.br/login`.
   O responsável autorizou explicitamente sair da sessão e entrar novamente.
@@ -51,7 +104,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   foram capturados, para não coletar credenciais.
 - Referências: [Server Action na versão publicada](https://github.com/vercel/next.js/blob/v16.2.11/packages/next/src/server/app-render/action-handler.ts#L338-L447),
   [fetch entre origens](https://github.com/nodejs/undici/blob/main/lib/web/fetch/index.js#L1251-L1263).
-- Correção proposta, ainda NÃO implementada: resolver no servidor o destino
+- Correção proposta nesta etapa, implementada posteriormente no bloco acima: resolver no servidor o destino
   administrativo final autorizado e navegar diretamente para a origem da loja,
   evitando a cadeia de redirects internos entre hosts. Preservar `next` seguro,
   cookies, autorização por loja e navegação local/preview; não desabilitar guards
@@ -64,8 +117,9 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   senha, membership, pedido ou integração foi alterado. Logs agregados de erro
   do MCP expiraram por timeout; fallback CLI limitado confirmou os requests,
   sem mensagens de erro de aplicação na amostra. Isso não prova ausência geral.
-- Próximo passo: autorização para aplicar a correção do redirecionamento em
-  lote isolado e validar o login antes de publicar. Handoff em branch separada.
+- Próximo passo registrado naquela etapa: autorização para aplicar a correção
+  em lote isolado. Autorização recebida e implementação concluída no bloco acima;
+  publicação e teste real da versão nova entre domínios continuam pendentes.
 
 ## Correções de produção — lote 2: dependências e renderização (06/10/2026)
 
