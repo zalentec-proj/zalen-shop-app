@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, ShoppingCart, ShieldCheck, Play, Sparkles } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, ShieldCheck, Sparkles } from 'lucide-react';
 import { Product } from '../../types';
 import { SafeCatalogImage } from '../ui/SafeCatalogImage';
 import { ProductDescription } from './ProductDescription';
@@ -79,14 +79,6 @@ export default function ProductDetailsView({ product, onBackToHome, onAddToCart,
                 referrerPolicy="no-referrer"
               />
 
-              {/* Assistance Video Floating Trigger button */}
-              <button 
-                onClick={() => alert("Vídeo de demonstração técnica e unbox do produto carregando... (Simulação)")}
-                className="absolute bottom-4 left-4 h-8 px-3 rounded-lg bg-[#02040b]/60 hover:bg-[#02040b]/85 border border-white/5 text-[9px] font-bold text-white flex items-center gap-1.5 transition-all cursor-pointer backdrop-blur-md active:scale-95"
-              >
-                <Play className="w-2.5 h-2.5 fill-white text-white" />
-                ASSISTIR VÍDEO
-              </button>
             </div>
 
             {/* Thumbnails list (Max 4 as requested) */}

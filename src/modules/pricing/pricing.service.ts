@@ -22,6 +22,13 @@ import type {
 
 export type { AdminVariantPriceSummary, CheckoutPricingResult, CustomerType };
 
+export class CheckoutStockError extends Error {
+  constructor(message = 'A quantidade solicitada não está disponível. Revise o carrinho e tente novamente.') {
+    super(message);
+    this.name = 'CheckoutStockError';
+  }
+}
+
 export interface CheckoutPricingInput {
   storeId: string;
   customerType: CustomerType;
@@ -187,20 +194,35 @@ export async function resolveVariantPrice(input: {
 export async function resolveCheckoutPricing(
   input: CheckoutPricingInput
 ): Promise<CheckoutPricingResult> {
+  const requestedByVariant = new Map<string, number>();
+  if (input.items.length === 0) {
+    throw new CheckoutStockError('Adicione um produto ao carrinho para continuar.');
+  }
+  for (const item of input.items) {
+    if (!Number.isSafeInteger(item.quantity) || item.quantity < 1 || item.quantity > 99) {
+      throw new CheckoutStockError('Informe uma quantidade válida para cada produto do carrinho.');
+    }
+    requestedByVariant.set(item.variantId, (requestedByVariant.get(item.variantId) ?? 0) + item.quantity);
+  }
   const items = await Promise.all(
     input.items.map(async (item) => {
       const product = await getProductById(input.storeId, item.productId);
 
-      if (!product) {
-        throw new Error('Product not found for checkout pricing.');
+      if (!product || product.storeId !== input.storeId || product.status !== 'active') {
+        throw new CheckoutStockError('Um produto do carrinho não está mais disponível. Revise os itens para continuar.');
       }
 
       const variant = product.variants.find(
         (candidate) => candidate.id === item.variantId
       );
 
-      if (!variant) {
-        throw new Error('Product variant not found for checkout pricing.');
+      if (!variant || variant.storeId !== input.storeId || variant.productId !== product.id) {
+        throw new CheckoutStockError('Uma opção do carrinho não está mais disponível. Revise os itens para continuar.');
+      }
+
+      // Validate the sum of repeated lines. This is a stock check, not a reservation.
+      if (!Number.isFinite(variant.stock) || variant.stock < (requestedByVariant.get(variant.id) ?? 0)) {
+        throw new CheckoutStockError();
       }
 
       const resolvedPrice = await resolveVariantPrice({

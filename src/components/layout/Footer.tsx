@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { ArrowRight, Instagram, ShieldCheck } from 'lucide-react';
+import { Instagram, ShieldCheck } from 'lucide-react';
 import Logo from '../ui/Logo';
 import type { StorefrontCategory } from '../../types';
 
@@ -21,17 +21,8 @@ export default function Footer({
 }: {
   categories?: Array<Pick<StorefrontCategory, 'name' | 'slug'>>;
 }) {
-  const [email, setEmail] = useState('');
-  const [subscribed, setSubscribed] = useState(false);
   const categoryLinks = (categories.length ? categories : fallbackCategories).slice(0, 8);
 
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email) {
-      setSubscribed(true);
-      setEmail('');
-    }
-  };
 
   return (
     <footer id="contato" className="w-full relative bg-brand-bg/80 border-t border-brand-border-soft overflow-hidden mt-20">
@@ -88,38 +79,18 @@ export default function Footer({
           </ul>
         </div>
 
-        {/* Newsletter subscribe */}
+        {/* Existing channel; do not claim to save a newsletter subscription. */}
         <div className="flex flex-col gap-5">
           <h4 className="text-[13px] font-bold tracking-widest text-[#F5F7FA] uppercase font-display">
-            Newsletter
+            Novidades
           </h4>
           <p className="text-[13px] text-brand-muted leading-relaxed">
-            Receba ofertas exclusivas, novidades e alertas de estoque de peças difíceis diretamente no seu e-mail.
+            Acompanhe as novidades da Brasil Drones & Parts no Instagram.
           </p>
 
-          {!subscribed ? (
-            <form onSubmit={handleSubscribe} className="relative flex items-center">
-              <input
-                type="email"
-                placeholder="Seu e-mail"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full h-11 pl-4 pr-12 rounded-xl bg-brand-surface border border-brand-border text-xs focus:outline-none focus:border-blue-primary transition-colors font-sans"
-              />
-              <button
-                type="submit"
-                aria-label="Cadastrar e-mail na newsletter"
-                className="absolute right-1 w-9 h-9 flex items-center justify-center rounded-lg bg-blue-primary text-white hover:opacity-90 transition-opacity cursor-pointer shadow-[0_4px_12px_rgba(30,61,255,0.3)]"
-              >
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
-          ) : (
-            <div className="p-3 rounded-xl bg-green-accent/10 border border-green-accent/30 text-green-accent text-xs flex items-center justify-center font-medium animate-fade-in">
-              Obrigado por se inscrever!
-            </div>
-          )}
+          <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="inline-flex w-fit items-center gap-2 rounded-xl border border-brand-border px-4 py-3 text-sm text-brand-white transition hover:border-blue-primary">
+            <Instagram className="h-4 w-4" /> Acompanhar novidades
+          </a>
         </div>
       </div>
 

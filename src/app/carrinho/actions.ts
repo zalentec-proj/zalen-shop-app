@@ -48,12 +48,14 @@ import {
 import { grantGuestCheckoutAccess } from '@/modules/payments/guest-checkout-session';
 import { getGuestCheckoutOrderAccess } from '@/modules/payments/guest-checkout-access.service';
 import { processMercadoPagoPaymentUpdate } from '@/modules/payments/mercado-pago-payment.service';
+import { getBrickPaymentStatus, getReconciledBrickStatus } from '@/modules/payments/brick-payment-status';
 import { getLatestPaymentTransactionByOrderId } from '@/modules/payments/payment-transaction.repository';
 import {
   reservePaymentAttempt,
   updatePaymentAttempt,
 } from '@/modules/payments/payment-attempt.repository';
 import {
+  CheckoutStockError,
   getCustomerTypeFromDocument,
   isValidDocumentForCustomerType,
   resolveCheckoutPricing,
@@ -459,6 +461,7 @@ export type CheckoutPostalCodeLookupActionResult =
     };
 
 function getSafeCheckoutError(error: unknown) {
+  if (error instanceof CheckoutStockError) return error.message;
   if (
     error instanceof Error &&
     error.message === 'mercado_pago_not_configured'
@@ -1246,34 +1249,6 @@ function getPostalCodeLookupErrorMessage(errorCode: string) {
   return 'Não foi possível consultar o CEP agora. Preencha o endereço manualmente.';
 }
 
-function getBrickPaymentStatus(
-  status: string | undefined
-): MercadoPagoBrickActionStatus {
-  if (
-    status === 'approved' ||
-    status === 'pending' ||
-    status === 'rejected' ||
-    status === 'cancelled' ||
-    status === 'refunded'
-  ) {
-    return status;
-  }
-
-  if (
-    status === 'in_process' ||
-    status === 'authorized' ||
-    status === 'in_mediation'
-  ) {
-    return 'pending';
-  }
-
-  if (status === 'charged_back') {
-    return 'cancelled';
-  }
-
-  return 'error';
-}
-
 function getBrickPaymentMessage(status: string) {
   switch (status) {
     case 'approved':
@@ -1898,15 +1873,15 @@ export async function processMercadoPagoBrickPaymentAction(
       providerReference: latestTransaction?.providerReference,
       environment,
     });
-    const initialStatus = getBrickPaymentStatus(payment.status);
-
     await updatePaymentAttempt({
       attemptId: paymentAttempt.id,
       storeId: store.id,
       externalPaymentId: payment.id,
       paymentMethodId: payment.paymentMethodId,
       paymentTypeId: payment.paymentTypeId,
-      status: initialStatus,
+      // Another request can reuse this attempt while reconciliation is running.
+      // Never publish an approval before server-side verification succeeds.
+      status: 'pending',
       statusDetail: payment.statusDetail,
       instructions: (payment.paymentInstructions ?? {}) as Record<string, unknown>,
     });
@@ -1916,9 +1891,7 @@ export async function processMercadoPagoBrickPaymentAction(
       environment,
       source: 'return',
     });
-    const status = getBrickPaymentStatus(
-      reconciliation.ok ? reconciliation.status : payment.status
-    );
+    const status = getReconciledBrickStatus(reconciliation);
     await updatePaymentAttempt({
       attemptId: paymentAttempt.id,
       storeId: store.id,
@@ -2237,10 +2210,10 @@ export async function previewCheckoutCartAction(
       discountTotal: pricing.discountTotal,
       total: pricing.total,
     };
-  } catch {
+  } catch (error) {
     return {
       ok: false,
-      error: 'Não foi possível calcular os preços agora.',
+      error: error instanceof CheckoutStockError ? error.message : 'Não foi possível calcular os preços agora.',
     };
   }
 }

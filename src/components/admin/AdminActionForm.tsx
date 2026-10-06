@@ -67,6 +67,8 @@ export function AdminActionForm({
     if (state.status === 'idle') return;
 
     setVisible(true);
+    // Errors require acknowledgement; do not hide the explanation after five seconds.
+    if (state.status === 'error') return;
     const timeout = window.setTimeout(() => setVisible(false), 5000);
     return () => window.clearTimeout(timeout);
   }, [state.status, state.submission]);

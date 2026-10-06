@@ -7,11 +7,11 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 ## Snapshot
 
 - Atualizado em: 2026-10-06
-- Branch desta auditoria: `codex/production-readiness-audit`
+- Branch desta auditoria e correções: `codex/production-readiness-audit`
 - Base local/remota/publicada conferida: `a376b1a` —
   `feat: complete admin order details and manual Bling send`.
 - Esta entrega não foi mesclada na branch de produção. Conferir o bloco de
-  auditoria abaixo antes de iniciar correções ou publicar. Preservar alterações
+  correções/auditoria abaixo antes de continuar ou publicar. Preservar alterações
   locais não relacionadas caso existam na próxima sessão.
 - Guia de continuidade para outra IDE/máquina: `docs/work-context/IDE_HANDOFF.md`.
 
@@ -22,6 +22,58 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Login e admin pertencem à identidade Zalen Shop; o storefront pertence à loja ativa.
 - `/platform` completo, billing, marketplace e automações de IA continuam fora do MVP.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
+
+## Correções de produção — lote 1 e limpeza autorizada (06/10/2026)
+
+- Objetivo aprovado: iniciar as correções da auditoria sem ampliar o MVP e
+  excluir os pedidos de teste pendentes identificados pelo responsável.
+  Branch/remoto conferidos; working tree inicialmente limpo e rebase atualizado.
+- Limpeza já executada no projeto correto `zalen.shop`, exclusivamente na loja
+  Brasil Drones: sete pedidos de teste pendentes (dois aguardando pagamento e
+  cinco não aprovados), nove itens, sete transações e cinco tentativas removidos.
+  Responsável confirmou explicitamente os sete; dois pedidos pagos do mesmo
+  comprador foram preservados. Verificação posterior: zero IDs-alvo restantes,
+  os dois pagos intactos e 15 pedidos na loja. Nenhum cliente, usuário, produto,
+  envio ou vínculo ERP foi excluído. Registros de checkout continuam sem o
+  pedido, conforme `ON DELETE SET NULL`; não foram apagados separadamente.
+- Recuperação: cópia integral LOCAL TEMPORÁRIA, fora do Git, em
+  `/private/tmp/zalen-order-cleanup.ISLG15ee/orders-backup.json`, arquivo com
+  permissão 600 e diretório 700. Contém dados pessoais/fiscais; não imprimir,
+  versionar nem enviar. Não há lixeira no app: eventual recuperação é manual,
+  condicionada à disponibilidade desse arquivo temporário. Restauração não testada.
+- Código concluído: retirada da promessa Pix 5% não aplicada; preço promocional
+  e duas casas decimais compartilhados entre produto, relacionados, categorias
+  e modelos. Política/desconto CNPJ não alterados. Glows de categoria/carrinho
+  confinados à camada decorativa, sem cortar menus. Newsletter simulada
+  substituída por link ao Instagram já existente; vídeo simulado removido.
+- Segurança: produtos/clientes/compatibilidade verificam papel junto da leitura
+  privilegiada, antes das consultas. Viewer e dados demonstrativos não expõem
+  mutações; Server Actions mantêm seus próprios guards e isolamento por loja.
+- Checkout: valida quantidade inteira/positiva, produto/variante ativos da loja
+  e soma de linhas repetidas contra estoque; indisponibilidade retorna mensagem
+  segura ao comprador. NÃO reserva nem decrementa estoque; concorrência continua
+  pendente. Criação do pedido/itens ainda não é transacional.
+- Payment Brick: removido fallback para status bruto quando reconciliação falha;
+  tentativa começa pendente, nunca aprovada antes da validação. Testes incluem
+  divergências de valor, loja, pedido, ambiente e moeda. Isso NÃO resolve a
+  regressão de pedido/transação paga por eventos antigos nem toda concorrência.
+- Compatibilidade: removido limite obsoleto de 31 modelos (34 no catálogo atual);
+  limite de tamanho da requisição mantido e repository continua validando IDs
+  por `store_id`. Erros administrativos deixam de desaparecer após cinco segundos.
+- Validação do lote: TypeScript, 312 testes/64 arquivos, build, scanner de
+  segredos e `git diff --check` aprovados. Testes de leitura usam mocks/SSR;
+  não representam homologação de papéis em produção. Nenhuma compra, cobrança,
+  reenvio Bling ou migration foi executado durante as correções.
+- Próximo lote: atualizar versões vulneráveis com base nos avisos oficiais e
+  repetir validações. Depois preparar homologação isolada, correção atômica
+  de pagamento/pedido/estoque e conferir/reautorizar Bling com o responsável.
+- Não aprovar o app integralmente para produção, nem promover esta branch
+  automaticamente. As lacunas do relatório histórico abaixo permanecem salvo
+  as correções explicitamente listadas neste bloco.
+- Arquivos principais: `src/modules/admin/admin-access.ts`, páginas de produtos,
+  clientes e compatibilidade, `src/modules/pricing/pricing.service.ts`,
+  `src/modules/payments/brick-payment-status.ts`, `src/app/carrinho/actions.ts`,
+  `src/modules/catalog/catalog-price.ts` e testes de regressão correspondentes.
 
 ## Auditoria de produção e simplificação da sidebar (06/10/2026)
 

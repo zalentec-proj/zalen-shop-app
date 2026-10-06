@@ -20,6 +20,7 @@ import {
   UserRound,
 } from 'lucide-react';
 import Footer from '@/components/layout/Footer';
+import { StorefrontAmbientGlow } from '@/components/storefront/StorefrontAmbientGlow';
 import {
   checkoutCartAction,
   lookupCheckoutPostalCodeAction,
@@ -1674,7 +1675,7 @@ export default function CartClient({ customerSession }: Props) {
 
   return (
     <div className="relative min-h-screen bg-brand-bg">
-      <div className="glow-radial pointer-events-none absolute left-[10%] top-[5%] -z-10 h-[500px] w-[500px] rounded-full opacity-30" />
+      <StorefrontAmbientGlow />
 
       <header className="fixed left-0 right-0 top-0 z-50 bg-transparent px-4 py-4 md:px-8">
         <nav className="navbar-glass mx-auto flex h-[72px] max-w-7xl items-center justify-between rounded-full px-6 shadow-[0_12px_32px_rgba(0,0,0,0.55)]">

@@ -5,6 +5,16 @@
 
 ## Fontes oficiais consultadas
 
+Revisão de segurança em 06/10/2026: a rota antiga de referência `payments_id/get`
+agora retorna 404. A referência atual consultada para `GET /v1/payments/{id}` é
+https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-pro-preferences/get-payment/get.
+A submissão de cartão continua documentada em
+https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/payment-brick/payment-submission/cards.
+Sem novos endpoints/payloads: a aplicação deixa de aceitar o status bruto da
+criação quando a reconciliação server-side falha e mantém a tentativa pendente
+até essa validação. Valores, ambiente, loja/pedido e moeda não podem ser
+ignorados para mostrar aprovação. Homologação financeira continua pendente.
+
 - https://www.mercadopago.com.br/developers/pt
 - https://www.mercadopago.com.br/developers/pt/docs
 - https://www.mercadopago.com.br/developers/pt/docs/sdks-library/landing

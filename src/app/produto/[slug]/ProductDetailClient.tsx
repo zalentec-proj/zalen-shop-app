@@ -15,6 +15,7 @@ import {
 import Footer from '@/components/layout/Footer';
 import { useStorefrontCart } from '@/modules/cart/StorefrontCartProvider';
 import type { Product, ProductSummary } from '@/modules/catalog/product.types';
+import { catalogUnitPrice, formatCatalogAmount } from '@/modules/catalog/catalog-price';
 import { PjDiscountNotice } from '@/components/storefront/PjDiscountNotice';
 import { ProductDescription } from '@/components/product/ProductDescription';
 import { ProductWhatsAppQuestionLink } from '@/components/product/ProductWhatsAppQuestionLink';
@@ -40,9 +41,9 @@ export default function ProductDetailClient({
   const { addCartItem, goToCheckout } = useStorefrontCart();
 
   const variant = product.variants[0];
-  const price = variant?.price ?? 0;
+  const price = catalogUnitPrice(variant);
   const stock = variant?.stock ?? 0;
-  const monthly = (price / 12).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  const monthly = formatCatalogAmount(price / 12);
 
   function addProductToCart(openCart: boolean) {
     if (!variant) {
@@ -243,10 +244,7 @@ export default function ProductDetailClient({
             <div className="glass-panel-soft rounded-2xl p-5 flex flex-col gap-1">
               <span className="text-xs text-brand-muted">12x de R$ {monthly} sem juros</span>
               <span className="text-4xl font-extrabold text-green-accent font-sans">
-                R$ {price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </span>
-              <span className="text-xs text-brand-muted mt-1">
-                ou R$ {(price * 0.95).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} no Pix (5% off)
+                R$ {formatCatalogAmount(price)}
               </span>
             </div>
 
@@ -415,10 +413,10 @@ export default function ProductDetailClient({
 
                     <div>
                       <span className="text-[11px] text-brand-muted">
-                        12x de R$ {(relatedProduct.price / 12).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        12x de R$ {formatCatalogAmount(catalogUnitPrice(relatedProduct) / 12)}
                       </span>
                       <p className="text-lg font-extrabold text-green-accent">
-                        R$ {relatedProduct.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        R$ {formatCatalogAmount(catalogUnitPrice(relatedProduct))}
                       </p>
                     </div>
 

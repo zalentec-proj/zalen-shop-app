@@ -2,6 +2,14 @@
 
 ## Conclusão
 
+Atualização posterior à auditoria: o primeiro lote de correções e a limpeza de
+sete pedidos de teste foram autorizados e executados em 06/10. Ver o bloco
+“Correções de produção — lote 1” em `CURRENT_STATE.md`. Os números e falhas
+abaixo são evidência do momento da auditoria, não uma certificação pós-correção.
+Guards locais e promessas de preço foram tratados; estoque e pagamento foram
+parcialmente corrigidos. Reserva, persistência atômica, eventos atrasados e
+homologação permanecem pendentes. A branch não foi promovida para produção.
+
 **Não aprovado para declarar o app integralmente pronto para produção.** O app
 publicado atende vendas, mas há falhas operacionais confirmadas e lacunas no
 código que afetam estoque, pagamento, acesso e consistência de pedidos.

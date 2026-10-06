@@ -2,7 +2,8 @@ import { SettingsBadge, SettingsPanel } from '../SettingsShell';
 import { redirect } from 'next/navigation';
 import CompatibilityManager from './CompatibilityManager';
 import { AdminActionForm } from '@/components/admin/AdminActionForm';
-import { AdminFilterBar, AdminPagination } from '@/components/admin/AdminLayout';
+import { AdminEmptyState, AdminFilterBar, AdminPagination } from '@/components/admin/AdminLayout';
+import { canWriteAdmin, getAdminReadAccess } from '@/modules/admin/admin-access';
 import { buildAdminListUrl, normalizeAdminPagination, type AdminListSearchParams } from '@/modules/admin/admin-pagination';
 import { activateDroneModelNavigationAction } from './actions';
 import { detectDroneModels } from '@/modules/catalog/drone-model.definitions';
@@ -17,11 +18,14 @@ export default async function CompatibilityPage({ searchParams }: { searchParams
   const params = await searchParams;
   const pagination = normalizeAdminPagination(params, 25);
   const store = await resolveCurrentStoreFromHeaders();
+  const access = await getAdminReadAccess(store.id);
+  if (!access.allowed) return <AdminEmptyState title="Acesso restrito" description="Sua conta não possui acesso às compatibilidades desta loja." />;
   const [catalog, productsResult] = await Promise.all([
     listAdminDroneModelCatalog(store.id),
     listAdminProductsPage(store.id, { ...pagination, q: params.q, status: 'all' }),
   ]);
   const productIds = productsResult.items.map((product) => product.id);
+  const canWrite = canWriteAdmin(access) && productsResult.source === 'supabase';
   if (productsResult.total > 0 && productsResult.page > productsResult.pageCount) redirect(buildAdminListUrl('/admin/configuracoes/compatibilidade', { q: params.q, record: params.record }, { page: productsResult.pageCount, pageSize: productsResult.pageSize }));
   const links = await listProductDroneModelLinks(store.id, productIds);
   const modelBySlug = new Map(
@@ -69,7 +73,7 @@ export default async function CompatibilityPage({ searchParams }: { searchParams
             <SettingsBadge tone={productsResult.source === 'supabase' ? 'success' : 'warning'}>
               {productsResult.source === 'supabase' ? 'Catálogo conectado' : 'Modo demonstração'}
             </SettingsBadge>
-            <AdminActionForm action={activateDroneModelNavigationAction} successMessage="Menu de modelos ativado com sucesso." pendingMessage="Ativando menu de modelos…">
+            {canWrite ? <AdminActionForm action={activateDroneModelNavigationAction} successMessage="Menu de modelos ativado com sucesso." pendingMessage="Ativando menu de modelos…">
               <button
                 type="submit"
                 disabled={mappedProducts === 0}
@@ -82,7 +86,7 @@ export default async function CompatibilityPage({ searchParams }: { searchParams
               >
                 Ativar menu de modelos
               </button>
-            </AdminActionForm>
+            </AdminActionForm> : null}
           </div>
         }
       >
@@ -106,6 +110,7 @@ export default async function CompatibilityPage({ searchParams }: { searchParams
         <div className="space-y-3">
           <AdminFilterBar action="/admin/configuracoes/compatibilidade" query={params.q} placeholder="Buscar produto ou SKU…" statuses={[{ value: 'all', label: 'Todos os produtos' }]} />
           <CompatibilityManager
+            readOnly={!canWrite}
             models={models}
             products={rows}
             selectedId={params.record}

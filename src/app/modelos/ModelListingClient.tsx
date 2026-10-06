@@ -9,6 +9,7 @@ import { SafeCatalogImage } from '@/components/ui/SafeCatalogImage';
 import { getItemCount } from '@/modules/cart/cart.utils';
 import { useStorefrontCart } from '@/modules/cart/StorefrontCartProvider';
 import type { Product } from '@/modules/catalog/product.types';
+import { catalogUnitPrice, formatCatalogAmount } from '@/modules/catalog/catalog-price';
 import type { StorefrontNavigation } from '@/modules/catalog/storefront-navigation';
 import type { StorefrontSearchProductPreview } from '@/modules/catalog/storefront-search';
 import type { StorefrontCategory } from '@/types';
@@ -25,8 +26,7 @@ interface ModelListingClientProps {
 }
 
 function productPrice(product: Product) {
-  const variant = product.variants[0];
-  return variant?.promotionalPrice ?? variant?.price ?? 0;
+  return catalogUnitPrice(product.variants[0]);
 }
 
 export default function ModelListingClient({
@@ -186,7 +186,7 @@ export default function ModelListingClient({
                       <div>
                         <p className="hidden text-[11px] text-brand-muted sm:block">À vista</p>
                         <p className="text-base font-semibold text-green-accent sm:text-lg">
-                          R$ {price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          R$ {formatCatalogAmount(price)}
                         </p>
                       </div>
                       <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-blue-primary/30 bg-blue-primary/10 text-blue-primary sm:h-9 sm:w-9">

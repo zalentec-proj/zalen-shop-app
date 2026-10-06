@@ -21,7 +21,8 @@ const writableStoreRoles: StoreRole[] = [
 
 const formSchema = z.object({
   productId: z.string().uuid(),
-  modelIds: z.array(z.string().uuid()).max(31),
+  // Bound request size, not the current catalog size. Repository checks store scope.
+  modelIds: z.array(z.string().uuid()).max(1000),
 });
 
 export async function saveProductDroneModelsAction(

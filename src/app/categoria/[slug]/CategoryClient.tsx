@@ -9,6 +9,8 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import Footer from '@/components/layout/Footer';
+import { StorefrontAmbientGlow } from '@/components/storefront/StorefrontAmbientGlow';
+import { catalogUnitPrice, formatCatalogAmount } from '@/modules/catalog/catalog-price';
 import Navbar from '@/components/layout/Navbar';
 import { SafeCatalogImage } from '@/components/ui/SafeCatalogImage';
 import { getItemCount } from '@/modules/cart/cart.utils';
@@ -54,8 +56,8 @@ export default function CategoryClient({
   }, [products, searchQuery]);
 
   const sorted = [...filteredProducts].sort((a, b) => {
-    const pa = a.variants[0]?.price ?? 0;
-    const pb = b.variants[0]?.price ?? 0;
+    const pa = catalogUnitPrice(a.variants[0]);
+    const pb = catalogUnitPrice(b.variants[0]);
     if (sortBy === 'price-asc') return pa - pb;
     if (sortBy === 'price-desc') return pb - pa;
     return 0;
@@ -63,7 +65,7 @@ export default function CategoryClient({
 
   return (
     <div className="min-h-screen bg-brand-bg relative">
-      <div className="absolute top-[5%] left-[15%] w-[500px] h-[500px] rounded-full glow-radial pointer-events-none -z-10 opacity-30" />
+      <StorefrontAmbientGlow />
 
       <Navbar
         categories={storefrontCategories}
@@ -116,8 +118,8 @@ export default function CategoryClient({
           <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
             {sorted.map((product) => {
               const variant = product.variants[0];
-              const price = variant?.price ?? 0;
-              const monthly = (price / 12).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+              const price = catalogUnitPrice(variant);
+              const monthly = formatCatalogAmount(price / 12);
               return (
                 <Link
                   key={product.id}
@@ -161,7 +163,7 @@ export default function CategoryClient({
                     <div>
                       <span className="text-[10px] text-brand-muted sm:text-[11px]">12x de R$ {monthly}</span>
                       <p className="text-base font-extrabold text-green-accent sm:text-lg">
-                        R$ {price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        R$ {formatCatalogAmount(price)}
                       </p>
                     </div>
 
