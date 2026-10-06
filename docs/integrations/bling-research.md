@@ -282,6 +282,32 @@ checkout. Nesta fase:
 
 ## Pedidos
 
+### Envio manual operacional e dados fiscais (06/10/2026)
+
+- A ação `admin_manual`, no detalhe de `/admin/pedidos`, exige confirmação
+  explícita, papel owner/admin/operator e loja resolvida no servidor. Envia uma
+  venda real já paga, não uma homologação; não liga o envio automático, não emite
+  nota nem gera etiqueta. A conexão Bling precisa estar `connected`.
+- Consulta oficial atualizada em `https://developer.bling.com.br/referencia`,
+  OpenAPI `https://developer.bling.com.br/build/assets/openapi-Dw6cY8yQ.json`:
+  `ContatosDadosDTO.indicadorIe` aceita 1 (contribuinte), 2 (isento), 9 (não
+  contribuinte), e `ie` é a inscrição estadual. O conector usa 1 apenas com IE
+  informada e 2 apenas com isenção explícita. Não presume 9 nem inventa IE.
+- Contatos PJ novos usam razão social em `nome` e os dados fiscais do snapshot;
+  contatos já existentes são preservados e devem ser revisados no Bling antes
+  de gerar a NF-e. Pedidos PJ incompletos ficam bloqueados para envio.
+- Antes de qualquer envio, a escrita condicional nas colunas ERP existentes de
+  `orders` reivindica o pedido pago, não cancelado, sem ID externo. A comparação
+  com o erro anterior impede dois workers de iniciar simultaneamente. Nenhuma
+  migration é necessária; não há transação aberta durante a chamada externa.
+- Resposta inconclusiva após o POST mantém `bling_order_send_uncertain`; um
+  processo interrompido mantém `bling_order_send_in_progress`. Nenhum marcador
+  expira automaticamente. A operação deve conferir o Bling antes de liberar
+  qualquer reenvio; não apagar o marcador apenas por passagem de tempo.
+- Envios automáticos/retry com a trava desligada retornam `skipped` sem
+  sobrescrever o estado de um envio manual concorrente. Nenhuma venda foi
+  enviada durante a implementação ou os testes locais.
+
 Implementado envio server-side beta para criação de pedido de venda no Bling,
 atrás da trava explícita por loja `settings_json.orderSend.enabled === true`.
 
@@ -341,8 +367,9 @@ Comportamento atual:
 
 - checkout cria pedido local no Supabase;
 - pedido salva cliente e snapshot do comprador;
-- service server-side só envia para Bling quando a trava `orderSend.enabled`
-  está ligada na integração da loja;
+- service server-side só envia automaticamente para Bling quando a trava
+  `orderSend.enabled` está ligada; envio manual explícito e homologação são
+  exceções autorizadas separadas, sempre exigindo conexão válida;
 - se o pedido já tiver `external_erp_provider = bling` e `external_erp_id`, não
   duplica envio;
 - `sync_jobs` registra `job_type = order_send`;
@@ -359,8 +386,9 @@ Comportamento atual:
   `external_erp_synced_at`;
 - em falha, grava `external_erp_sync_status = error`,
   `external_erp_last_error` sanitizado e conclui o `sync_jobs` com erro;
-- se a trava estiver desligada, não chama o Bling e marca o pedido como
-  `skipped` com erro seguro `bling_order_send_disabled`;
+- se a trava automática estiver desligada, checkout/retry não chamam o Bling
+  e retornam `skipped` com código seguro `bling_order_send_disabled`, sem alterar
+  o estado persistido de um possível envio manual concorrente;
 - admin permite retry manual por rota server-side;
 - para homologação excepcional na própria conta Bling operacional, owner/admin
   pode enviar manualmente um único pedido já pago mesmo com a trava automática

@@ -66,6 +66,8 @@ export interface BlingOrderDraft {
     email?: string;
     phone?: string;
     document?: string;
+    stateRegistration?: string;
+    stateRegistrationExempt?: boolean;
   };
   shippingAddress?: {
     postalCode?: string;

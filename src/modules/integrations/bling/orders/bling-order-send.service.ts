@@ -2,6 +2,7 @@ import 'server-only';
 
 import {
   getOrderByReferenceFromRepository,
+  claimOrderBlingSendInRepository,
   updateOrderExternalErpStateInRepository,
 } from '@/modules/orders/order.repository';
 import { BLING_PROVIDER_KEY } from '../bling.config';
@@ -26,7 +27,7 @@ import type {
 type SendOrderInput = {
   storeId: string;
   orderId: string;
-  trigger: 'checkout' | 'admin_retry' | 'admin_test';
+  trigger: 'checkout' | 'admin_retry' | 'admin_test' | 'admin_manual';
 };
 
 function getSafeErrorCode(error: unknown) {
@@ -37,6 +38,7 @@ function getSafeErrorCode(error: unknown) {
   if (error instanceof Error) {
     const safeErrorMessages = [
       'order_missing_customer_data',
+      'order_missing_company_fiscal_data',
       'order_missing_items',
       'bling_order_response_missing_id',
       'bling_order_send_disabled',
@@ -104,18 +106,16 @@ export async function sendOrderToBling(
   }
 
   if (order.paymentStatus !== 'paid') {
-    await markOrderSendError({
-      storeId: input.storeId,
-      orderId: order.id,
-      errorCode: 'order_payment_not_approved',
-    });
-
     return {
       status: 'error',
       orderId: order.id,
       orderNumber: order.orderNumber,
       errorCode: 'order_payment_not_approved',
     };
+  }
+
+  if (order.status === 'cancelled') {
+    return { status: 'error', orderId: order.id, errorCode: 'order_cancelled' };
   }
 
   if (order.externalErpProvider === BLING_PROVIDER_KEY && order.externalErpId) {
@@ -141,21 +141,21 @@ export async function sendOrderToBling(
     input.storeId
   );
 
-  if (!orderSendSettings.enabled && !isHomologation) {
-    await updateOrderExternalErpStateInRepository({
-      storeId: input.storeId,
-      orderId: order.id,
-      provider: BLING_PROVIDER_KEY,
-      status: 'skipped',
-      lastError: 'bling_order_send_disabled',
-    });
-
+  if (!orderSendSettings.enabled && !isHomologation && input.trigger !== 'admin_manual') {
     return {
       status: 'skipped',
       orderId: order.id,
       orderNumber: order.orderNumber,
       errorCode: 'bling_order_send_disabled',
     };
+  }
+
+  if (orderSendSettings.status !== 'connected') {
+    return { status: 'error', orderId: order.id, errorCode: 'bling_not_connected' };
+  }
+
+  if (['bling_order_send_in_progress', 'bling_order_send_uncertain'].includes(order.externalErpLastError ?? '')) {
+    return { status: 'skipped', orderId: order.id, errorCode: order.externalErpLastError };
   }
 
   if (
@@ -172,16 +172,21 @@ export async function sendOrderToBling(
     };
   }
 
-  const jobId = await createBlingOrderSendJobInRepository({
-    storeId: input.storeId,
-    orderId: order.id,
-    orderNumber: order.orderNumber,
-    testMode: isHomologation,
-  });
+  if (!await claimOrderBlingSendInRepository(order)) {
+    return { status: 'skipped', orderId: order.id, errorCode: 'order_send_already_running' };
+  }
+  let jobId: string | undefined;
   const startedAt = new Date().toISOString();
   let draftSummary: Record<string, unknown> | undefined;
+  let salesOrderRequestStarted = false;
+  let orderLinkSaved = false;
+  let savedExternalId: string | undefined;
 
   try {
+    jobId = await createBlingOrderSendJobInRepository({
+      storeId: input.storeId, orderId: order.id,
+      orderNumber: order.orderNumber, testMode: isHomologation,
+    });
     const draft = mapOrderToBlingDraft(order, {
       paymentMethodId: orderSendSettings.paymentMethodId,
       isHomologation,
@@ -192,6 +197,12 @@ export async function sendOrderToBling(
       throw new Error('order_missing_customer_data');
     }
 
+    if (draft.payload.contato.tipoPessoa === 'J' &&
+      (!(order.customerLegalName ?? order.customer?.legalName) ||
+        (!draft.customer.stateRegistrationExempt && !draft.customer.stateRegistration))) {
+      throw new Error('order_missing_company_fiscal_data');
+    }
+
     if (draft.items.length === 0 || draft.payload.itens.length === 0) {
       throw new Error('order_missing_items');
     }
@@ -200,6 +211,7 @@ export async function sendOrderToBling(
       input.storeId
     );
     const payload = await resolveBlingOrderReferences(client, draft);
+    salesOrderRequestStarted = true;
     const response = await client.request<BlingCreateSalesOrderResponse>(
       '/pedidos/vendas',
       {
@@ -237,6 +249,8 @@ export async function sendOrderToBling(
       status: 'synced',
       syncedAt: processedAt,
     });
+    orderLinkSaved = true;
+    savedExternalId = externalId;
 
     await completeBlingOrderSendJobInRepository({
       jobId,
@@ -261,7 +275,16 @@ export async function sendOrderToBling(
       testMode: isHomologation,
     };
   } catch (error) {
-    const errorCode = getSafeErrorCode(error);
+    // A job/audit failure must not turn a successfully linked sale into a retry.
+    if (orderLinkSaved) {
+      return { status: 'success', orderId: order.id, orderNumber: order.orderNumber, externalId: savedExternalId, testMode: isHomologation };
+    }
+    // A timeout or persistence failure after POST may already have created the sale.
+    // Keep a durable stop rather than treating an uncertain response as safe to retry.
+    const definitelyRejected = error instanceof BlingApiClientError &&
+      error.status !== undefined && [400, 401, 403, 404, 422, 429].includes(error.status);
+    const errorCode = salesOrderRequestStarted && !definitelyRejected
+      ? 'bling_order_send_uncertain' : getSafeErrorCode(error);
     const processedAt = new Date().toISOString();
     const summary = {
       jobId,
@@ -277,13 +300,13 @@ export async function sendOrderToBling(
       durationMs: toDurationMs(startedAt),
     };
 
-    await markOrderSendError({
+    if (!orderLinkSaved) await markOrderSendError({
       storeId: input.storeId,
       orderId: order.id,
       errorCode,
     });
 
-    await completeBlingOrderSendJobInRepository({
+    if (jobId) await completeBlingOrderSendJobInRepository({
       jobId,
       storeId: input.storeId,
       status: 'error',

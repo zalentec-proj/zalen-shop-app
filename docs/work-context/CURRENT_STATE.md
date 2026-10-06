@@ -6,10 +6,10 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Snapshot
 
-- Atualizado em: 2026-09-01
+- Atualizado em: 2026-10-06
 - Branch: `refactor/migrate-to-next`
-- Commit funcional base antes desta revisão: `be3a961` —
-  `fix: retry failed single-product syncs`
+- Commit funcional base antes desta revisão: `7183f02` —
+  `feat: add product WhatsApp questions`
 - A publicação e a restauração seletiva de imagens/compatibilidades devem ser
   conferidas no bloco mais recente antes de iniciar uma nova frente.
   Preserve os scripts locais não rastreados que não pertencem a esta frente.
@@ -22,6 +22,55 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Login e admin pertencem à identidade Zalen Shop; o storefront pertence à loja ativa.
 - `/platform` completo, billing, marketplace e automações de IA continuam fora do MVP.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
+
+## Detalhe operacional de pedidos e envio manual Bling (06/10/2026)
+
+- Objetivo solicitado: tornar uma venda existente operável pelo lojista, com
+  dados para conferir a NF-e e encaminhamento manual ao Bling quando o envio
+  automático estiver desligado. Este bloco é o estado vigente desta frente;
+  registros anteriores de conexão/ativação não foram reconfirmados em produção.
+- Concluído em código: modal central com snapshot fiscal PF/PJ, CPF/CNPJ,
+  razão social, IE/isento, contato, endereço completo, modalidade/prazo, itens
+  com SKU/quantidade/unitário/total, resumo financeiro e pagamento. IDs ficam
+  em detalhes técnicos; descontos incorporados nos itens não são subtraídos
+  novamente. A lista ganhou situação de pagamento.
+- O `record` é resolvido pela loja independentemente da página/busca/filtro.
+  Leitura exige acesso antes das consultas. Viewer não recebe formulários;
+  owner/admin/operator continuam autorizados no servidor para cada ação.
+- O formulário de envio abre com transportadora, rastreio, link e situação
+  atuais. A gravação atualiza o mesmo shipment da loja/pedido e preserva as
+  datas originais de postagem/entrega; pedidos cancelados não podem avançar.
+- Nova ação explícita `Enviar pedido ao Bling`: confirmação obrigatória,
+  somente pedido pago, não cancelado, conexão `connected`. Não ativa envio
+  automático, não usa homologação, não emite NF-e nem etiqueta. Dados PJ novos
+  incluem razão social e IE/indicador de isenção no contato; contatos existentes
+  no ERP são preservados e precisam de conferência fiscal antes de faturar.
+- Concorrência protegida por reivindicação condicional nas colunas ERP já
+  existentes. Resposta inconclusiva após o POST e processo interrompido mantêm
+  marcadores duráveis, bloqueando reenvio até conferência operacional no Bling.
+  Nunca limpar o marcador apenas por timeout; resolver após verificar se a
+  venda externa existe. Não foi criada migration nem alterada regra de preço.
+- Validações locais: build de produção, TypeScript, 264 testes em 57 arquivos,
+  renderização do detalhe, permissões, URLs copiáveis, isolamento de loja,
+  snapshots fiscais, reivindicação e envio inconclusivo. Scanner de segredos e
+  `git diff --check` passaram. Nenhuma chamada de teste criou venda real.
+- A auditoria de dependências NÃO passou: 9 alertas preexistentes, incluindo
+  um crítico no Next.js, sete altos e um moderado. Atualização de dependências
+  não foi misturada nesta frente; deve ser tratada prioritariamente com novo
+  build/testes. Não relatar o quality gate inteiro como aprovado.
+- Bloqueio externo: plugin Supabase não tem permissão sobre o projeto da loja
+  `xtwobxfepsdfjrtducqb`; CLI vinculada também retornou 403. Nenhum acesso a
+  dados de outros projetos foi tentado. Sem variáveis Supabase locais válidas,
+  a venda real e o E2E autenticado não foram verificáveis nesta sessão.
+- Próximo passo exato: reconectar o plugin Supabase à organização da Zalen;
+  após publicação, abrir `/admin/pedidos`, conferir o pedido real em desktop e
+  mobile, conectar o Bling com a conta administradora e, por decisão do lojista,
+  confirmar uma única vez o envio manual. Conferir referência/cliente/itens/total
+  no ERP antes de gerar a nota. Não executar homologação para esta venda.
+- Arquivos: `src/app/admin/pedidos/{page,OrderDetails}.tsx`,
+  `src/app/admin/orders/actions.ts`, `src/modules/orders/order-admin-summary.ts`,
+  `src/modules/orders/order.repository.ts`, `src/modules/shipping/shipment.repository.ts`,
+  `src/modules/integrations/bling/orders/*` e pesquisa Bling.
 
 ## Busca pública e Mini 4 Pro (01/09/2026)
 

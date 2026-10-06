@@ -54,6 +54,12 @@ const order = {
 } satisfies OrderListItem;
 
 describe('mapOrderToBlingDraft', () => {
+  it('usa razão social e inscrição estadual do snapshot PJ sem alterar preços', () => {
+    const draft = mapOrderToBlingDraft({ ...order, customerType: 'pj', customerLegalName: 'Empresa teste Ltda', customerStateRegistration: '123456', customerStateRegistrationExempt: false, customer: { ...order.customer, document: '12345678000195' } });
+    expect(draft.customer).toMatchObject({ name: 'Empresa teste Ltda', stateRegistration: '123456', stateRegistrationExempt: false });
+    expect(draft.payload.contato).toMatchObject({ nome: 'Empresa teste Ltda', tipoPessoa: 'J' });
+    expect(draft.payload.itens[0]?.valor).toBe(order.items[0].unitPrice);
+  });
   it('marca um envio de homologação sem alterar o número rastreável da loja', () => {
     const draft = mapOrderToBlingDraft(order, { isHomologation: true });
 

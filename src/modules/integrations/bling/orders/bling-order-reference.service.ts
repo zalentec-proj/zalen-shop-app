@@ -98,6 +98,10 @@ async function resolveContactId(
       numeroDocumento: document,
       email: draft.customer.email,
       celular: draft.customer.phone,
+      ...(draft.payload.contato.tipoPessoa === 'J' ? {
+        indicadorIe: draft.customer.stateRegistrationExempt ? 2 : draft.customer.stateRegistration ? 1 : undefined,
+        ie: draft.customer.stateRegistrationExempt ? undefined : draft.customer.stateRegistration,
+      } : {}),
       endereco:
         addressPayload && Object.keys(addressPayload).length > 0
           ? { geral: addressPayload }

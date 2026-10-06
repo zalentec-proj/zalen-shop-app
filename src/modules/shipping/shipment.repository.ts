@@ -569,6 +569,7 @@ export async function upsertManualShipmentInRepository(
         .update(payload)
         .eq('store_id', input.storeId)
         .eq('id', shipmentId)
+        .eq('order_id', input.orderId)
         .select('*')
         .single()
     : await supabase

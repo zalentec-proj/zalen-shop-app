@@ -58,6 +58,11 @@ const draft = {
 } satisfies BlingOrderDraft;
 
 describe('resolveBlingOrderReferences', () => {
+  it.each([{ exempt: true, indicator: 2, ie: undefined }, { exempt: false, indicator: 1, ie: '123456' }])('leva a condição fiscal PJ ao contato novo: %j', async ({ exempt, indicator, ie }) => {
+    const request = vi.fn().mockResolvedValueOnce({ data: [] }).mockResolvedValueOnce({ data: { id: 789 } }).mockResolvedValueOnce({ data: [{ id: 456, codigo: 'PRO-TP' }] });
+    await resolveBlingOrderReferences({ request }, { ...draft, customer: { ...draft.customer, stateRegistration: '123456', stateRegistrationExempt: exempt }, payload: { ...draft.payload, contato: { ...draft.payload.contato, tipoPessoa: 'J' } } });
+    expect(request.mock.calls[1][1].body).toMatchObject({ indicadorIe: indicator, ie });
+  });
   it('reutiliza contato e produto existentes por documento e SKU', async () => {
     const request = vi
       .fn()

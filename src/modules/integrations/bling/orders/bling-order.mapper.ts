@@ -114,8 +114,11 @@ export function mapOrderToBlingDraft(
   order: OrderListItem,
   options: { paymentMethodId?: number; isHomologation?: boolean } = {}
 ): BlingOrderDraft {
-  const customerName = order.customer?.name ?? order.customerName;
   const customerDocument = onlyDigits(order.customer?.document);
+  const personType = toBlingPersonType(order.customerType ?? order.customer?.customerType, customerDocument);
+  const customerName = personType === 'J'
+    ? order.customerLegalName ?? order.customer?.legalName ?? order.customer?.name ?? order.customerName
+    : order.customer?.name ?? order.customerName;
   const shippingAddress = order.customer?.shippingAddress;
   const orderDate = toDateOnly(order.createdAt);
   const items = order.items.map((item) => ({
@@ -138,7 +141,7 @@ export function mapOrderToBlingDraft(
     dataPrevista: orderDate,
     contato: {
       nome: customerName,
-      tipoPessoa: toBlingPersonType(order.customerType, customerDocument),
+      tipoPessoa: personType,
       numeroDocumento: customerDocument,
     },
     itens: items.map((item) => ({
@@ -196,6 +199,8 @@ export function mapOrderToBlingDraft(
       email: order.customer?.email ?? order.customerEmail,
       phone: order.customer?.phone,
       document: customerDocument,
+      stateRegistration: order.customerStateRegistration ?? order.customer?.stateRegistration,
+      stateRegistrationExempt: order.customerStateRegistrationExempt ?? order.customer?.stateRegistrationExempt,
     },
     shippingAddress,
     items,

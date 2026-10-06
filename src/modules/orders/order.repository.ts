@@ -740,6 +740,25 @@ export async function claimGuestOrdersForCustomerInRepository(input: {
   return data?.length ?? 0;
 }
 
+/** Atomic claim using existing ERP state columns; never expire an ambiguous send automatically. */
+export async function claimOrderBlingSendInRepository(order: OrderListItem): Promise<boolean> {
+  const supabase = createOptionalAdminClient();
+  if (!supabase) throw new Error('order_send_storage_unavailable');
+  let query = supabase.from('orders').update({
+    external_erp_provider: 'bling',
+    external_erp_sync_status: 'pending',
+    external_erp_last_error: 'bling_order_send_in_progress',
+    updated_at: new Date().toISOString(),
+  }).eq('store_id', order.storeId).eq('id', order.id)
+    .eq('payment_status', 'paid').neq('status', 'cancelled').is('external_erp_id', null);
+  query = order.externalErpLastError
+    ? query.eq('external_erp_last_error', order.externalErpLastError)
+    : query.is('external_erp_last_error', null);
+  const { data, error } = await query.select('id').maybeSingle();
+  if (error) throw new Error('order_send_storage_unavailable');
+  return Boolean(data);
+}
+
 export async function updateOrderExternalErpStateInRepository(input: {
   storeId: string;
   orderId: string;
