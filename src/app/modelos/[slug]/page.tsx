@@ -5,7 +5,6 @@ import { MarketingScripts } from '@/modules/marketing/MarketingScripts';
 import { getMarketingRuntimeConfig } from '@/modules/marketing/marketing.service';
 import {
   getDroneModel,
-  listDroneModelCatalog,
   listProductsForDroneModel,
 } from '@/modules/catalog/drone-model.service';
 import { listCategories, listStorefrontProducts } from '@/modules/catalog/product.service';
@@ -22,12 +21,14 @@ import {
   getOptionalStoreFromResolution,
   resolveStoreFromHeaders,
 } from '@/modules/stores/store-resolution';
-import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
 import ModelListingClient from '../ModelListingClient';
 
 interface ModelPageProps {
   params: Promise<{ slug: string }>;
 }
+
+// Model availability and product links belong to the store resolved from this request.
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: ModelPageProps): Promise<Metadata> {
   const { slug } = await params;
@@ -105,9 +106,4 @@ export default async function DroneModelPage({ params }: ModelPageProps) {
       />
     </>
   );
-}
-
-export async function generateStaticParams() {
-  const lines = await listDroneModelCatalog(ACTIVE_STORE_ID);
-  return lines.flatMap((line) => line.models.map((model) => ({ slug: model.slug })));
 }

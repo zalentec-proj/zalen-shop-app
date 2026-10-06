@@ -2,22 +2,26 @@
 
 ## Conclusão
 
-Atualização posterior à auditoria: o primeiro lote de correções e a limpeza de
-sete pedidos de teste foram autorizados e executados em 06/10. Ver o bloco
-“Correções de produção — lote 1” em `CURRENT_STATE.md`. Os números e falhas
-abaixo são evidência do momento da auditoria, não uma certificação pós-correção.
-Guards locais e promessas de preço foram tratados; estoque e pagamento foram
-parcialmente corrigidos. Reserva, persistência atômica, eventos atrasados e
-homologação permanecem pendentes. A branch não foi promovida para produção.
+Atualização posterior à auditoria: dois lotes de correções e a limpeza de sete
+pedidos de teste foram autorizados e executados em 06/10. Ver os blocos
+“Correções de produção — lote 1” e “lote 2” em `CURRENT_STATE.md`. Guards locais,
+promessas de preço, dependências vulneráveis e renderização por host foram
+tratados na branch; estoque e pagamento foram parcialmente corrigidos. Validação
+mais recente: 316 testes/65 arquivos, TypeScript, build, scanner de segredos,
+diff check e auditoria completa de dependências (zero alertas) aprovados.
+Reserva, persistência atômica, eventos atrasados e homologação permanecem
+pendentes. A branch não foi promovida para produção. Os números e falhas abaixo
+são evidência HISTÓRICA do momento da auditoria, não certificação pós-correção.
 
 **Não aprovado para declarar o app integralmente pronto para produção.** O app
 publicado atende vendas, mas há falhas operacionais confirmadas e lacunas no
 código que afetam estoque, pagamento, acesso e consistência de pedidos.
 Build e testes aprovados não eliminam esses riscos.
 
-Esta entrega altera somente a sidebar solicitada: remove números e siglas,
+O lote original de auditoria alterou somente a sidebar solicitada: remove números e siglas,
 preservando ícones, nomes, rotas, loja ativa e comportamento responsivo. As demais
-correções abaixo são propostas, não implementadas nem publicadas nesta auditoria.
+correções abaixo eram propostas naquele momento; consultar as atualizações acima
+para distinguir o já corrigido na branch do ainda pendente e do publicado.
 
 ## Escopo e limites da verificação
 
@@ -184,6 +188,11 @@ eventual condição comercial configurada fora do app.
 Aceite: comparar home, categoria, modelo, produto, carrinho, Pix e cartão PF/PJ.
 
 ### P1-07 — Auditoria de dependências reprovada
+
+Atualização: corrigido na branch no lote 2, com lockfile e validações. A auditoria
+completa retornou zero vulnerabilidades conhecidas; isso não é garantia de
+ausência de novas falhas. Versões e referências oficiais no handoff. A produção
+ainda não foi atualizada nesta sessão; a descrição abaixo é o diagnóstico inicial.
 
 `next` 16.2.11 e `sharp` 0.35.3 estão entre os pacotes afetados. Os overrides de
 `sharp`, `brace-expansion` e `fast-uri` também prendem versões vulneráveis.

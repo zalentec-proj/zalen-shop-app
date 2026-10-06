@@ -24,6 +24,8 @@ interface ModelLinePageProps {
   params: Promise<{ slug: string }>;
 }
 
+export const dynamic = 'force-dynamic';
+
 export async function generateMetadata({ params }: ModelLinePageProps): Promise<Metadata> {
   const { slug } = await params;
   const resolution = await resolveStoreFromHeaders();

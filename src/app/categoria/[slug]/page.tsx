@@ -21,7 +21,6 @@ import {
   buildStoreMetadata,
   getCurrentOrigin,
 } from '@/modules/seo/seo.service';
-import { ACTIVE_STORE_ID } from '@/modules/stores/current-store';
 import {
   getOptionalStoreFromResolution,
   resolveStoreFromHeaders,
@@ -32,10 +31,8 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateStaticParams() {
-  const categories = await listCategories(ACTIVE_STORE_ID);
-  return categories.map((category) => ({ slug: category.slug }));
-}
+// Store and metadata depend on the request host; never prerender one store globally.
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;

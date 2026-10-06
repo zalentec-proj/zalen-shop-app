@@ -23,6 +23,55 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - `/platform` completo, billing, marketplace e automações de IA continuam fora do MVP.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
+## Correções de produção — lote 2: dependências e renderização (06/10/2026)
+
+- Concluído o próximo lote previsto: Next.js fixado em 16.3.8, Sharp 0.35.5,
+  Vitest/coverage 4.1.11 e overrides corrigidos de brace-expansion, fast-uri,
+  browserslist, baseline-browser-mapping e source-map-js. Lockfile atualizado
+  pelo registro oficial, sem `audit fix --force`, scripts de instalação ou
+  dependência visual nova. Auditoria completa, incluindo desenvolvimento:
+  zero vulnerabilidades conhecidas retornadas pelo registro nesta validação.
+- Referências oficiais consultadas:
+  [Next.js](https://github.com/vercel/next.js/security/advisories/GHSA-vcvr-r3jv-pc5j),
+  [Sharp](https://github.com/lovell/sharp/security/advisories/GHSA-wq5f-xc86-pv6w),
+  [Vitest](https://github.com/vitest-dev/vitest/security/advisories/GHSA-82fw-gwwq-j7x9).
+- A verificação com servidor local de produção encontrou `DYNAMIC_SERVER_USAGE`
+  nas páginas de catálogo: os parâmetros estáticos usavam loja global, mas a
+  página/metadados resolvem loja pelo host da requisição. Categoria, produto,
+  modelo e linha agora são explicitamente dinâmicos; os geradores globais de
+  parâmetros foram removidos. Nenhum HTML de catálogo de uma loja é gerado
+  globalmente no build. Configuração existente de cache de dados não foi editada.
+  Quatro testes de regressão verificam essa configuração das rotas.
+- O servidor local de produção deixou de registrar aquele erro e respondeu
+  404 para categoria sem catálogo conectado, comportamento esperado nessa
+  configuração. Isso NÃO valida catálogo real ou isolamento entre lojas em E2E.
+- Verificação visual local em desenvolvimento, com dados demonstrativos:
+  produto e Baterias sem excesso horizontal em 390×844 (382px úteis) e
+  1440×1000 (1432px úteis). Carrinho vazio em 390×844: 390px úteis/scrollWidth.
+  Conferidos preço de duas casas, ausência da promessa Pix 5%, link de dúvidas
+  específico do produto e novidades apontando ao Instagram. Carrinho preenchido,
+  fluxo financeiro e as 17 telas com todos os papéis não foram homologados.
+- Validações finais: 316 testes/65 arquivos, TypeScript, build Next.js 16.3.8,
+  scanner de segredos e diff check aprovados. Sharp também passou conversão PNG
+  nativa local. Cobertura permanece restrita aos quatro arquivos configurados;
+  não representa cobertura integral. O Next dev acrescentou seu bloco gerenciado
+  a `AGENTS.md`; preservadas todas as instruções anteriores do repositório.
+- Servidores e abas temporárias de verificação encerrados; aba do admin aberta
+  pelo usuário preservada. Nenhuma compra, pagamento, chamada corretiva a ERP,
+  migration, alteração de credenciais ou promoção de produção neste lote.
+- Entrega dos dois lotes fica na branch `codex/production-readiness-audit`,
+  sem merge em `refactor/migrate-to-next`. Produção não recebe estas correções
+  até publicação deliberada. Conferir commits finais no histórico da branch.
+- Próximo passo exato: com o responsável, preparar ambiente de homologação
+  comprovadamente isolado e conferir autorização/saúde do Bling. Definir reserva
+  de estoque conciliada com ERP, persistência atômica de pedido/itens e transições
+  monotônicas de pagamento antes de implementar/testar concorrência. Não reenviar
+  cegamente o pedido pago sem ERP nem tratar testes locais como aprovação geral.
+- Arquivos: `package.json`, `package-lock.json`, `next-env.d.ts`, `AGENTS.md`,
+  páginas `src/app/{categoria,produto,modelos}/[slug]/page.tsx`,
+  `src/app/modelos/linha/[slug]/page.tsx`, `src/app/storefront-rendering.test.ts`
+  e documentos de auditoria/handoff.
+
 ## Correções de produção — lote 1 e limpeza autorizada (06/10/2026)
 
 - Objetivo aprovado: iniciar as correções da auditoria sem ampliar o MVP e
@@ -64,9 +113,9 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   segredos e `git diff --check` aprovados. Testes de leitura usam mocks/SSR;
   não representam homologação de papéis em produção. Nenhuma compra, cobrança,
   reenvio Bling ou migration foi executado durante as correções.
-- Próximo lote: atualizar versões vulneráveis com base nos avisos oficiais e
-  repetir validações. Depois preparar homologação isolada, correção atômica
-  de pagamento/pedido/estoque e conferir/reautorizar Bling com o responsável.
+- Próximo lote previsto naquela etapa: atualizar versões vulneráveis; já
+  concluído no lote 2 acima. Homologação isolada, correção atômica de
+  pagamento/pedido/estoque e conferência/reautorização Bling continuam pendentes.
 - Não aprovar o app integralmente para produção, nem promover esta branch
   automaticamente. As lacunas do relatório histórico abaixo permanecem salvo
   as correções explicitamente listadas neste bloco.
