@@ -6,7 +6,9 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Snapshot
 
-- Atualizado em: 2026-10-06
+- Atualizado em: 2026-10-16
+- Frente mais recente: diagnóstico do painel do dono da plataforma e de novas
+  lojas personalizadas, somente documentação; ver bloco de 16/10 abaixo.
 - Branch desta auditoria e correções: `codex/production-readiness-audit`
 - Código publicado e branch de produção `refactor/migrate-to-next`:
   `c6b95804a27723bf551b2318203d549d92883613` —
@@ -24,6 +26,41 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Login e admin pertencem à identidade Zalen Shop; o storefront pertence à loja ativa.
 - `/platform` completo, billing, marketplace e automações de IA continuam fora do MVP.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
+
+## Próxima fase proposta — painel da plataforma e novas lojas (16/10/2026)
+
+- Objetivo solicitado: ler a documentação e identificar o próximo passo para o
+  admin geral do dono da Zalen e a criação de lojas personalizadas além da
+  Brasil Drones. Esta sessão não recebeu pedido de implementar a nova área.
+- Concluído: leitura dos documentos obrigatórios, handoff, roadmap, templates e
+  resolução de domínio; conferência do código de auth/login, stores, storefront,
+  configurações e migrations. `git fetch origin` concluído; branch
+  `codex/production-readiness-audit` estava limpa e sincronizada com seu remoto.
+- Diagnóstico: papéis globais, memberships, resolução por host, admin por loja
+  e registro de conectores já existem. Faltam `/platform`, criação de lojas,
+  seletor/destino de login por acesso e apresentação persistida por loja.
+  A composição pública ainda contém marca/conteúdo da Brasil Drones/GG/DJI.
+- Plano e critérios de aceite registrados em
+  `docs/work-context/PLATFORM_ADMIN_NEXT_STEPS_2026-10-16.md`.
+- Próximo passo exato proposto: ao iniciar a implementação, formalizar o escopo
+  mínimo nos documentos/AGENTS, criar guard global, destino de login por papel
+  e vínculo e listagem `/platform/lojas`; seguir com cadastro atômico,
+  apresentação configurável e piloto isolado da segunda loja.
+- Decisões: manter uma aplicação e um banco, `/admin` operacional por loja e
+  `/platform` para Zalen. Preservar Brasil Drones como storefront custom e
+  preparar apresentação neutra; Mercos não precisa bloquear o piloto visual.
+  Billing, marketplace e editor livre continuam fora desta proposta.
+- Condições pendentes: confirmar papel da conta dona e ambiente de homologação
+  ao implementar. Tratar estoque concorrente, pedido/itens atômicos e pagamento
+  fora de ordem antes de liberar vendas de novas lojas, conforme bloco mais
+  recente de 06/10. Esta sessão não reconfirmou saúde do Bling em produção.
+- Validação desta frente: revisão estática, referência oficial Supabase de
+  RLS, `git diff --check` e scanner de segredos aprovados. Nenhuma consulta ao
+  banco, migration, mudança de papel, integração,
+  código de aplicação ou deploy. A regra vigente que mantém `/platform` futuro
+  permanece até a formalização da próxima fase. Seções antigas de “Objetivo
+  atual” e “Próximo passo exato” mais abaixo pertencem ao histórico; este bloco
+  registra a análise mais recente, sem concluir as pendências de produção.
 
 ## Publicação das correções e verificação real (06/10/2026)
 
