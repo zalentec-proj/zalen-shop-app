@@ -1,36 +1,36 @@
 import { describe, expect, it } from 'vitest';
-import { getLoginRedirectTarget, getLoginRequestOrigin, getSafeLoginNextTarget } from './login-navigation';
+import { getLoginRequestOrigin, getSafeLoginNextTarget } from './login-navigation';
 
 const platform = 'https://app.zalenshop.com.br';
 const store = 'https://brasil-drones.zalenshop.com.br';
 
 describe('login navigation', () => {
-  it.each([undefined, '/admin', `${platform}/admin`])('goes directly to the store after platform login: %s', (next) => {
-    expect(getLoginRedirectTarget(next, platform, 'brasil-drones')).toBe(`${store}/admin`);
+  it.each([undefined, '/admin'])('keeps a neutral default pending authorization: %s', (next) => {
+    expect(getSafeLoginNextTarget(next, platform)).toBe('/admin');
   });
 
   it('preserves the admin route, filters and copied drawer', () => {
-    expect(getLoginRedirectTarget('/admin/pedidos?q=Drone%20Mini&page=2&pedido=order-id#detalhes', platform, 'brasil-drones'))
-      .toBe(`${store}/admin/pedidos?q=Drone%20Mini&page=2&pedido=order-id#detalhes`);
+    expect(getSafeLoginNextTarget('/admin/pedidos?q=Drone%20Mini&page=2&pedido=order-id#detalhes', platform))
+      .toBe('/admin/pedidos?q=Drone%20Mini&page=2&pedido=order-id#detalhes');
   });
 
   it('preserves another canonical store instead of selecting the default store', () => {
     const destination = 'https://lb-london.zalenshop.com.br/admin/produtos?page=2';
-    expect(getLoginRedirectTarget(destination, platform, 'brasil-drones')).toBe(destination);
+    expect(getSafeLoginNextTarget(destination, platform)).toBe(destination);
   });
 
   it.each(['http://localhost:3000', 'http://127.0.0.1:3000', 'http://brasil-drones.lvh.me:3000', 'https://branch-preview.vercel.app', store])
     ('keeps same-origin admin navigation on %s', (origin) => {
-      expect(getLoginRedirectTarget('/admin/produtos?page=2', origin, 'brasil-drones')).toBe('/admin/produtos?page=2');
+      expect(getSafeLoginNextTarget('/admin/produtos?page=2', origin)).toBe('/admin/produtos?page=2');
     });
 
   it('supports a configured platform root without hardcoding the store hostname', () => {
-    expect(getLoginRedirectTarget('/admin', 'https://app.example.com', 'another-store', 'example.com'))
+    expect(getSafeLoginNextTarget('https://another-store.example.com/admin', 'https://app.example.com', 'example.com'))
       .toBe('https://another-store.example.com/admin');
   });
 
   it('keeps safe non-admin paths on the login origin', () => {
-    expect(getLoginRedirectTarget('/conta', platform, 'brasil-drones')).toBe('/conta');
+    expect(getSafeLoginNextTarget('/conta', platform)).toBe('/conta');
   });
 
   it.each([
@@ -49,6 +49,14 @@ describe('login navigation', () => {
   it('accepts an absolute local admin path only on the current origin', () => {
     expect(getSafeLoginNextTarget('http://localhost:3000/admin', 'http://localhost:3000'))
       .toBe('http://localhost:3000/admin');
+  });
+
+  it.each(['/platform', '/platform/lojas?q=London', '/lojas', `${platform}/platform/lojas`])('accepts platform destinations pending role checks: %s', (next) => {
+    expect(getSafeLoginNextTarget(next, store)).toBe(next);
+  });
+
+  it('does not accept platform paths on another store host', () => {
+    expect(getSafeLoginNextTarget('https://lb-london.zalenshop.com.br/platform', platform)).toBe('/admin');
   });
 
   it('takes the public host rather than an internal forwarded deployment host', () => {

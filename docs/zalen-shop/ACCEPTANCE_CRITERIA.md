@@ -18,6 +18,17 @@
 - Usuário com `store_membership` acessa apenas sua store.
 - Usuário sem permissão não acessa dados de loja.
 
+## 2.1 Platform Admin mínimo
+
+- Papel global entra em `/platform` pelo login central sem depender de loja ativa.
+- `/platform/lojas` lista lojas com busca e paginação, inclusive inativas/planejadas.
+- Apenas loja ativa recebe link para seu admin no subdomínio Zalen.
+- Lojista não lê dados globais por URL direta ou payload RSC.
+- Login respeita `next` seguro e autorizado, um vínculo ou múltiplos vínculos.
+- Conta sem vínculo e falha do banco têm estados distintos e sem dados mockados.
+- Seletor `/lojas` mostra apenas os vínculos do usuário autenticado.
+- Papéis não são concedidos automaticamente e não há escrita de lojas nesta etapa.
+
 ## 3. Storefront
 
 - Home carrega corretamente.

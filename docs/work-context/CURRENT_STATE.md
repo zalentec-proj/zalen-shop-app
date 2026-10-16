@@ -7,9 +7,11 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 ## Snapshot
 
 - Atualizado em: 2026-10-16
-- Frente mais recente: diagnóstico do painel do dono da plataforma e de novas
-  lojas personalizadas, somente documentação; ver bloco de 16/10 abaixo.
-- Branch desta auditoria e correções: `codex/production-readiness-audit`
+- Frente mais recente: primeira etapa do Platform Admin implementada e validada
+  em código; conta dona e publicação pendentes, conforme bloco de 16/10 abaixo.
+- Branch desta implementação: `codex/platform-admin-access`, criada a partir de
+  `codex/production-readiness-audit` após fetch e pull --rebase, sem mudanças
+  locais anteriores.
 - Código publicado e branch de produção `refactor/migrate-to-next`:
   `c6b95804a27723bf551b2318203d549d92883613` —
   `fix(auth): redirect platform login directly to authorized store`.
@@ -26,6 +28,69 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Login e admin pertencem à identidade Zalen Shop; o storefront pertence à loja ativa.
 - `/platform` completo, billing, marketplace e automações de IA continuam fora do MVP.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
+
+## Platform Admin mínimo — primeira etapa (16/10/2026)
+
+- Objetivo autorizado: implementar o acesso do dono da plataforma, ajustar o
+  login e entregar `/platform/lojas`, seguindo o plano registrado nesta pasta.
+  O responsável também identificou uma conta para ser dona e autorizou criar
+  uma nova conta Auth quando a consulta exata não encontrou usuário existente.
+- Concluído em código: guard global de sessão/papel em `platform_users`, usado
+  no layout e junto da leitura privilegiada; `/platform` encaminha para a lista
+  de lojas. A listagem tem busca por nome, paginação de 25, status e links para
+  o admin das lojas ativas. Falha do banco é distinta de lista vazia e não usa mocks.
+- Login: papel global segue para plataforma; um vínculo ativo segue para sua
+  loja; múltiplos vínculos seguem para `/lojas`; conta sem vínculo recebe estado
+  seguro. `next` de loja exige resolução e permissão, inclusive no mesmo host;
+  `next` global exige papel global. Não há escolha implícita da Brasil Drones.
+  Sessão já autenticada é encaminhada pela página server-side após a renovação
+  dos cookies no proxy. O `/admin` do host central segue a mesma resolução.
+- Seletor `/lojas`: consulta somente vínculos do usuário validado; preserva
+  compatibilidade com memberships legadas. Lojistas que acessam a área global
+  são encaminhados ao seletor com aviso, sem obter a listagem global por RSC.
+- UI: identidade Zalen Shop, Server Components e links de navegação para a área
+  da conta no admin operacional. Rotas novas têm noindex, ficam fora do
+  canonical público e não exibem atendimento WhatsApp ou carrinho da vitrine.
+- Escopo formalizado em AGENTS, PRD, overview, arquitetura, auth, segurança,
+  experiência admin, domínios, roadmap e critérios de aceite. Cadastro/ativação
+  de lojas, templates e customização visual continuam no próximo incremento.
+  Sem billing, marketplace, conector novo ou alteração de checkout nesta etapa.
+- Supabase real: conferência administrativa somente de leitura no projeto
+  `zalen.shop` confirmou as colunas de `stores`, `platform_users`,
+  `store_memberships` e `memberships`, com RLS nas quatro. Snapshot: uma loja
+  ativa e zero papéis globais. Nenhuma migration é necessária para esta etapa.
+- Conta dona PENDENTE: o e-mail indicado pelo responsável não foi encontrado
+  no Auth. A tentativa de criação pela API foi interrompida ANTES de qualquer
+  escrita porque não havia credencial administrativa disponível: CLI Supabase
+  sem login; `vercel env run` não forneceu URL/chave necessárias, inclusive em
+  contexto temporário sem `.env.local`; sessão do browser sem acesso ao projeto.
+  Isso não significa que as credenciais do deployment estejam ausentes. Não
+  extrair, reconfigurar ou restaurar segredos para contornar essa limitação.
+  Foi solicitado ao responsável criar a conta em Authentication → Users e
+  avisar quando pronta, com a senha definida por ele no painel. Depois conferir
+  o usuário exato/e-mail verificado e atribuir `platform_owner` conforme o
+  procedimento documentado em `AUTH_AND_ACCESS.md`. Nenhuma conta, papel,
+  senha, sessão de produção, integração ou dado comercial foi alterado.
+- Validação: TypeScript, 432 testes em 75 arquivos com os thresholds de cobertura
+  configurados, build Next.js 16.3.8, auditoria de dependências de produção com
+  zero vulnerabilidades, scanner de segredos e diff check aprovados. A cobertura
+  segue limitada aos quatro arquivos da configuração; não representa todo o app.
+- Navegador: `npm run test:platform-access` cria cópia temporária sem `.env` e
+  executa Next/SDK reais contra Auth/Data API fictícios em localhost. Passaram
+  login de owner/admin, seletor de lojista, negação por URL/RSC mesmo com
+  `user_metadata` forjado, conta sem vínculo, busca, paginação, falha do banco,
+  logout e viewport mobile sem overflow. Zero erros JS; nenhuma escrita em
+  Data API real ou envio de mensagem. O script limpa seu build temporário.
+- Próximo passo exato: concluir a conta autorizada assim que o responsável
+  criá-la no Auth, conferir o papel persistido e publicar deliberadamente esta
+  branch; depois validar login real do dono e do lojista entre hosts. O código
+  não foi promovido à branch de produção nem publicado nesta sessão.
+  As pendências de estoque/pedido/pagamento registradas em 06/10 continuam
+  separadas e devem ser resolvidas antes de expandir vendas de novas lojas.
+- Arquivos principais: `src/app/platform/`, `src/app/lojas/`,
+  `src/components/platform/`, `src/modules/platform/`, navegação/acesso em
+  `src/modules/auth/`, login, proxy, layouts admin e
+  `scripts/verify-platform-access.mjs`.
 
 ## Próxima fase proposta — painel da plataforma e novas lojas (16/10/2026)
 

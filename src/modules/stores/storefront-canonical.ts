@@ -11,6 +11,8 @@ import {
 
 const excludedPrefixes = [
   '/admin',
+  '/platform',
+  '/lojas',
   '/login',
   '/api',
   '/auth',

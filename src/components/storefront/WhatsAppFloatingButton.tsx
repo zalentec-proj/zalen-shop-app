@@ -9,6 +9,8 @@ const WHATSAPP_URL = buildStoreWhatsAppUrl(
 
 const HIDDEN_ROUTE_PREFIXES = [
   '/admin',
+  '/platform',
+  '/lojas',
   '/login',
   '/auth',
   '/integrations',

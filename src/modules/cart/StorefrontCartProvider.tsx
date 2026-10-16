@@ -9,7 +9,9 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { isAdminPath } from '@/modules/auth/login-navigation';
+import { isPlatformPath, isStoreSelectionPath } from '@/modules/auth/operational-navigation';
 import CartSidebar from '@/components/ecommerce/CartSidebar';
 import { pushMarketingEvent } from '@/modules/marketing/marketing.client';
 import type { Cart, CartItem } from './cart.types';
@@ -51,6 +53,8 @@ const StorefrontCartContext = createContext<StorefrontCartContextValue | null>(
 
 export function StorefrontCartProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const operationalRoute = isAdminPath(pathname) || isPlatformPath(pathname) || isStoreSelectionPath(pathname) || pathname.startsWith('/login');
   const [cart, setCart] = useState<Cart>(() => createEmptyCart());
   const [isCartOpen, setIsCartOpen] = useState(false);
 
@@ -162,14 +166,16 @@ export function StorefrontCartProvider({ children }: { children: ReactNode }) {
   return (
     <StorefrontCartContext.Provider value={value}>
       {children}
-      <CartSidebar
-        isOpen={isCartOpen}
-        onClose={closeCart}
-        cart={cart}
-        onUpdateQuantity={updateCartItemQuantity}
-        onRemoveItem={removeCartItem}
-        onCheckout={() => goToCheckout()}
-      />
+      {!operationalRoute ? (
+        <CartSidebar
+          isOpen={isCartOpen}
+          onClose={closeCart}
+          cart={cart}
+          onUpdateQuantity={updateCartItemQuantity}
+          onRemoveItem={removeCartItem}
+          onCheckout={() => goToCheckout()}
+        />
+      ) : null}
     </StorefrontCartContext.Provider>
   );
 }

@@ -6,6 +6,9 @@ import { noindexMetadata } from '@/modules/seo/seo.service';
 import { getCurrentUser, getPlatformRole, getStoreMembership } from '@/modules/auth/auth.service';
 import { getOptionalStoreFromResolution, resolveStoreFromHeaders } from '@/modules/stores/store-resolution';
 import { AdminShell } from './AdminShell';
+import { headers } from 'next/headers';
+import { getLoginNavigationContext, resolveLoginDestination } from '@/modules/auth/login-destination.service';
+import { getPlatformOrigin } from '@/modules/auth/operational-navigation';
 
 export const metadata: Metadata = {
   title: `${platformBrand.productName} Admin`,
@@ -21,8 +24,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   ]);
   const store = getOptionalStoreFromResolution(resolution);
 
-  if (!store) notFound();
   if (!user) redirect('/login');
+  if (resolution.kind === 'reserved' && ['app', '@'].includes(resolution.slug)) {
+    const path = (await headers()).get('x-zalen-request-path') ?? '/admin';
+    redirect(await resolveLoginDestination(user.id, path) ?? '/lojas?acesso=restrito');
+  }
+  if (!store) notFound();
 
   const [platformRole, membership] = await Promise.all([
     getPlatformRole(user.id),
@@ -46,9 +53,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     );
   }
 
+  const { requestOrigin, rootDomain } = await getLoginNavigationContext();
+  const accountStoresUrl = new URL(platformRole ? '/platform/lojas' : '/lojas', getPlatformOrigin(requestOrigin, rootDomain)).href;
+
   return (
     <AdminShell
       storeShortName={store.shortName}
+      accountStoresUrl={accountStoresUrl}
       user={{ email: user.email, role: platformRole ?? membership!.role }}
     >
       {children}

@@ -58,7 +58,7 @@ depois de salvar e enviar o estado atual.
 4. O login e o admin pertencem à identidade **Zalen Shop**.
 5. O storefront público pertence à identidade da loja ativa.
 6. `/admin` é o painel operacional da loja.
-7. `/platform` será futuro e não deve ser implementado agora.
+7. `/platform` está liberado nesta fase mínima para acesso global, login por papel/vínculo e listagem de lojas. Gestão completa continua futura.
 8. O MVP deve permanecer leve.
 
 ## Stack atual
@@ -151,6 +151,7 @@ Pode avançar em:
 - documentação e preparação de conectores;
 - UI do login/admin com identidade Zalen Shop;
 - storefront da Brasil Drones como case.
+- Platform Admin mínimo: guard global, destino de login, seletor de lojas permitidas e `/platform/lojas` somente leitura.
 
 Não avance ainda em:
 

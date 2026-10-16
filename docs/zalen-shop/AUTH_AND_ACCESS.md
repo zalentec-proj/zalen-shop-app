@@ -55,10 +55,9 @@ Rotas protegidas:
 - `/admin/*`
 - futuras rotas operacionais
 
-Futuro:
-
 - `/platform`
 - `/platform/*`
+- `/lojas` (seletor dos vínculos do usuário)
 
 ## 5. Platform roles
 
@@ -72,7 +71,7 @@ Permissão:
 - podem acessar qualquer store;
 - podem dar suporte;
 - podem configurar conectores;
-- futuramente acessarão `/platform`.
+- acessam `/platform` e a listagem `/platform/lojas` na etapa mínima.
 
 ## 6. Store roles
 
@@ -113,15 +112,25 @@ Um usuário pode acessar uma store se:
 - é `platform_admin`; ou
 - tem `store_membership` naquela store.
 
-## 9. Store atual no MVP
+## 9. Destino após login e loja atual
 
-Enquanto houver apenas Brasil Drones, a store atual pode ser centralizada em uma constante:
+Com `next` válido, o servidor confere o acesso ao destino solicitado. Sem loja
+específica no login central, papel global segue para `/platform`; um vínculo
+ativo segue para o admin daquela loja; múltiplos vínculos seguem para `/lojas`.
+Conta sem vínculo recebe estado de acesso indisponível, sem fallback de loja.
+A listagem global exige papel global na camada de dados e mostra também lojas
+em preparação ou inativas. Estas não recebem link para admin operacional.
+
+O subdomínio/domínio próprio já resolve a store server-side. A constante abaixo
+permanece como fallback local legado, não como destino do login central.
+
+O fallback local legado usa a constante da Brasil Drones:
 
 ```txt
 BRASIL_DRONES_STORE_ID = 00000000-0000-0000-0000-000000000001
 ```
 
-Essa abordagem é temporária e deve evoluir para resolução por domínio/subdomínio quando houver múltiplas lojas.
+O contexto da loja em requisições públicas e administrativas vem do host.
 
 ## 10. Criação de primeiro admin
 
@@ -135,6 +144,26 @@ Regras:
 - não logar senha;
 - não logar tokens;
 - nunca rodar em produção sem processo específico.
+
+Para atribuir o primeiro papel global a uma conta já existente em produção:
+
+1. O responsável identifica explicitamente a conta que deve ser dona.
+2. A operação administrativa server-side confere o projeto correto, a existência
+   de exatamente uma conta correspondente e seu e-mail já verificado.
+3. Atribuir `platform_owner` em `platform_users` com operação idempotente,
+   preservando senha, sessão e vínculos de loja. Não criar endpoint público de promoção.
+4. Ler o papel persistido e registrar a autorização e o resultado no handoff,
+   sem dados de autenticação ou credenciais.
+
+Esse procedimento não cria uma conta Auth nem substitui o bootstrap de staging.
+
+Se o responsável autorizar criar uma conta nova para ser dona, usar a API
+administrativa oficial do Supabase com senha aleatória descartada e
+`email_confirm: false`, sem inserir manualmente em `auth.users` nem registrar
+credenciais. O papel global fica associado ao novo ID Auth; a conta permanece
+pendente de ativação pelo próprio usuário, que solicita “Esqueci minha senha”
+para comprovar o e-mail e definir sua senha. A criação não envia mensagem
+automaticamente. Não marcar o e-mail como confirmado para pular essa etapa.
 
 ## 11. O que não implementar agora
 

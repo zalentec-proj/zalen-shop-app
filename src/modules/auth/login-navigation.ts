@@ -4,6 +4,7 @@ import {
   getStoreSlugFromHostname,
   isReservedPlatformSubdomain,
 } from '@/modules/stores/host-resolution';
+import { isPlatformPath, isStoreSelectionPath } from './operational-navigation';
 
 type HeaderReader = { get(name: string): string | null };
 
@@ -40,7 +41,8 @@ export function getSafeLoginNextTarget(
         : '/admin';
     }
 
-    if (!/^https?:\/\//i.test(value) || !isAdminPath(target.pathname)) return '/admin';
+    const isOperational = isAdminPath(target.pathname) || isPlatformPath(target.pathname) || isStoreSelectionPath(target.pathname);
+    if (!/^https?:\/\//i.test(value) || !isOperational) return '/admin';
     if (target.origin === current.origin) return target.href;
 
     const slug = getStoreSlugFromHostname(target.hostname, rootDomain);
@@ -50,29 +52,11 @@ export function getSafeLoginNextTarget(
 
     // Cross-origin destinations are limited to HTTPS admin hosts of this platform.
     // The server must still resolve the store and authorize the user before navigating.
-    return target.protocol === 'https:' && !target.port && (isPlatformHost || isStoreHost)
+    return target.protocol === 'https:' && !target.port &&
+      (isPlatformHost || (isStoreHost && isAdminPath(target.pathname)))
       ? target.href
       : '/admin';
   } catch {
     return '/admin';
   }
-}
-
-export function getLoginRedirectTarget(
-  next: string | null | undefined,
-  requestOrigin: string,
-  defaultStoreSlug: string,
-  rootDomain = DEFAULT_PLATFORM_ROOT_DOMAIN
-) {
-  const safeNext = getSafeLoginNextTarget(next, requestOrigin, rootDomain);
-  const target = new URL(safeNext, requestOrigin);
-
-  if (isAdminPath(target.pathname) &&
-    (target.hostname === rootDomain || target.hostname === `app.${rootDomain}`)) {
-    // An external Server Action redirect triggers a browser navigation, not an
-    // internal RSC fetch that drops auth cookies when following a cross-host redirect.
-    return `https://${defaultStoreSlug}.${rootDomain}${target.pathname}${target.search}${target.hash}`;
-  }
-
-  return safeNext;
 }

@@ -2,6 +2,11 @@
 
 ## 1. Função do admin
 
+A área global mínima usa identidade Zalen Shop em `/platform/lojas`, separada do
+admin operacional: lista lojas, seus status e acesso ao painel das lojas ativas.
+Contas com vários vínculos podem escolher a loja em `/lojas`. Cadastro e edição
+de lojas não fazem parte desta primeira etapa.
+
 O admin é o painel operacional da loja dentro da plataforma Zalen Shop.
 
 Ele não é o storefront da loja e não deve copiar a estética de venda da loja pública.

@@ -1,6 +1,6 @@
 'use client';
 
-import { LogOut } from 'lucide-react';
+import { Building2, LogOut } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { logoutAction } from '@/app/login/actions';
@@ -47,10 +47,12 @@ function getInitials(email?: string) {
 
 export function AdminShell({
   storeShortName,
+  accountStoresUrl,
   user,
   children,
 }: {
   storeShortName: string;
+  accountStoresUrl?: string;
   user: { email?: string; role: AdminAccessRole };
   children: ReactNode;
 }) {
@@ -68,6 +70,12 @@ export function AdminShell({
       <main className="min-w-0 transition-[padding] duration-200 xl:pl-[var(--admin-shell-sidebar-width,15rem)]">
         <div className="sticky top-0 z-30 border-b border-white/6 bg-[#050A14]/90 px-3 py-2 backdrop-blur-xl sm:px-4 lg:px-6">
           <div className="mx-auto flex max-w-[1480px] justify-end gap-2">
+            {accountStoresUrl ? (
+              <a href={accountStoresUrl} className="mr-auto inline-flex items-center gap-2 rounded-lg border border-white/7 bg-[#081225] px-3 py-2 text-xs text-slate-300 transition hover:text-white">
+                <Building2 className="h-3.5 w-3.5" aria-hidden="true" />
+                {user.role.startsWith('platform_') ? 'Plataforma' : 'Minhas lojas'}
+              </a>
+            ) : null}
             <div className="flex min-w-0 items-center gap-2 rounded-lg border border-white/7 bg-[#081225] px-2.5 py-1.5">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-blue-600 text-[10px] font-bold text-white">
                 {getInitials(user.email)}

@@ -74,7 +74,7 @@ Decisão estrutural:
 - Zalen pode ter acesso global como dona da plataforma;
 - clientes acessam apenas lojas às quais estão vinculados por `store_id`;
 - `/admin` continua sendo o painel operacional da loja;
-- `/platform` será uma área futura para operação interna da Zalen, mas não será criada agora.
+- `/platform` atende a primeira etapa interna da Zalen: acesso global e listagem de lojas, sem gestão completa.
 
 Não criar agora:
 
@@ -138,9 +138,12 @@ O admin deve indicar a loja ativa, por exemplo: Brasil Drones.
 
 ### Platform
 
-Será uma área futura para a Zalen gerenciar todas as lojas, conectores, suporte e planos.
-
-Não implementar `/platform` no MVP.
+Área interna da Zalen, liberada em etapa mínima em 16/10/2026. `/platform`
+encaminha para `/platform/lojas`, com listagem protegida e links aos admins.
+O papel global é verificado no servidor junto da leitura privilegiada, além do
+layout. O host central não depende de uma store ativa. `/lojas` permite ao
+lojista selecionar somente seus vínculos. Gestão completa, conectores globais
+editáveis e planos permanecem futuros.
 
 ## 8. Store resolution by host
 
@@ -151,7 +154,7 @@ A estratégia futura é resolver a loja pelo host da requisição:
 - `{storeSlug}.zalen.shop` identifica lojas no domínio da plataforma;
 - `brasil-drones.lvh.me:3000` e `lb-london.lvh.me:3000` permitem teste local com subdomínio;
 - domínios próprios ativos, como `www.brasildrones.com.br`, são resolvidos por `store_domains.hostname`;
-- `app.zalen.shop/platform` será reservado para o futuro platform admin.
+- `app.zalenshop.com.br/platform` atende a área global mínima.
 
 O admin da loja deve permanecer no domínio da plataforma, por exemplo `brasil-drones.zalen.shop/admin`, mesmo quando o storefront público usar domínio próprio.
 

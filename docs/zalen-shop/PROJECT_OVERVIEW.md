@@ -48,7 +48,7 @@ Zalen Shop Platform
 ├── Conectores
 ├── Logs
 ├── Configurações
-└── Futuro Platform Admin
+└── Platform Admin mínimo (acesso e listagem de lojas)
 ```
 
 ## Separação de responsabilidades
@@ -91,6 +91,13 @@ Responsável por:
 - configurações;
 - status de sincronização;
 - logs operacionais.
+
+### Admin da plataforma
+
+Primeira etapa autorizada em 16/10/2026: usuários globais acessam `/platform`,
+que encaminha à listagem `/platform/lojas`. O login central usa o papel e os
+vínculos da conta; `/lojas` oferece seleção dos vínculos operacionais. Cadastro,
+personalização e gestão completa das lojas são próximos incrementos.
 
 ### Conectores
 

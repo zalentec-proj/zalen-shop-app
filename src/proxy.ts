@@ -10,8 +10,8 @@ import {
   isReservedPlatformSubdomain,
   normalizeHostname,
 } from '@/modules/stores/host-resolution';
-import { activeStore } from '@/modules/stores/current-store';
-import { getLoginRedirectTarget, getSafeLoginNextTarget, isAdminPath } from '@/modules/auth/login-navigation';
+import { getSafeLoginNextTarget, isAdminPath } from '@/modules/auth/login-navigation';
+import { getPlatformOrigin, isPlatformPath, isStoreSelectionPath } from '@/modules/auth/operational-navigation';
 
 const placeholderFragments = [
   '${',
@@ -72,33 +72,6 @@ function shouldResolveCustomAdminHost(
   return hostname !== rootDomain && !hostname.endsWith(`.${rootDomain}`);
 }
 
-function shouldRedirectPlatformAdminToStoreHost(
-  request: NextRequest,
-  rootDomain: string
-) {
-  const hostname = normalizeHostname(
-    getRequestHost(request.headers, request.nextUrl.host)
-  );
-
-  return Boolean(
-    hostname &&
-      !isLocalhostName(hostname) &&
-      (hostname === rootDomain || hostname === `app.${rootDomain}`)
-  );
-}
-
-function getActiveStoreAdminOrigin(request: NextRequest, rootDomain: string) {
-  const requestOrigin = new URL(getRequestOrigin(request));
-  const hostname = normalizeHostname(requestOrigin.host);
-  const port = requestOrigin.port ? `:${requestOrigin.port}` : '';
-
-  if (hostname?.endsWith(`.${DEFAULT_LOCAL_STORE_ROOT_DOMAIN}`)) {
-    return `${requestOrigin.protocol}//${activeStore.slug}.${DEFAULT_LOCAL_STORE_ROOT_DOMAIN}${port}`;
-  }
-
-  return `${requestOrigin.protocol}//${activeStore.slug}.${rootDomain}`;
-}
-
 function redirectWithCookies(
   request: NextRequest,
   response: NextResponse,
@@ -118,6 +91,7 @@ function redirectWithCookies(
   response.cookies.getAll().forEach((cookie) => {
     redirectResponse.cookies.set(cookie);
   });
+  redirectResponse.headers.set('Cache-Control', 'private, no-store');
 
   return redirectResponse;
 }
@@ -133,16 +107,12 @@ export async function proxy(request: NextRequest) {
   const rootDomain =
     normalizeEnvValue(process.env.PLATFORM_ROOT_DOMAIN) ?? 'zalenshop.com.br';
 
-  if (
-    isAdminPath(pathname) &&
-    shouldRedirectPlatformAdminToStoreHost(request, rootDomain)
-  ) {
-    return NextResponse.redirect(
-      new URL(
-        `${pathname}${request.nextUrl.search}`,
-        getActiveStoreAdminOrigin(request, rootDomain)
-      )
-    );
+  const isCentralRoute = isPlatformPath(pathname) || isStoreSelectionPath(pathname);
+  if (isCentralRoute) {
+    const platformOrigin = getPlatformOrigin(getRequestOrigin(request), rootDomain);
+    if (platformOrigin !== getRequestOrigin(request)) {
+      return NextResponse.redirect(new URL(`${pathname}${request.nextUrl.search}`, platformOrigin));
+    }
   }
 
   if (isAdminPath(pathname) && shouldResolveCustomAdminHost(request, rootDomain)) {
@@ -163,7 +133,8 @@ export async function proxy(request: NextRequest) {
   }
 
   const isAuthRoute = pathname === '/login' || pathname === '/login/forgot';
-  if (!isAdminPath(pathname) && !isAuthRoute) {
+  const isProtectedRoute = isAdminPath(pathname) || isCentralRoute;
+  if (!isProtectedRoute && !isAuthRoute) {
     return response;
   }
 
@@ -204,7 +175,9 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (isAdminPath(pathname) && !user) {
+  response.headers.set('Cache-Control', 'private, no-store');
+
+  if (isProtectedRoute && !user) {
     const requestOrigin = getRequestOrigin(request);
     const loginUrl = new URL(
       '/login',
@@ -218,16 +191,11 @@ export async function proxy(request: NextRequest) {
     return redirectWithCookies(request, response, loginUrl);
   }
 
-  if ((pathname === '/login' || pathname === '/login/forgot') && user) {
-    return redirectWithCookies(
-      request,
-      response,
-      getLoginRedirectTarget(
-        request.nextUrl.searchParams.get('next'), getRequestOrigin(request), activeStore.slug, rootDomain
-      )
-    );
+  // Existing sessions are routed by the login page's server-side authorization,
+  // after refreshed cookies have reached Server Components.
+  if (pathname === '/login/forgot' && user) {
+    return redirectWithCookies(request, response, '/login');
   }
-
   return response;
 }
 

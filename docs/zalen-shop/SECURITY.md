@@ -55,7 +55,12 @@ Acessam apenas a própria `store_id`.
 - LB London não pode acessar Brasil Drones.
 - Usuário da Zalen pode acessar lojas por permissão global.
 - `/admin` é painel operacional da loja.
-- `/platform` será futuro e não deve ser implementado agora.
+- `/platform` exige `platform_owner` ou `platform_admin` junto de cada leitura, além do layout; a primeira etapa é somente leitura de lojas.
+
+O login central escolhe o destino pelo papel global e pelos vínculos reais da
+conta. `next` é validado por origem, rota e autorização. Nenhum destino padrão
+concede acesso à Brasil Drones. O seletor `/lojas` consulta somente vínculos do
+usuário autenticado. Falhas de leitura não usam lojas demonstrativas.
 
 ## 6. RLS
 

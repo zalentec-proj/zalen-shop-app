@@ -12,6 +12,7 @@
     "test:unit": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "test:platform-access": "node scripts/verify-platform-access.mjs",
     "test:ci": "npm run lint && npm run test:coverage && npm run build",
     "security:audit": "npm audit --omit=dev --audit-level=high",
     "security:secrets": "node scripts/security/scan-secrets.mjs",

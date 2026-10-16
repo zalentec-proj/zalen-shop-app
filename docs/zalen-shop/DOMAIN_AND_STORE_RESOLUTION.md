@@ -45,7 +45,8 @@ Exemplo futuro:
 
 - `app.zalenshop.com.br/platform`
 
-Essa área não será implementada no MVP atual.
+Primeira etapa autorizada em 16/10/2026: acesso global e listagem de lojas.
+Gestão completa continua futura. O host real é `app.zalenshop.com.br/platform`.
 
 ## 3. Modelo por subdomínio
 
@@ -154,7 +155,7 @@ Resolução esperada:
 - `localhost:3000` → fallback Brasil Drones no MVP;
 - `brasil-drones.lvh.me:3000` → `stores.slug = brasil-drones`;
 - `lb-london.lvh.me:3000` → `stores.slug = lb-london`;
-- `app.lvh.me:3000/platform` → futuro platform admin local.
+- `app.lvh.me:3000/platform` → platform admin local.
 
 ## 7. Hosts reservados
 
@@ -189,7 +190,7 @@ Regras atuais:
 - `brasil-drones.zalenshop.com.br` resolve `stores.slug = brasil-drones` em produção/staging;
 - subdomínios reservados, como `app`, `www` e `api`, não são tratados como loja;
 - `ACTIVE_STORE_ID` permanece apenas como fallback/static build e em webhooks externos que ainda não carregam contexto de loja no payload;
-- não criar `/platform`;
+- `/platform` central atende somente a etapa mínima de acesso e listagem;
 - não alterar comportamento real de Bling, Mercos ou qualquer conector externo sem pesquisa técnica aprovada.
 
 ## 9. Estado do autosserviço

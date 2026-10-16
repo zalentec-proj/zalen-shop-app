@@ -1,8 +1,3 @@
-/**
- * Estrutura inicial de Auth do admin.
- * Ainda não bloqueia /admin; prepara helpers para a próxima sprint.
- */
-
 import 'server-only';
 
 import {

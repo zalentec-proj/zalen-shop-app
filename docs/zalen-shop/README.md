@@ -1,6 +1,7 @@
-# Zalen Shop — Documentação Inicial
+# Zalen Shop — Documentação do projeto
 
-Esta pasta concentra a documentação de produto, arquitetura e segurança da loja Brasil Drones, preparada para evoluir futuramente para a plataforma Zalen Shop.
+Esta pasta concentra a documentação de produto, arquitetura e segurança da
+plataforma Zalen Shop. Brasil Drones é a primeira loja em operação.
 
 ## Documentos
 
@@ -19,7 +20,12 @@ Esta pasta concentra a documentação de produto, arquitetura e segurança da lo
 
 ## Decisão central
 
-A primeira entrega será uma loja single-tenant para Brasil Drones, mas com fundação `store_id` e módulos isolados para permitir evolução futura para multi-tenant.
+Uma aplicação e um banco atendem múltiplas lojas, com dados isolados por
+`store_id` e resolução por host. `/admin` opera cada loja. A etapa mínima de
+`/platform` oferece acesso global e listagem de lojas; cadastro e personalização
+de novas lojas são os próximos incrementos. Consultar o handoff em
+`docs/work-context/CURRENT_STATE.md` para distinguir código entregue, validação
+e publicação.
 
 ## Posicionamento
 

@@ -83,7 +83,7 @@ Segunda loja/caso futuro.
 - habilita conectores;
 - acompanha integrações;
 - dá suporte;
-- futuramente acessará uma área `/platform`.
+- acessa `/platform` para listar lojas e abrir seus painéis operacionais na primeira etapa.
 
 ## 7. Escopo MVP
 
@@ -142,6 +142,10 @@ Conectores planejados:
 - WhatsApp/IA futuramente.
 
 ## 8. Fora do escopo inicial
+
+Incremento autorizado em 16/10/2026: Platform Admin mínimo com acesso global,
+login por papel/vínculo, seletor de lojas acessíveis e `/platform/lojas` somente
+leitura. Cadastro, ativação e personalização de novas lojas são próximos incrementos.
 
 - `/platform` completo;
 - billing/planos;

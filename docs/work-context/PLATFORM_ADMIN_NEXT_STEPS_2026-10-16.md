@@ -1,5 +1,10 @@
 # Próximos passos para o painel da plataforma e novas lojas
 
+Atualização após autorização do responsável: a primeira etapa de acesso,
+login e listagem de lojas foi implementada em `codex/platform-admin-access`.
+O estado de validação e publicação está em `CURRENT_STATE.md`. O diagnóstico
+abaixo registra a base anterior; cadastro e personalização continuam próximos.
+
 Diagnóstico de 16/10/2026. O próximo incremento recomendado é um Platform Admin
 enxuto, acompanhado de apresentação configurável por loja. O resultado esperado
 é o dono da Zalen cadastrar uma segunda loja, definir seu responsável e sua

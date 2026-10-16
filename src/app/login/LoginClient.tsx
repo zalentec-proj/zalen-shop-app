@@ -75,7 +75,7 @@ function TextInput({
   );
 }
 
-export default function LoginClient({ nextPath = '/admin' }: { nextPath?: string }) {
+export default function LoginClient({ nextPath = '', accessError }: { nextPath?: string; accessError?: string }) {
   const [state, formAction] = useActionState(loginAction, initialLoginState);
 
   return (
@@ -184,9 +184,9 @@ export default function LoginClient({ nextPath = '/admin' }: { nextPath?: string
                 icon={<Lock className="h-4 w-4" />}
               />
 
-              {state.error ? (
+              {state.error || accessError ? (
                 <p className="rounded-lg border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
-                  {state.error}
+                  {state.error ?? accessError}
                 </p>
               ) : null}
 
