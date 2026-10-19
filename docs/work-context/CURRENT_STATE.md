@@ -7,9 +7,9 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 ## Snapshot
 
 - Atualizado em: 2026-10-19
-- Frente mais recente: diagnóstico do link de recuperação que volta para
-  localhost; Site URL do Supabase ainda local e allow list vazia. Correção
-  preparada no painel, aguardando confirmação para salvar os destinos Auth.
+- Frente mais recente: Site URL e callback de recuperação corrigidos no
+  Supabase após confirmação explícita do responsável, com persistência
+  conferida após recarregar o painel. Novo link ainda precisa ser testado.
   Conta dona com `platform_owner` e e-mail confirmado pelo link aberto pelo usuário.
   Primeira etapa do Platform Admin implementada e validada em código;
   publicação e validação de login real pendentes, conforme blocos abaixo.
@@ -41,26 +41,30 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   `http://localhost:3000` e nenhum Redirect URL cadastrado. O app publicado já
   chama `resetPasswordForEmail` com `/auth/callback?next=/login/update-password`;
   o Supabase usa Site URL quando o destino solicitado não está permitido.
-- Correção preparada, ainda NÃO salva: Site URL
+- Correção SALVA após o responsável confirmar explicitamente os dois ajustes:
+  Site URL
   `https://app.zalenshop.com.br` e Redirect URL exato
   `https://app.zalenshop.com.br/auth/callback?next=/login/update-password`.
-  Confirmação solicitada pela política de controle do navegador antes de
-  adicionar o destino que recebe códigos de autenticação. O painel permanece
-  aberto na aba Chrome de URL Configuration, com formulário pendente.
+  O painel foi recarregado e confirmou ambos persistidos, com um único Redirect
+  URL cadastrado. Sem wildcards nem outros destinos. A aba Chrome de URL
+  Configuration foi preservada como resultado para o responsável.
 - A leitura administrativa posterior ao clique do usuário confirmou e-mail
   verificado e `platform_owner` persistido. O responsável já pode tentar login
   com a senha criada por ele. Nenhuma confirmação administrativa foi aplicada.
 - Verificações públicas, sem sessão/código: callback retornou 307 para
   `/login?auth=missing-code`; `/login/update-password` retornou 200. A ausência
   do código no teste é deliberada; não consumiu um link real nem enviou e-mail.
-- Próximo passo exato: após a confirmação, salvar a allow list e o Site URL,
-  conferir os valores persistidos e orientar nova solicitação de recuperação
-  pelo próprio usuário se ainda precisar redefinir a senha. Não reaproveitar
-  o link antigo nem copiar seu código para outro domínio. Não alterar o
-  `site_url` de `supabase/config.toml`, que serve ao desenvolvimento local.
+- Próximo passo exato: o próprio usuário solicita novo link em
+  `https://app.zalenshop.com.br/login/forgot` se ainda precisar redefinir a senha,
+  abre o e-mail mais recente no mesmo navegador e conclui a definição de senha
+  diretamente no app. Confirmar o fluxo real após essa ação. Não reaproveitar
+  o link antigo nem copiar seu código para outro domínio. O `site_url` de
+  `supabase/config.toml`, destinado ao desenvolvimento local, foi preservado.
 - Sem mudança no código, senha, sessão, política RLS, confirmação automática,
   templates, SMTP ou publicação. Fluxo com novo link e senha depende da ação
-  do responsável. Referência: documentação oficial Supabase de Redirect URLs.
+  do responsável. Somente os dois campos de URL Configuration foram alterados.
+  Git sincronizado antes do registro; diff check aprovado. Referência:
+  documentação oficial Supabase de Redirect URLs, também em AUTH_AND_ACCESS.md.
 
 ## Conta dona configurada (19/10/2026)
 
