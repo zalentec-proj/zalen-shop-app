@@ -29,7 +29,7 @@ export function StoreList({ stores, requestOrigin, rootDomain, adminPath = '/adm
         </thead>
         <tbody className="divide-y divide-white/5">
           {stores.map((store) => {
-            const adminUrl = store.status === 'active'
+            const adminUrl = ['active', 'planned'].includes(store.status)
               ? getStoreAdminUrl(store.slug, requestOrigin, rootDomain, adminPath)
               : null;
             return (

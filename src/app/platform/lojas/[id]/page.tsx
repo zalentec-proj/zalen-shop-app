@@ -22,7 +22,7 @@ export default async function ManagedStorePage({ params }: { params: Promise<{ i
       </div>
       <div className="flex gap-4 text-sm text-blue-300">
         <Link href={`/platform/lojas/${id}/preview`}>Ver prévia do rascunho ↗</Link>
-        {store.status === 'active' ? <a href={getStoreAdminUrl(store.slug, requestOrigin, rootDomain) ?? undefined}>Abrir painel ↗</a> : null}
+        {['active', 'planned'].includes(store.status) ? <a href={getStoreAdminUrl(store.slug, requestOrigin, rootDomain) ?? undefined}>Abrir painel ↗</a> : null}
       </div>
     </div>
     <section className="mb-5 rounded-xl border border-white/10 bg-[#081225] p-5 text-sm">

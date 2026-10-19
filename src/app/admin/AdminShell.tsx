@@ -47,11 +47,13 @@ function getInitials(email?: string) {
 
 export function AdminShell({
   storeShortName,
+  preparing = false,
   accountStoresUrl,
   user,
   children,
 }: {
   storeShortName: string;
+  preparing?: boolean;
   accountStoresUrl?: string;
   user: { email?: string; role: AdminAccessRole };
   children: ReactNode;
@@ -98,6 +100,7 @@ export function AdminShell({
             </form>
           </div>
         </div>
+        {preparing ? <p role="status" className="border-b border-amber-400/15 bg-amber-400/5 px-4 py-3 text-xs text-amber-100 lg:px-6">Loja em preparação. Você pode organizar o catálogo; a loja permanece fora do ar até a publicação pelo dono da plataforma.</p> : null}
         {children}
       </main>
     </div>

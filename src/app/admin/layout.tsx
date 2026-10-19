@@ -59,6 +59,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <AdminShell
       storeShortName={store.shortName}
+      preparing={store.status === 'planned'}
       accountStoresUrl={accountStoresUrl}
       user={{ email: user.email, role: platformRole ?? membership!.role }}
     >

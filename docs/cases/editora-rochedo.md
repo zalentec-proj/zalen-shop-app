@@ -1,5 +1,13 @@
 # Case — Editora Rochedo
 
+Atualização de 19/10/2026: durante o preparo do catálogo manual, a conferência
+cloud encontrou a loja já `active`, apresentação publicada revisão 3 em
+`2026-10-19T18:41:19Z`. Essa publicação não foi executada pelo agente nesta
+frente e foi preservada. Catálogo ainda vazio, sem categorias ou integrações.
+O usuário quer cadastrar os livros pelo próprio painel. O incremento
+[Cadastro manual](../zalen-shop/MANUAL_CATALOG.md) fornece esse formulário;
+nenhum livro comercial foi inventado ou criado a partir das capas ilustrativas.
+
 ## Estado em 19/10/2026
 
 Segunda loja cadastrada na Zalen Shop, após solicitação do responsável pela
@@ -9,7 +17,8 @@ LB London continua sendo um case futuro separado.
 - Nome: Editora Rochedo.
 - Slug: `editora-rochedo`.
 - Store ID: `17e1e202-00f9-4a83-9843-d6c36a440cfb`.
-- Status: `planned` / Em preparação; sem apresentação pública publicada.
+- Status atual: `active`; apresentação pública revisão 3. Antes desta frente,
+  o último estado registrado era `planned` / Em preparação.
 - Responsável: `rochedoacademy@gmail.com`, conta existente confirmada no
   Supabase Auth da Zalen Shop, vinculada como `store_owner` somente desta loja.
 - Admin: Zalen Shop; nenhuma concessão de papel global ao responsável.

@@ -9,6 +9,7 @@ import { join } from 'node:path';
 const container = `zalen-platform-ui-${process.pid}`;
 const sandbox = await mkdtemp(join(tmpdir(), 'zalen-platform-ui-'));
 const port = Number(process.env.PLATFORM_FIXTURE_PORT ?? 3410);
+const catalogFixture = process.env.CATALOG_FIXTURE === '1';
 const ids = { owner: '10000000-0000-4000-8000-000000000001', admin: '10000000-0000-4000-8000-000000000002', merchant: '10000000-0000-4000-8000-000000000003' };
 const users = Object.fromEntries(Object.entries(ids).map(([role, id]) => [role, { id, email: `${role}@platform.invalid`, aud: 'authenticated', role: 'authenticated', created_at: '2026-01-01T00:00:00Z', app_metadata: {}, user_metadata: role === 'merchant' ? { role: 'platform_owner' } : {} }]));
 function run(args, input = '') {
@@ -30,7 +31,7 @@ function respond(response, value, status = 200, count) {
 function claims(request) {
   try { return JSON.parse(Buffer.from(request.headers.authorization.split('.')[1], 'base64url')); } catch { return {}; }
 }
-const tables = new Set(['stores', 'platform_users', 'store_memberships', 'storefront_drafts', 'storefront_presentations', 'platform_store_profiles', 'products', 'price_lists']);
+const tables = new Set(['stores', 'platform_users', 'store_memberships', 'storefront_drafts', 'storefront_presentations', 'platform_store_profiles', 'products', 'price_lists', 'memberships', 'product_variants', 'product_images', 'categories', 'product_categories']);
 const api = createServer(async (request, response) => {
   try {
     const url = new URL(request.url, 'http://127.0.0.1');
@@ -39,6 +40,13 @@ const api = createServer(async (request, response) => {
     if (url.pathname.startsWith('/auth/v1/admin/users/')) return respond(response, Object.values(users).find((value) => value.id === url.pathname.split('/').at(-1)) ?? {}, 200);
     if (url.pathname === '/auth/v1/logout') { response.writeHead(204); response.end(); return; }
     const service = request.headers.authorization === 'Bearer sb_secret_platform_fixture';
+    if (catalogFixture && url.pathname === '/rest/v1/rpc/save_manual_product' && request.method === 'POST') {
+      if (!service) return respond(response, { code: '42501' }, 403);
+      let raw = ''; for await (const chunk of request) raw += chunk;
+      const data = JSON.parse(raw);
+      const result = await sql("set role service_role; select public.save_manual_product(:'actor'::uuid, :'store'::uuid, :'payload'::jsonb);", { actor: data.p_actor_id, store: data.p_store_id, payload: data.p_payload });
+      return respond(response, JSON.parse(result));
+    }
     if (url.pathname === '/rest/v1/rpc/platform_store_command' && request.method === 'POST') {
       if (!service) return respond(response, { code: '42501' }, 403);
       let raw = ''; for await (const chunk of request) raw += chunk;
@@ -50,17 +58,23 @@ const api = createServer(async (request, response) => {
     const table = url.pathname.split('/').at(-1);
     if (!tables.has(table)) return respond(response, [], 200, 0);
     const role = service ? 'service_role' : user ? 'authenticated' : 'anon';
-    const variables = { claims: { sub: user?.id, role } };
+    const variables = { claims: { sub: user?.id, role }, subject: user?.id ?? '' };
     const predicates = [];
-    for (const key of ['id', 'store_id', 'slug', 'user_id', 'status', 'role', 'name', 'customer_type', 'is_default']) {
+    for (const key of ['id', 'store_id', 'product_id', 'category_id', 'slug', 'user_id', 'status', 'role', 'name', 'customer_type', 'is_default']) {
       const filter = url.searchParams.get(key); if (!filter) continue;
       const variable = `filter_${key}`;
       if (filter.startsWith('eq.')) { variables[variable] = filter.slice(3); predicates.push(`${key}::text = :'${variable}'`); }
       if (filter.startsWith('in.(')) { variables[variable] = filter.slice(4, -1).split(','); predicates.push(`${key}::text in (select jsonb_array_elements_text(:'${variable}'::jsonb))`); }
       if (key === 'name' && filter.startsWith('ilike.')) { variables[variable] = filter.slice(6); predicates.push(`name ilike :'${variable}'`); }
     }
-    const result = await sql(`begin; set local role ${role}; set local request.jwt.claims = :'claims'; select coalesce(json_agg(t), '[]') from (select * from public.${table}${predicates.length ? ` where ${predicates.join(' and ')}` : ''}) t; rollback;`, variables);
+    const result = await sql(`begin; set local role ${role}; set local request.jwt.claims = :'claims'; set local request.jwt.claim.sub = :'subject'; select coalesce(json_agg(t), '[]') from (select * from public.${table}${predicates.length ? ` where ${predicates.join(' and ')}` : ''}) t; rollback;`, variables);
     const rows = JSON.parse(result);
+    if (table === 'product_categories' && url.searchParams.get('select')?.includes('categories!inner')) {
+      for (const row of rows) {
+        const category = await sql("set role service_role; select row_to_json(c) from public.categories c where id=:'id'::uuid and store_id=:'store'::uuid;", { id: row.category_id, store: url.searchParams.get('categories.store_id')?.slice(3) ?? '' });
+        row.categories = category ? JSON.parse(category) : null;
+      }
+    }
     if (request.headers.accept?.includes('application/vnd.pgrst.object')) return rows.length === 1 ? respond(response, rows[0]) : respond(response, { code: 'PGRST116', details: '0 rows' }, 406);
     respond(response, rows, 200, rows.length);
   } catch (error) {
@@ -87,14 +101,27 @@ try {
   await sql(await readFile('supabase/tests/platform_store_provisioning.bootstrap.sql', 'utf8'), {}, 'postgres');
   await sql(await readFile('supabase/migrations/20261019150054_platform_store_provisioning.sql', 'utf8'), {}, 'postgres');
   await sql(await readFile('supabase/migrations/20261019165113_platform_store_request_store_index.sql', 'utf8'), {}, 'postgres');
+  if (catalogFixture) {
+    await sql(await readFile('supabase/tests/manual_catalog.bootstrap.sql', 'utf8'), {}, 'postgres');
+    const initial = await readFile('supabase/migrations/20240101000000_initial_schema.sql', 'utf8');
+    await sql(initial.slice(initial.indexOf('create table product_variants ('), initial.indexOf('-- PEDIDOS')).replace(/-- =+\s*$/, ''), {}, 'postgres');
+    await sql("alter table public.categories enable row level security; grant select on public.categories to anon,authenticated; create policy public_can_read_categories on public.categories for select to anon,authenticated using(exists(select 1 from public.stores where id=categories.store_id and status='active')); grant all on all tables in schema public to service_role;", {}, 'postgres');
+    await sql(await readFile('supabase/migrations/20261019184654_manual_catalog_management.sql', 'utf8'), {}, 'postgres');
+  }
   for (const [role, user] of Object.entries(users)) {
     await sql("insert into auth.users(id,email) values(:'id'::uuid, :'email');", { id: user.id, email: user.email });
     if (role !== 'merchant') await sql("insert into public.platform_users(user_id,role) values (:'id'::uuid, :'role');", { id: user.id, role: `platform_${role}` });
   }
-  await sql("insert into public.stores(id,name,slug,status) values('00000000-0000-0000-0000-000000000001','Brasil Drones & Parts','brasil-drones','active'); insert into public.price_lists(store_id,name,code,customer_type,is_default) values('00000000-0000-0000-0000-000000000001','PJ empresa','pj_business','pj',true); alter table public.platform_users enable row level security; grant select on public.platform_users to authenticated; create policy own_role on public.platform_users for select to authenticated using(user_id = auth.uid()); grant select on public.platform_users,public.store_memberships to service_role;");
+  await sql("insert into public.stores(id,name,slug,status) values('00000000-0000-0000-0000-000000000001','Brasil Drones & Parts','brasil-drones','active'); insert into public.price_lists(store_id,name,code,customer_type,is_default) values('00000000-0000-0000-0000-000000000001','PJ empresa','pj_business','pj',true); grant select on public.platform_users,public.store_memberships to service_role;");
+  if (!catalogFixture) await sql("alter table public.platform_users enable row level security; grant select on public.platform_users to authenticated; create policy own_role on public.platform_users for select to authenticated using(user_id = auth.uid());");
+  if (catalogFixture) await sql("insert into public.stores(id,name,slug,status) values('20000000-0000-4000-8000-000000000001','Editora Fixture','editora-fixture','planned'); insert into public.store_memberships(store_id,user_id,role) values('20000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000003','store_owner');");
   api.listen(0, '127.0.0.1'); await once(api, 'listening');
   await cp('src', join(sandbox, 'src'), { recursive: true });
   for (const file of ['package.json', 'tsconfig.json', 'next-env.d.ts', 'next.config.ts', 'postcss.config.mjs']) await copyFile(file, join(sandbox, file));
+  if (catalogFixture) {
+    const path = join(sandbox, 'next.config.ts');
+    await writeFile(path, (await readFile(path, 'utf8')).replace("'brasil-drones.lvh.me'", "'brasil-drones.lvh.me', 'editora-fixture.lvh.me'"));
+  }
   for (const directory of ['node_modules', 'public', 'tests']) await symlink(join(process.cwd(), directory), join(sandbox, directory), 'dir');
   await mkdir(join(sandbox, 'src/app/fixture-session'), { recursive: true });
   await writeFile(join(sandbox, 'src/app/fixture-session/route.ts'), `import { NextResponse } from 'next/server';\nimport { createClient } from '@/lib/supabase/server';\nconst ids = ${JSON.stringify(ids)};\nexport async function GET(request: Request) { const role = new URL(request.url).searchParams.get('role') as keyof typeof ids; if (!ids[role]) return new Response('Fixture role required', { status: 400 }); const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url'); const access_token = encode({alg:'HS256',typ:'JWT'})+'.'+encode({sub:ids[role],role:'authenticated',exp:Math.floor(Date.now()/1000)+3600})+'.fixture'; const client = await createClient(); await client.auth.setSession({access_token,refresh_token:'fixture-refresh'}); return NextResponse.redirect(new URL('/platform/lojas', 'http://'+request.headers.get('host'))); }\n`);

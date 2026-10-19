@@ -7,6 +7,13 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 ## Snapshot
 
 - Atualizado em: 2026-10-19.
+- Frente atual: cadastro manual de livros/produtos pelo painel da própria loja,
+  solicitado pelo usuário. Implementado e validado localmente; release e
+  migration ainda pendentes nesta anotação (ver seção abaixo).
+- Estado cloud mais recente da Rochedo: `active`, apresentação publicada revisão
+  3 em `2026-10-19T18:41:19Z`, antes de qualquer mutação desta frente. Preservar
+  essa configuração. As referências abaixo a `planned` descrevem a entrega
+  anterior. Nenhum produto real foi fornecido ou cadastrado pelo agente.
 - Frente concluída: referência visual verde/creme, serifas, logo e hero com
   livros aplicada ao rascunho 3 da Editora Rochedo pelo admin geral. Modelo
   Editorial disponível na versão publicada; loja continua `planned` e privada.
@@ -48,6 +55,42 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   responsável. Case: `docs/cases/editora-rochedo.md`.
 - Credenciais, vendas, catálogos comerciais e integrações reais preservados.
 - Guia de continuidade: `docs/work-context/IDE_HANDOFF.md`.
+
+## Catálogo manual no painel da loja (19/10/2026)
+
+- Objetivo: usuário cadastrar os livros reais diretamente em Produtos → Novo
+  produto. A listagem anterior só alterava status/estoque de itens existentes.
+- Novas rotas `/admin/produtos/novo` e `/admin/produtos/[id]/editar`; nome,
+  descrição, SKU, formato, autor/ISBN opcionais, preço, estoque, status, categoria,
+  capa HTTPS e medidas. Uma variante, uma capa e uma categoria. Padrão rascunho.
+  Sem upload/entrega de e-books ou integração externa nova.
+- Escrever exige papel global ou owner/admin/operator da loja no service e na
+  função SQL. Loja/ator vêm de host/Auth; frontend não escolhe o `store_id`.
+  Produtos de integração e múltiplas variantes recusam a edição completa.
+- Migration `20261019184654_manual_catalog_management.sql`: RPC invoker público
+  service-only → definer privado, transação de produto/variante/capa/categoria,
+  retry de criação por UUID estável e ledger privado com RLS e sem grants de
+  cliente. SELECT de categorias para quem já possui leitura do catálogo.
+- Resolução administrativa permite `planned` somente por vínculo/papel global
+  no subdomínio Zalen. Público continua somente `active`; inativas sem painel.
+  Login, seletor e ficha global oferecem o acesso operacional em preparação.
+- Conferência cloud prévia: Brasil Drones ativa com 685 produtos; Rochedo já
+  ativa/revisão 3 publicada, zero produtos/categorias/integrações. RPC manual
+  ainda ausente. Não atribuir a publicação da loja a esta tarefa.
+- Validações: TypeScript, 481 testes em 83 arquivos, cobertura crítica
+  configurada e build de produção aprovados. PostgreSQL 17 descartável cobre
+  atomicidade por falha de filho, retry, SKU duplicado, isolamento entre lojas,
+  viewer/ERP e leitura privada mesmo com produto ativo em loja planned.
+- UI local com Next/SDK reais + Auth loopback fictício + PG descartável:
+  lojista abriu admin planned, cadastrou exemplar fictício e editou preço para
+  45,90, saldo 8, descrição, autor e capa. Valores conferidos no banco; loja
+  permaneceu planned/produto draft. Nenhum dado cloud usado nessa fixture.
+  Celular medido 390 px, scrollWidth 382, sem overflow; viewport restaurado.
+  Evidência temporária `/private/tmp/catalogo-rochedo-formulario-local-mobile.jpg`.
+- Próximo passo exato: aplicar migration no projeto correto
+  `xtwobxfepsdfjrtducqb`, verificar grants/RLS, publicar o código via Git e
+  conferir Novo produto na sessão dona. Manter catálogo real vazio e deixar
+  formulário pronto para o usuário. Contrato: `docs/zalen-shop/MANUAL_CATALOG.md`.
 
 ## Editora Rochedo — direção editorial aplicada (19/10/2026)
 

@@ -126,7 +126,9 @@ específica no login central, papel global segue para `/platform`; um vínculo
 ativo segue para o admin daquela loja; múltiplos vínculos seguem para `/lojas`.
 Conta sem vínculo recebe estado de acesso indisponível, sem fallback de loja.
 A listagem global exige papel global na camada de dados e mostra também lojas
-em preparação ou inativas. Estas não recebem link para admin operacional.
+em preparação ou inativas. O incremento de catálogo manual permite abrir o
+admin de lojas em preparação com papel global ou vínculo válido, sem publicar
+o storefront. Lojas inativas continuam sem acesso operacional.
 
 O `/admin` do host central é encaminhado pelo proxy ao login, que resolve o
 destino com a sessão renovada antes de renderizar páginas de loja. O redirect

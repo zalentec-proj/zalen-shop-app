@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ headers: vi.fn(), resolveStoreFromHost: vi.fn(), canAccessStore: vi.fn(), getPlatformRole: vi.fn(), listUserStores: vi.fn() }));
+const mocks = vi.hoisted(() => ({ headers: vi.fn(), resolveAdminStoreFromHost: vi.fn(), canAccessStore: vi.fn(), getPlatformRole: vi.fn(), listUserStores: vi.fn() }));
 vi.mock('next/headers', () => ({ headers: mocks.headers }));
 vi.mock('@/lib/env/server', () => ({ getServerEnv: () => ({ PLATFORM_ROOT_DOMAIN: 'zalenshop.com.br', APP_URL: 'https://app.zalenshop.com.br' }) }));
 vi.mock('@/modules/stores/store-resolution', () => ({
-  resolveStoreFromHost: mocks.resolveStoreFromHost,
+  resolveAdminStoreFromHost: mocks.resolveAdminStoreFromHost,
   getOptionalStoreFromResolution: (resolution: { kind: string; store: unknown }) => ['store', 'fallback'].includes(resolution.kind) ? resolution.store : null,
 }));
 vi.mock('./auth.service', () => ({ canAccessStore: mocks.canAccessStore, getPlatformRole: mocks.getPlatformRole }));
@@ -18,7 +18,7 @@ const brazil = { id: 'brazil-id', slug: 'brasil-drones', name: 'Brasil Drones', 
 describe('authorized login destination', () => {
   beforeEach(() => {
     mocks.headers.mockResolvedValue(new Headers({ host: 'app.zalenshop.com.br', 'x-forwarded-proto': 'https' }));
-    mocks.resolveStoreFromHost.mockResolvedValue({ kind: 'store', store: london });
+    mocks.resolveAdminStoreFromHost.mockResolvedValue({ kind: 'store', store: london });
     mocks.canAccessStore.mockResolvedValue(true);
     mocks.getPlatformRole.mockResolvedValue(null);
     mocks.listUserStores.mockResolvedValue([london]);
@@ -27,7 +27,7 @@ describe('authorized login destination', () => {
   it.each(['platform_owner', 'platform_admin'])('routes %s to the platform without resolving a store', async (role) => {
     mocks.getPlatformRole.mockResolvedValue(role);
     await expect(resolveLoginDestination('verified-user')).resolves.toBe('https://app.zalenshop.com.br/platform');
-    expect(mocks.resolveStoreFromHost).not.toHaveBeenCalled();
+    expect(mocks.resolveAdminStoreFromHost).not.toHaveBeenCalled();
     expect(mocks.listUserStores).not.toHaveBeenCalled();
   });
 
@@ -38,6 +38,11 @@ describe('authorized login destination', () => {
 
   it('preserves an admin route on the authorized single store', async () => {
     await expect(resolveLoginDestination('london-user', '/admin/pedidos?page=2#detalhes')).resolves.toBe('https://lb-london.zalenshop.com.br/admin/pedidos?page=2#detalhes');
+  });
+
+  it('allows a planned store to be prepared after login', async () => {
+    mocks.listUserStores.mockResolvedValue([{ ...london, status: 'planned' }]);
+    await expect(resolveLoginDestination('london-user')).resolves.toBe('https://lb-london.zalenshop.com.br/admin');
   });
 
   it('offers a selector instead of choosing an arbitrary store', async () => {
@@ -69,7 +74,7 @@ describe('authorized login destination', () => {
   });
 
   it('does not fall back when the requested store does not exist', async () => {
-    mocks.resolveStoreFromHost.mockResolvedValue({ kind: 'not_found' });
+    mocks.resolveAdminStoreFromHost.mockResolvedValue({ kind: 'not_found' });
     await expect(resolveLoginDestination('user', 'https://unknown.zalenshop.com.br/admin')).resolves.toBeNull();
     expect(mocks.canAccessStore).not.toHaveBeenCalled();
   });

@@ -79,6 +79,12 @@ Não deve tentar ser um BI completo no MVP.
 
 ## 6. Produtos
 
+Incremento de 19/10/2026: cadastro manual e edição completa de produto nativo
+com uma variante, além dos ajustes existentes. **Novo produto** começa como
+rascunho; o admin também pode ser aberto para preparar uma loja `planned`,
+com sessão autorizada e sem ativação pública.
+[Fluxo de cadastro manual](MANUAL_CATALOG.md).
+
 O admin pode listar e editar campos operacionais do catálogo.
 
 No MVP:

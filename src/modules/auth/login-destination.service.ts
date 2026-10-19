@@ -2,7 +2,7 @@ import 'server-only';
 
 import { headers } from 'next/headers';
 import { getServerEnv } from '@/lib/env/server';
-import { getOptionalStoreFromResolution, resolveStoreFromHost } from '@/modules/stores/store-resolution';
+import { getOptionalStoreFromResolution, resolveAdminStoreFromHost } from '@/modules/stores/store-resolution';
 import { canAccessStore, getPlatformRole } from './auth.service';
 import { listUserStores } from './store-access.repository';
 import { getLoginRequestOrigin, getSafeLoginNextTarget, isAdminPath } from './login-navigation';
@@ -34,14 +34,14 @@ export async function resolveLoginDestination(userId: string, next?: string) {
   const specificAdmin = isAdminPath(target.pathname) &&
     !isCentralAppOrigin(target.origin, rootDomain) && typeof next === 'string' && Boolean(next.trim());
   if (specificAdmin) {
-    const store = getOptionalStoreFromResolution(await resolveStoreFromHost(target.host));
+    const store = getOptionalStoreFromResolution(await resolveAdminStoreFromHost(target.host, userId));
     if (!store || !(await canAccessStore(userId, store.id))) return null;
     return target.origin === requestOrigin ? localPath : target.href;
   }
 
   if (platformRole) return new URL('/platform', platformOrigin).href;
 
-  const stores = (await listUserStores(userId)).filter((store) => store.status === 'active');
+  const stores = (await listUserStores(userId)).filter((store) => ['active', 'planned'].includes(store.status));
   if (stores.length === 1) {
     return getStoreAdminUrl(stores[0].slug, requestOrigin, rootDomain,
       isAdminPath(target.pathname) ? localPath : '/admin');

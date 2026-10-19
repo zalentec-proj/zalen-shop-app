@@ -19,6 +19,11 @@ import {
 import type { StoreContext } from './store.types';
 import { getActivePrimaryStoreDomain } from '@/modules/domains/domain.repository';
 import type { StoreDomain } from '@/modules/domains/domain.types';
+import { getCurrentUser, getPlatformRole } from '@/modules/auth/auth.service';
+import { listUserStores } from '@/modules/auth/store-access.repository';
+import { createOptionalAdminClient } from '@/lib/supabase/server';
+import { toStoreContext } from './store.repository';
+import { isAdminPath } from '@/modules/auth/login-navigation';
 
 export type StoreResolution =
   | {
@@ -207,8 +212,39 @@ export async function resolveStoreFromHost(
   };
 }
 
+/** userId is obtained from verified Auth by the caller, never from form/query data.
+ * Planned stores are operational only on their Zalen subdomain; public
+ * resolution and custom-domain resolution remain restricted to active stores.
+ */
+export async function resolveAdminStoreFromHost(host: string | null | undefined, userId: string): Promise<StoreResolution> {
+  const hostname = normalizeHostname(host);
+  const slug = getStoreSlugFromHostname(hostname, getRootDomain());
+  if (!slug || isReservedPlatformSubdomain(slug)) return resolveStoreFromHost(host);
+  let store: StoreContext | null = null;
+  if (await getPlatformRole(userId)) {
+    const admin = createOptionalAdminClient();
+    if (admin) {
+      const { data, error } = await admin.from('stores').select('id, name, slug, status').eq('slug', slug).maybeSingle();
+      if (error) throw new Error('Store access unavailable.');
+      if (data) store = toStoreContext(data, 'supabase');
+    }
+  } else {
+    const row = (await listUserStores(userId)).find(entry => entry.slug === slug);
+    if (row) store = toStoreContext(row, 'supabase');
+  }
+  return store && ['active', 'planned'].includes(store.status)
+    ? { kind: 'store', host: hostname, slug, store }
+    : { kind: 'not_found', host: hostname, slug, store: getStaticActiveStoreContext() };
+}
+
 export async function resolveStoreFromHeaders() {
   const headerStore = await headers();
+  // The proxy overwrites this header from the actual request URL.
+  const path = (headerStore.get('x-zalen-request-path') ?? '').split('?')[0];
+  if (isAdminPath(path)) {
+    const user = await getCurrentUser();
+    if (user) return resolveAdminStoreFromHost(getRequestHost(headerStore), user.id);
+  }
   return resolveStoreFromHost(getRequestHost(headerStore));
 }
 

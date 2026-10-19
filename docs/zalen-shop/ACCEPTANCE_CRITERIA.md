@@ -29,7 +29,8 @@ dono, loja vazia sem conteúdo/credencial herdada e marca nas páginas comuns.
 
 - Papel global entra em `/platform` pelo login central sem depender de loja ativa.
 - `/platform/lojas` lista lojas com busca e paginação, inclusive inativas/planejadas.
-- Apenas loja ativa recebe link para seu admin no subdomínio Zalen.
+- Lojas ativas e em preparação recebem link para seu admin no subdomínio Zalen;
+  preparação exige sessão/vínculo e não libera o storefront público.
 - Lojista não lê dados globais por URL direta ou payload RSC.
 - Login respeita `next` seguro e autorizado, um vínculo ou múltiplos vínculos.
 - Conta sem vínculo e falha do banco têm estados distintos e sem dados mockados.
@@ -72,6 +73,12 @@ dono, loja vazia sem conteúdo/credencial herdada e marca nas páginas comuns.
 - Admin não expõe segredos.
 
 ## 5. Catálogo
+
+Incremento de cadastro manual: **Novo produto**, edição de cadastro nativo com
+uma variante, default rascunho, capa por URL HTTPS, categoria isolada, SKU
+duplicado recusado e transação sem cadastro parcial. Viewer, outra loja e
+produto de integração não podem usar a edição completa.
+[Contrato e validação](MANUAL_CATALOG.md).
 
 - Produto pode ser listado.
 - Produto pode ter imagem.

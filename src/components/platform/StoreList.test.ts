@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { StoreList } from './StoreList';
 
 describe('store list presentation', () => {
-  it('links only active stores to their own administrative subdomain', () => {
+  it('links active and planned stores, while keeping inactive stores unavailable', () => {
     const html = renderToStaticMarkup(createElement(StoreList, {
       requestOrigin: 'https://app.zalenshop.com.br', rootDomain: 'zalenshop.com.br',
       stores: [
@@ -16,7 +16,7 @@ describe('store list presentation', () => {
     expect(html).toContain('https://lb-london.zalenshop.com.br/admin');
     expect(html).toContain('Em preparação');
     expect(html).toContain('Inativa');
-    expect(html).not.toContain('https://pilot.');
+    expect(html).toContain('https://pilot.zalenshop.com.br/admin');
     expect(html).not.toContain('https://paused.');
   });
 
