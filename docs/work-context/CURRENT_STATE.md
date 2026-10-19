@@ -7,10 +7,11 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 ## Snapshot
 
 - Atualizado em: 2026-10-19
-- Frente mais recente: conta mostrada pelo responsável identificada no projeto
-  Leehov Academy; consulta ao Auth da Zalen Shop continua sem a conta dona.
-  Primeira etapa do Platform Admin implementada e validada em código; conta
-  dona e publicação pendentes, conforme blocos de 19/10 e 16/10 abaixo.
+- Frente mais recente: papel `platform_owner` atribuído e conferido na conta
+  criada pelo responsável no Auth de `zalen.shop`. Confirmação do e-mail ainda
+  pendente; não foi aplicada confirmação administrativa automática.
+  Primeira etapa do Platform Admin implementada e validada em código;
+  publicação e validação de login real pendentes, conforme blocos abaixo.
 - Branch desta implementação: `codex/platform-admin-access`, criada a partir de
   `codex/production-readiness-audit` após fetch e pull --rebase, sem mudanças
   locais anteriores.
@@ -31,7 +32,32 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - `/platform` completo, billing, marketplace e automações de IA continuam fora do MVP.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
-## Reconferência das conexões Supabase (19/10/2026)
+## Conta dona configurada (19/10/2026)
+
+- Objetivo autorizado: após criar a nova conta no projeto correto, o responsável
+  solicitou explicitamente conferir e configurar o acesso de dono da plataforma.
+- Projeto conferido pela conexão Zalen Tech: `zalen.shop`
+  (`xtwobxfepsdfjrtducqb`), saudável. A busca pelo e-mail indicado encontrou
+  exatamente uma conta, sem bloqueio de login, ainda sem confirmação de e-mail.
+  Não foi usado o ID exibido na captura do projeto Leehov.
+- Concluído: vínculo `platform_owner` salvo em `public.platform_users` para o
+  ID Auth conferido, com filtro do usuário exato e operação idempotente por
+  `user_id`. A leitura posterior confirmou o papel, um único vínculo global
+  para a conta e RLS habilitada. Nenhuma migration ou alteração de políticas.
+- Ativação: aplica-se o fluxo de nova conta explicitamente autorizada, criado
+  pelo próprio responsável no painel. O vínculo de dono já está salvo; o e-mail
+  permanece pendente de ativação pelo usuário. Próximo passo: usar “Esqueci
+  minha senha” no login da Zalen Shop e concluir o fluxo recebido por e-mail.
+  Nenhuma senha foi lida/alterada, sessão criada ou mensagem enviada pelo agente.
+- Publicação: as telas `/platform/lojas` e o novo destino de login permanecem na
+  branch `codex/platform-admin-access`. Falta publicar deliberadamente a etapa
+  implementada e validar login real do dono e do lojista entre os hosts.
+- Validação desta operação: identidade/projeto, unicidade, papel persistido e
+  RLS conferidos no banco real. Sem mudança de código; não repetir a suíte de
+  16/10 apenas por este vínculo. Fetch e pull --rebase concluídos antes do
+  handoff. Senha, sessão, vínculos de loja e contas Leehov preservados.
+
+## Reconferência das conexões Supabase (19/10/2026 — histórico anterior ao vínculo)
 
 - Conferência da captura de usuários: o painel exibido é Leehov Academy
   (`jgxkenqfpknjcsbpcata`), conforme título e cabeçalho lidos no navegador.
