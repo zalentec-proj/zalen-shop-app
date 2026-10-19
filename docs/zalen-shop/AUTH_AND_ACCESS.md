@@ -132,6 +132,26 @@ BRASIL_DRONES_STORE_ID = 00000000-0000-0000-0000-000000000001
 
 O contexto da loja em requisições públicas e administrativas vem do host.
 
+### 9.1 Recuperação de senha em produção
+
+No Supabase Cloud do projeto `zalen.shop`, configurar Authentication → URL
+Configuration com:
+
+- Site URL: `https://app.zalenshop.com.br`;
+- Redirect URL permitido:
+  `https://app.zalenshop.com.br/auth/callback?next=/login/update-password`.
+
+O app solicita esse callback em `resetPasswordForEmail`. Um destino fora da
+allow list faz o Supabase usar o Site URL; se este ainda apontar para localhost,
+o link do usuário volta ao ambiente local. Conferir ambos os valores antes de
+liberar o fluxo e solicitar um novo link após corrigir a configuração. Não
+transportar o código de um link antigo manualmente para outro domínio.
+
+O `site_url` local de `supabase/config.toml` não configura automaticamente o
+projeto Cloud e deve continuar adequado ao desenvolvimento. Não adicionar
+wildcards amplos para corrigir o retorno de produção. Referência oficial:
+[Supabase Redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls).
+
 ## 10. Criação de primeiro admin
 
 O primeiro usuário Zalen deve ser criado como `platform_owner` em staging.

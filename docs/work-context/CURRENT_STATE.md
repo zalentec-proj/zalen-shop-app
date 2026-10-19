@@ -7,9 +7,10 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 ## Snapshot
 
 - Atualizado em: 2026-10-19
-- Frente mais recente: papel `platform_owner` atribuído e conferido na conta
-  criada pelo responsável no Auth de `zalen.shop`. Confirmação do e-mail ainda
-  pendente; não foi aplicada confirmação administrativa automática.
+- Frente mais recente: diagnóstico do link de recuperação que volta para
+  localhost; Site URL do Supabase ainda local e allow list vazia. Correção
+  preparada no painel, aguardando confirmação para salvar os destinos Auth.
+  Conta dona com `platform_owner` e e-mail confirmado pelo link aberto pelo usuário.
   Primeira etapa do Platform Admin implementada e validada em código;
   publicação e validação de login real pendentes, conforme blocos abaixo.
 - Branch desta implementação: `codex/platform-admin-access`, criada a partir de
@@ -32,6 +33,35 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - `/platform` completo, billing, marketplace e automações de IA continuam fora do MVP.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
+## Recuperação de senha — destino localhost (19/10/2026)
+
+- Objetivo: corrigir o retorno do link de recuperação da conta dona, conforme
+  falha relatada pelo responsável. Não registrar o código ou a URL recebida.
+- Causa confirmada no painel Chrome do projeto `zalen.shop`: Site URL em
+  `http://localhost:3000` e nenhum Redirect URL cadastrado. O app publicado já
+  chama `resetPasswordForEmail` com `/auth/callback?next=/login/update-password`;
+  o Supabase usa Site URL quando o destino solicitado não está permitido.
+- Correção preparada, ainda NÃO salva: Site URL
+  `https://app.zalenshop.com.br` e Redirect URL exato
+  `https://app.zalenshop.com.br/auth/callback?next=/login/update-password`.
+  Confirmação solicitada pela política de controle do navegador antes de
+  adicionar o destino que recebe códigos de autenticação. O painel permanece
+  aberto na aba Chrome de URL Configuration, com formulário pendente.
+- A leitura administrativa posterior ao clique do usuário confirmou e-mail
+  verificado e `platform_owner` persistido. O responsável já pode tentar login
+  com a senha criada por ele. Nenhuma confirmação administrativa foi aplicada.
+- Verificações públicas, sem sessão/código: callback retornou 307 para
+  `/login?auth=missing-code`; `/login/update-password` retornou 200. A ausência
+  do código no teste é deliberada; não consumiu um link real nem enviou e-mail.
+- Próximo passo exato: após a confirmação, salvar a allow list e o Site URL,
+  conferir os valores persistidos e orientar nova solicitação de recuperação
+  pelo próprio usuário se ainda precisar redefinir a senha. Não reaproveitar
+  o link antigo nem copiar seu código para outro domínio. Não alterar o
+  `site_url` de `supabase/config.toml`, que serve ao desenvolvimento local.
+- Sem mudança no código, senha, sessão, política RLS, confirmação automática,
+  templates, SMTP ou publicação. Fluxo com novo link e senha depende da ação
+  do responsável. Referência: documentação oficial Supabase de Redirect URLs.
+
 ## Conta dona configurada (19/10/2026)
 
 - Objetivo autorizado: após criar a nova conta no projeto correto, o responsável
@@ -45,10 +75,10 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   `user_id`. A leitura posterior confirmou o papel, um único vínculo global
   para a conta e RLS habilitada. Nenhuma migration ou alteração de políticas.
 - Ativação: aplica-se o fluxo de nova conta explicitamente autorizada, criado
-  pelo próprio responsável no painel. O vínculo de dono já está salvo; o e-mail
-  permanece pendente de ativação pelo usuário. Próximo passo: usar “Esqueci
-  minha senha” no login da Zalen Shop e concluir o fluxo recebido por e-mail.
-  Nenhuma senha foi lida/alterada, sessão criada ou mensagem enviada pelo agente.
+  pelo próprio responsável no painel. O e-mail inicialmente estava pendente;
+  nova consulta após o clique dele no link de recuperação confirmou a ativação.
+  O retorno falhou por configuração de destino, conforme bloco acima. Nenhuma
+  senha foi lida/alterada, sessão criada ou mensagem enviada pelo agente.
 - Publicação: as telas `/platform/lojas` e o novo destino de login permanecem na
   branch `codex/platform-admin-access`. Falta publicar deliberadamente a etapa
   implementada e validar login real do dono e do lojista entre os hosts.
