@@ -34,7 +34,7 @@ Primeiro cliente/caso real da plataforma.
 Segunda loja cadastrada, em preparação desde 19/10/2026.
 
 - Loja: Editora Rochedo
-- Tipo: Modelo Essencial, identidade própria em rascunho
+- Tipo: Modelo Editorial claro, identidade própria em rascunho
 - Slug: `editora-rochedo`
 - Status: em preparação, sem publicação pública
 - ERP: a definir, nenhuma integração configurada
@@ -134,7 +134,7 @@ Exemplos:
 - Login e admin usam identidade Zalen Shop.
 - Storefront público usa identidade da loja ativa.
 - Brasil Drones usa identidade Brasil Drones no storefront.
-- Editora Rochedo está em rascunho e aguarda suas referências visuais.
+- Editora Rochedo tem direção verde/creme Editorial aplicada em rascunho.
 - LB London usará identidade própria quando for criada.
 
 ## Regra de ouro

@@ -13,19 +13,27 @@ LB London continua sendo um case futuro separado.
 - Responsável: `rochedoacademy@gmail.com`, conta existente confirmada no
   Supabase Auth da Zalen Shop, vinculada como `store_owner` somente desta loja.
 - Admin: Zalen Shop; nenhuma concessão de papel global ao responsável.
-- Storefront: Modelo Essencial (`neutral`), rascunho revisão 2.
+- Storefront: modelo Editorial claro dentro de `neutral`, rascunho revisão 3.
 - ERP: a definir, nenhuma integração configurada.
 
 ## Identidade inicial e pendências
 
-Nome próprio no cabeçalho, home e rodapé. Descrição inicial:
-“Conheça as publicações da Editora Rochedo.” Título de SEO:
-“Editora Rochedo — Publicações”. Textos salvos em rascunho pelo admin geral.
+Direção visual fornecida pelo responsável em imagem: creme, verde profundo,
+serifas e livros. Aplicada pelo admin geral em 19/10/2026 ao rascunho 3:
 
-O responsável informou que fornecerá a identidade existente. Logo, ícone,
-banner, paleta oficial, contatos e redes sociais ainda não foram fornecidos.
-As cores atuais são defaults do Modelo Essencial, sujeitos à substituição;
-não correspondem a uma identidade oficial escolhida para a editora.
+- Paleta `#335c43` / `#2f543e`, fundo claro e títulos serifados.
+- Marca Rochedo Editora, ícone e ambientação de livros/tablet derivados da
+  referência; arquivos e prompts em [assets do case](editora-rochedo-assets.md).
+- Hero “Sua próxima leitura começa aqui.”, com “leitura” em destaque.
+- Barra “Um novo capítulo começa aqui.”; descrição “Explore ideias, histórias
+  e novas perspectivas.”; texto sobre a editora e rodapé da direção fornecida.
+- Temas: Fé e espiritualidade, Família, Vida prática, E-books, Estudos e Todos
+  os livros. Rótulos de apresentação; ainda não há categorias no catálogo.
+
+Nenhum dos livros ilustrados foi cadastrado como produto. O catálogo real
+continua vazio e a prévia exibe uma mensagem de preparação. Não há formulário
+de newsletter sem integração. Contatos e perfis sociais ainda precisam ser
+fornecidos; as imagens de marca são adaptações da referência para revisão.
 
 O e-mail responsável é um dado administrativo; não foi configurado como
 contato público. Não criar telefone, WhatsApp, Instagram ou imagens fictícias.
@@ -39,7 +47,6 @@ estiver em preparação. A criação não inclui liberação de vendas.
 
 [Personalizar no admin geral](https://app.zalenshop.com.br/platform/lojas/17e1e202-00f9-4a83-9843-d6c36a440cfb).
 
-Próximo passo: aplicar as referências de identidade fornecidas pelo
-responsável, salvar e conferir a prévia. Publicar/ativar somente após
-solicitação explícita. Catálogo, atendimento, frete e pagamentos terão
-configuração própria.
+Próximo passo: responsável revisar a prévia e fornecer os livros reais,
+contatos e eventuais ajustes de marca. Publicar/ativar somente após solicitação
+explícita. Catálogo, atendimento, frete e pagamentos terão configuração própria.

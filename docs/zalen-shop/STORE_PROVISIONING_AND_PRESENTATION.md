@@ -29,9 +29,7 @@ Troca de responsável, convites e editor avançado não fazem parte deste increm
 O modelo Essencial usa o catálogo e checkout compartilhados. A Brasil Drones
 mantém seu renderer custom, com a identidade configurável nas partes comuns.
 
-## Autorizações
-
-### Modelo Editorial (19/10/2026)
+## Modelo Editorial (19/10/2026)
 
 Além do Essencial escuro, lojas `neutral` podem escolher **Editorial**, claro,
 com títulos serifados, banner ao lado do texto e seções de temas/publicações.
@@ -56,7 +54,7 @@ validação estrita. Antes de voltar a essa versão, preparar cópia segura do
 rascunho e remover somente os campos novos pelo procedimento administrativo
 autorizado; não apagar loja, vínculos, tabelas ou dados comerciais.
 
-### Papéis
+## Autorizações
 
 | Operação | Dono global | Admin global | Papel de loja / visitante |
 | --- | --- | --- | --- |

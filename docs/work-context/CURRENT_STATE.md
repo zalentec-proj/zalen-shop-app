@@ -7,10 +7,9 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 ## Snapshot
 
 - Atualizado em: 2026-10-19.
-- Frente atual: aplicar a referência visual enviada para a Editora Rochedo
-  (verde profundo/creme, serifas, logo e hero com livros). Modelo Editorial
-  implementado e validado localmente, ainda preparando a disponibilização no
-  admin e a aplicação no rascunho real. Loja deve continuar `planned`.
+- Frente concluída: referência visual verde/creme, serifas, logo e hero com
+  livros aplicada ao rascunho 3 da Editora Rochedo pelo admin geral. Modelo
+  Editorial disponível na versão publicada; loja continua `planned` e privada.
 - Objetivo atual autorizado: cadastrar a Editora Rochedo da igreja pelo admin
   geral e iniciar a identidade em rascunho. O usuário substituiu a solicitação
   da LB London antes de qualquer cadastro; LB London continua case futuro.
@@ -18,39 +17,39 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   `store_id=17e1e202-00f9-4a83-9843-d6c36a440cfb`, status `planned`.
   Responsável indicado pelo usuário: `rochedoacademy@gmail.com`, confirmado no
   Auth da Zalen Shop e vinculado como `store_owner`, sem papel global.
-  Nome, descrição inicial, rodapé e SEO salvos no rascunho revisão 2; prévia
-  privada conferida. A referência de identidade foi recebida depois deste
-  cadastro e motivou o modelo Editorial abaixo. Não aplicar a paleta sugerida
+  Identidade Editorial salva no rascunho revisão 3; prévia privada real conferida.
+  A referência recebida motivou o modelo Editorial abaixo. Não aplicar a paleta sugerida
   para LB London nem inventar contatos, redes ou livros comerciais.
 - Implementado: cadastro atômico/idempotente, responsável Auth existente,
   rascunho, prévia privada, publicação/desativação pelo dono, template neutro e
   identidade por loja nas páginas compartilhadas. Primeira nova loja criada
   pelo fluxo publicado: Editora Rochedo, em preparação e com catálogo vazio.
 - Código da entrega: `82bf6c871c45403c9dbbeddac553e7a3ddc692a0` (enviado).
+  Modelo Editorial: `f7d2637e8d1458f6bac97f15056b073a7b9c8688` (publicado).
 - Branch: `codex/platform-store-customization`, partindo de `57bc5a4`, após
   fetch e pull --rebase com working tree limpa.
 - Publicado após autorização explícita em 19/10: “Sim, publicar esta etapa”.
-  Produção final `7a989f745528d0a31f2a46ea6a32c72548c39d5d`, deployment
-  `dpl_7VPPLmu5TdLu1NG3iTZRr1ekQEM9`, READY nos aliases oficiais, inclusive
+  Produção atual `f7d2637e8d1458f6bac97f15056b073a7b9c8688`, deployment
+  `dpl_GfhSvKZVVJ55eB4MFmpgP5MtZ4iG`, READY nos aliases oficiais, inclusive
   `app.zalenshop.com.br`. Branch `refactor/migrate-to-next` avançada por
   fast-forward. Cadastro, ficha e prévia conferidos na sessão real do dono.
 - Migrations locais `20261019150054_platform_store_provisioning.sql` e
   `20261019165113_platform_store_request_store_index.sql` aplicadas no projeto
   `zalen.shop` / `xtwobxfepsdfjrtducqb`. Histórico remoto registrado pelo MCP
   como `20261019165012` e `20261019165142`, respectivamente.
-- Validação final: TypeScript, 461 testes em 78 arquivos, thresholds de
+- Validação final: TypeScript, 470 testes em 80 arquivos, thresholds de
   cobertura configurados, build Next.js 16.3.8, scanner de segredos (incluindo
   arquivos novos adicionados ao index) e diff check aprovados. Testes SQL
   locais incluem cadastros simultâneos, atomicidade, idempotência e Data API.
-- Próximo passo exato: disponibilizar o modelo Editorial validado, aplicar
-  a direção verde/creme e os assets na ficha real, salvar e conferir a prévia
-  privada. Manter em preparação até solicitação de publicação. Não
+- Próximo passo exato: responsável conferir a prévia Editorial e fornecer
+  livros reais, contatos e eventuais ajustes de marca. Manter em preparação
+  até solicitação de publicação. Não
   cadastrar novamente, reaplicar migrations ou atribuir papel global à conta
   responsável. Case: `docs/cases/editora-rochedo.md`.
 - Credenciais, vendas, catálogos comerciais e integrações reais preservados.
 - Guia de continuidade: `docs/work-context/IDE_HANDOFF.md`.
 
-## Editora Rochedo — direção editorial em implementação (19/10/2026)
+## Editora Rochedo — direção editorial aplicada (19/10/2026)
 
 - Referência recebida do responsável: layout claro, serifas, verde profundo,
   creme, marca Rochedo Editora, composição de livros/tablet e seis temas.
@@ -75,9 +74,34 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   nos mesmos quatro módulos e build Next.js aprovados. Regressões de defaults
   legados, formulário aberto antes do deploy, limite de temas, escape de texto,
   isolamento visual do Brasil e catálogo sem produtos fictícios.
-- O rascunho cloud ainda está na revisão 2 neste ponto; só alterar pelo admin
-  após disponibilizar o modelo. Não ativar/publicar a loja nem cadastrar livros
-  ilustrados na imagem. Banco/credenciais comerciais preservados.
+- Release por Git fast-forward: commit `f7d2637`, deployment
+  `dpl_GfhSvKZVVJ55eB4MFmpgP5MtZ4iG`,
+  `https://zalen-shop-5cawb1v5w-zalentec-8411s-projects.vercel.app`, READY.
+  Consulta pelo domínio `app.zalenshop.com.br` confirmou o ID e SHA exatos.
+  Sem migration. Fonte de produção anterior: `7a989f7`.
+- Após o release, ficha real recarregada e configurada pela sessão dona:
+  Editorial, verde `#335c43` / destaque `#2f543e`, imagens PNG/WebP verificadas
+  HTTP 200, barra superior e hero da referência, seis temas e textos editoriais.
+  Salvar rascunho confirmado na UI e banco: revisão 3, `planned`, nenhum
+  snapshot publicado; zero produtos/categorias/integrações e contatos vazios.
+  Não foi alterado o vínculo do responsável nem o status da Brasil Drones.
+- Prévia real revisão 3 conferida no Chrome, 1720 px, com as três imagens
+  carregadas (logo, hero e logo do rodapé). Ao voltar à ficha, valor DOM do
+  modelo permaneceu `editorial`. Navegação de compra continua bloqueada pela
+  prévia, que agora usa rolagem da página em vez de quadro de 800 px.
+  Screenshot `/private/tmp/editora-rochedo-editorial-preview.jpg`; aba deixada
+  na prévia privada real como resultado.
+- Busca com resultado vazio, abrir/fechar menu a 390 px e carrinho vazio foram
+  exercitados numa página de componentes apenas na cópia local descartável.
+  Carrinho com fundo branco e título escuro confirmados por estilo computado.
+  Página de teste e alteração temporária de resolução não foram versionadas.
+  Fixture/servidor/contêiner encerrados, diretório removido, aba local fechada;
+  viewport restaurado. Não representa homologação de checkout/vendas.
+- Verificação final: domínio público da editora → 404 (em preparação); prévia
+  normal/RSC sem sessão → 307 login com `private, no-store`; home e categoria
+  Baterias Brasil Drones → 200. Consulta de error/fatal dos últimos dez minutos
+  por deployment após o save/prévia não retornou grupos. Sem teste de compra,
+  publicação de loja, novo login/conta, envio de e-mail ou integração real.
 
 ## Editora Rochedo — cadastrada em preparação (19/10/2026)
 
