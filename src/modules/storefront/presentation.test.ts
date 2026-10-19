@@ -4,6 +4,20 @@ import { newStoreSchema } from '@/modules/platform/store-management.schema';
 
 const pilot = { id: '20000000-0000-4000-8000-000000000001', name: 'Loja Piloto', slug: 'loja-piloto' };
 describe('store presentation boundary', () => {
+  it('reads legacy saved presentations without changing their theme', () => {
+    const { visualStyle, announcement, heroEyebrow, heroHighlight, aboutText, featuredTopics, ...legacy } = defaultPresentation(pilot);
+    const parsed = presentationSchema.parse(legacy);
+    expect(parsed.visualStyle).toBe('essential');
+    expect(parsed.featuredTopics).toEqual([]);
+    expect(parsed.announcement).toBe('');
+  });
+  it('limits editorial configuration to an allowlisted theme and six short topics', () => {
+    const config = { ...defaultPresentation(pilot), visualStyle: 'editorial', featuredTopics: ['Família', 'Estudos'] };
+    expect(presentationSchema.safeParse(config).success).toBe(true);
+    expect(presentationSchema.safeParse({ ...config, visualStyle: 'arbitrary-css' }).success).toBe(false);
+    expect(presentationSchema.safeParse({ ...config, featuredTopics: Array(7).fill('Tema') }).success).toBe(false);
+    expect(presentationSchema.safeParse({ ...config, featuredTopics: ['a'.repeat(51)] }).success).toBe(false);
+  });
   it('starts another store with no Brasil Drones identity or contacts', () => {
     const config = defaultPresentation(pilot);
     expect(config.renderer).toBe('neutral');

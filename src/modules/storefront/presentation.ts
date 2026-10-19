@@ -15,6 +15,12 @@ const imageUrl = text(1024).refine((value) => {
 
 export const presentationSchema = z.object({
   renderer: z.enum(['neutral', 'brasil-drones']),
+  visualStyle: z.enum(['essential', 'editorial']).default('essential'),
+  announcement: text(160).default(''),
+  heroEyebrow: text(80).default(''),
+  heroHighlight: text(60).default(''),
+  aboutText: text(800).default(''),
+  featuredTopics: z.array(text(50).min(2)).max(6).default([]),
   brandName: text(100).min(2),
   logoUrl: imageUrl,
   faviconUrl: imageUrl,
@@ -42,6 +48,7 @@ export function defaultPresentation(store: { id: string; name: string; slug: str
   const brasil = store.id === ACTIVE_STORE_ID && store.slug === 'brasil-drones';
   return {
     renderer: brasil ? 'brasil-drones' : 'neutral', brandName: store.name,
+    visualStyle: 'essential', announcement: '', heroEyebrow: '', heroHighlight: '', aboutText: '', featuredTopics: [],
     logoUrl: '', faviconUrl: '', primaryColor: '#1E3DFF', accentColor: '#00E676',
     heroTitle: brasil ? '' : store.name, heroDescription: '', bannerUrl: '',
     footerText: brasil ? 'A Brasil Drones & Parts é especializada em drones e peças de alta performance, oferecendo tecnologia, suporte e segurança para elevar seus projetos de mapeamento, filmagem ou inspeção técnica.' : '',

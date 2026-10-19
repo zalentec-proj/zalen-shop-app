@@ -31,6 +31,33 @@ mantém seu renderer custom, com a identidade configurável nas partes comuns.
 
 ## Autorizações
 
+### Modelo Editorial (19/10/2026)
+
+Além do Essencial escuro, lojas `neutral` podem escolher **Editorial**, claro,
+com títulos serifados, banner ao lado do texto e seções de temas/publicações.
+Campos controlados: `visualStyle`, barra superior, chamada da home, trecho do
+título em destaque, até seis temas e texto sobre a editora. Configurações
+anteriores sem esses campos continuam no Essencial. Não há novo renderer,
+migration, editor livre ou alteração no tema Brasil Drones.
+
+Temas sem categoria real correspondente são rótulos de apresentação, sem link
+para rota inexistente. Produtos exibidos vêm exclusivamente do catálogo real
+da loja; capas do banner são ambientação ilustrativa. Sem formulário de
+newsletter fictício, produtos demonstrativos, contatos ou redes inventados.
+As cores claras são aplicadas por escopo ao storefront, incluindo os tokens
+dos componentes compartilhados; login/admin continuam Zalen Shop.
+
+Imagens em `/brand/` são arquivos revisados e versionados pela plataforma,
+não um upload livre de lojista. Logo/capa/ícone da Rochedo e seus prompts estão
+registrados em [assets do case](../cases/editora-rochedo-assets.md).
+
+Rollback: um app anterior ao modelo Editorial rejeita os campos novos pela
+validação estrita. Antes de voltar a essa versão, preparar cópia segura do
+rascunho e remover somente os campos novos pelo procedimento administrativo
+autorizado; não apagar loja, vínculos, tabelas ou dados comerciais.
+
+### Papéis
+
 | Operação | Dono global | Admin global | Papel de loja / visitante |
 | --- | --- | --- | --- |
 | Listar, ficha e prévia | Sim | Sim | Não |

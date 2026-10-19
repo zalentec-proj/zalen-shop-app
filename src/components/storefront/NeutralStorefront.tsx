@@ -7,12 +7,14 @@ import type { StorePresentation } from '@/modules/storefront/presentation';
 import { useStorefrontIdentity } from '@/modules/storefront/StorefrontIdentity';
 import { useStorefrontCart } from '@/modules/cart/StorefrontCartProvider';
 import { SafeCatalogImage } from '@/components/ui/SafeCatalogImage';
+import { EditorialFooter, EditorialHeader, EditorialStorefront } from './EditorialStorefront';
 
 export function NeutralHeader({ categories, cartItemsCount, onCartToggle, searchQuery, onSearchChange, preview = false }: {
   categories: Array<Pick<StorefrontCategory, 'name' | 'slug'>>; cartItemsCount: number;
   onCartToggle: () => void; searchQuery: string; onSearchChange: (value: string) => void; preview?: boolean;
 }) {
   const identity = useStorefrontIdentity();
+  if (identity?.visualStyle === 'editorial') return <EditorialHeader categories={categories} cartItemsCount={cartItemsCount} onCartToggle={onCartToggle} searchQuery={searchQuery} onSearchChange={onSearchChange} preview={preview} />;
   return <header className="border-b border-white/10 bg-brand-bg px-5 py-5 text-brand-white">
     <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-5">
       <Link href={preview ? '#' : '/'} className="mr-auto inline-flex max-w-64 items-center text-xl font-semibold">
@@ -41,6 +43,7 @@ export function PresentationHero({ presentation }: { presentation: StorePresenta
 
 export function NeutralFooter({ categories = [] }: { categories?: Array<Pick<StorefrontCategory, 'name' | 'slug'>> }) {
   const identity = useStorefrontIdentity();
+  if (identity?.visualStyle === 'editorial') return <EditorialFooter categories={categories} />;
   return <footer id="contato" className="mt-16 border-t border-white/10 bg-brand-bg px-6 py-10 text-brand-white">
     <div className="mx-auto grid max-w-7xl gap-8 sm:grid-cols-3">
       <div><p className="text-lg font-semibold">{identity?.brandName}</p><p className="mt-3 text-sm leading-6 text-brand-muted">{identity?.footerText}</p></div>
@@ -52,6 +55,11 @@ export function NeutralFooter({ categories = [] }: { categories?: Array<Pick<Sto
 }
 
 export function NeutralStorefront({ presentation, products, categories, preview = false, initialQuery = '' }: { presentation: StorePresentation; products: Product[]; categories: StorefrontCategory[]; preview?: boolean; initialQuery?: string }) {
+  if (presentation.visualStyle === 'editorial') return <EditorialStorefront presentation={presentation} products={products} categories={categories} preview={preview} initialQuery={initialQuery} />;
+  return <EssentialStorefront presentation={presentation} products={products} categories={categories} preview={preview} initialQuery={initialQuery} />;
+}
+
+function EssentialStorefront({ presentation, products, categories, preview, initialQuery }: { presentation: StorePresentation; products: Product[]; categories: StorefrontCategory[]; preview: boolean; initialQuery: string }) {
   const [query, setQuery] = useState(initialQuery);
   const visibleProducts = products.filter((p) => p.name.toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR')));
   const { cart, toggleCart, addCartItem } = useStorefrontCart();

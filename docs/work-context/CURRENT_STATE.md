@@ -7,6 +7,10 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 ## Snapshot
 
 - Atualizado em: 2026-10-19.
+- Frente atual: aplicar a referência visual enviada para a Editora Rochedo
+  (verde profundo/creme, serifas, logo e hero com livros). Modelo Editorial
+  implementado e validado localmente, ainda preparando a disponibilização no
+  admin e a aplicação no rascunho real. Loja deve continuar `planned`.
 - Objetivo atual autorizado: cadastrar a Editora Rochedo da igreja pelo admin
   geral e iniciar a identidade em rascunho. O usuário substituiu a solicitação
   da LB London antes de qualquer cadastro; LB London continua case futuro.
@@ -15,8 +19,9 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   Responsável indicado pelo usuário: `rochedoacademy@gmail.com`, confirmado no
   Auth da Zalen Shop e vinculado como `store_owner`, sem papel global.
   Nome, descrição inicial, rodapé e SEO salvos no rascunho revisão 2; prévia
-  privada conferida. O usuário vai informar a identidade existente; não aplicar
-  a paleta provisória sugerida para LB London nem inventar logo ou contatos.
+  privada conferida. A referência de identidade foi recebida depois deste
+  cadastro e motivou o modelo Editorial abaixo. Não aplicar a paleta sugerida
+  para LB London nem inventar contatos, redes ou livros comerciais.
 - Implementado: cadastro atômico/idempotente, responsável Auth existente,
   rascunho, prévia privada, publicação/desativação pelo dono, template neutro e
   identidade por loja nas páginas compartilhadas. Primeira nova loja criada
@@ -37,13 +42,42 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   cobertura configurados, build Next.js 16.3.8, scanner de segredos (incluindo
   arquivos novos adicionados ao index) e diff check aprovados. Testes SQL
   locais incluem cadastros simultâneos, atomicidade, idempotência e Data API.
-- Próximo passo exato: receber logo, paleta e demais referências da identidade
-  existente da Editora Rochedo; aplicar na ficha já criada, salvar e conferir
-  a prévia privada. Manter em preparação até solicitação de publicação. Não
+- Próximo passo exato: disponibilizar o modelo Editorial validado, aplicar
+  a direção verde/creme e os assets na ficha real, salvar e conferir a prévia
+  privada. Manter em preparação até solicitação de publicação. Não
   cadastrar novamente, reaplicar migrations ou atribuir papel global à conta
   responsável. Case: `docs/cases/editora-rochedo.md`.
 - Credenciais, vendas, catálogos comerciais e integrações reais preservados.
 - Guia de continuidade: `docs/work-context/IDE_HANDOFF.md`.
+
+## Editora Rochedo — direção editorial em implementação (19/10/2026)
+
+- Referência recebida do responsável: layout claro, serifas, verde profundo,
+  creme, marca Rochedo Editora, composição de livros/tablet e seis temas.
+- Campo `visualStyle` allowlisted (`essential`/`editorial`) dentro do renderer
+  `neutral`; defaults compatíveis com JSON anterior. Barra superior, chamada,
+  destaque do título, sobre e até seis temas editáveis por formulário controlado.
+  Mesmo guard, revisão, transação e RLS; sem migration ou alteração de papéis.
+- Assets gerados pela ferramenta integrada a partir da referência; finais em
+  `public/brand/editora-rochedo/`. Prompts e origem registrados em
+  `docs/cases/editora-rochedo-assets.md`. São imagens de ambientação/marca,
+  não produtos. Sem newsletter fictícia, contatos ou perfis inventados.
+- Catálogo real vazio mostra estado próprio; temas sem categoria correspondente
+  não viram links. Shared header/footer reconhecem o modelo. Cores/tokens claros
+  são escopados; Brasil Drones e admin/login preservam seus temas.
+- Conferência local pelo admin com Next/SDK reais, Auth fictício loopback e
+  PostgreSQL 17 descartável: criação de fixture, seleção, salvar e prévia
+  com assets carregados. Desktop medido 1280 px; celular IAB medido 390 px,
+  sem overflow horizontal (tema 348/scroll 348). Override de viewport resetado.
+  Screenshots temporários `/private/tmp/rochedo-editorial-local-desktop.jpg`
+  e `/private/tmp/rochedo-editorial-local-mobile.jpg`. São evidências locais.
+- TypeScript, 470 testes em 80 arquivos, thresholds de cobertura configurados
+  nos mesmos quatro módulos e build Next.js aprovados. Regressões de defaults
+  legados, formulário aberto antes do deploy, limite de temas, escape de texto,
+  isolamento visual do Brasil e catálogo sem produtos fictícios.
+- O rascunho cloud ainda está na revisão 2 neste ponto; só alterar pelo admin
+  após disponibilizar o modelo. Não ativar/publicar a loja nem cadastrar livros
+  ilustrados na imagem. Banco/credenciais comerciais preservados.
 
 ## Editora Rochedo — cadastrada em preparação (19/10/2026)
 

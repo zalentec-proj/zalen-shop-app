@@ -5,6 +5,7 @@ import { StorefrontCartProvider } from '@/modules/cart/StorefrontCartProvider';
 import { StorefrontIdentity } from '@/modules/storefront/StorefrontIdentity';
 import { getRequestPresentation } from '@/modules/storefront/presentation.repository';
 import './globals.css';
+import '@/components/storefront/editorial.css';
 
 const platformMetadata: Metadata = {
   title: 'Zalen Shop',

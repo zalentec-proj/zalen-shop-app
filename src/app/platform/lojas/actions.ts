@@ -14,7 +14,12 @@ export async function createStoreAction(_previous: PlatformActionState, form: Fo
 
 export async function saveStoreAction(id: string, _previous: PlatformActionState, form: FormData): Promise<PlatformActionState> {
   try {
-    const config = Object.fromEntries(Object.keys(presentationSchema.shape).map((key) => [key, form.get(key)]));
+    const config = Object.fromEntries(Object.keys(presentationSchema.shape).map((key) => {
+      const value = form.get(key);
+      return [key, key === 'featuredTopics' && typeof value === 'string'
+        ? value.split('\n').map((topic) => topic.trim()).filter(Boolean)
+        : value ?? undefined];
+    }));
     const result = await saveManagedStore(id, { name: form.get('name'), revision: form.get('revision'), config });
     if (!result.ok) return result;
     revalidatePath(`/platform/lojas/${id}`);

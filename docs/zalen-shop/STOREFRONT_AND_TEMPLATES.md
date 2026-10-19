@@ -8,6 +8,12 @@ carrinho e conta. Rascunho e publicação são separados; não há editor livre
 nem upload de arquivos neste incremento.
 [Contrato de personalização](STORE_PROVISIONING_AND_PRESENTATION.md).
 
+Direção visual da Editora Rochedo recebida em 19/10/2026: opção controlada
+**Editorial** clara, com tipografia serifada, paleta verde/creme, hero com
+imagem e temas em destaque. O modo visual é um campo do renderer `neutral`;
+não altera o custom Brasil Drones nem inclui produtos ou newsletter fictícios.
+Estado de aplicação no rascunho e evidências no handoff.
+
 ## 1. Princípio
 
 Storefront é a experiência pública da loja. Cada loja pode ter identidade visual própria, mas deve consumir o mesmo core da Zalen Shop.

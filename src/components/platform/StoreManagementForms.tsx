@@ -1,5 +1,5 @@
 'use client';
-import { useActionState, type ReactNode } from 'react';
+import { useActionState, useState, type ReactNode } from 'react';
 import { createStoreAction, publishStoreAction, saveStoreAction } from '@/app/platform/lojas/actions';
 import type { PlatformActionState } from '@/modules/platform/store-management.schema';
 import type { StorePresentation } from '@/modules/storefront/presentation';
@@ -41,11 +41,23 @@ const textFields: Array<{ name: keyof StorePresentation; label: string; max: num
 
 export function PresentationForm({ storeId, name, config, revision }: { storeId: string; name: string; config: StorePresentation; revision: number }) {
   const [state, action, pending] = useActionState(saveStoreAction.bind(null, storeId), {});
+  const [visualStyle, setVisualStyle] = useState(config.visualStyle);
   return <form action={action} className="grid gap-6 rounded-xl border border-white/10 bg-[#081225] p-5 sm:p-6">
     <input type="hidden" name="revision" value={revision} />
     <input type="hidden" name="renderer" value={config.renderer} />
     <div><h2 className="font-semibold">Identidade da loja</h2><p className="mt-1 text-xs text-slate-400">{config.renderer === 'brasil-drones' ? 'Visual sob medida Brasil Drones' : 'Modelo Essencial'} · Salvar mantém as alterações em rascunho.</p></div>
     <Field label="Nome interno da loja"><input name="name" defaultValue={name} required minLength={2} maxLength={100} className={inputClass} /></Field>
+    {config.renderer === 'neutral' ? <section className="grid gap-5 rounded-lg border border-white/10 p-4">
+      <Field label="Modelo visual"><select name="visualStyle" value={visualStyle} onChange={(event) => setVisualStyle(event.target.value as StorePresentation['visualStyle'])} className={inputClass}>
+        <option value="essential">Essencial — escuro</option><option value="editorial">Editorial — claro, para livros e publicações</option>
+      </select></Field>
+      <p className="text-xs leading-5 text-slate-400">O modelo Editorial usa fundo claro, títulos serifados e uma capa com imagem ao lado do texto. Os campos abaixo são opcionais.</p>
+      <Field label="Mensagem da barra superior"><input name="announcement" defaultValue={config.announcement} maxLength={160} className={inputClass} /></Field>
+      <Field label="Chamada acima do título"><input name="heroEyebrow" defaultValue={config.heroEyebrow} maxLength={80} className={inputClass} /></Field>
+      <Field label="Trecho do título em destaque" hint="Uma palavra ou trecho do título da home que receberá a cor de destaque."><input name="heroHighlight" defaultValue={config.heroHighlight} maxLength={60} className={inputClass} /></Field>
+      <Field label="Temas em destaque" hint="Um tema por linha, até seis. Só viram links quando existir uma categoria correspondente na loja."><textarea name="featuredTopics" defaultValue={config.featuredTopics.join('\n')} maxLength={305} rows={4} className={inputClass} /></Field>
+      <Field label="Sobre a editora"><textarea name="aboutText" defaultValue={config.aboutText} maxLength={800} rows={3} className={inputClass} /></Field>
+    </section> : <input type="hidden" name="visualStyle" value="essential" />}
     <div className="grid gap-5 sm:grid-cols-2">
       {textFields.map((field) => <Field key={field.name} label={field.label} hint={field.hint}>
         <input name={field.name} type={field.type ?? 'text'} defaultValue={config[field.name]} maxLength={field.max} required={field.name === 'brandName'} className={inputClass} />
