@@ -29,6 +29,7 @@ try {
   await sql('alter table auth.users add column if not exists deleted_at timestamptz;', 'supabase_admin');
   await sql(await readFile(new URL('../supabase/tests/platform_store_provisioning.bootstrap.sql', import.meta.url), 'utf8'));
   await sql(await readFile(new URL('../supabase/migrations/20261019150054_platform_store_provisioning.sql', import.meta.url), 'utf8'));
+  await sql(await readFile(new URL('../supabase/migrations/20261019165113_platform_store_request_store_index.sql', import.meta.url), 'utf8'));
   const result = await sql(await readFile(new URL('../supabase/tests/platform_store_provisioning.sql', import.meta.url), 'utf8'), 'supabase_admin');
   process.stdout.write(result);
   await sql("insert into auth.users(id,email) values('10000000-0000-4000-8000-000000000001','owner@concurrency.invalid'),('10000000-0000-4000-8000-000000000002','merchant@concurrency.invalid'); insert into public.platform_users values('10000000-0000-4000-8000-000000000001','platform_owner');", 'supabase_admin');

@@ -16,6 +16,30 @@ describe('platform store mutations', () => {
     await expect(getManagedStore(input.requestId)).rejects.toThrow('denied');
     expect(mocks.admin).not.toHaveBeenCalled();
   });
+  it('loads the seeded Brasil Drones identifier through the authorized store query', async () => {
+    const id = '00000000-0000-0000-0000-000000000001';
+    const store = { id, name: 'Brasil Drones & Parts', slug: 'brasil-drones', status: 'active' };
+    const rows: Record<string, unknown> = {
+      stores: store, storefront_drafts: null, storefront_presentations: null,
+      platform_store_profiles: { responsible_user_id: 'responsible' },
+    };
+    const from = vi.fn((table: string) => {
+      const query = { select: vi.fn(), eq: vi.fn(), maybeSingle: vi.fn().mockResolvedValue({ data: rows[table], error: null }) };
+      query.select.mockReturnValue(query);
+      query.eq.mockReturnValue(query);
+      return query;
+    });
+    mocks.admin.mockReturnValue({ from, auth: { admin: { getUserById: vi.fn().mockResolvedValue({ data: { user: { email: 'owner@example.test' } } }) } } });
+    const detail = await getManagedStore(id);
+    expect(detail?.store).toEqual(store);
+    expect(detail?.config.renderer).toBe('brasil-drones');
+    expect(detail?.revision).toBe(0);
+    expect(from).toHaveBeenCalledWith('stores');
+  });
+  it('still rejects malformed store identifiers before obtaining a privileged client', async () => {
+    expect(await getManagedStore('not-a-store-id')).toBeNull();
+    expect(mocks.admin).not.toHaveBeenCalled();
+  });
   it('denies support creation and publication even with valid client input', async () => {
     mocks.guard.mockResolvedValue({ user: { id: 'support' }, role: 'platform_admin' });
     expect((await createManagedStore(input)).ok).toBe(false);
@@ -37,9 +61,9 @@ describe('platform store mutations', () => {
     mocks.rpc.mockResolvedValueOnce({ error: { message: 'private SQL diagnostic' } });
     expect(JSON.stringify(await createManagedStore(input))).not.toContain('private SQL');
   });
-  it('passes the draft revision to the atomic publication command', async () => {
+  it.each([input.requestId, '00000000-0000-0000-0000-000000000001'])('passes the draft revision to publication for store %s', async (storeId) => {
     mocks.rpc.mockResolvedValue({ data: { ok: true, revision: 7 }, error: null });
-    await publishManagedStore(input.requestId, 7);
-    expect(mocks.rpc).toHaveBeenCalledWith('platform_store_command', expect.objectContaining({ p_action: 'publish', p_store_id: input.requestId, p_payload: { revision: 7 } }));
+    await publishManagedStore(storeId, 7);
+    expect(mocks.rpc).toHaveBeenCalledWith('platform_store_command', expect.objectContaining({ p_action: 'publish', p_store_id: storeId, p_payload: { revision: 7 } }));
   });
 });

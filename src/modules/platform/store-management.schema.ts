@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { isReservedPlatformSubdomain } from '@/modules/stores/host-resolution';
 
-export const storeIdSchema = z.string().uuid();
+// Existing PostgreSQL store IDs include seeded UUIDs without RFC version bits.
+export const storeIdSchema = z.guid();
 export const newStoreSchema = z.object({
   requestId: z.string().uuid(),
   name: z.string().trim().min(2, 'Informe o nome da loja.').max(100),

@@ -86,6 +86,7 @@ try {
   await sql('alter table auth.users add column if not exists deleted_at timestamptz;');
   await sql(await readFile('supabase/tests/platform_store_provisioning.bootstrap.sql', 'utf8'), {}, 'postgres');
   await sql(await readFile('supabase/migrations/20261019150054_platform_store_provisioning.sql', 'utf8'), {}, 'postgres');
+  await sql(await readFile('supabase/migrations/20261019165113_platform_store_request_store_index.sql', 'utf8'), {}, 'postgres');
   for (const [role, user] of Object.entries(users)) {
     await sql("insert into auth.users(id,email) values(:'id'::uuid, :'email');", { id: user.id, email: user.email });
     if (role !== 'merchant') await sql("insert into public.platform_users(user_id,role) values (:'id'::uuid, :'role');", { id: user.id, role: `platform_${role}` });
