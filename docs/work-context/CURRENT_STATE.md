@@ -10,14 +10,17 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Objetivo atual autorizado: cadastrar a Editora Rochedo da igreja pelo admin
   geral e iniciar a identidade em rascunho. O usuário substituiu a solicitação
   da LB London antes de qualquer cadastro; LB London continua case futuro.
-- Formulário preparado com nome `Editora Rochedo` e slug `editora-rochedo`,
-  disponível no banco. Ainda não submetido: responsável solicitado ao usuário,
-  com opção de usar a conta existente `zalentec@gmail.com`. O usuário vai
-  informar a identidade existente; não aplicar a paleta provisória sugerida
-  anteriormente para LB London. Não inventar logo, contatos ou perfis sociais.
+- Editora Rochedo cadastrada pelo admin geral em 19/10, slug `editora-rochedo`,
+  `store_id=17e1e202-00f9-4a83-9843-d6c36a440cfb`, status `planned`.
+  Responsável indicado pelo usuário: `rochedoacademy@gmail.com`, confirmado no
+  Auth da Zalen Shop e vinculado como `store_owner`, sem papel global.
+  Nome, descrição inicial, rodapé e SEO salvos no rascunho revisão 2; prévia
+  privada conferida. O usuário vai informar a identidade existente; não aplicar
+  a paleta provisória sugerida para LB London nem inventar logo ou contatos.
 - Implementado: cadastro atômico/idempotente, responsável Auth existente,
   rascunho, prévia privada, publicação/desativação pelo dono, template neutro e
-  identidade por loja nas páginas compartilhadas. Sem criação de lojas reais.
+  identidade por loja nas páginas compartilhadas. Primeira nova loja criada
+  pelo fluxo publicado: Editora Rochedo, em preparação e com catálogo vazio.
 - Código da entrega: `82bf6c871c45403c9dbbeddac553e7a3ddc692a0` (enviado).
 - Branch: `codex/platform-store-customization`, partindo de `57bc5a4`, após
   fetch e pull --rebase com working tree limpa.
@@ -34,25 +37,43 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   cobertura configurados, build Next.js 16.3.8, scanner de segredos (incluindo
   arquivos novos adicionados ao index) e diff check aprovados. Testes SQL
   locais incluem cadastros simultâneos, atomicidade, idempotência e Data API.
-- Próximo passo exato: receber a escolha do responsável da Editora Rochedo, conferir
-  novamente se o slug está livre, preencher o e-mail e concluir pela interface
-  `/platform/lojas/nova`. Personalizar, salvar e conferir a prévia privada;
-  manter em preparação nesta solicitação de início de identidade. Nenhuma
-  nova loja foi criada até aqui. Não reaplicar migrations nem o papel dono.
+- Próximo passo exato: receber logo, paleta e demais referências da identidade
+  existente da Editora Rochedo; aplicar na ficha já criada, salvar e conferir
+  a prévia privada. Manter em preparação até solicitação de publicação. Não
+  cadastrar novamente, reaplicar migrations ou atribuir papel global à conta
+  responsável. Case: `docs/cases/editora-rochedo.md`.
 - Credenciais, vendas, catálogos comerciais e integrações reais preservados.
 - Guia de continuidade: `docs/work-context/IDE_HANDOFF.md`.
 
-## Editora Rochedo — cadastro preparado (19/10/2026)
+## Editora Rochedo — cadastrada em preparação (19/10/2026)
 
 - Correção explícita do usuário: criar a loja para a Editora Rochedo da igreja,
   em substituição à LB London; informou que fornecerá a identidade existente.
-- Interface atualizada para `Editora Rochedo` / `editora-rochedo`, e-mail vazio.
-  Consulta no projeto correto confirmou o slug livre e somente Brasil Drones
-  ativa. Não houve criação de nenhuma das duas lojas nem POST de cadastro.
-- Pergunta pendente: conta existente responsável pela Editora Rochedo. Depois,
-  concluir o cadastro e aplicar as referências de identidade fornecidas pelo
-  responsável, sempre como rascunho/prévia privada. Sem ativação pública,
-  integração de ERP, pagamentos ou cópia comercial nesta solicitação.
+- O responsável escolheu outra conta existente e informou explicitamente
+  `rochedoacademy@gmail.com`. Consulta no projeto correto confirmou uma conta
+  com esse e-mail, verificada e não excluída/bloqueada; slug livre. Cadastro
+  concluído pelo botão Cadastrar e personalizar, na sessão real do dono global.
+- Loja criada uma vez: `17e1e202-00f9-4a83-9843-d6c36a440cfb`; vínculo
+  `store_owner` com a conta indicada, perfil, rascunho neutro e duas listas
+  PF/PJ sem desconto automático. Sem papel global para o responsável.
+- Textos iniciais salvos pela interface: marca/home/rodapé Editora Rochedo,
+  descrição “Conheça as publicações da Editora Rochedo.” e título SEO
+  “Editora Rochedo — Publicações”. Banco confirmou revisão 2 e eventos create
+  e save com sucesso, nenhuma apresentação publicada.
+- Prévia autenticada conferida com o nome e textos próprios, catálogo vazio e
+  sem identidade/contatos da Brasil Drones. Cores são defaults do Modelo
+  Essencial, não uma paleta oficial escolhida. Logo, ícone, banner e contatos
+  vazios até o usuário fornecer referências. E-mail de responsável não foi
+  usado como e-mail público de atendimento.
+- Validação cloud: zero produtos e integrações da nova loja, apenas as duas
+  listas nativas; Brasil Drones continua ativa. HTTP público da editora → 404
+  por estar em preparação; prévia sem sessão → 307 login privado/no-store;
+  home Brasil Drones → 200. Sem ativação pública, nova conta, envio de e-mail,
+  configuração de ERP/pagamento ou cópia de dados/credenciais.
+- Ficha deixada aberta em
+  `https://app.zalenshop.com.br/platform/lojas/17e1e202-00f9-4a83-9843-d6c36a440cfb`.
+  Evidência: `/private/tmp/editora-rochedo-previa-inicial.jpg` (prévia desktop).
+  Não houve alteração no código, migration ou novo deployment desta operação.
 
 ## LB London — preparo inicial substituído (19/10/2026)
 

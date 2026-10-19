@@ -29,9 +29,20 @@ Primeiro cliente/caso real da plataforma.
 - Status: primeiro caso de uso
 - Foco: drones, peças, acessórios, catálogo técnico e operação via Bling
 
+### Editora Rochedo
+
+Segunda loja cadastrada, em preparação desde 19/10/2026.
+
+- Loja: Editora Rochedo
+- Tipo: Modelo Essencial, identidade própria em rascunho
+- Slug: `editora-rochedo`
+- Status: em preparação, sem publicação pública
+- ERP: a definir, nenhuma integração configurada
+- Referência: [case Editora Rochedo](../cases/editora-rochedo.md)
+
 ### LB London
 
-Segundo cliente/caso futuro.
+Caso futuro previsto, separado da Editora Rochedo.
 
 - Loja: LB London
 - Tipo: loja customizada futura
@@ -101,8 +112,9 @@ Responsável por:
 
 Primeira etapa autorizada em 16/10/2026: usuários globais acessam `/platform`,
 que encaminha à listagem `/platform/lojas`. O login central usa o papel e os
-vínculos da conta; `/lojas` oferece seleção dos vínculos operacionais. Cadastro,
-personalização e gestão completa das lojas são próximos incrementos.
+vínculos da conta; `/lojas` oferece seleção dos vínculos operacionais. O incremento
+publicado em 19/10 permite cadastro, rascunho, prévia, publicação e desativação
+controlada. Gestão completa continua futura.
 
 ### Conectores
 
@@ -122,6 +134,7 @@ Exemplos:
 - Login e admin usam identidade Zalen Shop.
 - Storefront público usa identidade da loja ativa.
 - Brasil Drones usa identidade Brasil Drones no storefront.
+- Editora Rochedo está em rascunho e aguarda suas referências visuais.
 - LB London usará identidade própria quando for criada.
 
 ## Regra de ouro
