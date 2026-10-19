@@ -22,7 +22,7 @@ LB London continua sendo um case futuro separado.
 - Responsável: `rochedoacademy@gmail.com`, conta existente confirmada no
   Supabase Auth da Zalen Shop, vinculada como `store_owner` somente desta loja.
 - Admin: Zalen Shop; nenhuma concessão de papel global ao responsável.
-- Storefront: modelo Editorial claro dentro de `neutral`, rascunho revisão 3.
+- Storefront: modelo Editorial claro dentro de `neutral`, revisão 3 salva e publicada.
 - ERP: a definir, nenhuma integração configurada.
 
 ## Identidade inicial e pendências
@@ -56,6 +56,9 @@ estiver em preparação. A criação não inclui liberação de vendas.
 
 [Personalizar no admin geral](https://app.zalenshop.com.br/platform/lojas/17e1e202-00f9-4a83-9843-d6c36a440cfb).
 
-Próximo passo: responsável revisar a prévia e fornecer os livros reais,
-contatos e eventuais ajustes de marca. Publicar/ativar somente após solicitação
-explícita. Catálogo, atendimento, frete e pagamentos terão configuração própria.
+Próximo passo: responsável cadastrar os livros reais em
+[Produtos → Novo produto](https://editora-rochedo.zalenshop.com.br/admin/produtos/novo)
+e preencher contatos e eventuais ajustes de marca. A loja já está ativa;
+produtos novos começam como rascunho. Catálogo, atendimento, frete e pagamentos
+têm configuração própria. Nenhum checkout ou entrega digital foi homologado
+neste incremento.

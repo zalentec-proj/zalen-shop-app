@@ -7,53 +7,45 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 ## Snapshot
 
 - Atualizado em: 2026-10-19.
-- Frente atual: cadastro manual de livros/produtos pelo painel da própria loja,
-  solicitado pelo usuário. Implementado e validado localmente; release e
-  migration ainda pendentes nesta anotação (ver seção abaixo).
-- Estado cloud mais recente da Rochedo: `active`, apresentação publicada revisão
-  3 em `2026-10-19T18:41:19Z`, antes de qualquer mutação desta frente. Preservar
-  essa configuração. As referências abaixo a `planned` descrevem a entrega
-  anterior. Nenhum produto real foi fornecido ou cadastrado pelo agente.
-- Frente concluída: referência visual verde/creme, serifas, logo e hero com
-  livros aplicada ao rascunho 3 da Editora Rochedo pelo admin geral. Modelo
-  Editorial disponível na versão publicada; loja continua `planned` e privada.
-- Objetivo atual autorizado: cadastrar a Editora Rochedo da igreja pelo admin
-  geral e iniciar a identidade em rascunho. O usuário substituiu a solicitação
-  da LB London antes de qualquer cadastro; LB London continua case futuro.
-- Editora Rochedo cadastrada pelo admin geral em 19/10, slug `editora-rochedo`,
-  `store_id=17e1e202-00f9-4a83-9843-d6c36a440cfb`, status `planned`.
-  Responsável indicado pelo usuário: `rochedoacademy@gmail.com`, confirmado no
-  Auth da Zalen Shop e vinculado como `store_owner`, sem papel global.
-  Identidade Editorial salva no rascunho revisão 3; prévia privada real conferida.
-  A referência recebida motivou o modelo Editorial abaixo. Não aplicar a paleta sugerida
-  para LB London nem inventar contatos, redes ou livros comerciais.
-- Implementado: cadastro atômico/idempotente, responsável Auth existente,
-  rascunho, prévia privada, publicação/desativação pelo dono, template neutro e
-  identidade por loja nas páginas compartilhadas. Primeira nova loja criada
-  pelo fluxo publicado: Editora Rochedo, em preparação e com catálogo vazio.
-- Código da entrega: `82bf6c871c45403c9dbbeddac553e7a3ddc692a0` (enviado).
-  Modelo Editorial: `f7d2637e8d1458f6bac97f15056b073a7b9c8688` (publicado).
-- Branch: `codex/platform-store-customization`, partindo de `57bc5a4`, após
-  fetch e pull --rebase com working tree limpa.
-- Publicado após autorização explícita em 19/10: “Sim, publicar esta etapa”.
-  Produção atual `f7d2637e8d1458f6bac97f15056b073a7b9c8688`, deployment
-  `dpl_GfhSvKZVVJ55eB4MFmpgP5MtZ4iG`, READY nos aliases oficiais, inclusive
-  `app.zalenshop.com.br`. Branch `refactor/migrate-to-next` avançada por
-  fast-forward. Cadastro, ficha e prévia conferidos na sessão real do dono.
-- Migrations locais `20261019150054_platform_store_provisioning.sql` e
-  `20261019165113_platform_store_request_store_index.sql` aplicadas no projeto
-  `zalen.shop` / `xtwobxfepsdfjrtducqb`. Histórico remoto registrado pelo MCP
-  como `20261019165012` e `20261019165142`, respectivamente.
-- Validação final: TypeScript, 470 testes em 80 arquivos, thresholds de
-  cobertura configurados, build Next.js 16.3.8, scanner de segredos (incluindo
-  arquivos novos adicionados ao index) e diff check aprovados. Testes SQL
-  locais incluem cadastros simultâneos, atomicidade, idempotência e Data API.
-- Próximo passo exato: responsável conferir a prévia Editorial e fornecer
-  livros reais, contatos e eventuais ajustes de marca. Manter em preparação
-  até solicitação de publicação. Não
-  cadastrar novamente, reaplicar migrations ou atribuir papel global à conta
-  responsável. Case: `docs/cases/editora-rochedo.md`.
-- Credenciais, vendas, catálogos comerciais e integrações reais preservados.
+- Frente concluída: cadastro e edição manual de produtos pelo painel da loja,
+  solicitado para os livros reais da Editora Rochedo. **Produtos → Novo produto**
+  publicado e conferido na sessão real do dono global. Formulário deixado aberto.
+- Código de produção: `37f4aeaeba1815bed0fea941a996fac53c0048d1`, deployment
+  `dpl_CVNPGBZQBrzGcvGMcbGthMVRUQu1`, READY nos aliases oficiais.
+  Fonte: branch `refactor/migrate-to-next`, avançada por fast-forward.
+  Trabalho/handoff: `codex/platform-store-customization`; ambos enviados.
+- Migration local `20261019184654_manual_catalog_management.sql` aplicada em
+  `zalen.shop` / `xtwobxfepsdfjrtducqb`, histórico remoto `20261019194936`, nome
+  `manual_catalog_management`. RPC e ledger conferidos, sem produto real criado.
+  Migrations anteriores de provisioning/índice continuam aplicadas; não repetir.
+- Editora Rochedo: `17e1e202-00f9-4a83-9843-d6c36a440cfb`, slug
+  `editora-rochedo`, agora `active`, apresentação Editorial revisão 3 publicada
+  em `2026-10-19T18:41:19Z`. Essa publicação aconteceu antes das mutações desta
+  frente; foi observada e preservada. As seções anteriores que dizem `planned`
+  registram o histórico da preparação. Zero produtos/categorias/integrações.
+- Responsável `rochedoacademy@gmail.com`: vínculo existente `store_owner`
+  somente da Rochedo. Dono global `zalentec@gmail.com` preservado. Nenhuma conta,
+  senha, sessão, papel ou integração foi criada/alterada nesta tarefa.
+- Brasil Drones: ativa, 685 produtos e 65 categorias, sem cópia ou alteração
+  comercial. LB London continua case futuro e não foi cadastrada.
+- Validações: TypeScript, 481 testes em 83 arquivos, thresholds de cobertura
+  dos quatro módulos críticos, build Next.js 16.3.8, SQL em PostgreSQL 17
+  descartável, scanner de segredos e diff check aprovados. Cadastro/edição
+  exercitados pela UI local, sem credenciais ou dados cloud.
+- Produção: dono abriu painel da Rochedo → Produtos → Novo produto, contexto
+  correto e default Rascunho. Sem sessão → 307 login, private/no-store. Vitrines
+  Rochedo/Brasil e categoria Baterias → 200. Logs error/fatal do deployment
+  consultados sem grupos. Não foi feito teste de venda nem criado livro falso.
+- Próximo passo exato: usuário preencher os livros reais pelo formulário
+  `https://editora-rochedo.zalenshop.com.br/admin/produtos/novo`. Nome, preço e
+  estoque obrigatórios; demais campos opcionais. Produtos nascem em rascunho.
+  Capa é URL HTTPS; upload de arquivo e entrega automática de e-book não fazem
+  parte deste incremento. Contatos, frete e pagamento ainda têm configuração própria.
+- Sem bloqueio técnico conhecido. Nenhuma lista comercial de livros foi
+  fornecida; o usuário escolheu cadastrar pelo painel. Não inventar catálogo
+  com as capas ilustrativas da referência.
+- Contrato: `docs/zalen-shop/MANUAL_CATALOG.md`; case e assets em
+  `docs/cases/editora-rochedo.md` e `editora-rochedo-assets.md`.
 - Guia de continuidade: `docs/work-context/IDE_HANDOFF.md`.
 
 ## Catálogo manual no painel da loja (19/10/2026)
@@ -87,10 +79,29 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   permaneceu planned/produto draft. Nenhum dado cloud usado nessa fixture.
   Celular medido 390 px, scrollWidth 382, sem overflow; viewport restaurado.
   Evidência temporária `/private/tmp/catalogo-rochedo-formulario-local-mobile.jpg`.
-- Próximo passo exato: aplicar migration no projeto correto
-  `xtwobxfepsdfjrtducqb`, verificar grants/RLS, publicar o código via Git e
-  conferir Novo produto na sessão dona. Manter catálogo real vazio e deixar
-  formulário pronto para o usuário. Contrato: `docs/zalen-shop/MANUAL_CATALOG.md`.
+- Migration aplicada pelo MCP, histórico remoto `20261019194936`. Primeira
+  chamada perdeu o estado da solicitação; leitura confirmou função/tabela/
+  migration ausentes antes da repetição bem-sucedida. Não reaplicar.
+- Conferência cloud: wrapper invoker, definer privado com search_path vazio,
+  EXECUTE somente service_role; ledger com RLS e zero linhas. Advisor INFO de
+  RLS sem política é intencional para o ledger privado sem grants. Índice novo
+  ainda sem uso é esperado. Advisor também mantém o padrão de múltiplas
+  políticas permissivas SELECT em categories (público ativo/serviço/membros);
+  nenhum grant de escrita foi aberto. Aviso Auth de proteção de senha vazada
+  preexistente permanece fora do incremento.
+- Release `37f4aea`, deployment `dpl_CVNPGBZQBrzGcvGMcbGthMVRUQu1`, READY.
+  UI real do dono: ficha → Abrir painel → Produtos → Novo produto. Conferidos
+  contexto Editora Rochedo, campos vazios, físico e Rascunho como defaults.
+  Formulário não foi submetido: nenhum livro real informado. Catálogo cloud
+  Rochedo segue zero; Brasil Drones 685 produtos/65 categorias, ambas ativas.
+- Público Rochedo e Brasil/categoria Baterias HTTP 200. Novo formulário anônimo
+  → 307 login com destino exato e private/no-store. Consulta de error/fatal
+  nos últimos dez minutos do deployment não retornou grupos.
+- Screenshot real `/private/tmp/rochedo-cadastro-produtos-producao.jpg`.
+  Aba real marcada como resultado. Fixture local, contêiner e diretório
+  temporário encerrados/removidos; aba local fechada e viewport restaurado.
+- Próximo passo: usuário preencher os livros reais no formulário publicado.
+  Contrato: `docs/zalen-shop/MANUAL_CATALOG.md`.
 
 ## Editora Rochedo — direção editorial aplicada (19/10/2026)
 

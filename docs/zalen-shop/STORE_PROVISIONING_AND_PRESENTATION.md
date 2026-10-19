@@ -21,8 +21,10 @@ Conferir `../work-context/CURRENT_STATE.md` para o estado de publicação.
    a apresentação publicada.
 6. O dono confere a prévia e confirma **Publicar e ativar loja**. Depois pode
    publicar alterações ou **Desativar loja** com confirmação explícita.
-7. Uma loja ativa tem acesso ao admin operacional no seu subdomínio Zalen.
-   Domínios próprios continuam sendo configurados pelo módulo existente.
+7. Lojas ativas e em preparação têm acesso privado ao admin operacional no
+   seu subdomínio Zalen, com sessão/vínculo válido. Preparar o catálogo não
+   publica a loja. Domínios próprios usam o módulo existente.
+   [Cadastro manual de produtos](MANUAL_CATALOG.md).
 
 Slug fica fixo; o responsável é vinculado no cadastro e exibido na ficha.
 Troca de responsável, convites e editor avançado não fazem parte deste incremento.

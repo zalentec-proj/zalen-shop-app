@@ -31,12 +31,12 @@ Primeiro cliente/caso real da plataforma.
 
 ### Editora Rochedo
 
-Segunda loja cadastrada, em preparação desde 19/10/2026.
+Segunda loja cadastrada em 19/10/2026; apresentação Editorial revisão 3 publicada.
 
 - Loja: Editora Rochedo
-- Tipo: Modelo Editorial claro, identidade própria em rascunho
+- Tipo: Modelo Editorial claro, identidade própria
 - Slug: `editora-rochedo`
-- Status: em preparação, sem publicação pública
+- Status: ativa, catálogo em preparação; cadastro manual pelo painel da loja
 - ERP: a definir, nenhuma integração configurada
 - Referência: [case Editora Rochedo](../cases/editora-rochedo.md)
 
