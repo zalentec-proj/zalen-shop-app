@@ -1,5 +1,13 @@
 # Storefront e Templates — Zalen Shop
 
+Incremento autorizado em 19/10/2026: modelo Essencial (`neutral`) para novas
+lojas, com logo/ícone/banner por URL de imagem HTTPS, cores, textos, contatos,
+Instagram e SEO. A Brasil Drones mantém seu renderer custom. Identidade
+resolvida no servidor é compartilhada por header/footer, produto, categoria,
+carrinho e conta. Rascunho e publicação são separados; não há editor livre
+nem upload de arquivos neste incremento.
+[Contrato de personalização](STORE_PROVISIONING_AND_PRESENTATION.md).
+
 ## 1. Princípio
 
 Storefront é a experiência pública da loja. Cada loja pode ter identidade visual própria, mas deve consumir o mesmo core da Zalen Shop.
@@ -24,9 +32,8 @@ Brasil Drones é o primeiro exemplo.
 
 ### Template Storefront
 
-Loja baseada em template editável.
-
-Futuro.
+Loja baseada no modelo Essencial com campos controlados, no incremento de
+19/10/2026. Editor visual avançado permanece futuro.
 
 ## 4. Core compartilhado
 
@@ -104,7 +111,8 @@ define preço, frete ou total.
 
 ## 8. Modo template
 
-No futuro, templates editáveis poderão permitir ajustes controlados:
+O incremento atual permite os ajustes controlados descritos acima.
+Evoluções futuras poderão ampliar:
 
 - logo;
 - cores;

@@ -1,5 +1,11 @@
 # Arquitetura — Zalen Shop
 
+Incremento autorizado em 19/10/2026: `/platform/lojas/nova`, ficha e prévia por
+ID; mutações por Server Actions → service com guard → transação privada no
+PostgreSQL. Configuração pública publicada separada do rascunho. O contexto de
+identidade atende as páginas compartilhadas; o renderer custom Brasil Drones
+é preservado. Ver [contrato do incremento](STORE_PROVISIONING_AND_PRESENTATION.md).
+
 ## 1. Estratégia
 
 A Zalen Shop será construída como uma única aplicação Next.js, com um único banco Supabase, preparada para múltiplas lojas por meio de `store_id`.

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   createOptionalPublicServerClient: vi.fn(),
+  getStoreDomainByHostname: vi.fn(),
 }));
 
 vi.mock('@/lib/supabase/server', () => ({
@@ -13,10 +14,10 @@ vi.mock('@/lib/logging/dev', () => ({
 }));
 
 vi.mock('@/modules/domains/domain.repository', () => ({
-  getStoreDomainByHostname: vi.fn(),
+  getStoreDomainByHostname: mocks.getStoreDomainByHostname,
 }));
 
-import { getStoreBySlugFromRepository } from './store.repository';
+import { getStoreByCustomHostnameFromRepository, getStoreBySlugFromRepository } from './store.repository';
 
 function createStoreLookupClient(result: { data: unknown; error: unknown }) {
   return {
@@ -35,19 +36,14 @@ describe('store repository', () => {
     vi.clearAllMocks();
   });
 
-  it('mantém a loja estática conhecida quando a consulta pública retorna vazia', async () => {
+  it('não reativa a Brasil Drones por fallback quando o banco não publica a loja', async () => {
     mocks.createOptionalPublicServerClient.mockReturnValue(
       createStoreLookupClient({ data: null, error: null })
     );
 
     await expect(
       getStoreBySlugFromRepository('brasil-drones')
-    ).resolves.toMatchObject({
-      id: '00000000-0000-0000-0000-000000000001',
-      slug: 'brasil-drones',
-      status: 'active',
-      source: 'static',
-    });
+    ).resolves.toBeNull();
   });
 
   it('não aplica fallback a uma loja desconhecida', async () => {
@@ -58,5 +54,16 @@ describe('store repository', () => {
     await expect(
       getStoreBySlugFromRepository('loja-desconhecida')
     ).resolves.toBeNull();
+  });
+
+  it('não reativa uma loja por domínio próprio ainda ativo quando a loja saiu da leitura pública', async () => {
+    mocks.getStoreDomainByHostname.mockResolvedValue({ storeId: '00000000-0000-0000-0000-000000000001', status: 'active' });
+    mocks.createOptionalPublicServerClient.mockReturnValue(createStoreLookupClient({ data: null, error: null }));
+    await expect(getStoreByCustomHostnameFromRepository('www.brasildroneseparts.com.br')).resolves.toBeNull();
+  });
+
+  it('falha fechado quando a consulta da Brasil Drones encontra erro', async () => {
+    mocks.createOptionalPublicServerClient.mockReturnValue(createStoreLookupClient({ data: null, error: { code: 'unavailable' } }));
+    await expect(getStoreBySlugFromRepository('brasil-drones')).resolves.toBeNull();
   });
 });

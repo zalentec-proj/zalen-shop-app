@@ -6,25 +6,74 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Snapshot
 
-- Atualizado em: 2026-10-19
-- Frente mais recente: Platform Admin mínimo publicado e validado com a sessão
-  real do dono. Correção do encaminhamento antecipado de `/admin` central
-  também publicada e conferida, sem o erro de resolução de loja na amostra.
-  Conta dona com `platform_owner`, e-mail confirmado e senha redefinida pelo
-  responsável; URLs de recuperação corrigidas no Supabase.
-- Branch desta implementação: `codex/platform-admin-access`, criada a partir de
-  `codex/production-readiness-audit` após fetch e pull --rebase, sem mudanças
-  locais anteriores.
-- Código publicado e branch de produção `refactor/migrate-to-next`:
-  `32ab561e2ad58580a49c1ff821cdf045908b99be` —
-  `fix(auth): dispatch central admin before store pages render`, incluindo
-  a implementação `25ad151` do Platform Admin.
-  Deploy Git `dpl_ELU9p8MAW7trDXjwtmF7xzRJ8HjS`, READY em 19/10/2026.
-- Publicação explicitamente autorizada em 19/10/2026. O ajuste complementar
-  de `/admin` central foi concluído no escopo dessa entrega. Esta branch recebe
-  o handoff documental após a publicação; essa diferença não representa código
-  de aplicação pendente de deploy. Preservar alterações locais não relacionadas.
-- Guia de continuidade para outra IDE/máquina: `docs/work-context/IDE_HANDOFF.md`.
+- Atualizado em: 2026-10-19.
+- Objetivo autorizado: cadastrar novas lojas pelo admin geral e personalizar cada
+  uma, seguindo `PLATFORM_ADMIN_NEXT_STEPS_2026-10-16.md`.
+- Implementado: cadastro atômico/idempotente, responsável Auth existente,
+  rascunho, prévia privada, publicação/desativação pelo dono, template neutro e
+  identidade por loja nas páginas compartilhadas. Sem criação de lojas reais.
+- Branch: `codex/platform-store-customization`, partindo de `57bc5a4`, após
+  fetch e pull --rebase com working tree limpa.
+- Produção continua em `32ab561e2ad58580a49c1ff821cdf045908b99be`, deployment
+  `dpl_ELU9p8MAW7trDXjwtmF7xzRJ8HjS`. A autorização anterior de publicação
+  foi concluída para a primeira etapa. Este incremento ainda não foi publicado.
+- Migration preparada: `20261019150054_platform_store_provisioning.sql`,
+  testada somente em PostgreSQL 17 descartável. Sem aplicação no banco real.
+- Validação final: TypeScript, 458 testes em 78 arquivos, thresholds de
+  cobertura configurados, build Next.js 16.3.8, scanner de segredos (incluindo
+  arquivos novos adicionados ao index) e diff check aprovados. Testes SQL
+  locais incluem cadastros simultâneos, atomicidade, idempotência e Data API.
+- Próximo passo: publicar o incremento após decisão do responsável: aplicar a
+  migration revisada no projeto correto, verificar grants/RLS e depois liberar
+  o código em produção. A autorização anterior de publicação foi para a etapa
+  de acesso, já concluída. Não aplicar novamente a atribuição de dono.
+- Credenciais, vendas, catálogos comerciais e integrações reais preservados.
+- Guia de continuidade: `docs/work-context/IDE_HANDOFF.md`.
+
+## Cadastro e personalização — implementação de 19/10/2026
+
+- Rotas: `/platform/lojas/nova`, `/platform/lojas/[id]` e prévia privada.
+  Cadastro cria loja `planned`, vínculo `store_owner`, perfil, rascunho e
+  listas nativas PF/PJ sem preços/desconto herdados na mesma transação.
+  Reenvio tem chave por ator, trava transacional e unicidade de slug.
+- Dono global cria, publica/ativa e desativa; admin global edita rascunhos.
+  Guards por entrada e nova checagem do papel dentro da transação. O wrapper
+  RPC público é invoker, exclusivo de `service_role`; definer no schema privado.
+- Configuração pública separada do rascunho; editor validado por Zod, renderers
+  allowlisted, cores hex e imagens por URL HTTPS. Upload, troca de responsável,
+  alteração de slug, convites, billing e editor livre não foram implementados.
+- Modelo Essencial neutro; Brasil Drones conserva o custom. Logo, contatos,
+  rodapé, imagens ausentes e SEO das páginas comuns deixam de herdar a Brasil
+  Drones. Fallbacks locais de catálogo/menu só atendem seu case conhecido.
+- Disponibilidade: loja não retornada pelo banco não volta por fallback
+  estático, inclusive no domínio próprio. RLS pública de produtos e documentos
+  também exige loja ativa. Home desconhecida/inativa retorna 404.
+- Verificação com Next.js/SDK reais + Auth fictício no loopback + PostgreSQL 17
+  descartável: cadastro pela interface, responsável, salvar rascunho, prévia,
+  publicar/ativar e desativar passaram. Lojista (com `user_metadata` global
+  forjado) ficou restrito a sua loja; admin global sem cadastro/publicação.
+- Respostas HTTP locais com host de loja: home, produto fictício, conta e
+  carrinho 200 com marca/cor Aurora e sem Brasil Drones; custom Brasil Drones
+  200 com hero próprio. Desativação → 404. Prévia sem sessão, normal e RSC →
+  307 login, privado/no-store. Categoria é coberta pelos componentes comuns e
+  regressões, sem novo catálogo real.
+- UI de prévia conferida no Chrome em desktop. O subdomínio local `lvh.me` foi
+  bloqueado pelo cliente do navegador; a verificação pública usou HTTP nativo
+  com Host explícito, sem contornar avisos de certificado. A tentativa de
+  viewport móvel não alterou a geometria medida; não registrar homologação
+  móvel. Override foi restaurado.
+- Evidência visual temporária: `/private/tmp/zalen-new-store-preview.jpg`, loja
+  fictícia Ateliê Aurora; não é uma loja criada no Supabase real.
+- Scripts reproduzíveis: `npm run test:platform-stores:db` e
+  `node scripts/dev-platform-stores-fixture.mjs`. O segundo cria endpoint de
+  sessão somente na cópia temporária; o app versionado não contém esse endpoint.
+- Banco real foi apenas lido: uma loja (Brasil Drones ativa); tabelas/função do
+  incremento ainda ausentes. Nenhuma migration real, nova conta, e-mail,
+  compra, cobrança, ativação de ERP ou cópia de credencial nesta implementação.
+- Cobertura publicada pelo Vitest refere-se apenas aos quatro arquivos já
+  configurados em `vitest.config.ts`, não ao app inteiro.
+- Contrato de operação e release:
+  `docs/zalen-shop/STORE_PROVISIONING_AND_PRESENTATION.md`.
 
 ## Contexto permanente
 

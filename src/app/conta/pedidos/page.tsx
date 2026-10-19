@@ -9,7 +9,7 @@ import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolutio
 import CustomerAccountHeader from '../CustomerAccountHeader';
 
 export const metadata: Metadata = {
-  title: 'Meus pedidos — Brasil Drones & Parts',
+  title: 'Meus pedidos',
   ...noindexMetadata,
 };
 

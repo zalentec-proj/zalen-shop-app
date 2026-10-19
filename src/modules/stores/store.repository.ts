@@ -54,7 +54,7 @@ export async function getStoreBySlugFromRepository(
   const supabase = createOptionalPublicServerClient();
 
   if (!supabase) {
-    return normalizedSlug === activeStore.slug
+    return process.env.NODE_ENV !== 'production' && normalizedSlug === activeStore.slug
       ? getStaticActiveStoreContext()
       : null;
   }
@@ -65,21 +65,11 @@ export async function getStoreBySlugFromRepository(
     .eq('slug', normalizedSlug)
     .maybeSingle();
 
-  if (error) {
-    logDevOnce('stores', 'Store lookup failed.', {
-      slug: normalizedSlug,
-      code: error.code,
-    });
-
-    return normalizedSlug === activeStore.slug
-      ? getStaticActiveStoreContext()
-      : null;
-  }
-
-  if (!data) {
-    return normalizedSlug === activeStore.slug
-      ? getStaticActiveStoreContext()
-      : null;
+  if (error || !data) {
+    if (error) logDevOnce('stores', 'Store lookup failed.', { code: error.code });
+    // An absent public row may mean the store was deactivated. Never revive it
+    // from static data when a database is configured.
+    return null;
   }
 
   return toStoreContext(data as StoreRow, 'supabase');
@@ -92,14 +82,10 @@ export async function getStoreByIdFromRepository(
     return null;
   }
 
-  if (storeId === activeStore.id) {
-    return getStaticActiveStoreContext();
-  }
-
   const supabase = createOptionalPublicServerClient();
 
   if (!supabase) {
-    return null;
+    return process.env.NODE_ENV !== 'production' && storeId === activeStore.id ? getStaticActiveStoreContext() : null;
   }
 
   const { data, error } = await supabase

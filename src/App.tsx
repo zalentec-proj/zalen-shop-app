@@ -6,6 +6,8 @@
  */
 
 import React, { useMemo, useState } from 'react';
+import { useStorefrontIdentity } from './modules/storefront/StorefrontIdentity';
+import { PresentationHero } from './components/storefront/NeutralStorefront';
 import Navbar from './components/layout/Navbar';
 import Hero from './components/home/Hero';
 import BenefitsBar from './components/home/BenefitsBar';
@@ -57,6 +59,7 @@ export default function App({
   navigation,
   businessDiscountPercentage,
 }: AppProps) {
+  const presentation = useStorefrontIdentity();
   const [currentPage, setCurrentPage] = useState<'home' | 'product_detail'>('home');
   const [selectedProductId, setSelectedProductId] = useState<string>(
     products[0]?.id ?? 'dji-mavic-3-pro'
@@ -203,7 +206,7 @@ export default function App({
 
       {currentPage === 'home' ? (
         <main className="w-full">
-          <Hero
+          {presentation && (presentation.heroTitle || presentation.bannerUrl || presentation.heroDescription) ? <div className="pt-36"><PresentationHero presentation={presentation} /></div> : <Hero
             hasTopNotice={Boolean(businessDiscountPercentage)}
             onExploreClick={() => {
               const sec = document.getElementById('vitrines');
@@ -218,6 +221,7 @@ export default function App({
             }}
           />
 
+          }
           <BenefitsBar />
 
           <CategoryProductSections

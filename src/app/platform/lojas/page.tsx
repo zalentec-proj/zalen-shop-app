@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { requirePlatformAccess } from '@/modules/platform/platform-access';
 import { Search } from 'lucide-react';
 import { StoreList } from '@/components/platform/StoreList';
 import { getLoginNavigationContext } from '@/modules/auth/login-destination.service';
@@ -10,6 +11,7 @@ export const metadata: Metadata = { title: 'Lojas — Zalen Shop' };
 export default async function PlatformStoresPage({ searchParams }: {
   searchParams?: Promise<{ q?: string; page?: string }>;
 }) {
+  const { role } = await requirePlatformAccess();
   const params = await searchParams;
   // The repository checks global access before obtaining the privileged client.
   const result = await listPlatformStores(params?.q, params?.page);
@@ -22,8 +24,9 @@ export default async function PlatformStoresPage({ searchParams }: {
       <div className="mb-6">
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-blue-300">Zalen Shop</p>
         <h1 className="text-2xl font-semibold tracking-tight">Lojas</h1>
-        <p className="mt-2 text-sm text-slate-400">Consulte as lojas da plataforma e acesse a operação de cada uma.</p>
+        <p className="mt-2 text-sm text-slate-400">Cadastre lojas, personalize a identidade visual e acompanhe a publicação.</p>
       </div>
+      {role === 'platform_owner' ? <Link href="/platform/lojas/nova" className="mb-5 inline-flex rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-500">Nova loja</Link> : null}
       <form action="/platform/lojas" className="mb-5 flex flex-wrap items-end gap-2">
         <label className="grid w-full max-w-sm gap-1.5 text-xs text-slate-400" htmlFor="store-search">
           Buscar pelo nome da loja
@@ -44,7 +47,7 @@ export default async function PlatformStoresPage({ searchParams }: {
         <>
           <p role="status" className="mb-3 text-xs text-slate-400">{result.total} {result.total === 1 ? 'loja encontrada' : 'lojas encontradas'}</p>
           {result.stores.length ? (
-            <StoreList stores={result.stores} requestOrigin={requestOrigin} rootDomain={rootDomain} />
+            <StoreList stores={result.stores} requestOrigin={requestOrigin} rootDomain={rootDomain} manage />
           ) : (
             <div className="rounded-xl border border-white/8 bg-[#081225] p-8 text-center text-sm text-slate-400">
               {result.query ? 'Nenhuma loja corresponde à busca.' : result.page > 1 ? 'Nenhuma loja nesta página.' : 'Nenhuma loja cadastrada.'}

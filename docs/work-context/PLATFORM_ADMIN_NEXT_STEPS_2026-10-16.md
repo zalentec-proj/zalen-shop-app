@@ -1,5 +1,11 @@
 # Próximos passos para o painel da plataforma e novas lojas
 
+Atualização em 19/10/2026: a etapa de acesso/listagem já foi publicada. O
+responsável autorizou cadastro e personalização de lojas. Contrato da próxima
+entrega: `../zalen-shop/STORE_PROVISIONING_AND_PRESENTATION.md`. Estado real de
+implementação e publicação: `CURRENT_STATE.md`. Os trechos abaixo preservam
+o plano original e seus critérios.
+
 Atualização após autorização do responsável: a primeira etapa de acesso,
 login e listagem de lojas foi implementada em `codex/platform-admin-access`.
 O estado de validação e publicação está em `CURRENT_STATE.md`. O diagnóstico

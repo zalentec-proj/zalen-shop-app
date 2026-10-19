@@ -1,5 +1,12 @@
 # Auth e Acesso — Zalen Shop
 
+Escopo ampliado em 19/10/2026: cadastro e personalização pelo admin geral.
+O e-mail responsável deve existir no Auth da Zalen Shop; o cadastro concede
+`store_owner` somente nessa loja. Conta sem papel global continua sem acesso
+à ficha, prévia e mutações de `/platform`. Criar/publicar/desativar é exclusivo
+do dono global; admin global pode configurar rascunhos.
+[Fluxo e permissões](STORE_PROVISIONING_AND_PRESENTATION.md).
+
 ## 1. Princípio
 
 A autenticação identifica o usuário. A autorização decide o que ele pode acessar.

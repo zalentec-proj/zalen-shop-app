@@ -272,7 +272,7 @@ export default async function OnlineStoreSettingsPage({ searchParams }: { search
     storefrontCategories
   );
   const categoryOptions = [
-    ...syntheticCategoryOptions,
+    ...(store.slug === 'brasil-drones' ? syntheticCategoryOptions : []),
     ...storefrontCategories.map((category) => ({
       name: category.name,
       slug: category.slug,

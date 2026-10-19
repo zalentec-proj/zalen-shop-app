@@ -1,5 +1,13 @@
 # Modelo de Dados — Zalen Shop
 
+Incremento de 19/10/2026: `storefront_drafts` (config/revisão),
+`storefront_presentations` (snapshot publicado), `platform_store_profiles`
+(responsável/criador), `platform_store_events` (auditoria sem payload) e
+`private.platform_store_requests` (idempotência). Todas isoladas por loja;
+rascunho/perfis/eventos não têm grants para JWT de usuário. A criação inclui
+loja `planned`, vínculo `store_owner`, rascunho e listas nativas PF/PJ vazias
+na mesma transação. Ver [contrato e migration](STORE_PROVISIONING_AND_PRESENTATION.md).
+
 ## 1. Estratégia
 
 A Zalen Shop usa um único banco Supabase para múltiplas lojas. A separação entre lojas acontece por `store_id`.

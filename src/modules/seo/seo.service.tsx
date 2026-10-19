@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { getPublishedPresentation } from '@/modules/storefront/presentation.repository';
 import { headers } from 'next/headers';
 import type { Metadata } from 'next';
 import type { Category, Product } from '@/modules/catalog/product.types';
@@ -46,21 +47,25 @@ export function absoluteStoreUrl(origin: string, path = '/') {
   return new URL(path, origin).toString();
 }
 
-export function buildStoreMetadata(input: {
+export async function buildStoreMetadata(input: {
   store: StoreContext;
   origin: string;
   title: string;
   description?: string;
   path?: string;
   imageUrl?: string;
-}): Metadata {
-  const description = trimText(input.description) ?? storefrontDescription;
+}): Promise<Metadata> {
+  const presentation = await getPublishedPresentation(input.store);
+  const description = trimText(input.description) || presentation.seoDescription || undefined;
+  const title = input.title.endsWith(`— ${input.store.name}`)
+    ? input.title.slice(0, -input.store.name.length) + presentation.brandName
+    : input.title;
   const canonical = absoluteStoreUrl(input.origin, input.path ?? '/');
   const images = input.imageUrl ? [{ url: input.imageUrl }] : undefined;
 
   return {
     metadataBase: new URL(input.origin),
-    title: input.title,
+    title: { absolute: title },
     description,
     alternates: {
       canonical,
@@ -68,15 +73,15 @@ export function buildStoreMetadata(input: {
     openGraph: {
       type: 'website',
       url: canonical,
-      title: input.title,
+      title,
       description,
-      siteName: input.store.name,
+      siteName: presentation.brandName,
       locale: 'pt_BR',
       images,
     },
     twitter: {
       card: input.imageUrl ? 'summary_large_image' : 'summary',
-      title: input.title,
+      title,
       description,
       images: input.imageUrl ? [input.imageUrl] : undefined,
     },

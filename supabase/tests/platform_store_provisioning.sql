@@ -1,0 +1,78 @@
+\set ON_ERROR_STOP on
+begin;
+do $$
+declare
+  owner_id uuid := gen_random_uuid();
+  admin_id uuid := gen_random_uuid();
+  merchant_id uuid := gen_random_uuid();
+  request_id uuid := gen_random_uuid();
+  missing_request uuid := gen_random_uuid();
+  test_store_id uuid;
+  result jsonb;
+  payload jsonb := '{"name":"Loja Piloto","slug":"piloto-teste","ownerEmail":"merchant@platform.invalid","config":{"renderer":"neutral","brandName":"Loja Piloto"}}';
+begin
+  insert into auth.users(id,email) values(owner_id,'owner@platform.invalid'), (admin_id,'support@platform.invalid'), (merchant_id,'merchant@platform.invalid');
+  insert into public.platform_users values(owner_id,'platform_owner'),(admin_id,'platform_admin');
+  result := public.platform_store_command(merchant_id,'create',null,request_id,payload);
+  assert result->>'code' = 'forbidden', 'merchant must be denied';
+  result := public.platform_store_command(admin_id,'create',null,request_id,payload);
+  assert result->>'code' = 'forbidden', 'support cannot create';
+  result := public.platform_store_command(owner_id,'create',null,request_id,payload);
+  assert result->>'ok' = 'true', result::text;
+  test_store_id := (result->>'storeId')::uuid;
+  assert (select count(*) = 1 from public.store_memberships m where m.store_id = test_store_id and user_id = merchant_id and role='store_owner'), 'membership atomic';
+  assert (select status = 'planned' from public.stores where id=test_store_id), 'not public at creation';
+  assert (select count(*)=2 and bool_and(not automatic_discount_enabled) from public.price_lists p where p.store_id=test_store_id), 'isolated native defaults with no inherited discount';
+  result := public.platform_store_command(owner_id,'create',null,request_id,payload);
+  assert result->>'storeId' = test_store_id::text, 'idempotent retry';
+  result := public.platform_store_command(owner_id,'create',null,request_id,payload || '{"name":"changed"}');
+  assert result->>'code' = 'idempotency_conflict', 'changed retry denied';
+  result := public.platform_store_command(owner_id,'create',null,gen_random_uuid(),payload);
+  assert result->>'code' = 'slug_taken', 'duplicate slug';
+  result := public.platform_store_command(owner_id,'create',null,missing_request,payload || '{"slug":"missing-test","ownerEmail":"missing@platform.invalid"}');
+  assert result->>'code' = 'owner_not_found', 'no invented accounts';
+  assert not exists(select 1 from public.stores where slug='missing-test'), 'no partial store';
+  assert (select count(*)=1 from public.stores), 'failed submissions leave no store';
+  assert (select count(*)=1 from public.store_memberships), 'failed submissions leave no membership';
+  result := public.platform_store_command(owner_id,'create',null,gen_random_uuid(),payload || '{"slug":"app"}');
+  assert result->>'code' = 'invalid_input', 'reserved slug';
+  result := public.platform_store_command(admin_id,'save',test_store_id,null,'{"name":"Loja Piloto","revision":1,"config":{"renderer":"neutral","brandName":"Pilot edited"}}');
+  assert result->>'revision' = '2', result::text;
+  result := public.platform_store_command(owner_id,'save',test_store_id,null,'{"name":"Stale","revision":1,"config":{"renderer":"neutral"}}');
+  assert result->>'code' = 'conflict', 'optimistic lock';
+  result := public.platform_store_command(admin_id,'publish',test_store_id,null,'{"revision":2}');
+  assert result->>'code' = 'forbidden', 'support cannot publish';
+  result := public.platform_store_command(owner_id,'publish',test_store_id,null,'{"revision":2}');
+  assert result->>'ok' = 'true', result::text;
+  assert (select status='active' from public.stores where id=test_store_id), 'explicit activation';
+  result := public.platform_store_command(owner_id,'save',test_store_id,null,'{"name":"Loja Piloto","revision":2,"config":{"renderer":"neutral","brandName":"Unpublished secret"}}');
+  assert (select config->>'brandName'='Pilot edited' from public.storefront_presentations p where p.store_id=test_store_id), 'published snapshot immutable on draft save';
+  assert not has_function_privilege('anon','public.platform_store_command(uuid,text,uuid,uuid,jsonb)','execute'), 'anon RPC denied';
+  assert not has_function_privilege('authenticated','public.platform_store_command(uuid,text,uuid,uuid,jsonb)','execute'), 'JWT RPC denied';
+  assert not has_table_privilege('authenticated','public.storefront_drafts','select'), 'no direct drafts';
+  assert (select bool_and(relrowsecurity) from pg_class where oid in ('public.storefront_drafts'::regclass,'public.storefront_presentations'::regclass,'public.platform_store_profiles'::regclass,'public.platform_store_events'::regclass,'private.platform_store_requests'::regclass)), 'RLS enabled for every new table';
+  assert not (select prosecdef from pg_proc where oid='public.platform_store_command(uuid,text,uuid,uuid,jsonb)'::regprocedure), 'exposed wrapper is invoker';
+  perform set_config('test.store_id',test_store_id::text,true);
+  perform set_config('test.owner_id',owner_id::text,true);
+  insert into public.products(store_id,status) values (test_store_id,'active');
+end $$;
+set local role anon;
+do $$ begin
+  assert (select count(*)=1 from public.stores), 'one published store';
+  assert (select count(*)=1 from public.storefront_presentations), 'public published config only';
+  assert (select count(*)=1 from public.products), 'active catalog visible';
+  begin perform * from public.storefront_drafts; raise exception 'draft exposure'; exception when insufficient_privilege then null; end;
+  begin perform public.platform_store_command(current_setting('test.owner_id')::uuid,'deactivate',current_setting('test.store_id')::uuid,null,'{"revision":3}'); raise exception 'RPC exposed'; exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+select public.platform_store_command(current_setting('test.owner_id')::uuid,'deactivate',current_setting('test.store_id')::uuid,null,'{"revision":3}')->>'ok' as deactivated;
+set local role authenticated;
+do $$ begin
+  assert (select count(*)=0 from public.stores), 'inactive store hidden';
+  assert (select count(*)=0 from public.storefront_presentations), 'inactive config hidden';
+  assert (select count(*)=0 from public.products), 'inactive catalog hidden';
+  begin perform * from public.storefront_drafts; raise exception 'draft exposure'; exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+select action,outcome,count(*) from public.platform_store_events group by action,outcome order by action,outcome;
+rollback;

@@ -15,7 +15,7 @@ import {
 } from './actions';
 
 export const metadata: Metadata = {
-  title: 'Meus endereços — Brasil Drones & Parts',
+  title: 'Meus endereços',
   ...noindexMetadata,
 };
 

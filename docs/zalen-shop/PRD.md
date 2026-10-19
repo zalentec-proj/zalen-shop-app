@@ -1,5 +1,10 @@
 # PRD — Zalen Shop Platform
 
+Escopo ampliado em 19/10/2026: admin geral com nova loja, ficha e identidade
+por loja, modelo Essencial neutro, prévia privada e publicação explícita pelo
+dono. Gestão completa e editor livre seguem futuros. Contrato do incremento:
+[Cadastro e personalização](STORE_PROVISIONING_AND_PRESENTATION.md).
+
 ## 1. Contexto
 
 A Zalen Shop será uma plataforma de e-commerce customizável para empresas que precisam de lojas online próprias, com identidade visual personalizada, painel administrativo, catálogo, pedidos e integrações com sistemas externos.

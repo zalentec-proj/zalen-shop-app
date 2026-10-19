@@ -1,5 +1,12 @@
 # Segurança — Zalen Shop
 
+Incremento de 19/10/2026: criar, publicar/ativar e desativar lojas exigem
+`platform_owner`; salvar rascunho e nome interno aceita também
+`platform_admin`. O responsável recebe somente vínculo da loja. Cada entrada
+verifica a sessão antes do cliente privilegiado e a transação reconfere o
+papel global. Nenhuma autorização usa metadado editável do usuário.
+[Permissões, RLS e exposição](STORE_PROVISIONING_AND_PRESENTATION.md).
+
 ## 1. Princípios
 
 - Segurança nasce na arquitetura.

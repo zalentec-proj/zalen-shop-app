@@ -3,8 +3,8 @@ import { noindexMetadata } from '@/modules/seo/seo.service';
 import CustomerAuthForm from '../CustomerAuthForm';
 
 export const metadata: Metadata = {
-  title: 'Entrar — Brasil Drones & Parts',
-  description: 'Acesse sua conta para finalizar compras na Brasil Drones.',
+  title: 'Entrar',
+  description: 'Acesse sua conta para acompanhar suas compras.',
   ...noindexMetadata,
 };
 

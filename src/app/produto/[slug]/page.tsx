@@ -22,6 +22,7 @@ import {
 } from '@/modules/stores/store-resolution';
 import ProductDetailClient from './ProductDetailClient';
 import { getAutomaticPjDiscountPolicy } from '@/modules/pricing/pricing.service';
+import { getPublishedPresentation } from '@/modules/storefront/presentation.repository';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -60,10 +61,11 @@ export default async function ProductPage({ params }: Props) {
   if (!product) notFound();
 
   const relatedProducts = await listRelatedProducts(store.id, slug, 3);
-  const [origin, marketingConfig, pjDiscountPolicy] = await Promise.all([
+  const [origin, marketingConfig, pjDiscountPolicy, presentation] = await Promise.all([
     getCurrentOrigin(),
     getMarketingRuntimeConfig(store),
     getAutomaticPjDiscountPolicy(store.id),
+    getPublishedPresentation(store),
   ]);
   const variant = product.variants[0];
   const price = variant?.promotionalPrice ?? variant?.price;
@@ -71,9 +73,9 @@ export default async function ProductPage({ params }: Props) {
   return (
     <>
       <MarketingScripts config={marketingConfig} />
-      <JsonLd data={buildOrganizationJsonLd(store, origin)} />
+      <JsonLd data={buildOrganizationJsonLd({ ...store, name: presentation.brandName }, origin)} />
       <JsonLd data={buildBreadcrumbJsonLd(origin, buildProductBreadcrumb(product))} />
-      <JsonLd data={buildProductJsonLd(store, origin, product)} />
+      <JsonLd data={buildProductJsonLd({ ...store, name: presentation.brandName }, origin, product)} />
       <MarketingDataLayer
         config={marketingConfig}
         event={{

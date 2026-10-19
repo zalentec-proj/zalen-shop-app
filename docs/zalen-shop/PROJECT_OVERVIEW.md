@@ -1,5 +1,10 @@
 # Zalen Shop — Project Overview
 
+Incremento de 19/10/2026: cadastro atômico de lojas, responsável existente e
+personalização controlada em rascunho/prévia/publicação foram autorizados.
+Ver [Cadastro e personalização](STORE_PROVISIONING_AND_PRESENTATION.md) e o
+[handoff](../work-context/CURRENT_STATE.md) para o estado de entrega.
+
 ## Visão
 
 A Zalen Shop é uma plataforma de e-commerce customizável criada para permitir que diferentes empresas tenham lojas online próprias, com identidade visual personalizada, painel administrativo, catálogo, pedidos e integrações com ERPs, pagamentos, envio e canais de venda.

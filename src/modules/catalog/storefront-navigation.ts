@@ -376,10 +376,11 @@ function buildNavigationFromRows(
 }
 
 export function getFallbackStorefrontNavigation(
-  categories: StorefrontCategory[]
+  categories: StorefrontCategory[],
+  storeId?: string
 ): StorefrontNavigation {
   return buildNavigationFromRows(
-    fallbackDefinitions.map(toNavigationRow),
+    (storeId && storeId !== '00000000-0000-0000-0000-000000000001' ? categories.map((category, position) => toNavigationRow({ id: `category-${category.slug}`, label: category.name, type: 'category', categorySlug: category.slug, position, enabled: true, showInNavbar: true, showInCategoriesDropdown: true, opensInDropdown: false })) : fallbackDefinitions.map(toNavigationRow)),
     categories,
     'fallback'
   );
@@ -412,7 +413,7 @@ export async function getStorefrontNavigation(
     }
   }
 
-  return getFallbackStorefrontNavigation(categories);
+  return getFallbackStorefrontNavigation(categories, storeId);
 }
 
 export async function getAdminStorefrontNavigation(
@@ -422,7 +423,7 @@ export async function getAdminStorefrontNavigation(
   const supabase = createOptionalAdminClient();
 
   if (!supabase) {
-    return getFallbackStorefrontNavigation(categories);
+    return getFallbackStorefrontNavigation(categories, storeId);
   }
 
   const { data, error } = await supabase
@@ -434,7 +435,7 @@ export async function getAdminStorefrontNavigation(
     .order('position', { ascending: true });
 
   if (error || !data || data.length === 0) {
-    return getFallbackStorefrontNavigation(categories);
+    return getFallbackStorefrontNavigation(categories, storeId);
   }
 
   return buildNavigationFromRows(data as NavigationRow[], categories, 'database');

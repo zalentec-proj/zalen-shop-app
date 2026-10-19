@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { ArrowUpRight, Store } from 'lucide-react';
 import type { StoreRow } from '@/modules/stores/store.types';
 import { getStoreAdminUrl } from '@/modules/auth/operational-navigation';
@@ -8,11 +9,12 @@ const statusLabels: Record<string, string> = {
   inactive: 'Inativa',
 };
 
-export function StoreList({ stores, requestOrigin, rootDomain, adminPath = '/admin' }: {
+export function StoreList({ stores, requestOrigin, rootDomain, adminPath = '/admin', manage = false }: {
   stores: StoreRow[];
   requestOrigin: string;
   rootDomain: string;
   adminPath?: string;
+  manage?: boolean;
 }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-white/8 bg-[#081225]">
@@ -61,6 +63,7 @@ export function StoreList({ stores, requestOrigin, rootDomain, adminPath = '/adm
                   ) : (
                     <span className="text-xs text-slate-500">Indisponível</span>
                   )}
+                  {manage ? <Link href={`/platform/lojas/${store.id}`} className="mt-2 block text-xs text-blue-300 hover:underline">Personalizar</Link> : null}
                 </td>
               </tr>
             );

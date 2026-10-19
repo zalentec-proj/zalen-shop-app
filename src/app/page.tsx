@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import App from '@/App';
+import { getPublishedPresentation } from '@/modules/storefront/presentation.repository';
+import { NeutralStorefront } from '@/components/storefront/NeutralStorefront';
 import { getServerEnv } from '@/lib/env/server';
 import {
   listCategories,
@@ -21,7 +22,6 @@ import {
   buildStoreMetadata,
   buildWebSiteJsonLd,
   getCurrentOrigin,
-  storefrontDescription,
 } from '@/modules/seo/seo.service';
 import {
   getOptionalStoreFromResolution,
@@ -53,46 +53,24 @@ export async function generateMetadata(): Promise<Metadata> {
     };
   }
 
+  const presentation = await getPublishedPresentation(store);
   return {
     ...(await buildStoreMetadata({
       store,
       origin: await getCurrentOrigin(),
-      title: `${store.name} — Drones e Peças DJI`,
-      description: storefrontDescription,
+      title: presentation.seoTitle || presentation.brandName,
+      description: presentation.seoDescription,
       path: '/',
-      imageUrl: '/og-image.png',
+      imageUrl: presentation.bannerUrl || (presentation.renderer === 'brasil-drones' ? '/og-image.png' : undefined),
     })),
-    verification: getServerEnv().GOOGLE_SITE_VERIFICATION
+    verification: presentation.renderer === 'brasil-drones' && getServerEnv().GOOGLE_SITE_VERIFICATION
       ? { google: getServerEnv().GOOGLE_SITE_VERIFICATION }
       : undefined,
   };
 }
 
-function StoreNotFound() {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-[#05070B] px-6 text-white">
-      <section className="w-full max-w-md rounded-lg border border-white/10 bg-[#0A1730]/90 p-7 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-300">
-          Loja não encontrada
-        </p>
-        <h1 className="mt-3 text-2xl font-semibold">
-          Este endereço não está ativo
-        </h1>
-        <p className="mt-3 text-sm leading-6 text-slate-400">
-          Verifique o subdomínio da loja ou acesse o painel pela Zalen Shop.
-        </p>
-        <Link
-          href="/login"
-          className="mt-6 inline-flex rounded-lg bg-blue-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2f68ff]"
-        >
-          Ir para o login
-        </Link>
-      </section>
-    </main>
-  );
-}
-
-export default async function HomePage() {
+export default async function HomePage({ searchParams }: { searchParams?: Promise<{ q?: string }> }) {
+  const params = await searchParams;
   const resolution = await resolveStoreFromHeaders();
   const rootDomain = getServerEnv().PLATFORM_ROOT_DOMAIN ?? 'zalenshop.com.br';
 
@@ -106,13 +84,14 @@ export default async function HomePage() {
   const store = getOptionalStoreFromResolution(resolution);
 
   if (!store) {
-    return <StoreNotFound />;
+    notFound();
   }
 
   const [catalogProducts, catalogCategories] = await Promise.all([
     listStorefrontProducts(store.id),
     listCategories(store.id),
   ]);
+  const presentation = await getPublishedPresentation(store);
   const products = toStorefrontProducts(catalogProducts);
   const categories = toStorefrontCategories(catalogCategories, catalogProducts);
   const [origin, marketingConfig, navigation, pjDiscountPolicy] = await Promise.all([
@@ -125,8 +104,8 @@ export default async function HomePage() {
   return (
     <>
       <MarketingScripts config={marketingConfig} />
-      <JsonLd data={buildOrganizationJsonLd(store, origin)} />
-      <JsonLd data={buildWebSiteJsonLd(store, origin)} />
+      <JsonLd data={buildOrganizationJsonLd({ ...store, name: presentation.brandName }, origin)} />
+      <JsonLd data={buildWebSiteJsonLd({ ...store, name: presentation.brandName }, origin)} />
       <MarketingDataLayer
         config={marketingConfig}
         event={{
@@ -149,7 +128,7 @@ export default async function HomePage() {
           },
         }}
       />
-      <App
+      {presentation.renderer === 'neutral' ? <NeutralStorefront presentation={presentation} products={products} categories={categories} initialQuery={typeof params?.q === 'string' ? params.q.slice(0, 100) : ''} /> : <App
         products={products}
         categories={categories}
         navigation={navigation}
@@ -158,7 +137,7 @@ export default async function HomePage() {
             ? pjDiscountPolicy.automaticDiscountPercentage
             : undefined
         }
-      />
+      />}
     </>
   );
 }

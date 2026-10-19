@@ -17,7 +17,7 @@ import WhatsAppContactForm from './WhatsAppContactForm';
 import { getCustomerWhatsAppContactState } from '@/modules/integrations/evolution-whatsapp/evolution-whatsapp.service';
 
 export const metadata: Metadata = {
-  title: 'Minha conta — Brasil Drones & Parts',
+  title: 'Minha conta',
   ...noindexMetadata,
 };
 

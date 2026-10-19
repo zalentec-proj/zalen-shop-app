@@ -16,7 +16,7 @@ interface PageProps {
 }
 
 export const metadata = {
-  title: 'Pagamento não concluído — Brasil Drones & Parts',
+  title: 'Pagamento não concluído',
   ...noindexMetadata,
 };
 

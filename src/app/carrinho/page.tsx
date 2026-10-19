@@ -8,7 +8,7 @@ import { resolveCurrentStoreFromHeaders } from '@/modules/stores/store-resolutio
 import CartClient from './CartClient';
 
 export const metadata = {
-  title: 'Carrinho — Brasil Drones & Parts',
+  title: 'Carrinho',
   ...noindexMetadata,
 };
 

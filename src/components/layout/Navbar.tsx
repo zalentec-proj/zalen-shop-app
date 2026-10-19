@@ -1,3 +1,5 @@
+import { NeutralHeader } from '@/components/storefront/NeutralStorefront';
+import { useStorefrontIdentity } from '@/modules/storefront/StorefrontIdentity';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
@@ -25,7 +27,7 @@ import {
   type StorefrontSearchProductPreview,
 } from '@/modules/catalog/storefront-search';
 
-const INSTAGRAM_URL = 'https://www.instagram.com/dronesepartsbrasildji/';
+
 
 interface NavbarProps {
   categories: StorefrontCategory[];
@@ -88,6 +90,8 @@ export default function Navbar({
   searchQuery,
   productPreviews = [],
 }: NavbarProps) {
+  const identity = useStorefrontIdentity();
+  const INSTAGRAM_URL = identity?.instagramUrl;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [categoriesMenuOpen, setCategoriesMenuOpen] = useState(false);
@@ -498,6 +502,8 @@ export default function Navbar({
     );
   };
 
+  if (identity?.renderer !== 'brasil-drones') return <NeutralHeader categories={categories} cartItemsCount={cartItemsCount} onCartToggle={onCartToggle} searchQuery={searchQuery} onSearchChange={onSearchChange} />;
+
   return (
     <header className="fixed inset-x-0 top-0 z-50 bg-transparent px-3 pt-2 md:px-8 md:pt-3">
       <nav
@@ -564,16 +570,16 @@ export default function Navbar({
             <span className="hidden text-xs font-semibold lg:inline">Minha conta</span>
           </Link>
 
-          <a
+          {INSTAGRAM_URL ? <a
             href={INSTAGRAM_URL}
             target="_blank"
             rel="noreferrer"
-            aria-label="Instagram da Brasil Drones"
-            title="Instagram da Brasil Drones"
+            aria-label={`Instagram de ${identity.brandName}`}
+            title={`Instagram de ${identity.brandName}`}
             className="hidden h-10 w-10 items-center justify-center rounded-full text-brand-white transition-colors hover:bg-white/5 hover:text-[#E1306C] md:inline-flex"
           >
             <Instagram className="h-5 w-5" />
-          </a>
+          </a> : null}
 
           <button
             onClick={onCartToggle}
@@ -732,7 +738,7 @@ export default function Navbar({
               <span className="text-sm font-semibold">Meus pedidos</span>
               <ReceiptText className="w-4 h-4" />
             </Link>
-            <a
+            {INSTAGRAM_URL ? <a
               href={INSTAGRAM_URL}
               target="_blank"
               rel="noreferrer"
@@ -741,7 +747,7 @@ export default function Navbar({
             >
               <span className="text-sm font-semibold">Instagram</span>
               <Instagram className="h-4 w-4 text-[#E1306C]" />
-            </a>
+            </a> : null}
           </div>
         </div>
       )}

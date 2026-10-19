@@ -246,6 +246,16 @@ describe('Mercado Pago Payment Brick payload', () => {
     expect(body.payer.email).toBe('cliente@real.example');
   });
 
+  it('never charges another store with the legacy Brasil Drones credentials', async () => {
+    await expect(createMercadoPagoBrickPayment({
+      order: { ...(order as object), storeId: '20000000-0000-4000-8000-000000000001' } as never,
+      baseUrl: 'https://outra-loja.example', environment: 'test',
+      idempotencyKey: 'isolated-store-attempt',
+      formData: { payment_method_id: 'pix', payment_type_id: 'bank_transfer' },
+    })).rejects.toThrow('mercado_pago_not_configured');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('keeps provider errors on the server boundary', async () => {
     vi.stubGlobal(
       'fetch',

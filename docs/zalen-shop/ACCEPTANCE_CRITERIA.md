@@ -1,5 +1,12 @@
 # Critérios de Aceite — Zalen Shop
 
+Incremento de 19/10/2026: além dos critérios da primeira etapa somente
+leitura, validar cadastro atômico/idempotente (inclusive concorrência),
+responsável existente, slug reservado/duplicado sem cadastro parcial,
+rascunho privado, versão publicada independente, ativação/desativação pelo
+dono, loja vazia sem conteúdo/credencial herdada e marca nas páginas comuns.
+[Contrato e validações](STORE_PROVISIONING_AND_PRESENTATION.md).
+
 ## 1. Plataforma
 
 - Projeto usa Next.js App Router.

@@ -1,6 +1,8 @@
 'use client';
 
 import React from 'react';
+import { useStorefrontIdentity } from '@/modules/storefront/StorefrontIdentity';
+import { NeutralFooter } from '@/components/storefront/NeutralStorefront';
 import Link from 'next/link';
 import { Instagram, ShieldCheck } from 'lucide-react';
 import Logo from '../ui/Logo';
@@ -14,13 +16,16 @@ const fallbackCategories = [
   { name: 'Kits e Combos', slug: 'kits-e-combos' },
 ];
 
-const INSTAGRAM_URL = 'https://www.instagram.com/dronesepartsbrasildji/';
+
 
 export default function Footer({
   categories = [],
 }: {
   categories?: Array<Pick<StorefrontCategory, 'name' | 'slug'>>;
 }) {
+  const identity = useStorefrontIdentity();
+  if (identity?.renderer !== 'brasil-drones') return <NeutralFooter categories={categories} />;
+  const INSTAGRAM_URL = identity.instagramUrl || undefined;
   const categoryLinks = (categories.length ? categories : fallbackCategories).slice(0, 8);
 
 
@@ -34,8 +39,10 @@ export default function Footer({
         <div className="flex flex-col gap-6">
           <Logo size="sm" />
           <p className="text-[14px] leading-relaxed text-brand-muted font-normal max-w-sm">
-            A Brasil Drones & Parts é especializada em drones e peças de alta performance, oferecendo tecnologia, suporte e segurança para elevar seus projetos de mapeamento, filmagem ou inspeção técnica.
+            {identity.footerText}
           </p>
+          {identity.email ? <a href={`mailto:${identity.email}`} className="text-sm text-brand-muted">{identity.email}</a> : null}
+          {identity.phone ? <p className="text-sm text-brand-muted">{identity.phone}</p> : null}
           <a
             href={INSTAGRAM_URL}
             target="_blank"
@@ -43,7 +50,7 @@ export default function Footer({
             className="inline-flex h-10 w-fit items-center gap-2 rounded-lg border border-white/10 px-3 text-sm font-semibold text-brand-muted transition hover:border-[#E1306C]/50 hover:text-[#E1306C]"
           >
             <Instagram className="h-4 w-4" />
-            @dronesepartsbrasildji
+            Instagram
           </a>
         </div>
 
@@ -85,7 +92,7 @@ export default function Footer({
             Novidades
           </h4>
           <p className="text-[13px] text-brand-muted leading-relaxed">
-            Acompanhe as novidades da Brasil Drones & Parts no Instagram.
+            Acompanhe as novidades de {identity.brandName}.
           </p>
 
           <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="inline-flex w-fit items-center gap-2 rounded-xl border border-brand-border px-4 py-3 text-sm text-brand-white transition hover:border-blue-primary">
@@ -98,7 +105,7 @@ export default function Footer({
       <div className="w-full border-t border-brand-border-soft bg-black/40 py-8 px-6 md:px-8">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-brand-muted font-normal">
           <span>
-            © 2026 Brasil Drones & Parts. Todos os direitos reservados.
+            © {new Date().getFullYear()} {identity.brandName}. Todos os direitos reservados.
           </span>
           <div className="flex items-center gap-6">
             <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-green-accent" /> 100% Seguro</span>

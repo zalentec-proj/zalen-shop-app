@@ -1,3 +1,5 @@
+'use client';
+import { useStorefrontIdentity } from '@/modules/storefront/StorefrontIdentity';
 import { MessageCircleQuestion } from 'lucide-react';
 import { buildProductQuestionWhatsAppUrl } from '@/modules/storefront/whatsapp-contact';
 
@@ -14,7 +16,9 @@ export function ProductWhatsAppQuestionLink({
   sku,
   className = '',
 }: ProductWhatsAppQuestionLinkProps) {
-  const href = buildProductQuestionWhatsAppUrl({ productName, productUrl, sku });
+  const identity = useStorefrontIdentity();
+  if (!identity?.whatsapp) return null;
+  const href = buildProductQuestionWhatsAppUrl({ productName, productUrl, sku, whatsapp: identity.whatsapp, brandName: identity.brandName });
 
   return (
     <a

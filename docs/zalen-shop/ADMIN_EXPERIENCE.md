@@ -1,5 +1,10 @@
 # Admin Experience — Zalen Shop
 
+Incremento autorizado em 19/10/2026: **Nova loja**, ficha **Personalizar**,
+rascunho, prévia privada, publicação e desativação confirmadas. O formulário
+mostra responsável e endereço fixo. Identidade do admin segue Zalen Shop.
+[Operação e permissões](STORE_PROVISIONING_AND_PRESENTATION.md).
+
 ## 1. Função do admin
 
 A área global mínima usa identidade Zalen Shop em `/platform/lojas`, separada do

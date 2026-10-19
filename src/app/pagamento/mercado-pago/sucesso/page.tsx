@@ -21,7 +21,7 @@ interface PageProps {
 }
 
 export const metadata = {
-  title: 'Pagamento confirmado — Brasil Drones & Parts',
+  title: 'Pagamento confirmado',
   ...noindexMetadata,
 };
 

@@ -1,5 +1,11 @@
 # Estratégia de Conectores — Zalen Shop
 
+Cadastro de lojas (incremento de 19/10/2026): não copiar `store_integrations`,
+credenciais, remetentes ou configuração comercial da Brasil Drones. Novas
+lojas começam sem conexão de ERP, pagamento, frete ou WhatsApp. O catálogo
+global de providers não equivale a uma conexão ativa da loja.
+[Contrato do cadastro](STORE_PROVISIONING_AND_PRESENTATION.md).
+
 ## 1. Decisão central
 
 Os conectores pertencem ao core da Zalen Shop. As lojas apenas ativam/configuram os conectores disponíveis.

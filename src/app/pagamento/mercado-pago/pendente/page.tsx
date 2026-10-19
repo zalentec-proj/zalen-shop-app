@@ -16,7 +16,7 @@ interface PageProps {
 }
 
 export const metadata = {
-  title: 'Pagamento pendente — Brasil Drones & Parts',
+  title: 'Pagamento pendente',
   ...noindexMetadata,
 };
 

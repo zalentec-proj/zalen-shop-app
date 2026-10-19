@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { requirePlatformAccess } from '@/modules/platform/platform-access';
+
 import {
   droneAccessoriesImage,
   mavic3ProImage,
@@ -36,6 +38,10 @@ import {
 import { isRenderableCatalogImageUrl } from './catalog-image-url';
 import { normalizeProductDescription } from './product-description';
 import { normalizeAdminQuery, toAdminPaginatedResult, type AdminPaginatedResult, type AdminPaginationInput } from '@/modules/admin/admin-pagination';
+
+function canUseMockCatalog(storeId: string) {
+  return process.env.NODE_ENV !== 'production' && ['00000000-0000-0000-0000-000000000001', 'brasil-drones-store-001'].includes(storeId);
+}
 
 export type CatalogDataSource = 'supabase' | 'mock' | 'unavailable';
 
@@ -477,9 +483,10 @@ function buildCategoryUpdatePayload(category: UpsertIntegrationCategoryInput) {
 }
 
 async function getCatalogReadClients(
-  options: { adminOnly?: boolean } = {}
+  options: { adminOnly?: boolean; platformPreview?: boolean } = {}
 ): Promise<SupabaseCatalogClient[]> {
   const adminClient = createOptionalAdminClient();
+  if (options.platformPreview) return adminClient ? [adminClient] : [];
   const authenticatedClient = options.adminOnly
     ? await createOptionalClient()
     : null;
@@ -636,7 +643,7 @@ async function mapSupabaseProductsWithRelations(
 
 async function fetchSupabaseProducts(
   storeId: string,
-  options: { adminOnly?: boolean; includeInactive?: boolean } = {}
+  options: { adminOnly?: boolean; includeInactive?: boolean; platformPreview?: boolean } = {}
 ): Promise<Product[] | null> {
   const clients = await getCatalogReadClients(options);
 
@@ -1334,6 +1341,11 @@ export async function listProductsFromRepository(storeId: string) {
   return (await listProductsWithSourceFromRepository(storeId)).data;
 }
 
+export async function listPlatformPreviewProducts(storeId: string): Promise<Product[]> {
+  await requirePlatformAccess();
+  return (await fetchSupabaseProducts(storeId, { platformPreview: true })) ?? [];
+}
+
 export async function listStorefrontProductsFromRepository(
   storeId: string
 ): Promise<Product[]> {
@@ -1343,7 +1355,7 @@ export async function listStorefrontProductsFromRepository(
     return supabaseProducts;
   }
 
-  return process.env.NODE_ENV === 'production' ? [] : mockProducts;
+  return !canUseMockCatalog(storeId) ? [] : mockProducts;
 }
 
 export async function listProductsByIdsFromRepository(
@@ -1373,8 +1385,8 @@ export async function listProductsWithSourceFromRepository(
   }
 
   return {
-    data: process.env.NODE_ENV === 'production' ? [] : getMockProductSummaries(),
-    source: process.env.NODE_ENV === 'production' ? 'unavailable' : 'mock',
+    data: !canUseMockCatalog(storeId) ? [] : getMockProductSummaries(),
+    source: !canUseMockCatalog(storeId) ? 'unavailable' : 'mock',
   };
 }
 
@@ -1397,10 +1409,10 @@ export async function listAdminProductsWithSourceFromRepository(
 
   return {
     data:
-      process.env.NODE_ENV === 'production'
+      !canUseMockCatalog(storeId)
         ? []
         : mockProducts.map(toProductSummary),
-    source: process.env.NODE_ENV === 'production' ? 'unavailable' : 'mock',
+    source: !canUseMockCatalog(storeId) ? 'unavailable' : 'mock',
   };
 }
 
@@ -1441,7 +1453,7 @@ export async function listAdminProductsPageFromRepository(
     };
   }
 
-  const fallback = process.env.NODE_ENV === 'production'
+  const fallback = !canUseMockCatalog(storeId)
     ? []
     : mockProducts.map(toProductSummary).filter((product) => {
         const matchesQuery = !q || product.name.toLowerCase().includes(q.toLowerCase());
@@ -1451,7 +1463,7 @@ export async function listAdminProductsPageFromRepository(
   const items = fallback.slice(from, to + 1);
   return {
     ...toAdminPaginatedResult(items, fallback.length, filters),
-    source: process.env.NODE_ENV === 'production' ? 'unavailable' : 'mock',
+    source: !canUseMockCatalog(storeId) ? 'unavailable' : 'mock',
   };
 }
 
@@ -1476,8 +1488,8 @@ export async function listCategoriesWithSourceFromRepository(
   }
 
   return {
-    data: process.env.NODE_ENV === 'production' ? [] : mockCategories,
-    source: process.env.NODE_ENV === 'production' ? 'unavailable' : 'mock',
+    data: !canUseMockCatalog(storeId) ? [] : mockCategories,
+    source: !canUseMockCatalog(storeId) ? 'unavailable' : 'mock',
   };
 }
 
@@ -1491,7 +1503,7 @@ export async function getProductBySlugFromRepository(
     return supabaseProduct;
   }
 
-  return process.env.NODE_ENV === 'production'
+  return !canUseMockCatalog(storeId)
     ? null
     : getMockProductBySlug(slug) ?? null;
 }
@@ -1506,7 +1518,7 @@ export async function getProductByIdFromRepository(
     return supabaseProduct;
   }
 
-  return process.env.NODE_ENV === 'production'
+  return !canUseMockCatalog(storeId)
     ? null
     : mockProducts.find((product) => product.id === id) ?? null;
 }
@@ -1524,7 +1536,7 @@ export async function getCategoryBySlugFromRepository(
       return category;
     }
 
-    if (isCategoryGroupRoot({ name: syntheticCategoryLabelBySlug[slug] ?? slug, slug })) {
+    if (storeId === '00000000-0000-0000-0000-000000000001' && isCategoryGroupRoot({ name: syntheticCategoryLabelBySlug[slug] ?? slug, slug })) {
       return {
         id: slug,
         storeId,
@@ -1537,7 +1549,7 @@ export async function getCategoryBySlugFromRepository(
     return null;
   }
 
-  return process.env.NODE_ENV === 'production'
+  return !canUseMockCatalog(storeId)
     ? null
     : getMockCategoryBySlug(slug) ?? null;
 }
@@ -1555,7 +1567,7 @@ export async function listCategoryProductsFromRepository(
     return supabaseProducts;
   }
 
-  return process.env.NODE_ENV === 'production'
+  return !canUseMockCatalog(storeId)
     ? []
     : getMockProductsByCategory(categorySlug);
 }
@@ -1583,7 +1595,7 @@ export async function listRelatedProductsFromRepository(
     return supabaseProducts;
   }
 
-  return process.env.NODE_ENV === 'production'
+  return !canUseMockCatalog(storeId)
     ? []
     : getMockRelatedProducts(productSlug, limit).map(toProductSummary);
 }

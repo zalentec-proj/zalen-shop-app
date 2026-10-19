@@ -1,5 +1,11 @@
 # Roadmap — Zalen Shop
 
+Avanço autorizado em 19/10/2026 após a primeira etapa global publicada:
+cadastro atômico e personalização por loja com prévia e publicação explícita.
+O estado de implementação/release está no
+[handoff](../work-context/CURRENT_STATE.md); o contrato está em
+[Cadastro e personalização](STORE_PROVISIONING_AND_PRESENTATION.md).
+
 ## Fase 1 — Fundação da plataforma
 
 Objetivo: consolidar a base Zalen Shop com Brasil Drones como primeira store.

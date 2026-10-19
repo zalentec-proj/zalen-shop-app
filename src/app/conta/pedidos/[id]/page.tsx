@@ -23,7 +23,7 @@ import PendingPaymentAutoRefresh from './PendingPaymentAutoRefresh';
 import { retryCustomerOrderPaymentAction } from './actions';
 
 export const metadata: Metadata = {
-  title: 'Detalhe do pedido — Brasil Drones & Parts',
+  title: 'Detalhe do pedido',
   ...noindexMetadata,
 };
 
