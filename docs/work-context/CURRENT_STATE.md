@@ -6,9 +6,11 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 ## Snapshot
 
-- Atualizado em: 2026-10-16
-- Frente mais recente: primeira etapa do Platform Admin implementada e validada
-  em código; conta dona e publicação pendentes, conforme bloco de 16/10 abaixo.
+- Atualizado em: 2026-10-19
+- Frente mais recente: reconferência das conexões Supabase após atualização
+  pelo responsável; acesso ao projeto ainda indisponível nesta conversa.
+  Primeira etapa do Platform Admin implementada e validada em código; conta
+  dona e publicação pendentes, conforme blocos de 19/10 e 16/10 abaixo.
 - Branch desta implementação: `codex/platform-admin-access`, criada a partir de
   `codex/production-readiness-audit` após fetch e pull --rebase, sem mudanças
   locais anteriores.
@@ -28,6 +30,30 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Login e admin pertencem à identidade Zalen Shop; o storefront pertence à loja ativa.
 - `/platform` completo, billing, marketplace e automações de IA continuam fora do MVP.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
+
+## Reconferência das conexões Supabase (19/10/2026)
+
+- Objetivo: verificar se a nova conexão permite concluir a conta dona já
+  autorizada, sem alterar o escopo de implementação ou publicar a aplicação.
+- Evidência atual: a captura enviada pelo responsável mostra quatro conexões,
+  incluindo Zalen Tech. As ferramentas desta conversa disponibilizam apenas
+  três conexões; a consulta real de projetos retornou Zalen Events, App Provision
+  e os projetos Blackboy/Zalen Finance. Nenhuma lista contém `zalen.shop`.
+- A conexão que anteriormente permitia consultar `xtwobxfepsdfjrtducqb` agora
+  lista App Provision. Uma nova consulta somente de leitura ao usuário indicado
+  no projeto da Zalen Shop retornou falta de permissão. Não foi possível
+  reconfirmar se a conta ou o papel global foram criados fora desta conversa.
+- Bloqueio: Zalen Tech ainda não está exposta nas ferramentas desta sessão.
+  Não confundir a conexão OAuth do Codex com um usuário do Supabase Auth do app.
+- Próximo passo exato: atualizar/reabrir a conversa para carregar a conexão
+  Zalen Tech; conferir acesso ao projeto exato e consultar a conta autorizada.
+  Se a conta existir, seguir o procedimento de primeiro dono em
+  `docs/zalen-shop/AUTH_AND_ACCESS.md`. Se não existir, a criação continua
+  dependendo da API administrativa oficial ou do painel de Authentication.
+- Validação: três listagens de projetos e uma consulta negada, sem escrita no
+  Supabase. Branch limpa e sincronizada após fetch e pull --rebase antes deste
+  registro. Nenhuma conta, permissão, senha, configuração ou deploy alterado;
+  não houve mudança de código que exija repetir os testes de 16/10.
 
 ## Platform Admin mínimo — primeira etapa (16/10/2026)
 
