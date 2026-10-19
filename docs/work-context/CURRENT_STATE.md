@@ -12,6 +12,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Implementado: cadastro atômico/idempotente, responsável Auth existente,
   rascunho, prévia privada, publicação/desativação pelo dono, template neutro e
   identidade por loja nas páginas compartilhadas. Sem criação de lojas reais.
+- Código da entrega: `82bf6c871c45403c9dbbeddac553e7a3ddc692a0` (enviado).
 - Branch: `codex/platform-store-customization`, partindo de `57bc5a4`, após
   fetch e pull --rebase com working tree limpa.
 - Produção continua em `32ab561e2ad58580a49c1ff821cdf045908b99be`, deployment
@@ -72,6 +73,14 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   compra, cobrança, ativação de ERP ou cópia de credencial nesta implementação.
 - Cobertura publicada pelo Vitest refere-se apenas aos quatro arquivos já
   configurados em `vitest.config.ts`, não ao app inteiro.
+- Preview Git Vercel READY para o código `82bf6c8`:
+  `dpl_HVLrrETARoPcEcFn1dqQTuLhdDdH`,
+  `https://zalen-shop-fts0catw4-zalentec-8411s-projects.vercel.app`.
+  Build cloud confirmado; não é release de produção nem homologação de CRUD
+  com dados reais (a migration ainda não foi aplicada).
+- Ambientes descartáveis e a aba de teste foram encerrados. A evidência de
+  desktop e os testes versionados foram preservados; painel real do dono
+  permaneceu aberto.
 - Contrato de operação e release:
   `docs/zalen-shop/STORE_PROVISIONING_AND_PRESENTATION.md`.
 
