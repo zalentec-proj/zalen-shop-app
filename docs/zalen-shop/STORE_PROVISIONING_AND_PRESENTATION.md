@@ -80,10 +80,14 @@ O papel global não é concedido ao responsável da loja.
 - Regressões cobrem validação, guard global, marca comum, ausência de contatos
   herdados e bloqueio de pagamento sem credencial própria.
 - Antes de publicar, aplicar a migration aditiva revisada
-  `20261019150054_platform_store_provisioning.sql` no projeto correto e conferir
-  tabelas, grants, função e políticas. Depois publicar o código e validar com a
+  `20261019150054_platform_store_provisioning.sql` e o índice complementar
+  `20261019165113_platform_store_request_store_index.sql` no projeto correto e
+  conferir tabelas, grants, função e políticas. Depois publicar o código e validar com a
   sessão real do dono. A migration não cria uma nova loja real nem altera
   catálogo, integrações ou status da Brasil Drones.
+- Aplicadas em 19/10/2026 no projeto Zalen Shop. O MCP registrou as versões
+  remotas `20261019165012` e `20261019165142`; não reaplicar pelo timestamp
+  local. O handoff contém a correspondência, commits e deployment da entrega.
 - Reverter o código é compatível com as tabelas adicionais; não remover tabelas
   que já contenham lojas/configurações. Conferir status das lojas caso haja
   rollback para uma versão antiga com fallback estático da Brasil Drones.

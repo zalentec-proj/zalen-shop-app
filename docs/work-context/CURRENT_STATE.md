@@ -15,23 +15,82 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Código da entrega: `82bf6c871c45403c9dbbeddac553e7a3ddc692a0` (enviado).
 - Branch: `codex/platform-store-customization`, partindo de `57bc5a4`, após
   fetch e pull --rebase com working tree limpa.
-- Produção continua em `32ab561e2ad58580a49c1ff821cdf045908b99be`, deployment
-  `dpl_ELU9p8MAW7trDXjwtmF7xzRJ8HjS`. A autorização anterior de publicação
-  foi concluída para a primeira etapa. Este incremento ainda não foi publicado.
-- Migration preparada: `20261019150054_platform_store_provisioning.sql`,
-  testada somente em PostgreSQL 17 descartável. Sem aplicação no banco real.
-- Validação final: TypeScript, 458 testes em 78 arquivos, thresholds de
+- Publicado após autorização explícita em 19/10: “Sim, publicar esta etapa”.
+  Produção final `7a989f745528d0a31f2a46ea6a32c72548c39d5d`, deployment
+  `dpl_7VPPLmu5TdLu1NG3iTZRr1ekQEM9`, READY nos aliases oficiais, inclusive
+  `app.zalenshop.com.br`. Branch `refactor/migrate-to-next` avançada por
+  fast-forward. Cadastro, ficha e prévia conferidos na sessão real do dono.
+- Migrations locais `20261019150054_platform_store_provisioning.sql` e
+  `20261019165113_platform_store_request_store_index.sql` aplicadas no projeto
+  `zalen.shop` / `xtwobxfepsdfjrtducqb`. Histórico remoto registrado pelo MCP
+  como `20261019165012` e `20261019165142`, respectivamente.
+- Validação final: TypeScript, 461 testes em 78 arquivos, thresholds de
   cobertura configurados, build Next.js 16.3.8, scanner de segredos (incluindo
   arquivos novos adicionados ao index) e diff check aprovados. Testes SQL
   locais incluem cadastros simultâneos, atomicidade, idempotência e Data API.
-- Próximo passo: publicar o incremento após decisão do responsável: aplicar a
-  migration revisada no projeto correto, verificar grants/RLS e depois liberar
-  o código em produção. A autorização anterior de publicação foi para a etapa
-  de acesso, já concluída. Não aplicar novamente a atribuição de dono.
+- Próximo passo do produto: o dono cadastrar a primeira nova loja em
+  `/platform/lojas/nova`, usando uma conta Auth existente como responsável;
+  configurar identidade, salvar, conferir a prévia e publicar. Nenhuma nova
+  loja foi criada nesta entrega. Não reaplicar as migrations nem o papel dono.
 - Credenciais, vendas, catálogos comerciais e integrações reais preservados.
 - Guia de continuidade: `docs/work-context/IDE_HANDOFF.md`.
 
-## Cadastro e personalização — implementação de 19/10/2026
+## Cadastro e personalização — publicação de 19/10/2026
+
+- Aprovação explícita do responsável para migration e publicação. Preflight:
+  branch e remoto sincronizados, produção anterior `32ab561`, migration ainda
+  ausente, uma loja Brasil Drones ativa, conta dona já em `platform_owner`.
+- Migration principal aplicada pelo MCP na conexão Zalen Tech. Conferência
+  posterior: cinco tabelas com RLS; `anon`/`authenticated` somente SELECT no
+  snapshot publicado com política de loja ativa; nenhuma leitura/escrita dos
+  rascunhos, perfis, eventos ou idempotência. RPC público invoker e função
+  privada definer com `search_path` vazio; EXECUTE exclusivo de `service_role`.
+  Nenhuma linha nas novas tabelas; continua apenas a Brasil Drones ativa.
+- Advisor de desempenho identificou FK sem índice no ledger privado de
+  idempotência. Migration adicional cobre `platform_store_requests.store_id`;
+  índice confirmado no catálogo, novo advisor sem FK descoberta deste
+  incremento. Suite SQL descartável repetida com ambas as migrations: passou,
+  incluindo envios concorrentes. Os dois scripts locais aplicam ambas.
+- Os quatro avisos INFO de RLS sem políticas são intencionais: tabelas
+  administrativas sem grants para clientes e deny por padrão. Não adicionar
+  políticas permissivas para remover o aviso. Referência do advisor:
+  [RLS sem políticas](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy).
+  Aviso Auth de proteção contra senha vazada permanece fora deste incremento:
+  [orientação do Supabase](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
+  Índices novos ainda sem uso são esperados em tabelas vazias.
+- Primeiro deployment Git de produção `dpl_F1LfENBd7PgurHc9yeNwzgfD98p5`,
+  commit `7c4c685`, READY com aliases oficiais. Sessão real do dono mostrou
+  Nova loja/Personalizar e abriu o cadastro. A ficha Brasil Drones expôs uma
+  incompatibilidade: `z.uuid()` rejeitava o UUID seed legado sem bits RFC.
+  `storeIdSchema` agora usa `z.guid()` para o formato aceito pelo PostgreSQL;
+  UUID de requisição permanece estrito. Regressões cobrem leitura do seed,
+  publicação e rejeição de identificadores malformados antes do cliente admin.
+- Correção `7a989f7`: TypeScript, 461 testes/78 arquivos, thresholds existentes,
+  build Next.js 16.3.8, scanner de segredos e diff check aprovados.
+  Deployment Git final: `dpl_7VPPLmu5TdLu1NG3iTZRr1ekQEM9`,
+  `https://zalen-shop-4432ho7cf-zalentec-8411s-projects.vercel.app`.
+  READY com todos os aliases oficiais. Consulta pelo domínio central confirmou
+  esse ID e o commit exato `7a989f745528d0a31f2a46ea6a32c72548c39d5d`.
+- No primeiro release, HTTP sem sessão: lista/cadastro/admin e prévia RSC
+  retornaram 307 para login com `private, no-store`; home/categoria Baterias
+  da Brasil Drones retornaram 200 e subdomínio 308 ao domínio canônico.
+  Consulta de logs error/fatal do deployment retornou nenhum grupo na amostra
+  de dez minutos.
+- Verificação final na sessão real já aberta: lista com Nova loja e Personalizar,
+  formulário de cadastro, ficha Brasil Drones e prévia privada versão 0 com
+  identidade e catálogo próprios abriram na versão corrigida. Nenhum rascunho
+  foi salvo. A conta dona continua com o papel global existente. Aba deixada no
+  formulário vazio `/platform/lojas/nova`, pronta para o responsável preencher.
+  Evidência visual: `/private/tmp/zalen-stores-production.jpg` (desktop).
+- HTTP da versão final: cadastro e prévia normal/RSC sem sessão → 307 para
+  login com `private, no-store`; home e categoria Baterias Brasil Drones → 200.
+  Após os acessos da ficha/prévia, consulta error/fatal dos últimos dez minutos
+  filtrada pelo deployment final não retornou grupos. Não é auditoria completa
+  de todos os fluxos, nem homologação móvel ou de vendas em novas lojas.
+- Nenhum POST de cadastro/salvamento/publicação/desativação em loja real.
+  Sem criação de conta, envio de e-mail, cópia de dados/credenciais ou compra.
+
+## Cadastro e personalização — implementação anterior ao release
 
 - Rotas: `/platform/lojas/nova`, `/platform/lojas/[id]` e prévia privada.
   Cadastro cria loja `planned`, vínculo `store_owner`, perfil, rascunho e
