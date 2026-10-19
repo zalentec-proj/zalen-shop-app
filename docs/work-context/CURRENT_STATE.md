@@ -8,19 +8,22 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 
 - Atualizado em: 2026-10-19
 - Frente mais recente: Platform Admin mínimo publicado e validado com a sessão
-  real do dono. Correção adicional do encaminhamento antecipado de `/admin`
-  central validada em código e aguardando a publicação deste commit.
+  real do dono. Correção do encaminhamento antecipado de `/admin` central
+  também publicada e conferida, sem o erro de resolução de loja na amostra.
   Conta dona com `platform_owner`, e-mail confirmado e senha redefinida pelo
   responsável; URLs de recuperação corrigidas no Supabase.
 - Branch desta implementação: `codex/platform-admin-access`, criada a partir de
   `codex/production-readiness-audit` após fetch e pull --rebase, sem mudanças
   locais anteriores.
 - Código publicado e branch de produção `refactor/migrate-to-next`:
-  `8124f0bc6de11b04330f15b5be4f8908c75bf2d4`, incluindo a implementação
-  `25ad151` do Platform Admin. Deploy Git `dpl_9MtxQ85LqVXTFZNEwNDkxj5B4yec`.
+  `32ab561e2ad58580a49c1ff821cdf045908b99be` —
+  `fix(auth): dispatch central admin before store pages render`, incluindo
+  a implementação `25ad151` do Platform Admin.
+  Deploy Git `dpl_ELU9p8MAW7trDXjwtmF7xzRJ8HjS`, READY em 19/10/2026.
 - Publicação explicitamente autorizada em 19/10/2026. O ajuste complementar
-  de `/admin` central desta sessão está no escopo dessa entrega. Preservar
-  alterações locais não relacionadas caso existam na próxima sessão.
+  de `/admin` central foi concluído no escopo dessa entrega. Esta branch recebe
+  o handoff documental após a publicação; essa diferença não representa código
+  de aplicação pendente de deploy. Preservar alterações locais não relacionadas.
 - Guia de continuidade para outra IDE/máquina: `docs/work-context/IDE_HANDOFF.md`.
 
 ## Contexto permanente
@@ -60,15 +63,29 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   do layout. O proxy agora encaminha esse host ao login antes da renderização,
   preservando `next` e cookies renovados. O login continua resolvendo o destino
   por papel/vínculo server-side; guards de layout e de dados permanecem ativos.
+- Release final: `32ab561` enviado por fast-forward à branch de implementação
+  e à de produção. Deployment Git `dpl_ELU9p8MAW7trDXjwtmF7xzRJ8HjS`,
+  `https://zalen-shop-c4afp2ll4-zalentec-8411s-projects.vercel.app`, READY e
+  associado aos aliases oficiais, inclusive `app.zalenshop.com.br` e loja.
+  A conferência do domínio central confirmou esse ID e o commit exato.
+- Verificação final na sessão real do dono: `/admin` e
+  `/admin/pedidos?page=2` no host central chegaram ao admin geral; abertura
+  do painel operacional e retorno por “Plataforma” funcionaram na nova versão.
+  Nenhum grupo error/fatal retornou na amostra de 10 minutos filtrada pelo
+  deployment final após os acessos centrais. Isso não é uma auditoria de todos
+  os fluxos do app. Na versão final, `/admin` e `/platform/lojas` sem sessão
+  retornaram 307 para login com `next` e cache privado/no-store. A nova consulta
+  filtrada por `/admin` após abrir a loja e voltar também não retornou erros.
+  A aba Chrome foi deixada em `/platform/lojas` como resultado.
 - Validação do ajuste: TypeScript, 435 testes em 75 arquivos com os thresholds
   de cobertura configurados, build Next.js 16.3.8, scanner de segredos e diff
   check aprovados. Novas regressões cobrem hosts centrais, caminho/filtros,
   cookies renovados e manutenção do painel operacional na loja. A cobertura
   continua limitada aos quatro arquivos configurados, não ao aplicativo todo.
-- Próximo passo exato: publicar o commit deste ajuste por fast-forward na
-  branch de produção; aguardar READY e repetir o acesso real ao `/admin`
-  central, confirmando ausência do erro no novo deployment. Depois registrar
-  o deployment final e manter a aba do admin geral aberta para o responsável.
+- Próximo passo exato da plataforma: iniciar o incremento de cadastro atômico
+  e personalização de lojas descrito em `PLATFORM_ADMIN_NEXT_STEPS_2026-10-16.md`
+  quando o responsável autorizar ampliar o escopo mínimo atual. A publicação,
+  a conta dona e o destino de login desta primeira etapa estão concluídos.
 - Referência anterior à etapa: `dpl_CBwwBUCKN3XxCHVn6W9rF9feeMrg` / `c6b9580`.
   Sem migration, alteração de dados comerciais, integração, credencial, SMTP,
   política RLS ou compra/pagamento. Cadastro e personalização de novas lojas
@@ -95,15 +112,14 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Verificações públicas, sem sessão/código: callback retornou 307 para
   `/login?auth=missing-code`; `/login/update-password` retornou 200. A ausência
   do código no teste é deliberada; não consumiu um link real nem enviou e-mail.
-- Próximo passo exato: o próprio usuário solicita novo link em
-  `https://app.zalenshop.com.br/login/forgot` se ainda precisar redefinir a senha,
-  abre o e-mail mais recente no mesmo navegador e conclui a definição de senha
-  diretamente no app. Confirmar o fluxo real após essa ação. Não reaproveitar
-  o link antigo nem copiar seu código para outro domínio. O `site_url` de
-  `supabase/config.toml`, destinado ao desenvolvimento local, foi preservado.
+- Resultado posterior: o próprio responsável informou que redefiniu a senha;
+  a sessão dele foi usada para a verificação real do admin geral publicado,
+  conforme bloco acima. Senha preenchida e submetida somente pelo usuário.
+  Não reaproveitar o link antigo nem copiar seu código para outro domínio.
+  O `site_url` local de `supabase/config.toml` foi preservado.
 - Sem mudança no código, senha, sessão, política RLS, confirmação automática,
-  templates, SMTP ou publicação. Fluxo com novo link e senha depende da ação
-  do responsável. Somente os dois campos de URL Configuration foram alterados.
+  templates ou SMTP nesta correção de URL. Somente os dois campos de URL
+  Configuration foram alterados. A publicação posterior está no bloco acima.
   Git sincronizado antes do registro; diff check aprovado. Referência:
   documentação oficial Supabase de Redirect URLs, também em AUTH_AND_ACCESS.md.
 
@@ -124,9 +140,10 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   nova consulta após o clique dele no link de recuperação confirmou a ativação.
   O retorno falhou por configuração de destino, conforme bloco acima. Nenhuma
   senha foi lida/alterada, sessão criada ou mensagem enviada pelo agente.
-- Publicação: as telas `/platform/lojas` e o novo destino de login permanecem na
-  branch `codex/platform-admin-access`. Falta publicar deliberadamente a etapa
-  implementada e validar login real do dono e do lojista entre os hosts.
+- Publicação: as telas `/platform/lojas` e o novo destino de login foram
+  publicados após autorização explícita, com verificação real da sessão dona
+  entre os hosts. O fluxo do lojista permanece coberto pelas regressões;
+  não houve troca para outra conta real nesta verificação.
 - Validação desta operação: identidade/projeto, unicidade, papel persistido e
   RLS conferidos no banco real. Sem mudança de código; não repetir a suíte de
   16/10 apenas por este vínculo. Fetch e pull --rebase concluídos antes do
