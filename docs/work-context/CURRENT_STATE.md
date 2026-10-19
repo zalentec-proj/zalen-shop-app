@@ -7,8 +7,13 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 ## Snapshot
 
 - Atualizado em: 2026-10-19.
-- Objetivo autorizado: cadastrar novas lojas pelo admin geral e personalizar cada
-  uma, seguindo `PLATFORM_ADMIN_NEXT_STEPS_2026-10-16.md`.
+- Objetivo atual autorizado: cadastrar a LB London pelo admin geral e começar
+  sua identidade em rascunho. A etapa de gestão de lojas abaixo está publicada.
+- Cadastro LB London preparado na interface com nome `LB London` e slug
+  `lb-london`, disponível no banco. Ainda não submetido: responsável solicitado
+  ao usuário, com opção de usar a conta existente `zalentec@gmail.com`.
+  Referência visual também solicitada; sugerida base provisória marinho/dourado.
+  Não inferir segmento, contatos, perfis sociais ou logo oficial.
 - Implementado: cadastro atômico/idempotente, responsável Auth existente,
   rascunho, prévia privada, publicação/desativação pelo dono, template neutro e
   identidade por loja nas páginas compartilhadas. Sem criação de lojas reais.
@@ -28,12 +33,31 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   cobertura configurados, build Next.js 16.3.8, scanner de segredos (incluindo
   arquivos novos adicionados ao index) e diff check aprovados. Testes SQL
   locais incluem cadastros simultâneos, atomicidade, idempotência e Data API.
-- Próximo passo do produto: o dono cadastrar a primeira nova loja em
-  `/platform/lojas/nova`, usando uma conta Auth existente como responsável;
-  configurar identidade, salvar, conferir a prévia e publicar. Nenhuma nova
-  loja foi criada nesta entrega. Não reaplicar as migrations nem o papel dono.
+- Próximo passo exato: receber a escolha do responsável da LB London, conferir
+  novamente se o slug está livre, preencher o e-mail e concluir pela interface
+  `/platform/lojas/nova`. Personalizar, salvar e conferir a prévia privada;
+  manter em preparação nesta solicitação de início de identidade. Nenhuma
+  nova loja foi criada até aqui. Não reaplicar migrations nem o papel dono.
 - Credenciais, vendas, catálogos comerciais e integrações reais preservados.
 - Guia de continuidade: `docs/work-context/IDE_HANDOFF.md`.
+
+## LB London — cadastro preparado (19/10/2026)
+
+- Solicitação explícita: cadastrar LB London e iniciar a identidade pelo admin
+  geral. Não inclui ativação pública, configuração Mercos, pagamentos ou cópia
+  de dados da Brasil Drones.
+- Documentação do case define apenas nome, isolamento e Mercos futuro; não há
+  e-mail de responsável, logo, paleta ou segmento confirmados no repositório.
+- Branch e remoto conferidos e sincronizados antes do trabalho. Consulta no
+  projeto `zalen.shop` / `xtwobxfepsdfjrtducqb`: slug `lb-london` livre, apenas
+  Brasil Drones ativa. Conta global existente está utilizável e confirmada.
+- Formulário real com sessão dona preservado no Chrome, nome e slug preenchidos,
+  e-mail vazio. Nenhum POST de cadastro ou alteração de banco nesta solicitação.
+  Evidência temporária `/private/tmp/lb-london-cadastro-preparado.jpg`.
+- Usuário recebeu duas perguntas: conta responsável e identidade existente ou
+  base provisória marinho/dourado. Aguarda o dado obrigatório de responsável.
+  Depois do cadastro, o nome em texto pode servir como marca inicial; não
+  inventar logo oficial, URLs de imagens, contatos ou catálogo comercial.
 
 ## Cadastro e personalização — publicação de 19/10/2026
 
