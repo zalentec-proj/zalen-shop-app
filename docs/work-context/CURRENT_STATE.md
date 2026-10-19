@@ -7,22 +7,20 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 ## Snapshot
 
 - Atualizado em: 2026-10-19
-- Frente mais recente: Site URL e callback de recuperação corrigidos no
-  Supabase após confirmação explícita do responsável, com persistência
-  conferida após recarregar o painel. Novo link ainda precisa ser testado.
-  Conta dona com `platform_owner` e e-mail confirmado pelo link aberto pelo usuário.
-  Primeira etapa do Platform Admin implementada e validada em código;
-  publicação e validação de login real pendentes, conforme blocos abaixo.
+- Frente mais recente: Platform Admin mínimo publicado e validado com a sessão
+  real do dono. Correção adicional do encaminhamento antecipado de `/admin`
+  central validada em código e aguardando a publicação deste commit.
+  Conta dona com `platform_owner`, e-mail confirmado e senha redefinida pelo
+  responsável; URLs de recuperação corrigidas no Supabase.
 - Branch desta implementação: `codex/platform-admin-access`, criada a partir de
   `codex/production-readiness-audit` após fetch e pull --rebase, sem mudanças
   locais anteriores.
 - Código publicado e branch de produção `refactor/migrate-to-next`:
-  `c6b95804a27723bf551b2318203d549d92883613` —
-  `fix(auth): redirect platform login directly to authorized store`.
-- Publicação autorizada e concluída em 06/10/2026. A branch da auditoria recebe
-  este handoff documental após a publicação; essa diferença de documentação
-  não representa código de aplicação pendente de deploy. Preservar alterações
-  locais não relacionadas caso existam na próxima sessão.
+  `8124f0bc6de11b04330f15b5be4f8908c75bf2d4`, incluindo a implementação
+  `25ad151` do Platform Admin. Deploy Git `dpl_9MtxQ85LqVXTFZNEwNDkxj5B4yec`.
+- Publicação explicitamente autorizada em 19/10/2026. O ajuste complementar
+  de `/admin` central desta sessão está no escopo dessa entrega. Preservar
+  alterações locais não relacionadas caso existam na próxima sessão.
 - Guia de continuidade para outra IDE/máquina: `docs/work-context/IDE_HANDOFF.md`.
 
 ## Contexto permanente
@@ -32,6 +30,49 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Login e admin pertencem à identidade Zalen Shop; o storefront pertence à loja ativa.
 - `/platform` completo, billing, marketplace e automações de IA continuam fora do MVP.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
+
+## Publicação do Platform Admin e encaminhamento central (19/10/2026)
+
+- Objetivo: concluir o acesso do dono ao admin geral. Após redefinir a senha,
+  o responsável relatou falha no `/admin` central e depois acesso ao painel da
+  Brasil Drones com a identificação de dono. A versão ativa ainda era a de
+  06/10 (`c6b9580`), sem a primeira etapa global. O responsável confirmou
+  explicitamente “Sim, publicar agora” após a preparação da entrega.
+- Primeiro release: push fast-forward do commit `8124f0b` para a branch de
+  produção, sem force push. Vercel concluiu o deployment Git
+  `dpl_9MtxQ85LqVXTFZNEwNDkxj5B4yec`, com os aliases oficiais. Antes disso,
+  foi criado um build de produção isolado por CLI, sem atribuir os domínios:
+  `dpl_HwUr9Bo3cJq1NnwVEt8dj5o99qje`, a partir de `git archive` de `8124f0b`,
+  somente arquivos versionados. A cópia temporária já foi removida. O candidato
+  isolado não é a versão ativa e não substitui o deployment Git rastreável.
+- Verificado no Chrome com a sessão real já aberta: `/login` e `/admin` no host
+  central chegaram a `/platform/lojas`; identificação “Dono da plataforma”,
+  uma loja ativa real e link correto. Abertura do admin Brasil Drones e retorno
+  pelo link “Plataforma” funcionaram. Nenhuma senha foi manipulada nem sessão
+  encerrada/criada pelo agente.
+- Verificado sem sessão: login HTTP 200 e `/platform/lojas` HTTP 307 para login
+  com `next`, cache privado/no-store. Vitrine no subdomínio redireciona 308 ao
+  domínio próprio; home e `/categoria/baterias` no domínio canônico retornaram
+  200. O teste real do lojista não foi refeito com outra conta; isolamento segue
+  coberto pelas regressões e pelo smoke isolado de 16/10.
+- Ajuste complementar: a checagem de logs encontrou `StoreNotFoundError` no
+  `/admin` central, pois a página de loja pode executar em paralelo ao redirect
+  do layout. O proxy agora encaminha esse host ao login antes da renderização,
+  preservando `next` e cookies renovados. O login continua resolvendo o destino
+  por papel/vínculo server-side; guards de layout e de dados permanecem ativos.
+- Validação do ajuste: TypeScript, 435 testes em 75 arquivos com os thresholds
+  de cobertura configurados, build Next.js 16.3.8, scanner de segredos e diff
+  check aprovados. Novas regressões cobrem hosts centrais, caminho/filtros,
+  cookies renovados e manutenção do painel operacional na loja. A cobertura
+  continua limitada aos quatro arquivos configurados, não ao aplicativo todo.
+- Próximo passo exato: publicar o commit deste ajuste por fast-forward na
+  branch de produção; aguardar READY e repetir o acesso real ao `/admin`
+  central, confirmando ausência do erro no novo deployment. Depois registrar
+  o deployment final e manter a aba do admin geral aberta para o responsável.
+- Referência anterior à etapa: `dpl_CBwwBUCKN3XxCHVn6W9rF9feeMrg` / `c6b9580`.
+  Sem migration, alteração de dados comerciais, integração, credencial, SMTP,
+  política RLS ou compra/pagamento. Cadastro e personalização de novas lojas
+  continuam sendo o próximo incremento, fora da listagem somente leitura.
 
 ## Recuperação de senha — destino localhost (19/10/2026)
 

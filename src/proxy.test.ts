@@ -56,7 +56,8 @@ describe('platform/store login routing', () => {
         return { data: { user: { id: 'fixture-user' } } };
       } },
     }));
-    const response = await proxy(request('https://app.zalenshop.com.br/platform/lojas'));
+    const response = await proxy(request('https://app.zalenshop.com.br/admin'));
+    expect(new URL(response.headers.get('location')!).pathname).toBe('/login');
     expect(response.cookies.get('fixture-session')?.value).toBe('fixture-value');
     expect(response.cookies.get('fixture-session')?.domain).toBe('.zalenshop.com.br');
   });
@@ -68,11 +69,25 @@ describe('platform/store login routing', () => {
     expect(login.searchParams.get('next')).toBe('http://localhost:3000/admin/pedidos?page=2');
   });
 
-  it('never selects Brasil Drones for a direct central admin request', async () => {
+  it.each([
+    'https://app.zalenshop.com.br',
+    'https://zalenshop.com.br',
+    'http://app.lvh.me:3000',
+  ])('dispatches central admin before store pages render: %s', async (origin) => {
     mocks.getUser.mockResolvedValue({ data: { user: { id: 'fixture-user' } } });
-    const response = await proxy(request('https://app.zalenshop.com.br/admin/pedidos?page=2'));
+    const response = await proxy(request(`${origin}/admin/pedidos?page=2`));
+    const login = new URL(response.headers.get('location')!);
+    expect(login.pathname).toBe('/login');
+    expect(login.host).toBe(new URL(origin).hostname === 'zalenshop.com.br'
+      ? 'app.zalenshop.com.br' : new URL(origin).host);
+    expect(login.searchParams.get('next')).toBe(`${origin}/admin/pedidos?page=2`);
+    expect(response.headers.get('cache-control')).toBe('private, no-store');
+  });
+
+  it('keeps an authenticated store admin request on its store', async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: { id: 'fixture-user' } } });
+    const response = await proxy(request('https://lb-london.zalenshop.com.br/admin/pedidos?page=2'));
     expect(response.headers.get('location')).toBeNull();
-    expect(mocks.getUser).toHaveBeenCalled();
   });
 
   it.each(['/platform', '/platform/lojas?page=2', '/lojas'])('protects central routes and preserves next: %s', async (path) => {

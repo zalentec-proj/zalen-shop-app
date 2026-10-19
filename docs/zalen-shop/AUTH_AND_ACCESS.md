@@ -121,6 +121,11 @@ Conta sem vínculo recebe estado de acesso indisponível, sem fallback de loja.
 A listagem global exige papel global na camada de dados e mostra também lojas
 em preparação ou inativas. Estas não recebem link para admin operacional.
 
+O `/admin` do host central é encaminhado pelo proxy ao login, que resolve o
+destino com a sessão renovada antes de renderizar páginas de loja. O redirect
+no layout é mantido como defesa, mas páginas e layouts podem executar em
+paralelo: o layout sozinho não evita queries de loja para o host central.
+
 O subdomínio/domínio próprio já resolve a store server-side. A constante abaixo
 permanece como fallback local legado, não como destino do login central.
 

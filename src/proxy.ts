@@ -11,7 +11,7 @@ import {
   normalizeHostname,
 } from '@/modules/stores/host-resolution';
 import { getSafeLoginNextTarget, isAdminPath } from '@/modules/auth/login-navigation';
-import { getPlatformOrigin, isPlatformPath, isStoreSelectionPath } from '@/modules/auth/operational-navigation';
+import { getPlatformOrigin, isCentralAppOrigin, isPlatformPath, isStoreSelectionPath } from '@/modules/auth/operational-navigation';
 
 const placeholderFragments = [
   '${',
@@ -177,7 +177,12 @@ export async function proxy(request: NextRequest) {
 
   response.headers.set('Cache-Control', 'private, no-store');
 
-  if (isProtectedRoute && !user) {
+  // Store pages can load data in parallel with their layout. Dispatch central
+  // /admin requests before rendering; the login page still authorizes the role
+  // and store destination using the refreshed session.
+  const isCentralAdmin = isAdminPath(pathname) &&
+    isCentralAppOrigin(getRequestOrigin(request), rootDomain);
+  if ((isProtectedRoute && !user) || isCentralAdmin) {
     const requestOrigin = getRequestOrigin(request);
     const loginUrl = new URL(
       '/login',
