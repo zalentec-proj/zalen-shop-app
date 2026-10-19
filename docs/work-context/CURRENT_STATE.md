@@ -7,8 +7,8 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 ## Snapshot
 
 - Atualizado em: 2026-10-19
-- Frente mais recente: reconferência das conexões Supabase após atualização
-  pelo responsável; acesso ao projeto ainda indisponível nesta conversa.
+- Frente mais recente: conexão Zalen Tech carregada e acesso ao projeto
+  restabelecido; consulta confirmou que a conta dona ainda não existe no Auth.
   Primeira etapa do Platform Admin implementada e validada em código; conta
   dona e publicação pendentes, conforme blocos de 19/10 e 16/10 abaixo.
 - Branch desta implementação: `codex/platform-admin-access`, criada a partir de
@@ -32,6 +32,24 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Reconferência das conexões Supabase (19/10/2026)
+
+- Atualização após reabertura da conversa: Zalen Tech agora está disponível.
+  A listagem confirmou `zalen.shop` (`xtwobxfepsdfjrtducqb`) saudável e a
+  consulta administrativa funcionou. A conta exata autorizada ainda não foi
+  encontrada em `auth.users`; `platform_users` continua com zero registros.
+- Bloqueio atual: o conector oferece SQL, mas não criação de usuários Auth;
+  não usar inserção direta em `auth.users` como substituto da API oficial.
+  A aba do painel continua autenticada na conta Leehov, cuja lista de
+  organizações não inclui Zalen. Nenhuma troca de conta ou senha foi realizada.
+- Próximo passo atualizado: o responsável entra no painel com a conta Zalen
+  e cria o usuário autorizado em Authentication → Users, preenchendo a senha
+  diretamente no Supabase. Depois consultar o ID/e-mail verificado e atribuir
+  `platform_owner` conforme `AUTH_AND_ACCESS.md`. O acesso ao projeto pelo
+  conector já está resolvido; não solicitar outra reconexão por esse motivo.
+- Nenhuma escrita no Supabase ou publicação nesta atualização. Git sincronizado
+  antes do registro; sem mudança de código ou necessidade de repetir testes.
+
+### Verificação anterior à reabertura da conversa
 
 - Objetivo: verificar se a nova conexão permite concluir a conta dona já
   autorizada, sem alterar o escopo de implementação ou publicar a aplicação.
