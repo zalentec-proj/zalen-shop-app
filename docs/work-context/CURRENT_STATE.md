@@ -7,13 +7,14 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 ## Snapshot
 
 - Atualizado em: 2026-10-19.
-- Objetivo atual autorizado: cadastrar a LB London pelo admin geral e começar
-  sua identidade em rascunho. A etapa de gestão de lojas abaixo está publicada.
-- Cadastro LB London preparado na interface com nome `LB London` e slug
-  `lb-london`, disponível no banco. Ainda não submetido: responsável solicitado
-  ao usuário, com opção de usar a conta existente `zalentec@gmail.com`.
-  Referência visual também solicitada; sugerida base provisória marinho/dourado.
-  Não inferir segmento, contatos, perfis sociais ou logo oficial.
+- Objetivo atual autorizado: cadastrar a Editora Rochedo da igreja pelo admin
+  geral e iniciar a identidade em rascunho. O usuário substituiu a solicitação
+  da LB London antes de qualquer cadastro; LB London continua case futuro.
+- Formulário preparado com nome `Editora Rochedo` e slug `editora-rochedo`,
+  disponível no banco. Ainda não submetido: responsável solicitado ao usuário,
+  com opção de usar a conta existente `zalentec@gmail.com`. O usuário vai
+  informar a identidade existente; não aplicar a paleta provisória sugerida
+  anteriormente para LB London. Não inventar logo, contatos ou perfis sociais.
 - Implementado: cadastro atômico/idempotente, responsável Auth existente,
   rascunho, prévia privada, publicação/desativação pelo dono, template neutro e
   identidade por loja nas páginas compartilhadas. Sem criação de lojas reais.
@@ -33,7 +34,7 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
   cobertura configurados, build Next.js 16.3.8, scanner de segredos (incluindo
   arquivos novos adicionados ao index) e diff check aprovados. Testes SQL
   locais incluem cadastros simultâneos, atomicidade, idempotência e Data API.
-- Próximo passo exato: receber a escolha do responsável da LB London, conferir
+- Próximo passo exato: receber a escolha do responsável da Editora Rochedo, conferir
   novamente se o slug está livre, preencher o e-mail e concluir pela interface
   `/platform/lojas/nova`. Personalizar, salvar e conferir a prévia privada;
   manter em preparação nesta solicitação de início de identidade. Nenhuma
@@ -41,7 +42,22 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Credenciais, vendas, catálogos comerciais e integrações reais preservados.
 - Guia de continuidade: `docs/work-context/IDE_HANDOFF.md`.
 
-## LB London — cadastro preparado (19/10/2026)
+## Editora Rochedo — cadastro preparado (19/10/2026)
+
+- Correção explícita do usuário: criar a loja para a Editora Rochedo da igreja,
+  em substituição à LB London; informou que fornecerá a identidade existente.
+- Interface atualizada para `Editora Rochedo` / `editora-rochedo`, e-mail vazio.
+  Consulta no projeto correto confirmou o slug livre e somente Brasil Drones
+  ativa. Não houve criação de nenhuma das duas lojas nem POST de cadastro.
+- Pergunta pendente: conta existente responsável pela Editora Rochedo. Depois,
+  concluir o cadastro e aplicar as referências de identidade fornecidas pelo
+  responsável, sempre como rascunho/prévia privada. Sem ativação pública,
+  integração de ERP, pagamentos ou cópia comercial nesta solicitação.
+
+## LB London — preparo inicial substituído (19/10/2026)
+
+- Este preparo foi substituído pelo pedido de Editora Rochedo acima; não
+  retomar o cadastro LB London sem nova solicitação explícita.
 
 - Solicitação explícita: cadastrar LB London e iniciar a identidade pelo admin
   geral. Não inclui ativação pública, configuração Mercos, pagamentos ou cópia
