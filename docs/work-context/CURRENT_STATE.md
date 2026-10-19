@@ -7,8 +7,8 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 ## Snapshot
 
 - Atualizado em: 2026-10-19
-- Frente mais recente: conexão Zalen Tech carregada e acesso ao projeto
-  restabelecido; consulta confirmou que a conta dona ainda não existe no Auth.
+- Frente mais recente: conta mostrada pelo responsável identificada no projeto
+  Leehov Academy; consulta ao Auth da Zalen Shop continua sem a conta dona.
   Primeira etapa do Platform Admin implementada e validada em código; conta
   dona e publicação pendentes, conforme blocos de 19/10 e 16/10 abaixo.
 - Branch desta implementação: `codex/platform-admin-access`, criada a partir de
@@ -32,6 +32,17 @@ tokens, senhas, chaves, payloads sensíveis ou qualquer outro segredo aqui.
 - Integrações externas passam por services/connectors server-side e seguem a pesquisa oficial documentada.
 
 ## Reconferência das conexões Supabase (19/10/2026)
+
+- Conferência da captura de usuários: o painel exibido é Leehov Academy
+  (`jgxkenqfpknjcsbpcata`), conforme título e cabeçalho lidos no navegador.
+  A conta indicada existe nesse projeto. Uma nova consulta pelo e-mail exato
+  no projeto da Zalen Shop (`xtwobxfepsdfjrtducqb`) retornou zero usuários.
+  Usuários Auth são específicos de cada projeto; não copiar IDs nem atribuir
+  papéis no projeto Leehov para concluir o acesso à Zalen Shop.
+- Próximo passo da conta: entrar no painel Supabase com acesso à organização
+  Zalen Tech e criar a conta autorizada em Authentication → Users do projeto
+  `zalen.shop`. Preservar as contas Leehov. Nenhuma escrita no Supabase,
+  alteração de senha, troca de conta no navegador ou publicação foi executada.
 
 - Atualização após reabertura da conversa: Zalen Tech agora está disponível.
   A listagem confirmou `zalen.shop` (`xtwobxfepsdfjrtducqb`) saudável e a
